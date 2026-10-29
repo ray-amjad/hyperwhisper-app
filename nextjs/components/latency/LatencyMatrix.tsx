@@ -19,7 +19,15 @@ import {
   snapshotRowTops,
 } from "@/lib/flip-rows";
 import { regionCity } from "@/lib/latency/fly-regions";
-import { TEXT_LINK } from "@/components/text-link";
+import {
+  GLASS,
+  GLASS_ON,
+  LABEL,
+  SEG,
+  SEG_ITEM,
+  SEG_OFF,
+  SEG_ON,
+} from "@/components/landing/dusk-pages";
 import { isRecord } from "@/src/lib/type-guards";
 
 const METRICS = [
@@ -90,7 +98,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [byModel, setByModel] = useState(false);
   const [sortRegion, setSortRegion] = useState<string | null>(null);
   const [pinnedVendor, setPinnedVendor] = useState<string | null>(null);
-  const [hover, setHover] = useState<{ vendor: string; region: string } | null>(null);
+  const [hover, setHover] = useState<{ vendor: string; region: string } | null>(
+    null,
+  );
   const [homeRegion, setHomeRegion] = useState<string | null>(null);
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [pickingRegion, setPickingRegion] = useState(false);
@@ -142,7 +152,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           regionPickedByUser.current ||
           !isRecord(result) ||
           typeof result.region !== "string"
-        ) return;
+        )
+          return;
         setHomeRegion(result.region);
         setHomeCity(
           typeof result.city === "string"
@@ -186,7 +197,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // announcing "Showing Frankfurt" while no column, cell or picker entry
   // matches, and nothing can ever reconcile the two. `homeRegion` itself is
   // kept, so switching back to a bucket that has it restores the highlight.
-  const activeHomeRegion = homeRegion && regions.includes(homeRegion) ? homeRegion : null;
+  const activeHomeRegion =
+    homeRegion && regions.includes(homeRegion) ? homeRegion : null;
 
   // Exactly the same rule for the row-order pick, and for exactly the same
   // reason: a sort region that this bucket's axis does not have scores every
@@ -195,7 +207,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // sorted by a city. Both the comparator and the label read this, never
   // `sortRegion` directly; `sortRegion` is still remembered so returning to a
   // bucket that has it restores the order.
-  const activeSortRegion = sortRegion && regions.includes(sortRegion) ? sortRegion : null;
+  const activeSortRegion =
+    sortRegion && regions.includes(sortRegion) ? sortRegion : null;
 
   /**
    * Every vendor's cells for the metric on screen, plus its models' cells. Built
@@ -320,47 +333,76 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   }, [rows]);
 
   /**
-   * Green (fast / reliable) through amber to red (slow / failing). Colour only
-   * ever repeats what the printed number already says.
+   * Lavender, strongest where the number is best (fastest / most reliable) and
+   * fading as it gets worse. Colour only ever repeats what the printed number
+   * already says. The alpha tops out at .55 so white text keeps its contrast.
    */
   const cellStyle = (value: number) => {
     const span = scale.max - scale.min || 1;
     const ratio = Math.min(1, Math.max(0, (value - scale.min) / span));
-    const hue = 145 - ratio * 145;
     return {
-      backgroundColor: `hsl(${hue} 70% 22% / ${0.35 + ratio * 0.45})`,
-      color: "#f5f5f5",
+      backgroundColor: `rgba(196, 181, 253, ${(0.55 - ratio * 0.45).toFixed(2)})`,
+      color: "#ffffff",
     };
   };
+
+  /**
+   * The podium: the three providers with the best number for the metric on
+   * screen, in the region the table is sorted by or the visitor's own region,
+   * else by their global median. The same cells and the same "enough attempts"
+   * bar the table uses, cut to three.
+   */
+  const podiumRegion = activeSortRegion ?? activeHomeRegion;
+  const podium = useMemo(() => {
+    const scored: { vendor: (typeof vendorRows)[number]; score: number }[] = [];
+
+    for (const vendor of vendorRows) {
+      const cell = podiumRegion ? vendor.cells.get(podiumRegion) : null;
+      const score = podiumRegion
+        ? cell?.enough
+          ? cell.value
+          : null
+        : globalValue(vendor.cells);
+
+      if (score !== null) scored.push({ vendor, score });
+    }
+    scored.sort(
+      (a, b) =>
+        a.score - b.score || a.vendor.label.localeCompare(b.vendor.label),
+    );
+
+    return scored.slice(0, 3);
+  }, [vendorRows, regions, podiumRegion]);
 
   const format = (value: number) =>
     metric === "errorRate" ? `${value.toFixed(1)}%` : `${Math.round(value)}`;
 
+  const PILL =
+    "flex items-center gap-2 rounded-full border px-4 py-[9px] text-sm transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+  const metricUnit =
+    METRICS.find((entry) => entry.key === metric)?.unit ?? "ms";
+  const podiumWhere = podiumRegion
+    ? `in ${regionCity(podiumRegion)}`
+    : "overall";
+
   return (
-    <div className="mt-10">
+    <div>
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-6">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-4">
         <div className="flex flex-col gap-2">
-          <span
-            className="text-xs uppercase tracking-widest text-gray-400"
-            id="latency-metric-label"
-          >
+          <span className={LABEL} id="latency-metric-label">
             Metric
           </span>
           <div
             aria-labelledby="latency-metric-label"
-            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            className={SEG}
             role="group"
           >
             {METRICS.map((entry) => (
               <button
                 key={entry.key}
                 aria-pressed={metric === entry.key}
-                className={`rounded-sm px-3 py-1.5 text-sm transition ${
-                  metric === entry.key
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
+                className={`${SEG_ITEM} ${metric === entry.key ? SEG_ON : SEG_OFF}`}
                 type="button"
                 onClick={() => {
                   if (entry.key === metric) return;
@@ -376,26 +418,19 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <span
-            className="text-xs uppercase tracking-widest text-gray-400"
-            id="latency-bucket-label"
-          >
+          <span className={LABEL} id="latency-bucket-label">
             Clip length
           </span>
           <div
             aria-labelledby="latency-bucket-label"
-            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            className={SEG}
             role="group"
           >
             {DURATION_BUCKETS.map((entry) => (
               <button
                 key={entry}
                 aria-pressed={bucket === entry}
-                className={`rounded-sm px-3 py-1.5 text-sm transition ${
-                  bucket === entry
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
+                className={`${SEG_ITEM} ${bucket === entry ? SEG_ON : SEG_OFF}`}
                 type="button"
                 onClick={() => {
                   if (entry === bucket) return;
@@ -413,15 +448,13 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         {hasData ? (
           <>
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-400">
-                Detail
-              </span>
+              <span className={LABEL}>Detail</span>
               <button
                 aria-pressed={byModel}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                className={`${PILL} ${
                   byModel
-                    ? "border-purple-600 bg-purple-950/40 text-white"
-                    : "border-gray-800 bg-gray-900/60 text-gray-300 hover:text-white"
+                    ? "border-[rgba(196,181,253,.5)] bg-[rgba(196,181,253,.1)] text-white"
+                    : "border-[var(--dusk-line)] bg-white/[.05] text-[var(--dusk-mute)] hover:text-white"
                 }`}
                 type="button"
                 onClick={() => setByModel((open) => !open)}
@@ -429,18 +462,19 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 {byModel ? (
                   <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  <ChevronRight
+                    className="h-3.5 w-3.5 rtl:-scale-x-100"
+                    strokeWidth={1.5}
+                  />
                 )}
                 Break down by model
               </button>
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-400">
-                Row order
-              </span>
+              <span className={LABEL}>Row order</span>
               <button
-                className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
+                className={`${PILL} border-[var(--dusk-line)] bg-white/[.05] text-[var(--dusk-mute)] hover:text-white`}
                 type="button"
                 onClick={() => {
                   // Only a re-order may leave a snapshot behind: a stale one
@@ -463,34 +497,43 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           samples across all three buckets, so "no measurements yet" full stop
           would contradict it. */}
       {!hasData ? (
-        <div className="mt-8 rounded-lg border border-gray-800 bg-gray-900/50 p-10 text-center">
-          <p className="text-lg text-gray-300">
+        <div className={`mt-[22px] ${GLASS} p-10 text-center`}>
+          <p className="text-lg text-white">
             No measurements for this clip length yet.
           </p>
-          <p className="mt-2 text-sm text-gray-400">
-            Nothing has been recorded for &ldquo;{BUCKET_LABELS[bucket]}&rdquo; in
-            the last {data.windowDays} days. Pick another clip length above — this
-            page fills in as transcriptions run.
+          <p className="mt-2 text-sm text-[var(--dusk-mute)]">
+            Nothing has been recorded for &ldquo;{BUCKET_LABELS[bucket]}&rdquo;
+            in the last {data.windowDays} days. Pick another clip length above —
+            this page fills in as transcriptions run.
           </p>
         </div>
       ) : (
         <>
           {/* Region highlight */}
-          <div className="mt-6 text-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <MapPin className="h-4 w-4 text-purple-300" strokeWidth={1.5} />
+          <div className="mt-[22px] text-sm">
+            <div className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-full border border-[var(--dusk-line)] bg-[var(--dusk-glass)] px-4 py-2.5">
+              <MapPin
+                aria-hidden="true"
+                className="h-4 w-4 text-[var(--dusk-lav)]"
+                strokeWidth={1.5}
+              />
               {activeHomeRegion ? (
-                <span className="text-gray-300">
+                <span className="text-[var(--dusk-mute)]">
                   Showing{" "}
                   <span className="font-semibold text-white">
                     {homeCity ?? regionCity(activeHomeRegion)}
                   </span>
                 </span>
               ) : (
-                <span className="text-gray-400">Pick the region closest to you</span>
+                <span className="text-[var(--dusk-mute)]">
+                  Pick the region closest to you
+                </span>
               )}
+              <span aria-hidden="true" className="text-[var(--dusk-dim)]">
+                ·
+              </span>
               <button
-                className={TEXT_LINK}
+                className="rounded text-[var(--dusk-lav)] underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
                 type="button"
                 onClick={() => setPickingRegion((open) => !open)}
               >
@@ -499,20 +542,19 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </div>
             {/* The chip row grows open from 0fr (#702) instead of arriving at
                 full height in one frame. It sits under the flex row rather than
-                in it, so no row gap lands before the reveal; pt-5 is the old
-                gap-3 plus pt-2. */}
+                in it, so no row gap lands before the reveal; pt-4 is the gap. */}
             {pickingRegion ? (
               <div className="t-cell-reveal">
                 <div>
-                  <div className="flex flex-wrap gap-2 pt-5">
+                  <div className="flex flex-wrap gap-2 pt-4">
                     {regions.map((region) => (
                       <button
                         key={region}
                         aria-pressed={activeHomeRegion === region}
-                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                        className={`rounded-full border px-3 py-[7px] text-[13px] transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] ${
                           activeHomeRegion === region
-                            ? "border-purple-500 bg-purple-600/30 text-white"
-                            : "border-gray-700 text-gray-400 hover:text-white"
+                            ? "border-white bg-white text-[#0b0b14]"
+                            : "border-[var(--dusk-line)] text-[var(--dusk-mute)] hover:text-white"
                         }`}
                         type="button"
                         onClick={() => {
@@ -531,42 +573,88 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             ) : null}
           </div>
 
+          {/* Podium: the table's own best three for this metric, never more. */}
+          {podium.length > 0 ? (
+            <ol
+              aria-label={`Best three providers ${podiumWhere}`}
+              className="mt-[22px] grid grid-cols-1 gap-4 sm:grid-cols-3"
+            >
+              {podium.map((entry, index) => (
+                <li
+                  key={entry.vendor.vendor}
+                  className={`p-6 ${index === 0 ? GLASS_ON : GLASS}`}
+                >
+                  <span className={LABEL}>
+                    #{index + 1} {podiumWhere}
+                  </span>
+                  <p className="mt-2 text-xl font-semibold text-white">
+                    {entry.vendor.label}
+                  </p>
+                  <p className="mt-1.5 text-[34px] font-semibold leading-none tracking-[-0.035em] tabular-nums text-white md:text-[44px]">
+                    {metric === "errorRate"
+                      ? entry.score.toFixed(1)
+                      : Math.round(entry.score)}
+                    <small className="ms-1 text-base font-normal tracking-normal text-[var(--dusk-mute)]">
+                      {metricUnit}
+                    </small>
+                  </p>
+                  <div
+                    aria-hidden="true"
+                    className="mt-3.5 h-1.5 rounded-full bg-white/[.07]"
+                  >
+                    <span
+                      className="block h-full rounded-full bg-[image:var(--dusk-accent)]"
+                      style={{
+                        width: `${Math.max(4, Math.min(100, (entry.score / (scale.max || 1)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+
           {/* Matrix */}
           <div
             ref={matrixRegion}
             aria-label="Latency matrix"
-            className="t-resize mt-6 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            className={`t-resize mt-[18px] overflow-x-auto overflow-y-hidden ${GLASS} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]`}
             role="region"
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
             tabIndex={0}
           >
-            <table ref={matrixTable} className="w-full border-collapse text-sm">
+            <table
+              ref={matrixTable}
+              className="w-full border-separate border-spacing-1.5 p-1 text-sm"
+            >
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
+                  <th className="sticky start-0 z-20 bg-[#0b0c17] px-3 py-3 text-start text-[11.5px] font-normal uppercase tracking-[1.3px] text-[var(--dusk-dim)]">
                     {byModel ? "Provider / model" : "Provider"}
                   </th>
                   {regions.map((region) => (
                     <th
                       key={region}
-                      className={`px-3 py-3 text-center text-xs font-medium transition ${
+                      className={`rounded-[9px] px-2 py-3 text-center text-[11.5px] font-normal uppercase tracking-[1.3px] transition-colors motion-reduce:transition-none ${
                         activeHomeRegion === region
-                          ? "bg-purple-950/40 text-purple-200"
-                          : "text-gray-400"
-                      } ${hover?.region === region ? "bg-gray-900" : ""}`}
+                          ? "bg-[rgba(196,181,253,.1)] text-white"
+                          : "text-[var(--dusk-dim)]"
+                      } ${hover?.region === region ? "bg-white/[.05]" : ""}`}
                       scope="col"
                     >
                       <button
-                        className="whitespace-nowrap transition hover:text-white"
+                        className="whitespace-nowrap rounded transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
                         title={`Sort providers by ${regionCity(region)}`}
                         type="button"
                         onClick={() => {
                           snapshotForSort();
-                          setSortRegion((current) => (current === region ? null : region));
+                          setSortRegion((current) =>
+                            current === region ? null : region,
+                          );
                         }}
                       >
                         {regionCity(region)}
-                        <span className="block text-xs uppercase tracking-wider text-gray-400">
+                        <span className="block text-[11px] tracking-wider text-[var(--dusk-dim)]">
                           {region}
                         </span>
                       </button>
@@ -586,38 +674,38 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                       }}
                       className={
                         pinned
-                          ? "bg-purple-950/20"
+                          ? "bg-[rgba(196,181,253,.08)]"
                           : hover?.vendor === row.vendor
-                            ? "bg-gray-900/60"
+                            ? "bg-white/[.03]"
                             : ""
                       }
                     >
                       <th
-                        className={`sticky left-0 z-10 whitespace-nowrap px-4 py-2 text-left ${
+                        className={`sticky start-0 z-10 whitespace-nowrap rounded-[9px] px-3 py-2 text-start ${
                           row.isModel ? "font-normal" : "font-medium"
                         } ${
                           pinned
-                            ? "bg-purple-950/60 text-white"
-                            : `bg-gray-950 ${row.isModel ? "text-gray-400" : "text-gray-200"}`
+                            ? "bg-[#1a1830] text-white"
+                            : `bg-[#0b0c17] ${row.isModel ? "text-[var(--dusk-mute)]" : "text-white"}`
                         }`}
                         scope="row"
                       >
                         {row.isModel ? (
-                          <span className="flex items-center gap-2 pl-6">
+                          <span className="flex items-center gap-2 ps-6">
                             <span
                               aria-hidden="true"
-                              className="h-4 w-px shrink-0 bg-gray-800"
+                              className="h-4 w-px shrink-0 bg-[var(--dusk-line)]"
                             />
                             {row.label}
                             {row.isDefaultModel ? (
-                              <span className="rounded-full border border-purple-500/40 px-1.5 text-xs uppercase tracking-wider text-purple-300">
+                              <span className="rounded-full border border-[rgba(196,181,253,.4)] px-1.5 text-[11px] uppercase tracking-wider text-[var(--dusk-lav)]">
                                 default
                               </span>
                             ) : null}
                           </span>
                         ) : (
                           <button
-                            className="flex items-center gap-2 transition hover:text-purple-300"
+                            className="flex items-center gap-2 rounded transition-colors hover:text-[var(--dusk-lav)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
                             title="Pin this provider"
                             type="button"
                             onClick={() =>
@@ -640,8 +728,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                           return (
                             <td
                               key={region}
-                              className={`t-heat-cell px-3 py-2 text-center text-gray-700 ${
-                                isHome ? "bg-purple-950/20" : ""
+                              className={`t-heat-cell rounded-[9px] px-2 py-[11px] text-center text-[var(--dusk-dim)] ${
+                                isHome ? "bg-[rgba(196,181,253,.06)]" : ""
                               }`}
                               title={
                                 cell
@@ -661,12 +749,14 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         return (
                           <td
                             key={region}
-                            className={`t-heat-cell px-3 py-2 text-center font-mono tabular-nums ${
-                              isHome ? "ring-1 ring-inset ring-purple-500/40" : ""
+                            className={`t-heat-cell rounded-[9px] px-2 py-[11px] text-center tabular-nums ${
+                              isHome ? "ring-1 ring-inset ring-white/50" : ""
                             }`}
                             style={cellStyle(cell.value)}
                             title={`${row.label} in ${regionCity(region)} — ${cell.samples.toLocaleString()} attempts`}
-                            onMouseEnter={() => setHover({ vendor: row.vendor, region })}
+                            onMouseEnter={() =>
+                              setHover({ vendor: row.vendor, region })
+                            }
                             onMouseLeave={() => setHover(null)}
                           >
                             {/* A new key per metric and clip length remounts the
@@ -687,12 +777,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </table>
           </div>
 
-          <p className="mt-4 text-sm text-gray-400">
+          <p className="mt-3.5 text-center text-[13.5px] leading-[1.6] text-[var(--dusk-mute)]">
             {metric === "errorRate"
               ? "Share of attempts that failed, including ones a fallback provider rescued."
               : "Milliseconds, provider call only."}{" "}
-            A cell needs at least {minSamples.toLocaleString()} attempts to show a
-            number
+            A cell needs at least {minSamples.toLocaleString()} attempts to show
+            a number
             {metric === "p99"
               ? " — p99 asks for more of them than the other metrics, because a 99th percentile drawn from a small sample is really just its slowest call"
               : ""}
