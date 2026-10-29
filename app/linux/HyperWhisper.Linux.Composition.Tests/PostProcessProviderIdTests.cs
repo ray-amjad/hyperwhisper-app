@@ -34,16 +34,32 @@ static class PostProcessProviderIdTests
                 new CloudPostProcessingService(new FixedApiKey(), new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) }),
                 settings,
                 database);
-            var adapter = new LinuxLocalApiPostProcessor(router, new ModeRepository(database));
+            var modes = new ModeRepository(database);
+            var adapter = new LinuxLocalApiPostProcessor(router, modes);
 
             // (a) an applied OpenAI run answers `provider: "openai"`, not "OpenAI · gpt-…".
             var openAi = await adapter.ProcessAsync(
                 new PostProcessRequest("raw words", null, null, "Fix it", "openai", "gpt-5.6-luna"),
                 CancellationToken.None);
             Assert(handler.Calls == 1, "the OpenAI run never reached the stub handler");
+            Assert(handler.Hosts.SetEquals(["api.openai.com"]), $"the OpenAI run went to {string.Join(",", handler.Hosts)}");
             Assert(openAi.PostProcessed && openAi.Text == "Hello Ray", $"the OpenAI run was not applied: {openAi.Text}");
             Assert(openAi.Provider == "openai", $"/post-process provider is '{openAi.Provider}', not 'openai'");
             Assert(!openAi.Provider.Contains(" · ", StringComparison.Ordinal), "/post-process provider is a display label");
+
+            // The Mode's own spelling comes back, as on Windows and macOS: a mode synced from macOS
+            // stores `hyperwhisper` and must not read `hyperwhispercloud` back.
+            var synced = new Mode
+            {
+                Id = Guid.NewGuid(), Name = "Synced", ProviderType = "cloud", PostProcessingMode = 1,
+                PostProcessingProvider = "hyperwhisper", CloudPostProcessingModel = "groq:openai/gpt-oss-120b",
+            };
+            await modes.UpsertAsync(synced);
+            var cloud = await adapter.ProcessAsync(
+                new PostProcessRequest("raw words", synced.Id.ToString("D"), null, null, null, null),
+                CancellationToken.None);
+            Assert(cloud.PostProcessed && cloud.Text == "Hello Ray", $"the HyperWhisper Cloud run was not applied: {cloud.Text}");
+            Assert(cloud.Provider == "hyperwhisper", $"/post-process provider is '{cloud.Provider}' for a mode storing 'hyperwhisper'");
 
             // (b) a local LLM run: the processor's result names `local_llm`, and so does /post-process.
             var local = await router.ProcessAsync(
@@ -66,6 +82,13 @@ static class PostProcessProviderIdTests
                 new TranscriptionWorkflowRequest(SelectedMode: mode));
             Assert(history.Updated?.PostProcessingProvider == "openai",
                 $"the row stores '{history.Updated?.PostProcessingProvider}', not 'openai'");
+            var syncedRow = new Transcript { Status = TranscriptStatus.Processing, Text = "processing" };
+            var syncedHistory = new FakeHistory(syncedRow);
+            await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
+                "raw words", syncedRow, synced, null, router, new FakeTextInjection(), syncedHistory,
+                new TranscriptionWorkflowRequest(SelectedMode: synced));
+            Assert(syncedHistory.Updated?.PostProcessingProvider == "hyperwhisper",
+                $"the row stores '{syncedHistory.Updated?.PostProcessingProvider}' for a mode storing 'hyperwhisper'");
             SqliteConnection.ClearAllPools();
         }
         finally
@@ -106,20 +129,25 @@ static class PostProcessProviderIdTests
     {
         public ValueTask<PostProcessingCredential?> GetCredentialAsync(
             CloudPostProcessingProvider provider, Guid? customEndpointId, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<PostProcessingCredential?>(new(ApiKey: "unused"));
+            ValueTask.FromResult<PostProcessingCredential?>(new(ApiKey: "unused", LicenseKey: "unused-licence"));
     }
 
     private sealed class OpenAiStub : HttpMessageHandler
     {
         public int Calls { get; private set; }
+        public HashSet<string> Hosts { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++;
-            var body = JsonSerializer.Serialize(new
-            {
-                choices = new[] { new { message = new { content = "<<CLEANED>>Hello Ray<<END>>" }, finish_reason = "stop" } },
-            });
+            Hosts.Add(request.RequestUri?.Host ?? "");
+            // OpenAI answers in chat-completions shape; the HyperWhisper Cloud backend with `corrected`.
+            var body = request.RequestUri?.Host == "api.openai.com"
+                ? JsonSerializer.Serialize(new
+                {
+                    choices = new[] { new { message = new { content = "<<CLEANED>>Hello Ray<<END>>" }, finish_reason = "stop" } },
+                })
+                : JsonSerializer.Serialize(new { corrected = "Hello Ray" });
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
