@@ -3,7 +3,7 @@
 /**
  * `pnpm run cf:build`: the Cloudflare Workers build (DEPLOY-CLOUDFLARE.md).
  *
- * Workers Builds has no runtime secrets: they are synced from Infisical to the
+ * The build has no runtime secrets: they are synced from Infisical to the
  * Worker and exist only at request time. But `next build` imports every route
  * to collect page data, and the Stripe and Resend SDKs (and others) throw at
  * import without a key. So any server variable the build environment does not
@@ -35,7 +35,7 @@ export const PLACEHOLDER_MARK = "cf-build-placeholder";
 /** Variables some module needs at import time; never real values. */
 export const BUILD_PLACEHOLDERS = Object.freeze({
   // Not a secret: the real public origin, so nothing rendered at build can
-  // point anywhere else. Override with a Workers Builds variable if needed.
+  // point anywhere else. Override in nextjs-deploy.yml if needed.
   BETTER_AUTH_URL: "https://www.hyperwhisper.com",
   STRIPE_SECRET_KEY: `sk_${PLACEHOLDER_MARK}`,
   STRIPE_WEBHOOK_SECRET: `whsec_${PLACEHOLDER_MARK}`,

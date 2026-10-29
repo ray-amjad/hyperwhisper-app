@@ -1,6 +1,6 @@
 /**
  * scripts/cf-build.mjs hands `next build` fake values for the server secrets
- * Workers Builds does not have. Every fake must be recognisable (the script
+ * the build step does not have. Every fake must be recognisable (the script
  * fails the build if one reaches .open-next/), and none may look real.
  */
 import assert from "node:assert/strict";

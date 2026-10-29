@@ -185,9 +185,9 @@ git pull --ff-only origin main    # the Action pushed the bump + appcast
 <important>
 Publishing the release does **not** deliver it. The Windows app polls
 `https://www.hyperwhisper.com/appcast-windows.xml` (`UpdateService.cs`, `AppcastUrl`),
-which is a static file in `nextjs/public/` — it only reaches users when **the Cloudflare
-Workers Build deploys the Next.js site** (Worker `hyperwhisper-web`, see
-`nextjs/DEPLOY-CLOUDFLARE.md`). The Action commits the appcast to the repo and stops there.
+which is a static file in `nextjs/public/` — it only reaches users when **`nextjs-deploy.yml`
+deploys the Next.js site** (Worker `hyperwhisper-web`, see
+`nextjs/DEPLOY-CLOUDFLARE.md`). The Action merges the appcast and starts that deploy (`gh workflow run`).
 A release can go green, with signed installers on GitHub and R2, while being delivered
 to nobody.
 </important>
@@ -208,9 +208,8 @@ update. Diagnose the deploy side:
 cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1 | head -20
 ```
 
-A last production deploy older than the release commit is the smoking gun (the
-Workers Builds tab of `hyperwhisper-web` in the Cloudflare dashboard shows the build
-log). Report it
+A last production deploy older than the release commit is the smoking gun
+(`gh run list -w nextjs-deploy.yml -L 5` shows the deploy runs and their logs). Report it
 to the user and ask before force-deploying — promoting to production is an
 outward-facing action affecting the live site, and the site may contain unrelated
 unshipped work.
@@ -232,8 +231,8 @@ Tell the user:
 | Authenticode signing fails | SSL.com eSigner credentials (`ES_*`) — the workflow computes TOTP itself because CodeSignTool's internal TOTP fails with this secret. |
 | Build fails on the Rust core | `shared-core-rs/rust-toolchain.toml` pins the toolchain; the ARM64 cross target is added in the workflow. A missing DLL hard-errors via the `EnsureRustCoreDll` target. |
 | PR merge fails at the end | The bump lands via auto-merged PR (`main` requires PRs). It retries 5×; check the `release/windows-vX.Y.Z` PR and merge manually. |
-| Release is green but users don't see the update | Step 10. Almost always a stale or failed Workers Build of `hyperwhisper-web`. |
-| Workers Build is red | Read the build log in the Cloudflare dashboard (Workers & Pages → `hyperwhisper-web` → Builds). There are no per-PR previews; `nextjs-ci` is the pre-merge gate. |
+| Release is green but users don't see the update | Step 10. Almost always a missing or failed `nextjs-deploy` run. |
+| `nextjs-deploy` is red | Read its log: `gh run view --log-failed`. There are no per-PR previews; `nextjs-ci` is the pre-merge gate. |
 
 ## Key Files
 

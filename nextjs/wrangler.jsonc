@@ -3,7 +3,7 @@
 // Secrets are authored in Infisical and synced to this Worker.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Must equal the Worker that Workers Builds is connected to.
+  // Must equal the Worker that nextjs-deploy.yml deploys (and the Infisical sync).
   "name": "hyperwhisper-web",
   // Custom entry: wraps .open-next/worker.js to add the cron handler.
   "main": "worker.ts",
@@ -31,7 +31,7 @@
   },
   // PlanetScale Postgres through Hyperdrive. Create the config with caching
   // disabled (see DEPLOY-CLOUDFLARE.md) and replace the placeholder BEFORE
-  // this branch merges, or the first Workers Build deploy fails.
+  // this branch merges, or the first deploy fails.
   // Local dev: set CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in
   // the shell; never add localConnectionString here.
   "hyperdrive": [
