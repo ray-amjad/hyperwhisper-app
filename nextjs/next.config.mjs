@@ -9,7 +9,7 @@ import { securityHeaderRoutes } from './config/security-headers.mjs';
 
 /**
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.
- * Workers Builds sets it: runtime secrets (Infisical -> the Worker) do not
+ * cf:build sets it: runtime secrets (Infisical -> the Worker) do not
  * exist at build time, and src/env/server.mjs validates again at runtime.
  */
 !process.env.SKIP_ENV_VALIDATION && (await import("./src/env/server.mjs"));
@@ -50,9 +50,9 @@ const nextConfig = {
     outputFileTracingIncludes: {
         '/*': ['./node_modules/pg-cloudflare/**/*'],
     },
-    // Sentry release: Workers Builds exposes the commit at build time only.
-    ...(process.env.WORKERS_CI_COMMIT_SHA
-        ? { env: { SENTRY_RELEASE: process.env.WORKERS_CI_COMMIT_SHA } }
+    // Sentry release: nextjs-deploy.yml sets the commit at build time only.
+    ...(process.env.SENTRY_RELEASE
+        ? { env: { SENTRY_RELEASE: process.env.SENTRY_RELEASE } }
         : {}),
     experimental: {
         // app/global-not-found.tsx serves unmatched URLs (/de/zzz) on their own

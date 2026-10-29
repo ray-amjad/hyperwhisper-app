@@ -1,9 +1,9 @@
 # Deploying the website on Cloudflare Workers
 
 The site (`nextjs/`) runs as the Cloudflare Worker **`hyperwhisper-web`**, built
-with [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Workers
-Builds (Cloudflare's git integration) builds and deploys it on every push to
-`main`. There are no per-PR previews; `nextjs-ci` (typecheck, tests and an
+with [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). GitHub
+Actions (`.github/workflows/nextjs-deploy.yml`) builds, migrates and deploys it
+on every push to `main`. There are no per-PR previews; `nextjs-ci` (typecheck, tests and an
 OpenNext build) is the pre-merge gate.
 
 | File | Role |
@@ -14,10 +14,9 @@ OpenNext build) is the pre-merge gate.
 | `config/cron-jobs.mjs` | cron expression -> internal route |
 | `config/mintlify-rewrites.mjs` | `/docs` and friends -> Mintlify (was `vercel.json`) |
 | `scripts/cf-build.mjs` | `pnpm run cf:build`: OpenNext build with build-only secret placeholders; drops the database pages' empty build-time renders from the ISR cache |
-| `scripts/wait-for-migrations.mjs` | deploy gate: waits for `nextjs-migrate` to succeed on a commit that ships a migration |
 | `public/_headers` | security + CORS headers for static files (appcasts), and the one-year `immutable` cache on hashed `/_next/static/*` files |
 | `src/db/index.ts` | per-request Drizzle client over the `HYPERDRIVE` binding |
-| `../.github/workflows/nextjs-migrate.yml` | `db:migrate` on push to `main` |
+| `../.github/workflows/nextjs-deploy.yml` | build, `db:migrate`, deploy on push to `main` |
 
 ## 1. One-time Cloudflare setup (owner)
 
@@ -43,21 +42,25 @@ this Worker is about 4.5 MiB gzipped).
    `npx wrangler r2 bucket create hyperwhisper-web-opennext-cache`.
    Add a lifecycle rule that deletes objects older than 30 days: cache keys
    include the build id, so every deploy leaves the previous set behind.
-3. **Workers Builds**: Workers & Pages -> Create -> Import a repository ->
-   `ray-amjad/hyperwhisper-app`, Worker name `hyperwhisper-web`.
+3. **Deploys: GitHub Actions** (`.github/workflows/nextjs-deploy.yml`). On
+   every push to `main` that touches `nextjs/**` or `shared-types/**` (or by
+   hand: Actions -> nextjs-deploy -> Run workflow, branch `main`), one job
+   runs, in order:
 
-   | Setting | Value |
-   | --- | --- |
-   | Root directory | `nextjs` |
-   | Production branch | `main` |
-   | Non-production branch builds | **off** |
-   | Build command | `npx --yes pnpm@10.33.0 install && npx --yes pnpm@10.33.0 run validate-appcasts && npx --yes pnpm@10.33.0 run cf:build` |
-   | Deploy command | `node scripts/wait-for-migrations.mjs && npx --yes pnpm@10.33.0 exec opennextjs-cloudflare deploy` |
-   | Build watch paths (include) | `nextjs/*`, `shared-types/*` |
+   1. `pnpm install`, `pnpm run validate-appcasts`, `pnpm run cf:build`
+   2. `pnpm run db:migrate` (section 2)
+   3. `pnpm exec opennextjs-cloudflare deploy`
 
    Use `opennextjs-cloudflare deploy`, never plain `wrangler deploy`: it fills
    the R2 cache with the prerendered pages before uploading the Worker.
-   `wait-for-migrations.mjs` must stay in front of it (section 2).
+   Workers Builds (Cloudflare's git integration) is **disconnected**; with
+   both on, every push would deploy twice.
+
+   The release workflows (`macos-release`, `windows-release`,
+   `linux-release`) merge their appcast PR with `github.token`, and a push
+   made with that token starts no other workflow. So each one runs
+   `gh workflow run nextjs-deploy.yml` after the merge; without that, a
+   release would never reach the live appcast.
 
    The build has no database, so `cf:build` removes the build-time renders
    of `/en/blog`, `/en/blog/<code post>`, `/en/latency`,
@@ -70,25 +73,21 @@ this Worker is about 4.5 MiB gzipped).
    than an empty page. A new database-backed static page must be added to
    `DB_RENDERED_ROUTES` in `scripts/cf-build.mjs`.
 
-   **Build variables** (Settings -> Build -> Variables; these exist only during
-   the build, and `NEXT_PUBLIC_*` values are inlined into the browser bundle):
+   **Build values** (set in the workflow; `NEXT_PUBLIC_*` are inlined into
+   the browser bundle, so they must be public):
 
    | Name | Value |
    | --- | --- |
-   | `SKIP_DEPENDENCY_INSTALL` | `1` (nextjs/ has no committed lockfile; the build command installs with pnpm) |
-   | `NODE_VERSION` | `22` |
    | `NEXT_PUBLIC_ENVIRONMENT` | `production` |
-   | `NEXT_PUBLIC_POSTHOG_KEY` | the public PostHog project key |
-   | `NEXT_PUBLIC_POSTHOG_HOST` | optional |
+   | `NEXT_PUBLIC_POSTHOG_KEY` | the public PostHog project key, from the `Production` environment |
    | `NEXT_PUBLIC_SITE_URL` | `https://www.hyperwhisper.com` |
-   | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | `postgres://unused:unused@127.0.0.1:5432/unused` (not a secret; see below) |
+   | `SENTRY_RELEASE` | the commit SHA |
+   | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | `postgres://unused:unused@127.0.0.1:5432/unused` (deploy step only; not a secret, see below) |
 
    `cf:build` sets `SKIP_ENV_VALIDATION=1` and fake values for the server
-   secrets some SDKs need at import time (Stripe, Resend, Upstash). They never
-   reach the Worker; the script fails the build if one shows up in
-   `.open-next/`. Infisical's Cloudflare sync writes Worker secrets, not build
-   variables, so the `NEXT_PUBLIC_*` values above are set in the dashboard
-   (they are public anyway).
+   secrets some SDKs need at import time (Stripe, Resend, Upstash). The build
+   step is given no real secret, so none can be inlined; the script also
+   fails the build if a placeholder shows up in `.open-next/`.
 
    The dummy Hyperdrive string is required: `opennextjs-cloudflare deploy`
    first starts wrangler's local platform proxy to read the bindings, and that
@@ -114,37 +113,31 @@ this Worker is about 4.5 MiB gzipped).
    - Not needed on the Worker: `PLANETSCALE_DATABASE_URL` (the Worker uses
      Hyperdrive; it is only a fallback), `DEV_BYPASS_KEY`.
    - Plain var in `wrangler.jsonc`, not a secret: `DEPLOY_ENV=production`.
-5. **GitHub `Production` environment** (required before merge):
-   - It must hold `PLANETSCALE_DATABASE_URL`, synced from Infisical (add the
-     name to the Infisical -> GitHub Production sync). It is not there today.
-     Without it `nextjs-migrate` fails, and the deploy gate then blocks every
-     deploy of a commit that touches `nextjs/drizzle/**` or `nextjs/src/db/**`,
-     starting with the merge of this migration (it changes `src/db/index.ts`).
-   - Restrict its deployment branches to `main` (Settings -> Environments ->
-     Production -> Deployment branches and tags -> Selected branches -> `main`).
-     The workflow's job already runs only on `refs/heads/main`; the
-     environment rule makes sure no other workflow or branch can read the
-     production database URL.
+5. **GitHub `Production` environment**, filled by the Infisical ->
+   GitHub sync `prod-github-sync` (prod, path `/`). The deploy reads:
+   - `PLANETSCALE_DATABASE_URL` (migrations)
+   - `CLOUDFLARE_API_TOKEN`: an account API token named
+     "GitHub Actions - hyperwhisper-web deploy", scoped to the Ray Amjad LTD
+     account, with Workers Scripts: Edit, Workers R2 Storage: Edit,
+     Hyperdrive: Edit and Account Settings: Read
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `NEXT_PUBLIC_POSTHOG_KEY`
+
+   Its deployment branches are restricted to `main`, so no other branch can
+   read the production database URL or the deploy token.
 
 ## 2. Migrations
 
-`nextjs-migrate.yml` runs `pnpm run db:migrate` on pushes to `main` that touch
-`nextjs/drizzle/**` or `nextjs/src/db/**` (or by hand: Actions ->
-nextjs-migrate -> Run workflow, branch `main`; any other branch is skipped).
-It starts in parallel with the Workers Build, so the deploy command first runs
-`scripts/wait-for-migrations.mjs`. When the commit touches those paths, it
-polls the public GitHub API for the `nextjs-migrate` run on that commit and
-deploys only after it concluded `success`. A failed run, no run within
-4 minutes, or a run still going after 10 minutes fails the deploy, and the old
-Worker keeps serving, as a failed `db:migrate` did on Vercel. To recover, fix
-and re-run the migration on `main`, then retry the Workers build. The check
-diffs the commit against its first parent, which matches squash merges; a
-direct push of several commits is checked by its last commit only.
+`nextjs-deploy.yml` runs `pnpm run db:migrate` on every deploy, after the
+build and before the Worker is replaced (Drizzle skips migrations that already
+ran, so a deploy with none is a no-op). A failed build never touches the
+database; a failed migration stops the deploy and the old Worker keeps
+serving, as a failed `db:migrate` did on Vercel. To recover, fix it on `main`,
+or re-run the workflow.
 
 Expand-first migrations (schema first, the code that needs it later) are
-still the safer habit: the gate stops a deploy against a missing schema, but
-it does not make the migration and the new code switch over at the same
-instant.
+still the safer habit: the migration lands seconds before the new Worker, and
+requests already in flight on the old Worker see the new schema.
 
 ## 3. Cron
 
@@ -174,13 +167,12 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
   Commit `"jsx": "react-jsx"`: with `"preserve"` the tsx-run test suite fails
   with `React is not defined`.
 
-## 5. Cutover (DNS for hyperwhisper.com is already on Cloudflare)
+## 5. Cutover (done 2026-10-29; kept for reference)
 
 1. Before merging: the real Hyperdrive id is in `wrangler.jsonc`;
    `PLANETSCALE_DATABASE_URL` is in the GitHub `Production` environment
    (synced from Infisical) and that environment is limited to `main`
-   (section 1, step 5). Merge, check that `nextjs-migrate` succeeded (the
-   deploy waits for it), watch the Workers Build, then smoke-test
+   (section 1, step 5). Merge, watch the `nextjs-deploy` run, then smoke-test
    `https://hyperwhisper-web.<account>.workers.dev`: `/en`, `/de/zzz` (exactly
    one `noindex`), `/docs`, `/appcast.xml` (CORS header), `/en/blog`,
    `/en/latency`, sign-in, `/api/geo/nearest-region?regions=iad,fra`, and

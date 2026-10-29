@@ -264,9 +264,9 @@ cat nextjs/public/linux-latest.json
 
 <important>
 `linux-latest.json` is a static file in `nextjs/public/`, so the download page only
-shows the new version once **the Cloudflare Workers Build deploys the Next.js site**
-(Worker `hyperwhisper-web`, see `nextjs/DEPLOY-CLOUDFLARE.md`). The Action commits the
-file and stops there. Same failure mode as the Windows appcast: the release can be
+shows the new version once **`nextjs-deploy.yml` deploys the Next.js site**
+(Worker `hyperwhisper-web`, see `nextjs/DEPLOY-CLOUDFLARE.md`). The Action merges the
+file and starts that deploy (`gh workflow run`). Same failure mode as the Windows appcast: the release can be
 green and complete while the download page still advertises the old version.
 </important>
 

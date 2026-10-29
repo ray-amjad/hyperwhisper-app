@@ -10,7 +10,7 @@ import doShardedTagCache from "@opennextjs/cloudflare/overrides/tag-cache/do-sha
  * `force-static` with `revalidate`, and the add-blog-post webhook calls
  * `revalidatePath`, which needs a tag cache. Without a writable incremental
  * cache the pages would stay frozen at their build-time render, which has no
- * database (Workers Builds holds no DB credentials).
+ * database (the build step gets no DB credentials).
  *
  * No `withFilter(softTagFilter)` on the tag cache: it drops the `_N_T_` soft
  * tags that revalidatePath relies on.

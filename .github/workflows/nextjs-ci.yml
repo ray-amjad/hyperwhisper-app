@@ -1,7 +1,7 @@
 # Pre-merge gate for the marketing and billing app (nextjs/).
 #
 # nextjs/ had no gate of any kind. Its only check was the production deploy
-# (then Vercel, now the Cloudflare Workers Build), which runs AFTER the merge —
+# (then Vercel, now nextjs-deploy.yml), which runs AFTER the merge —
 # so a type error first surfaced as a red production deploy, and then held the website on the previous build while main
 # looked green. PR #429 did exactly that: `next build` type-checks
 # `nextjs/tests/**` as well as the app, a test read two catalog fields the
@@ -48,7 +48,7 @@ jobs:
 
       # `npm install`, not `npm ci`, and no dependency cache: nextjs/.gitignore
       # ignores package-lock.json, so this folder has no committed lockfile and
-      # the Workers Build resolves versions at install time too. Adding a
+      # the deploy resolves versions at install time too. Adding a
       # lockfile is its own change — see the install fix in PR #136 before you
       # try.
       - run: npm install --no-audit --no-fund
@@ -57,7 +57,7 @@ jobs:
 
   # The Cloudflare Workers bundle (nextjs/DEPLOY-CLOUDFLARE.md). The site has
   # no per-PR preview deploys, so this is the only pre-merge proof that the
-  # OpenNext build still succeeds. Same pnpm and command as Workers Builds;
+  # OpenNext build still succeeds. Same pnpm and commands as nextjs-deploy.yml;
   # no secrets: scripts/cf-build.mjs supplies build-only placeholders.
   cf-build:
     runs-on: ubuntu-latest

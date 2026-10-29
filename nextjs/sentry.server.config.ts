@@ -196,7 +196,7 @@ export function initServerErrorTracking(
     dsn,
     environment:
       process.env.SENTRY_ENVIRONMENT || process.env.DEPLOY_ENV || "development",
-    // SENTRY_RELEASE is inlined at build from Workers Builds' commit SHA
+    // SENTRY_RELEASE is inlined at build from the commit SHA (nextjs-deploy.yml)
     // (next.config.mjs `env`).
     release: process.env.SENTRY_RELEASE || undefined,
     // Errors only: no performance tracing, no OpenTelemetry setup, no

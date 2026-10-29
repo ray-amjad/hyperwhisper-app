@@ -31,7 +31,7 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 **Infisical is the single source of truth for all secrets**, and auto-syncs out to:
 
 - **GitHub Actions** — Production (and Preview) **environment** secrets, NOT repo-level. CI jobs that need them must declare `environment: Production` (e.g. `macos-release` / `windows-release`).
-- **Cloudflare Workers** — `nextjs` runtime secrets on the Worker `hyperwhisper-web` (production only). Build-time values (`NEXT_PUBLIC_*`, `SKIP_ENV_VALIDATION`) are Workers Builds variables; see `nextjs/DEPLOY-CLOUDFLARE.md`.
+- **Cloudflare Workers** — `nextjs` runtime secrets on the Worker `hyperwhisper-web` (production only). Build-time values (`NEXT_PUBLIC_*`) are set in `.github/workflows/nextjs-deploy.yml`; see `nextjs/DEPLOY-CLOUDFLARE.md`.
 - **Fly.io** — `hyperwhisper-cloud` runtime secrets.
 
 Rotate or add a secret **in Infisical only** — never edit GitHub/Cloudflare/Fly directly or the next sync overwrites your change. Never commit secret values to the repo.
@@ -69,14 +69,14 @@ BASE_REF=origin/main python3 .github/scripts/validate_drizzle_journal.py
 
 <important if="you just deployed the website, or are about to check or tail its logs">
 
-The website (`nextjs/`) runs on **Cloudflare Workers** (Worker `hyperwhisper-web`, built by Workers Builds on push to `main`; runbook `nextjs/DEPLOY-CLOUDFLARE.md`). It is no longer on Vercel, so the `vercel` CLI and Vercel log recipes do not apply to it.
+The website (`nextjs/`) runs on **Cloudflare Workers** (Worker `hyperwhisper-web`, built and deployed by `.github/workflows/nextjs-deploy.yml` on push to `main`; runbook `nextjs/DEPLOY-CLOUDFLARE.md`). It is no longer on Vercel, so the `vercel` CLI and Vercel log recipes do not apply to it.
 
 - Only check logs when the change touched `nextjs/` or otherwise affects the website runtime. macOS / Windows / iOS / Fly.io backend / Mintlify docs / integrations / routines / shared schemas / CI-only changes don't hit the Worker — skip log monitoring for those.
-- Deploy status: `cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1`, or the Builds tab of the Worker in the Cloudflare dashboard.
+- Deploy status: `gh run list -w nextjs-deploy.yml -L 5`, then `cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1`.
 - Live errors: `cd nextjs && npx wrangler tail hyperwhisper-web --status error --format pretty 2>&1` (it streams until stopped, so run it under a timeout or Monitor). Past logs are in Workers Logs (observability is on in `wrangler.jsonc`).
 </important>
 
 <important if="you changed nextjs/drizzle or nextjs/src/db, or are wondering when website migrations run">
 
-Migrations no longer run in the website build. `.github/workflows/nextjs-migrate.yml` runs `db:migrate` on push to `main` (environment `Production`), in parallel with the Workers Build. Keep migrations expand-first (additive and backward compatible), because the new Worker can serve before the migration lands.
+`.github/workflows/nextjs-deploy.yml` runs `db:migrate` on every deploy to `main` (environment `Production`), after the build and just before the new Worker goes live. Keep migrations expand-first (additive and backward compatible), because the old Worker is still serving while the migration lands.
 </important>
