@@ -7,6 +7,14 @@ import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/landing/FooterSection";
 import { OpenSourceBanner } from "@/components/open-source-banner";
+import { isSupportedLocale } from "@/src/i18n/locales";
+
+/** `/en`, `/ja`, … (and a trailing slash): the homepage of a locale. */
+function isHomePath(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+
+  return parts.length === 1 && isSupportedLocale(parts[0]);
+}
 
 /**
  * Client-side layout wrapper that conditionally renders navbar/footer
@@ -45,6 +53,9 @@ export default function LayoutWrapper({
 
   // Check if this is a full-screen route (user portal)
   const isFullScreenRoute = pathname.includes("/user");
+  // The homepage lays a transparent navbar over its full-height hero, with no
+  // banner (the hero's own pill links to /open-source) and a full-bleed main.
+  const isHome = isHomePath(pathname);
 
   // Publishes the sticky header's live height as `--site-header-offset`, which
   // globals.css uses as `scroll-padding-top` so focused controls and #anchor
@@ -76,14 +87,14 @@ export default function LayoutWrapper({
       observer.disconnect();
       root.style.removeProperty("--site-header-offset");
     };
-  }, [isFullScreenRoute]);
+  }, [isFullScreenRoute, isHome]);
 
   if (isFullScreenRoute) {
     // Full-screen layout: no navbar/footer
     return <div className="min-h-screen">{children}</div>;
   }
 
-  const showBanner = !bannerDismissed;
+  const showBanner = !bannerDismissed && !isHome;
 
   // Regular layout: with navbar and footer
   return (
@@ -93,8 +104,13 @@ export default function LayoutWrapper({
         (not `fixed`) keeps it in normal document flow, so the banner naturally
         pushes the navbar and page content down — no manual spacer / height math
         to keep in sync, which previously caused the header to be cut off.
+        The homepage is the one exception: its header is `fixed` over the
+        hero, which is full height on purpose, and has no banner.
       */}
-      <div ref={headerRef} className="sticky top-0 z-50 w-full flex flex-col">
+      <div
+        ref={headerRef}
+        className={`${isHome ? "fixed inset-x-0" : "sticky"} top-0 z-50 w-full flex flex-col`}
+      >
         {/*
           The dismiss collapses the banner's height over 300ms instead of
           unmounting it in one frame, so the page eases up rather than stepping
@@ -117,9 +133,13 @@ export default function LayoutWrapper({
             </m.div>
           )}
         </AnimatePresence>
-        <Navbar />
+        <Navbar overlay={isHome} />
       </div>
-      <main className="container mx-auto max-w-7xl px-6 flex-grow">
+      <main
+        className={
+          isHome ? "flex-grow" : "container mx-auto max-w-7xl px-6 flex-grow"
+        }
+      >
         {children}
       </main>
       <FooterSection />

@@ -9,20 +9,32 @@ import {
   NavbarItem,
   NavbarMenuItem,
 } from "@heroui/navbar";
-import { Button } from "@heroui/button";
-import { link as linkStyles } from "@heroui/theme";
 import clsx from "clsx";
-import { Link as HeroUILink } from "@heroui/link";
-import { Download, Github } from "lucide-react";
+import { Github } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
+import { BTN_WHITE } from "@/components/landing/dusk";
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useSiteHref } from "@/src/i18n/use-site-href";
 
-export const Navbar = () => {
+const NAV_LINK =
+  "rounded text-[14.5px] text-white/[.78] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+
+/**
+ * The site navbar. `overlay` (the homepage) lays it over the hero sky:
+ * transparent until the page scrolls 40px or the menu opens, then the same
+ * solid dusk bar every other page shows from the start.
+ */
+export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
   const { openModal } = useDownloadModal();
   const t = useTranslations("navbar");
   /*
@@ -41,6 +53,20 @@ export const Navbar = () => {
   */
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
+
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!overlay) return;
+    const onScroll = () => setScrolled(window.scrollY > 40);
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [overlay]);
+
+  const solid = !overlay || scrolled || isMenuOpen;
 
   /*
     HeroUI pins the open menu at `top: var(--navbar-height)` (64px) and sizes it
@@ -90,6 +116,7 @@ export const Navbar = () => {
 
   const navItems = [
     { label: t("features"), href: siteHref("/#features") },
+    { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
     chooseModelItem,
     latencyItem,
@@ -98,6 +125,7 @@ export const Navbar = () => {
 
   const navMenuItems = [
     { label: t("features"), href: siteHref("/#features") },
+    { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
     chooseModelItem,
     latencyItem,
@@ -108,26 +136,30 @@ export const Navbar = () => {
       : { label: t("support"), href: "/support" },
   ];
 
-  const brandClassName = "flex justify-start items-center gap-2";
+  const brandClassName =
+    "flex justify-start items-center gap-2.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
   const brand = (
     <>
       <img
         alt="HyperWhisper Logo"
-        className="w-8 h-8 rounded-lg outline-1 -outline-offset-1 outline-white/10"
+        className="size-[30px] rounded-lg"
+        height={30}
         src="/icon/128.png"
+        width={30}
       />
-      <p className="font-bold text-white">HyperWhisper</p>
+      <p className="text-[17px] font-semibold text-white">HyperWhisper</p>
     </>
   );
 
   return (
     <HeroUINavbar
       ref={navRef}
-      isMenuOpen={isMenuOpen}
-      maxWidth="xl"
-      position="static"
-      onMenuOpenChange={setIsMenuOpen}
-      className="bg-black/50 backdrop-blur-xl border-b border-gray-800"
+      className={clsx(
+        "border-b transition-[background-color,border-color] duration-300 ease-out",
+        solid
+          ? "border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]"
+          : "border-transparent bg-transparent",
+      )}
       /*
         HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
         200% text resize nothing wraps and nothing shrinks: the bar overflowed the viewport by
@@ -139,8 +171,16 @@ export const Navbar = () => {
         base: "h-auto",
         // `min-h` keeps the normal-size bar at its usual --navbar-height; `h-auto` alone
         // shrank it to its content and made the bar 16px shorter on every page.
-        wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
+        wrapper:
+          "flex-wrap h-auto min-h-[var(--navbar-height)] max-w-[1340px] gap-y-2 py-2 px-6 md:px-8",
       }}
+      data-solid={solid}
+      height="72px"
+      isBlurred={false}
+      isMenuOpen={isMenuOpen}
+      maxWidth="full"
+      position="static"
+      onMenuOpenChange={setIsMenuOpen}
     >
       {/*
         HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
@@ -179,34 +219,15 @@ export const Navbar = () => {
         replaces the slot's own `gap-4` and `flex-wrap` its `flex-nowrap`.
       */}
       <NavbarContent
-        className="hidden lg:flex flex-wrap gap-8"
+        className="hidden lg:flex flex-wrap gap-[30px]"
         justify="center"
       >
         {navItems.map((item) => (
           <NavbarItem key={item.href}>
-            <a
-              /*
-                Passed through the recipe's `class` slot, not concatenated after it, so
-                tailwind-merge drops linkStyles()' own `transition-opacity`. Two
-                transition-property utilities on one native <a> cannot both win: the later
-                one in the stylesheet does, and the colour hover snapped (#848).
-              */
-              className={linkStyles({
-                color: "foreground",
-                class: clsx(
-                  "text-gray-300 hover:text-white transition-[color,opacity]",
-                  /*
-                  linkStyles() opens with `outline-solid outline-transparent` and restores the
-                  ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
-                  component sets and a native <a> never gets. Without these 3 utilities the link
-                  has no keyboard focus ring at all. `outline-focus` is HeroUI's own token, so
-                  this is the same ring the Download button and the GitHub link already draw.
-                */
-                  "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
-                ),
-              })}
-              href={item.href}
-            >
+            {/* One transition property and its own focus ring, so the
+                colour hover never snaps (#848) and a keyboard user sees
+                where they are (a native <a> has no HeroUI focus ring). */}
+            <a className={NAV_LINK} href={item.href}>
               {item.label}
             </a>
           </NavbarItem>
@@ -214,32 +235,32 @@ export const Navbar = () => {
       </NavbarContent>
 
       <NavbarContent
-        className="hidden sm:flex basis-1/5 sm:basis-full"
+        className="hidden sm:flex basis-1/5 sm:basis-full gap-3.5"
         justify="end"
       >
         <NavbarItem className="hidden sm:flex">
           <LanguageSwitcher />
         </NavbarItem>
         <NavbarItem className="hidden sm:flex">
-          <HeroUILink
-            isExternal
+          <a
             aria-label={t("githubAria")}
-            className="text-gray-400 hover:text-white transition-[color,opacity]"
+            className={`${NAV_LINK} flex items-center gap-1.5 text-[13.5px]`}
             href="https://github.com/ray-amjad/hyperwhisper-app"
+            rel="noopener noreferrer"
+            target="_blank"
           >
-            <Github className="w-5 h-5" />
-          </HeroUILink>
+            <Github aria-hidden="true" className="size-[18px]" />
+            <span aria-hidden="true">GitHub</span>
+          </a>
         </NavbarItem>
         <NavbarItem className="hidden md:flex">
-          <Button
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
-            size="sm"
-            startContent={<Download className="w-4 h-4" />}
-            variant="flat"
+          <button
+            className={`${BTN_WHITE} px-[18px] py-2.5 text-sm`}
+            type="button"
             onClick={openModal}
           >
             {t("download")}
-          </Button>
+          </button>
         </NavbarItem>
       </NavbarContent>
 
@@ -255,7 +276,7 @@ export const Navbar = () => {
       */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarItem>
-          <NavbarMenuToggle className="text-gray-400 size-12 -mr-3" />
+          <NavbarMenuToggle className="text-white/80 size-12 -mr-3" />
         </NavbarItem>
       </NavbarContent>
 
@@ -267,7 +288,7 @@ export const Navbar = () => {
         the menu is a fixed, full-width `w-screen` overlay, and a margin would shift and overflow it.
       */}
       <NavbarMenu
-        className="bg-black/95 backdrop-blur-xl px-10 pt-4"
+        className="bg-[rgba(5,6,13,.97)] backdrop-blur-[16px] px-10 pt-4"
         style={
           menuTop === null
             ? undefined
@@ -279,7 +300,7 @@ export const Navbar = () => {
           <NavbarMenuItem key={`${item}-${index}`}>
             {item.href.includes("#") || "raw" in item ? (
               <a
-                className="text-gray-300 hover:text-white transition-colors text-lg"
+                className="text-white/80 hover:text-white transition-colors text-lg"
                 href={item.href}
                 onClick={closeMenu}
               >
@@ -287,7 +308,7 @@ export const Navbar = () => {
               </a>
             ) : (
               <LocaleLink
-                className="text-gray-300 hover:text-white transition-colors text-lg"
+                className="text-white/80 hover:text-white transition-colors text-lg"
                 href={item.href}
                 onClick={closeMenu}
               >
@@ -308,14 +329,16 @@ export const Navbar = () => {
           <span className="contents sm:hidden">
             <LanguageSwitcher />
           </span>
-          <Button
-            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
-            startContent={<Download className="w-4 h-4" />}
-            variant="flat"
-            onClick={openModal}
+          <button
+            className={`${BTN_WHITE} flex-1 px-5 py-3 text-[15px]`}
+            type="button"
+            onClick={() => {
+              closeMenu();
+              openModal();
+            }}
           >
             {t("download")}
-          </Button>
+          </button>
         </NavbarMenuItem>
       </NavbarMenu>
     </HeroUINavbar>
