@@ -396,8 +396,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               )}
             </ErrorReveal>
 
+            {/* h-auto + whitespace-normal: the label wraps instead of being
+                clipped at 320px in bg, cs, el, fr, id, is, ms, nl, pt, ro, th
+                (#2871's sibling). */}
             <Button
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
+              className="h-auto min-h-12 whitespace-normal py-3 text-center w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
               size="lg"
               isLoading={loading}
               isDisabled={loading || !emailValid || !amountValid}
@@ -435,8 +438,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <Button
             variant="bordered"
             size="lg"
-            startContent={<LogIn className="w-4 h-4" strokeWidth={1.5} />}
-            className="border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
+            startContent={<LogIn className="w-4 h-4 shrink-0" strokeWidth={1.5} />}
+            // The label wraps instead of running past a 320px viewport in
+            // the longer locales (is, ro, fr, fi): #2871.
+            className="h-auto min-h-12 max-w-full whitespace-normal py-2 text-center border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
             onPress={() => {
               window.location.href = `/${locale}/user/sign-in`;
             }}
