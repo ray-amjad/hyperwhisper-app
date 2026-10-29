@@ -264,7 +264,8 @@ cat nextjs/public/linux-latest.json
 
 <important>
 `linux-latest.json` is a static file in `nextjs/public/`, so the download page only
-shows the new version once **Vercel deploys the Next.js site**. The Action commits the
+shows the new version once **the Cloudflare Workers Build deploys the Next.js site**
+(Worker `hyperwhisper-web`, see `nextjs/DEPLOY-CLOUDFLARE.md`). The Action commits the
 file and stops there. Same failure mode as the Windows appcast: the release can be
 green and complete while the download page still advertises the old version.
 </important>
@@ -274,7 +275,7 @@ promoting to production is outward-facing and the site may carry unrelated unshi
 work:
 
 ```bash
-vercel ls hyperwhisper --scope ray-amjad --prod 2>&1 | head -6
+cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1 | head -20
 ```
 
 ### Step 9 — Report

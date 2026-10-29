@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "SKIP_ENV_VALIDATION=1 next dev --turbopack",
     "build": "next build",
-    "vercel-build": "npx drizzle-kit migrate && npm run prebuild && next build",
+    "cf:build": "node scripts/cf-build.mjs",
+    "preview": "node scripts/cf-build.mjs && opennextjs-cloudflare preview",
+    "deploy": "node scripts/cf-build.mjs && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --experimental-test-module-mocks --test \"tests/*.test.ts\"",
@@ -31,6 +34,7 @@
     "@heroui/navbar": "2.2.30",
     "@heroui/system": "^2.4.28",
     "@heroui/theme": "^2.4.26",
+    "@opennextjs/cloudflare": "1.20.13",
     "@sentry/nextjs": "11.7.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.101.4",
@@ -48,6 +52,7 @@
     "next-intl": "^4.9.1",
     "next-themes": "0.4.6",
     "pg": "^8.18.0",
+    "pg-cloudflare": "^1.4.0",
     "posthog-js": "^1.268.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -89,7 +94,13 @@
     "tailwindcss": "4.1.11",
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
+    "wrangler": "^4.151.0",
     "xml2js": "^0.6.2"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "@node-minify/core>glob": "10.5.0"
+    }
+  }
 }

@@ -1,0 +1,72 @@
+# Applies the website's Drizzle migrations to the production database.
+#
+# On Vercel, `db:migrate` ran inside the build command. On Cloudflare Workers
+# (nextjs/DEPLOY-CLOUDFLARE.md) the Workers Build holds no database
+# credentials, so migrations run here instead, from the GitHub `Production`
+# environment, whose PLANETSCALE_DATABASE_URL is synced from Infisical.
+#
+# ORDERING: this job and the Workers Build start on the same push. The Workers
+# Builds deploy command runs nextjs/scripts/wait-for-migrations.mjs first: when
+# the commit touches nextjs/drizzle/** or nextjs/src/db/**, it waits for this
+# run on that commit and refuses to deploy unless it succeeded. Keep its
+# MIGRATION_PATHS and the paths below in step (tests/wait-for-migrations.test.ts).
+#
+# Production only: the job runs only for refs/heads/main, so a manual run from
+# another branch cannot apply that branch's unmerged migrations. The GitHub
+# `Production` environment must also be restricted to `main` and hold
+# PLANETSCALE_DATABASE_URL before this workflow is merged
+# (nextjs/DEPLOY-CLOUDFLARE.md).
+name: nextjs-migrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nextjs/drizzle/**'
+      - 'nextjs/src/db/**'
+      - '.github/workflows/nextjs-migrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never two migrators at once; a queued run waits rather than being cancelled
+# mid-migration.
+concurrency:
+  group: nextjs-migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    # workflow_dispatch accepts any ref; only main's migrations go to production.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Production
+    defaults:
+      run:
+        working-directory: nextjs
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Same pnpm as nextjs/package.json `packageManager` and the Workers
+      # Builds build command.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # nextjs/ commits no lockfile, as in nextjs-ci.yml.
+      - run: pnpm install --no-frozen-lockfile
+      - name: Check the database secret
+        env:
+          PLANETSCALE_DATABASE_URL: ${{ secrets.PLANETSCALE_DATABASE_URL }}
+        run: |
+          if [ -z "$PLANETSCALE_DATABASE_URL" ]; then
+            echo "::error::PLANETSCALE_DATABASE_URL is missing from the GitHub Production environment. Sync it from Infisical, then re-run this workflow (the Workers deploy waits for it)."
+            exit 1
+          fi
+      - name: Apply migrations
+        env:
+          PLANETSCALE_DATABASE_URL: ${{ secrets.PLANETSCALE_DATABASE_URL }}
+        run: pnpm run db:migrate

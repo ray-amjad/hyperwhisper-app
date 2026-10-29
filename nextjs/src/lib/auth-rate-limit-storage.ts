@@ -11,8 +11,8 @@ import { env } from "@/src/env/server.mjs";
 /**
  * SHARED STORAGE FOR BETTER AUTH'S RATE LIMITER (#2010)
  *
- * Better Auth's default rate-limit storage is an in-process `Map`. On Vercel
- * every function instance has its own, so the sign-in limits (3 / 10 s on
+ * Better Auth's default rate-limit storage is an in-process `Map`. On
+ * Cloudflare Workers (as on Vercel before) every isolate has its own, so the sign-in limits (3 / 10 s on
  * `/sign-in*`, 5 / 60 s on `/sign-in/license-key`) were per instance, not per
  * caller. This storage puts the counters in the site's Upstash database, so
  * every instance counts against one budget.

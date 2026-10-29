@@ -15,8 +15,9 @@ export const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
 
   // Postgres connection string for the Drizzle client (src/db/index.ts).
-  // Optional: Vercel sets it in Production only, and a required value would
-  // fail every Preview build (#682). Unset, the client throws
+  // Optional: on Cloudflare Workers the client uses the HYPERDRIVE binding
+  // instead, and the build has no database (#682). It is still read by
+  // db:migrate (GitHub Actions), local dev and tests. Unset, the client throws
   // "PLANETSCALE_DATABASE_URL is not set" on its first query instead.
   PLANETSCALE_DATABASE_URL: z.string().url().optional(),
 
@@ -46,7 +47,7 @@ export const serverSchema = z.object({
   // Comma-separated base URLs of the HyperWhisper Cloud apps whose licence
   // cache an Account Key rotation purges (lib/services/cloud-license-cache.ts,
   // sent with HYPERWHISPER_INTERNAL_SECRET). Not a secret. Unset: production
-  // and staging on the production deployment (VERCEL_ENV=production), none
+  // and staging on the production deployment (DEPLOY_ENV=production, set in wrangler.jsonc), none
   // anywhere else. Empty: no purge (the old key's cached verdict then expires
   // on its own within the cloud's 1-hour TTL).
   HYPERWHISPER_CLOUD_URLS: z.string().optional(),
@@ -57,15 +58,17 @@ export const serverSchema = z.object({
   // secret exists; unset, the field is omitted and the cloud holds per key.
   // At least 32 characters: it is the only thing between the id and the user id.
   // An empty value is accepted and means unset, as `creditPoolIdFor` reads it
-  // (a blank Vercel/Infisical entry must not fail the build).
+  // (a blank Infisical entry must not fail validation).
   CREDIT_POOL_ID_SECRET: z.union([z.string().min(32), z.literal("")]).optional(),
 
-  // Vercel cron bearer token. Vercel sends `Authorization: Bearer $CRON_SECRET`
-  // and cannot set a custom header, so the scheduled jobs in vercel.json
-  // (/api/internal/latency/prune) accept it alongside the internal secret.
-  // Required, not optional: unset, the nightly prune 401s in silence, rows
-  // never expire, and the 1-year retention data-privacy.mdx promises publicly
-  // stops being true. A failed build is the loud version of that failure.
+  // Cron bearer token. The Worker's scheduled() handler (worker.ts) sends
+  // `Authorization: Bearer $CRON_SECRET` to the jobs in config/cron-jobs.mjs
+  // (/api/internal/latency/prune, /api/internal/sessions/prune), which accept
+  // it alongside the internal secret. Required, not optional: unset, the
+  // nightly prune 401s in silence, rows never expire, and the 1-year retention
+  // data-privacy.mdx promises publicly stops being true. On Workers the build
+  // skips validation (no runtime secrets exist there), so this check fails
+  // loudly at runtime instead, on the first request.
   // `.min(1)` because an empty string would satisfy a bare z.string() and
   // authorize nothing.
   CRON_SECRET: z.string().min(1),
@@ -125,7 +128,7 @@ export const serverEnv = {
   // HMAC key for `credit_pool_id` (see the schema above)
   CREDIT_POOL_ID_SECRET: process.env.CREDIT_POOL_ID_SECRET,
 
-  // Vercel cron bearer token (see the schema above)
+  // Cron bearer token (see the schema above)
   CRON_SECRET: process.env.CRON_SECRET,
 
   // Provider model inventory endpoint (/models and /api/internal/models)

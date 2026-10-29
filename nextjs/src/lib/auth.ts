@@ -170,7 +170,11 @@ function logMagicLinkVerify(ctx: {
     returned,
     newSession !== null,
   );
-  const ip = ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
+  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
+  const ip =
+    ctx.headers?.get("cf-connecting-ip")?.trim() ||
+    ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
   const line = JSON.stringify({
     event: "auth.magic_link_verify",
     outcome,
@@ -184,7 +188,7 @@ function logMagicLinkVerify(ctx: {
     ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
   });
 
-  // The website's console output is its server log (Vercel).
+  // The website's console output is its server log (Workers Logs).
   /* eslint-disable no-console */
   if (outcome === "ok") {
     console.log(line);
@@ -304,11 +308,20 @@ export const auth = betterAuth({
     }),
   },
   // Better Auth's own rate-limit rules, counted in the site's Upstash so every
-  // Vercel instance shares one budget (#2010). `customStorage`, deliberately
+  // Worker isolate shares one budget (#2010). `customStorage`, deliberately
   // not `secondaryStorage`: the latter would also move sessions off Postgres.
   // Fails open when Upstash is down or unconfigured. See
   // `./auth-rate-limit-storage.ts`.
   rateLimit: authRateLimitOptions(),
+  advanced: {
+    ipAddress: {
+      // Cloudflare sets cf-connecting-ip on every request and overwrites any
+      // client value. Its x-forwarded-for APPENDS to a client-supplied chain,
+      // so it must not come first. x-forwarded-for stays as the fallback for
+      // local dev and the tests, where no Cloudflare edge is in front.
+      ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+    },
+  },
   user: {
     additionalFields: {
       role: {
