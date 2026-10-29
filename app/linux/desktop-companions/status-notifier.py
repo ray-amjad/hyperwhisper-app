@@ -208,7 +208,9 @@ MAXIMUM_GENERATION = 2 ** 31 - 1
 ELLIPSIS = "…"
 KEPT_FORMAT_CHARACTERS = {"‌", "‍"}  # ZWNJ/ZWJ: Persian words and emoji sequences
 HANGUL_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0"}  # default-ignorable letters that draw nothing
-INVISIBLE_CHARACTERS = KEPT_FORMAT_CHARACTERS | {" ", "\u034f"} | {chr(c) for c in range(0xFE00, 0xFE10)}
+# Variation selectors (FE00-FE0F and the supplementary E0100-E01EF) and tags (E0000-E007F) included.
+INVISIBLE_CHARACTERS = (KEPT_FORMAT_CHARACTERS | {" ", "\u034f"} | {chr(c) for c in range(0xFE00, 0xFE10)}
+                        | {chr(c) for c in range(0xE0000, 0xE0080)} | {chr(c) for c in range(0xE0100, 0xE01F0)})
 SELECT_MODE_ID = 12
 MODE_ROW_FIRST_ID = 1000
 MODE_ROW_LAST_ID = 2 ** 31 - 1

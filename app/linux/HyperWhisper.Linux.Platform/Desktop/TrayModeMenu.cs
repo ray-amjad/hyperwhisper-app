@@ -123,7 +123,7 @@ public sealed class TrayModeMenu
         var label = builder.ToString();
         // Joiners and variation selectors alone draw nothing: such a name is blank, and the
         // helper shows its localized "Unnamed" instead of an empty row.
-        if (!label.Any(IsVisible)) return string.Empty;
+        if (!label.EnumerateRunes().Any(IsVisible)) return string.Empty;
         return truncated ? label.TrimEnd() + Ellipsis : label;
     }
 
@@ -131,6 +131,11 @@ public sealed class TrayModeMenu
     private static bool IsHangulFiller(char character) =>
         character is '\u115F' or '\u1160' or '\u3164' or '\uFFA0';
 
-    private static bool IsVisible(char character) =>
-        character is not (' ' or '\u200C' or '\u200D' or '\u034F') && character is not (>= '\uFE00' and <= '\uFE0F');
+    // By code point, so a supplementary variation selector (U+E0100-E01EF) or tag
+    // (U+E0000-E007F) counts as one invisible character, not two visible surrogate halves.
+    private static bool IsVisible(Rune rune) =>
+        rune.Value is not (' ' or 0x200C or 0x200D or 0x034F)
+        and not (>= 0xFE00 and <= 0xFE0F)
+        and not (>= 0xE0000 and <= 0xE007F)
+        and not (>= 0xE0100 and <= 0xE01EF);
 }

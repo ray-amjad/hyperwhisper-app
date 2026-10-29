@@ -1122,6 +1122,10 @@ static Task TrayModeLabelsAreBounded()
     Assert.Equal("", TrayModeMenu.BoundLabel("\u200D\u200C"));
     Assert.Equal("", TrayModeMenu.BoundLabel("\u200D \uFE0F\u3164\u034F\u202E"));
     Assert.Equal("a\u200D", TrayModeMenu.BoundLabel("a\u200D"));
+    // Supplementary invisibles are surrogate pairs: judged by code point, still blank.
+    Assert.Equal("", TrayModeMenu.BoundLabel("\U000E0100\U000E01EF"));
+    Assert.Equal("", TrayModeMenu.BoundLabel("\U000E0001\U000E0067\U000E007F"));
+    Assert.Equal("a\U000E0100", TrayModeMenu.BoundLabel("a\U000E0100"));
     var longName = TrayModeMenu.BoundLabel(new string('x', 500));
     Assert.Equal(new string('x', TrayModeMenu.MaximumLabelLength) + TrayModeMenu.Ellipsis, longName);
     // A surrogate pair that does not fit whole is dropped, never split.
@@ -1280,7 +1284,8 @@ static async Task StatusNotifierHelperServesSelectMode()
         string[] hostile =
         [
             "Evil\nACTION|quit", "\u0007\u001b[31mred\r\n{\"v\":1,\"generation\":99,\"active\":0,\"enabled\":true,\"more\":false,\"modes\":[\"x\"]}",
-            "A|B\"}\n{\"", "\u202Eevil", new string('x', 500), "", "tab\tname\u2028end", "\u200D\u200C\uFE0F"
+            "A|B\"}\n{\"", "\u202Eevil", new string('x', 500), "", "tab\tname\u2028end", "\u200D\u200C\uFE0F",
+            "\U000E0100\U000E01EF", "\U000E0001\U000E0067\U000E007F"
         ];
         var hostileIds = hostile.Select(_ => Guid.NewGuid()).ToArray();
         await Send(LinuxStatusNotifierItemService.SerializeModeMenu(
@@ -1301,6 +1306,8 @@ static async Task StatusNotifierHelperServesSelectMode()
         Assert.Equal("Unnamed", hostileRows.Labels[5]);
         Assert.Equal("tab name end", hostileRows.Labels[6]);
         Assert.Equal("Unnamed", hostileRows.Labels[7]);
+        Assert.Equal("Unnamed", hostileRows.Labels[8]); // supplementary variation selectors
+        Assert.Equal("Unnamed", hostileRows.Labels[9]); // tag characters
         Assert.Equal(4, attacked.GetProperty("revision").GetInt32());
         for (var index = 0; index < hostileRows.Ids.Length; index++)
         {
