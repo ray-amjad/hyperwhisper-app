@@ -149,6 +149,7 @@ export default function DownloadsPage() {
 
           // Determine architecture label from sparkle:os (e.g. "windows-x64" -> "x64")
           let arch = "";
+
           if (os.includes("arm64")) arch = "ARM64";
           else if (os.includes("x64")) arch = "x64";
 
@@ -223,6 +224,7 @@ export default function DownloadsPage() {
       });
     } catch (error) {
       reportFormatDateFailure(error);
+
       return dateString;
     }
   };
@@ -313,7 +315,6 @@ export default function DownloadsPage() {
               </div>
               <div
                 aria-busy={loading}
-                inert={loading}
                 className={`t-skel-content [grid-area:1/1] grid grid-cols-1 md:grid-cols-2 gap-4 content-start transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                   !loading && revealed
                     ? "opacity-100 blur-[0px]"
@@ -321,6 +322,7 @@ export default function DownloadsPage() {
                       ? "opacity-40 blur-[2px]"
                       : "opacity-0 blur-[2px]"
                 }`}
+                inert={loading}
               >
                 {versions.map((version, index) => (
                   <div

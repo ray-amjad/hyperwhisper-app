@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Fragment,
-  useId,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from "react";
+import { Fragment, useId, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -157,6 +151,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
     // Reuse the server's pricing math (cents) so the preview matches the charge.
     const { creditAmount, creditCents, feeCents } =
       computeCreditPurchase(effectiveAmount);
+
     return {
       credits: creditAmount,
       feeUsd: feeCents / 100,
@@ -213,6 +208,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
     if (!emailValid) {
       setError(t("errorEmail"));
+
       return;
     }
     if (!amountValid) {
@@ -220,8 +216,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         t("errorAmount", {
           min: MIN_CREDIT_DOLLARS,
           max: MAX_CREDIT_DOLLARS,
-        })
+        }),
       );
+
       return;
     }
 
@@ -231,7 +228,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
   return (
     <>
-      <PageHero eyebrow={t("eyebrow")} lead={t("subtitle")} title={t("title")} />
+      <PageHero
+        eyebrow={t("eyebrow")}
+        lead={t("subtitle")}
+        title={t("title")}
+      />
 
       <section className={SECTION}>
         <div
@@ -255,22 +256,26 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                     error gets an id of ours and is listed here while it shows. */}
                 <Input
                   aria-describedby={
-                    emailInvalid ? `${emailHelpId} ${emailErrorId}` : emailHelpId
+                    emailInvalid
+                      ? `${emailHelpId} ${emailErrorId}`
+                      : emailHelpId
                   }
                   aria-label={t("emailLabel")}
                   autoComplete="email"
                   className="mt-2.5"
+                  classNames={INPUT_CLASS_NAMES}
+                  errorMessage={
+                    <span id={emailErrorId}>{t("errorEmail")}</span>
+                  }
                   id={emailInputId}
+                  isInvalid={emailInvalid}
+                  placeholder={t("emailPlaceholder")}
+                  size="lg"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setEmailTouched(true)}
-                  isInvalid={emailInvalid}
-                  errorMessage={<span id={emailErrorId}>{t("errorEmail")}</span>}
-                  placeholder={t("emailPlaceholder")}
                   variant="bordered"
-                  size="lg"
-                  classNames={INPUT_CLASS_NAMES}
+                  onBlur={() => setEmailTouched(true)}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
                 <p
                   className="mt-2 text-[13px] text-[var(--dusk-dim)]"
@@ -295,13 +300,14 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                   >
                     {PRESETS.map((value) => {
                       const selected = !isCustom && amount === value;
+
                       return (
                         <button
                           key={value}
                           aria-pressed={selected}
+                          className={`${AMOUNT_TILE} ${selected ? AMOUNT_ON : AMOUNT_OFF}`}
                           type="button"
                           onClick={() => selectPreset(value)}
-                          className={`${AMOUNT_TILE} ${selected ? AMOUNT_ON : AMOUNT_OFF}`}
                         >
                           <span className="block text-xl font-semibold text-white sm:text-2xl">
                             ${value}
@@ -316,9 +322,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                     })}
                     <button
                       aria-pressed={isCustom}
+                      className={`${AMOUNT_TILE} ${isCustom ? AMOUNT_ON : AMOUNT_OFF}`}
                       type="button"
                       onClick={() => setIsCustom(true)}
-                      className={`${AMOUNT_TILE} ${isCustom ? AMOUNT_ON : AMOUNT_OFF}`}
                     >
                       <span
                         className="block text-xl font-semibold text-white sm:text-2xl"
@@ -344,25 +350,25 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                               accessible name. */}
                           <Input
                             aria-labelledby={`${amountLabelId} ${customTitleId}`}
-                            type="number"
-                            value={customAmount}
-                            onChange={(e) => {
-                              setCustomAmount(e.target.value);
-                              setError(null);
-                            }}
+                            classNames={INPUT_CLASS_NAMES}
+                            max={MAX_CREDIT_DOLLARS}
+                            min={MIN_CREDIT_DOLLARS}
                             placeholder={t("customPlaceholder", {
                               min: MIN_CREDIT_DOLLARS,
                               max: MAX_CREDIT_DOLLARS,
                             })}
-                            variant="bordered"
                             size="lg"
-                            min={MIN_CREDIT_DOLLARS}
-                            max={MAX_CREDIT_DOLLARS}
-                            step={1}
                             startContent={
                               <span className="text-[var(--dusk-dim)]">$</span>
                             }
-                            classNames={INPUT_CLASS_NAMES}
+                            step={1}
+                            type="number"
+                            value={customAmount}
+                            variant="bordered"
+                            onChange={(e) => {
+                              setCustomAmount(e.target.value);
+                              setError(null);
+                            }}
                           />
                         </div>
                       </div>
@@ -413,9 +419,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                     pt, ro, th (#2871's sibling). */}
                 <Button
                   className="mt-[22px] h-auto min-h-12 w-full whitespace-normal rounded-full bg-white py-3 text-center text-[15px] font-semibold text-[#0b0b14] data-[hover=true]:bg-[#ececf5] data-[hover=true]:opacity-100 data-[focus-visible=true]:outline-[var(--dusk-lav)]"
-                  size="lg"
-                  isLoading={loading}
                   isDisabled={loading || !emailValid || !amountValid}
+                  isLoading={loading}
+                  size="lg"
                   onPress={handleCheckout}
                 >
                   {loading ? t("ctaLoading") : t("ctaIdle")}
@@ -429,7 +435,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           </div>
 
           {/* Reassurance list */}
-          <div className="dusk-enter grid gap-[22px] lg:pt-3" style={delay(320)}>
+          <div
+            className="dusk-enter grid gap-[22px] lg:pt-3"
+            style={delay(320)}
+          >
             <ul className="grid gap-[22px]">
               {[
                 { Icon: Layers, text: t("stripProviders") },
@@ -453,15 +462,17 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
             <div
               className={`${GLASS} mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[22px] py-[18px]`}
             >
-              <p className="text-[15px] text-[var(--dusk-ink)]">{t("haveKey")}</p>
+              <p className="text-[15px] text-[var(--dusk-ink)]">
+                {t("haveKey")}
+              </p>
               <Button
-                variant="light"
+                className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal rounded-full px-3 py-2 text-start text-[14.5px] text-[var(--dusk-lav)] data-[hover=true]:bg-white/[.06] data-[hover=true]:text-white"
                 startContent={
                   <LogIn className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 }
                 // The label wraps instead of running past a 320px viewport in
                 // the longer locales (is, ro, fr, fi): #2871.
-                className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal rounded-full px-3 py-2 text-start text-[14.5px] text-[var(--dusk-lav)] data-[hover=true]:bg-white/[.06] data-[hover=true]:text-white"
+                variant="light"
                 onPress={() => {
                   window.location.href = `/${locale}/user/sign-in`;
                 }}

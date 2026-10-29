@@ -26,6 +26,7 @@ const DESCRIPTION =
 // resolves the [locale] 404's metadata instead.
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }
@@ -52,6 +53,7 @@ type Props = {
  */
 export default async function ChoosingAModelPage({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }
@@ -68,6 +70,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
   // reproducible.
   const regions = Object.keys(byRegion).sort((a, b) => {
     const byVolume = (samplesByRegion[b] ?? 0) - (samplesByRegion[a] ?? 0);
+
     return byVolume !== 0 ? byVolume : a.localeCompare(b);
   });
 

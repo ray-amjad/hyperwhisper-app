@@ -63,14 +63,17 @@ type DisplayRow = {
 
 function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
   const map = new Map<string, CellValue>();
+
   for (const cell of cells) {
     const value = metric === "errorRate" ? cell.errorRate * 100 : cell[metric];
+
     map.set(cell.region, {
       value,
       samples: cell.samples,
       enough: cell.samples >= minSamples,
     });
   }
+
   return map;
 }
 
@@ -147,6 +150,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           { signal: controller.signal },
         );
         const result: unknown = response.ok ? await response.json() : null;
+
         // The answer can land after a hand-pick; the visitor still wins.
         if (
           regionPickedByUser.current ||
@@ -178,11 +182,14 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   useEffect(() => {
     const region = matrixRegion.current;
     const table = matrixTable.current;
+
     if (!region || !table) return;
     const observer = new ResizeObserver(() => {
       const chrome = region.offsetHeight - region.clientHeight;
+
       region.style.height = `${table.offsetHeight + chrome}px`;
     });
+
     observer.observe(table);
     observer.observe(region);
 
@@ -239,7 +246,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       .filter((cell): cell is NonNullable<CellValue> => Boolean(cell?.enough))
       .map((cell) => cell.value)
       .sort((a, b) => a - b);
+
     if (values.length === 0) return null;
+
     return values[Math.floor(values.length / 2)];
   };
 
@@ -268,10 +277,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       }
       if (a.score === null) return 1;
       if (b.score === null) return -1;
+
       return a.score - b.score;
     });
 
     const drawn: DisplayRow[] = [];
+
     for (const { vendor } of scored) {
       drawn.push({
         key: vendor.vendor,
@@ -293,8 +304,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         });
       }
     }
+
     return drawn;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorRows, regions, activeSortRegion, byModel]);
 
   // Slide the re-sorted rows to their new places (#812) instead of painting
@@ -306,6 +317,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
     pendingRowTops.current = null;
     const tbody = tbodyRef.current;
+
     if (before === null || tbody === null || prefersReducedMotion()) return;
     slideRows(tbody, rowRefs.current, before, rowSlides.current);
   }, [rows]);
@@ -314,6 +326,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   function snapshotForSort() {
     pendingRowTops.current = null;
     const tbody = tbodyRef.current;
+
     if (tbody === null || prefersReducedMotion()) return;
     pendingRowTops.current = snapshotRowTops(tbody, rowRefs.current);
   }
@@ -328,7 +341,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       .flatMap((row) => Array.from(row.cells.values()))
       .filter((cell): cell is NonNullable<CellValue> => Boolean(cell?.enough))
       .map((cell) => cell.value);
+
     if (values.length === 0) return { min: 0, max: 1 };
+
     return { min: Math.min(...values), max: Math.max(...values) };
   }, [rows]);
 
@@ -340,6 +355,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const cellStyle = (value: number) => {
     const span = scale.max - scale.min || 1;
     const ratio = Math.min(1, Math.max(0, (value - scale.min) / span));
+
     return {
       backgroundColor: `rgba(196, 181, 253, ${(0.55 - ratio * 0.45).toFixed(2)})`,
       color: "#ffffff",
@@ -665,6 +681,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               <tbody ref={tbodyRef}>
                 {rows.map((row) => {
                   const pinned = pinnedVendor === row.vendor;
+
                   return (
                     <tr
                       key={row.key}

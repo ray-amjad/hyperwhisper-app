@@ -111,17 +111,20 @@ const REQUIREMENT_OPTIONS: { id: keyof Requirements; label: string }[] = [
 function formatCost(model: Model): string {
   if (isDevice(model)) return "Free";
   const credits = creditsPerMinute(model);
+
   return `${credits.toFixed(2).replace(/\.?0+$/, "")} cr/min`;
 }
 
 function formatDollars(model: Model): string | null {
   if (isDevice(model)) return null;
   const perThousand = creditsPerMinute(model) * (1000 / CREDITS_PER_DOLLAR);
+
   return `$${perThousand.toFixed(2)} per 1,000 min`;
 }
 
 function formatSeconds(seconds: number | null): string {
   if (seconds === null) return "—";
+
   return seconds < 1
     ? `${Math.round(seconds * 1000)} ms`
     : `${seconds.toFixed(1)} s`;
@@ -145,6 +148,7 @@ function formatLanguages(model: Model): string {
   if (model.languageScope === "unknown" || model.languages === null) {
     return "language count not published";
   }
+
   return `${model.languages} language${model.languages === 1 ? "" : "s"}`;
 }
 
@@ -157,14 +161,15 @@ function PlacementBadge({ model }: { model: Model }) {
   if (isDevice(model)) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(134,239,172,.35)] bg-[rgba(134,239,172,.08)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#a7f3c4]">
-        <Laptop className="h-3 w-3" aria-hidden="true" />
+        <Laptop aria-hidden="true" className="h-3 w-3" />
         On device
       </span>
     );
   }
+
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(147,197,253,.35)] bg-[rgba(147,197,253,.08)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#bfdbfe]">
-      <Cloud className="h-3 w-3" aria-hidden="true" />
+      <Cloud aria-hidden="true" className="h-3 w-3" />
       Cloud
     </span>
   );
@@ -181,6 +186,7 @@ function AccuracyNote({ model }: { model: Model }) {
           : null;
 
   if (label === null) return null;
+
   return (
     <span className="rounded-full border border-[var(--dusk-line)] px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-[var(--dusk-dim)]">
       {label}
@@ -258,6 +264,7 @@ export default function ModelPicker({ measured, regions }: Props) {
           { signal: controller.signal },
         );
         const result: unknown = response.ok ? await response.json() : null;
+
         // A hand-picked region always wins, even if the answer lands later.
         if (
           regionPickedByUser.current ||
@@ -288,6 +295,7 @@ export default function ModelPicker({ measured, regions }: Props) {
       language,
       requirements,
     );
+
     return rankModels(pool, {
       weights,
       measured: (region && measured[region]) || {},
@@ -555,7 +563,7 @@ export default function ModelPicker({ measured, regions }: Props) {
               <p className="mt-2 flex min-h-4 items-center gap-1.5 text-xs text-[var(--dusk-lav)]">
                 {detectedCity !== null ? (
                   <>
-                    <MapPin className="h-3 w-3" aria-hidden="true" />
+                    <MapPin aria-hidden="true" className="h-3 w-3" />
                     Picked for you — closest to {detectedCity}
                   </>
                 ) : null}

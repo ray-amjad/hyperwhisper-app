@@ -21,6 +21,7 @@ const DESCRIPTION = `How fast each speech-to-text provider actually answers Hype
 // resolves the [locale] 404's metadata instead.
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }
@@ -46,6 +47,7 @@ type Props = {
  */
 export default async function LatencyPage({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }

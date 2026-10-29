@@ -55,7 +55,7 @@ export default async function CreditsPage({
 
   if (raw.startsWith("HW-")) {
     redirect(
-      `/${locale}/user/sign-in?licenseKey=${encodeURIComponent(raw)}&returnTo=/${locale}/user/dashboard`
+      `/${locale}/user/sign-in?licenseKey=${encodeURIComponent(raw)}&returnTo=/${locale}/user/dashboard`,
     );
   }
 

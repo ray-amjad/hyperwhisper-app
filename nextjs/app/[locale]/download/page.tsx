@@ -325,6 +325,7 @@ export default function DownloadPage() {
       try {
         const response = await fetch("/linux-latest.json");
         const data: unknown = response.ok ? await response.json() : null;
+
         if (!cancelled && isLinuxLatest(data)) setLinuxLatest(data);
       } catch (error) {
         // A fetch the cleanup abandoned is nobody's failure.
