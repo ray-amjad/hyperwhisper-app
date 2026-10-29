@@ -1,19 +1,20 @@
 /**
  * #1180: with the OS "Reduce motion" setting on, the home page's scroll
- * reveals still jumped. Each block is server-rendered at its `initial` offset
- * (`translateY(12px)` / `translateY(20px)`), and `MotionConfig
- * reducedMotion="user"` skips the y animation, so the offset snapped to `none`
- * in one frame when the block revealed.
+ * reveals still jumped. Each block is server-rendered at its `initial` offset,
+ * and `MotionConfig reducedMotion="user"` skips the transform animation, so the
+ * offset snapped to `none` in one frame when the block revealed.
  *
- * Every `whileInView` block in FeaturesGrid, VideoDemo, PricingSection and
- * FAQSection now takes `animate={{ y: 0 }}` when `useReducedMotion()` is true:
- * the offset settles at mount, while the block is still invisible, and the
- * reveal is a pure fade. `initial` is the same either way, so the server render
- * and the hydration render still match.
+ * Every scroll reveal on the homepage is now the shared `Reveal`
+ * (components/landing/Reveal.tsx): up 12px and out of a 4px blur, 400ms
+ * ease-out. When `useReducedMotion()` is true it takes `animate` = the shown
+ * state with a zero-length transition, so the block is settled and visible at
+ * mount and never enters at all. `initial` is the same either way, so the
+ * server render and the hydration render still match. (Before hydration,
+ * `[data-reveal]` in globals.css shows it from first paint.)
  *
- * The motion itself runs in the browser (the Chromium probe in the PR body).
- * This file renders the REAL sections with `framer-motion`'s `m` swapped for a
- * recorder, and pins the props each reveal block receives.
+ * The motion itself runs in the browser. This file renders the REAL sections
+ * with `framer-motion`'s `m` swapped for a recorder, and pins the props each
+ * reveal block receives.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -30,12 +31,16 @@ import { moduleMock } from "./module-mock";
 // tsconfig. Same rule the other tests in this folder document.
 const CONTEXT_PATH = "../contexts/DownloadModalContext.tsx";
 const SECTIONS = [
-  // [file, reveal blocks with a y offset]: 24 in all, the count the probe saw
-  // as `translateY` inline styles in the served /en markup.
-  ["../components/landing/FeaturesGrid.tsx", 13],
-  ["../components/landing/VideoDemo.tsx", 5],
-  ["../components/landing/PricingSection.tsx", 4],
-  ["../components/landing/FAQSection.tsx", 2],
+  // [file, reveal blocks it renders]. An exact count: a block that stops
+  // being a Reveal, or a scraper gone blind, both move it.
+  ["../components/landing/LogoMarquee.tsx", 2],
+  ["../components/landing/HowItWorks.tsx", 8],
+  ["../components/landing/StatsRow.tsx", 4],
+  ["../components/landing/FeaturesGrid.tsx", 10],
+  ["../components/landing/ModesShowcase.tsx", 1],
+  ["../components/landing/PricingSection.tsx", 6],
+  ["../components/landing/FAQSection.tsx", 4],
+  ["../components/landing/ClosingSection.tsx", 3],
 ] as const;
 
 type Props = Record<string, unknown> & { children?: React.ReactNode };
@@ -88,17 +93,8 @@ const messages = JSON.parse(
   readFileSync(new URL("../messages/en.json", import.meta.url), "utf8"),
 ) as Record<string, unknown>;
 
-/** The y a block starts at: its own `initial`, or the `hidden` variant it inherits. */
-function initialY(props: Props): number | undefined {
-  const initial = props.initial as Record<string, unknown> | string | undefined;
-
-  if (initial && typeof initial === "object") return initial.y as number;
-  const variants = props.variants as
-    | Record<string, Record<string, unknown>>
-    | undefined;
-
-  return variants?.hidden?.y as number | undefined;
-}
+const HIDDEN = { opacity: 0, y: 12, filter: "blur(4px)" };
+const SHOWN = { opacity: 1, y: 0, filter: "blur(0px)" };
 
 async function render(path: string, reduce: boolean | null): Promise<Props[]> {
   const { default: Section } = (await import(path)) as {
@@ -118,37 +114,35 @@ async function render(path: string, reduce: boolean | null): Promise<Props[]> {
     }),
   );
 
-  // A reveal block with an offset: in-view triggered, itself or via its parent.
-  return recorded.filter((p) => {
-    const y = initialY(p);
-
-    return typeof y === "number" && y !== 0;
-  });
+  return recorded.filter((p) => "data-reveal" in p);
 }
 
 for (const [path, count] of SECTIONS) {
   const name = path.split("/").pop();
 
-  test(`${name}: under Reduce motion every offset reveal block settles y to 0 at mount`, async () => {
+  test(`${name}: under Reduce motion every reveal is shown at mount, with no tween`, async () => {
     const blocks = await render(path, true);
 
-    assert.equal(blocks.length, count, "reveal blocks with a y offset");
+    assert.equal(blocks.length, count, "reveal blocks");
     for (const block of blocks) {
-      assert.deepEqual(
-        block.animate,
-        { y: 0 },
-        `block ${String(block.className)} keeps its offset until it reveals`,
-      );
+      assert.deepEqual(block.animate, SHOWN);
+      assert.deepEqual(block.transition, { duration: 0 });
     }
   });
 
-  test(`${name}: with motion allowed, and on the server, the slide-in is unchanged`, async () => {
+  test(`${name}: with motion allowed, and on the server, it enters on scroll (400ms ease-out)`, async () => {
     for (const reduce of [false, null]) {
       const blocks = await render(path, reduce);
 
       assert.equal(blocks.length, count);
       for (const block of blocks) {
         assert.equal(block.animate, undefined);
+        assert.deepEqual(block.initial, HIDDEN);
+        assert.deepEqual(block.whileInView, SHOWN);
+        const transition = block.transition as Record<string, unknown>;
+
+        assert.equal(transition.duration, 0.4);
+        assert.equal(transition.ease, "easeOut");
       }
     }
   });

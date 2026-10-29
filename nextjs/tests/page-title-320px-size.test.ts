@@ -21,14 +21,46 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 const sites = [
-  { file: "components/landing/FeaturesGrid.tsx", tag: "h2", bleed: true },
   { file: "app/[locale]/support/page.tsx", tag: "h1", bleed: false },
-  // #2714: the four siblings PR #2710 left out.
-  { file: "components/landing/PricingSection.tsx", tag: "h2", bleed: false },
-  { file: "components/landing/FAQSection.tsx", tag: "h2", bleed: false },
+  // #2714: the siblings PR #2710 left out.
   { file: "components/credits/CreditsPurchase.tsx", tag: "h1", bleed: false },
   { file: "app/[locale]/older-versions/page.tsx", tag: "h1", bleed: false },
 ];
+
+const read = (file: string) =>
+  readFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), "utf8");
+
+/*
+  The homepage section titles (features, pricing, FAQ and the rest) share one
+  class string, `H2` in components/landing/dusk.ts. They are solid ink now,
+  not a clipped gradient, so no glyph can lose its stroke at the box edge and
+  the old `-mx-2 px-2` bleed is not needed; `[overflow-wrap:anywhere]` still
+  breaks a word wider than a 320px phone's column instead of scrolling.
+*/
+test("the homepage H2 is text-3xl below sm, text-4xl from sm, text-5xl from md", () => {
+  const match = read("components/landing/dusk.ts").match(
+    /export const H2 =\s*"([^"]*)"/,
+  );
+
+  assert.ok(match, "no H2 constant in components/landing/dusk.ts");
+  const classes = match[1].split(/\s+/);
+
+  assert.deepEqual(
+    classes.filter((c) => /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c)),
+    ["text-3xl", "sm:text-4xl", "md:text-5xl"],
+  );
+  assert.ok(classes.includes("[overflow-wrap:anywhere]"));
+});
+
+for (const file of [
+  "components/landing/FeaturesGrid.tsx",
+  "components/landing/PricingSection.tsx",
+  "components/landing/FAQSection.tsx",
+]) {
+  test(`${file} titles its section with the shared H2`, () => {
+    assert.match(read(file), /<h2 className=\{`\$\{H2\}[^`]*`\}>/);
+  });
+}
 
 for (const { file, tag, bleed } of sites) {
   test(`${file} <${tag}> is text-3xl below sm, text-4xl from sm, text-5xl from md`, () => {
