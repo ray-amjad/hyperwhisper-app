@@ -48,14 +48,15 @@ function collectHeadings(node: ReactNode, out: TocItem[] = []): TocItem[] {
 /*
   Dusk prose. The typography plugin's colours are overridden through its own
   --tw-prose-* variables (utilities sit in a later layer than .prose, so they
-  win). The pages' links carry `text-blue-400`, so link colour is set with a
-  descendant selector, which outranks a single class.
+  win). Body links are lavender; a link inside a heading (the refund page's
+  closing "HyperWhisper" heading) inherits its heading's colour instead, and
+  that rule's extra element selector outranks the blanket link colour.
 */
 const PROSE = [
   "prose prose-invert max-w-none",
   "[--tw-prose-body:var(--dusk-mute)] [--tw-prose-headings:var(--dusk-ink)] [--tw-prose-bold:#fff]",
   "[--tw-prose-bullets:var(--dusk-dim)] [--tw-prose-counters:var(--dusk-dim)] [--tw-prose-hr:var(--dusk-line)]",
-  "[--tw-prose-links:var(--dusk-lav)] [&_a]:text-[var(--dusk-lav)] [&_a]:decoration-[rgba(196,181,253,.45)] [&_a]:underline-offset-4 [&_a:hover]:text-white",
+  "[--tw-prose-links:var(--dusk-lav)] [&_a]:text-[var(--dusk-lav)] [&_a]:decoration-[rgba(196,181,253,.45)] [&_a]:underline-offset-4 [&_a:hover]:text-white [&_:is(h2,h3,h4)_a]:text-inherit",
   "[&_a]:rounded-sm [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-2 [&_a:focus-visible]:outline-[var(--dusk-lav)]",
   "[&_h2]:mb-3.5 [&_h2]:mt-11 [&_h2]:text-[24px] md:[&_h2]:text-[28px] [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:tracking-[-0.8px]",
   "[&_h3]:text-[var(--dusk-ink)] [&_strong]:font-semibold",

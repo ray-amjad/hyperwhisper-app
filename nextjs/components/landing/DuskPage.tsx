@@ -22,8 +22,8 @@ const SKIES = {
 /**
  * The page shell of a Dusk sub-page: night background, light ink, and a clip
  * on sideways overflow so the bleeding sky never adds a horizontal scrollbar.
- * LayoutWrapper renders these routes in a full-bleed <main>, so each section
- * centres itself with WRAP.
+ * `data-dusk-page` tells LayoutWrapper's container to drop its width and
+ * gutter (a CSS `:has()`), so each section centres itself with WRAP.
  */
 export function DuskPage({
   children,
@@ -35,6 +35,7 @@ export function DuskPage({
   return (
     <div
       className={`min-h-screen overflow-x-clip bg-[var(--dusk-night)] text-[var(--dusk-ink)] ${className}`}
+      data-dusk-page=""
     >
       {children}
     </div>
@@ -73,7 +74,6 @@ export function PageHero({
           alt=""
           className={`h-full w-full object-cover opacity-95 ${image.position}`}
           decoding="async"
-          fetchPriority="high"
           sizes="100vw"
           src={image.src}
           srcSet={image.srcSet}

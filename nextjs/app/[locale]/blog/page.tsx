@@ -55,7 +55,7 @@ function PostArt({
   if (post.frontMatter.image) {
     return (
       <img
-        alt={post.frontMatter.imageAlt ?? post.frontMatter.title}
+        alt=""
         className="h-full w-full object-cover"
         decoding="async"
         loading={loading}

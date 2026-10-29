@@ -17,34 +17,6 @@ function isHomePath(pathname: string): boolean {
 }
 
 /**
- * The sub-pages restyled in the Dusk design. Each lays its own full-bleed sky
- * band under the navbar and centres its sections itself, so their main region drops
- * the container.
- */
-const DUSK_PAGES = [
-  "download",
-  "older-versions",
-  "choosing-a-model",
-  "latency",
-  "credits",
-  "open-source",
-  "blog",
-  "support",
-  "legal",
-];
-
-/** `/en/download`, `/ja/legal/privacy-policy`, `/en/blog/some-post`, … */
-function isDuskPagePath(pathname: string): boolean {
-  const parts = pathname.split("/").filter(Boolean);
-
-  return (
-    parts.length >= 2 &&
-    isSupportedLocale(parts[0]) &&
-    DUSK_PAGES.includes(parts[1])
-  );
-}
-
-/**
  * Client-side layout wrapper that conditionally renders navbar/footer
  * based on the current pathname.
  *
@@ -84,7 +56,6 @@ export default function LayoutWrapper({
   // The homepage lays a transparent navbar over its full-height hero, with no
   // banner (the hero's own pill links to /open-source) and a full-bleed main.
   const isHome = isHomePath(pathname);
-  const isDuskPage = isDuskPagePath(pathname);
 
   // Publishes the sticky header's live height as `--site-header-offset`, which
   // globals.css uses as `scroll-padding-top` so focused controls and #anchor
@@ -166,9 +137,14 @@ export default function LayoutWrapper({
       </div>
       <main
         className={
-          isHome || isDuskPage
+          isHome
             ? "flex-grow"
-            : "container mx-auto max-w-7xl px-6 flex-grow"
+            : // A Dusk sub-page (components/landing/DuskPage.tsx) lays its own
+              // full-bleed sky band and centres its sections itself, so the
+              // container lets go of its width and gutter while one is inside.
+              // Keyed on the page's own mark, not the path, so a 404 or an
+              // error page under the same prefix keeps the gutter.
+              "container mx-auto max-w-7xl px-6 flex-grow has-[[data-dusk-page]]:max-w-none has-[[data-dusk-page]]:px-0"
         }
       >
         {children}

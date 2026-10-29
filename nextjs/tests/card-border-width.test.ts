@@ -13,8 +13,9 @@
  * a variable) fails instead of being skipped.
  *
  * The walk covers every `.tsx` file under `app/` and `components/`, so a new
- * colour-only Card fails here. ONE known site is excluded: the
- * /older-versions error card (`border-red-800`), which #925 owns.
+ * colour-only Card fails here. No site is excluded: the one exclusion, the
+ * /older-versions error card (#925), went away when the Dusk /older-versions
+ * replaced its HeroUI Cards with plain bordered <div>s.
  *
  * No DOM is needed, the same way `tests/card-body-rtl-alignment.test.ts`
  * renders `<CardBody>`.

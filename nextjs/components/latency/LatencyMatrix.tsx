@@ -352,9 +352,15 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
    * fading as it gets worse. Colour only ever repeats what the printed number
    * already says. The alpha tops out at .55 so white text keeps its contrast.
    */
-  const cellStyle = (value: number) => {
+  /** 0 for the worst number on screen, 1 for the best (lower is better). */
+  const goodness = (value: number) => {
     const span = scale.max - scale.min || 1;
-    const ratio = Math.min(1, Math.max(0, (value - scale.min) / span));
+
+    return 1 - Math.min(1, Math.max(0, (value - scale.min) / span));
+  };
+
+  const cellStyle = (value: number) => {
+    const ratio = 1 - goodness(value);
 
     return {
       backgroundColor: `rgba(196, 181, 253, ${(0.55 - ratio * 0.45).toFixed(2)})`,
@@ -621,7 +627,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     <span
                       className="block h-full rounded-full bg-[image:var(--dusk-accent)]"
                       style={{
-                        width: `${Math.max(4, Math.min(100, (entry.score / (scale.max || 1)) * 100))}%`,
+                        // Lower is better, so the best number gets the
+                        // longest bar, as it gets the strongest cell.
+                        width: `${Math.round(10 + goodness(entry.score) * 90)}%`,
                       }}
                     />
                   </div>
