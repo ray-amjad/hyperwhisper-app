@@ -16,12 +16,12 @@ function bearerToken(request: NextRequest): string | null {
 }
 
 /**
- * The gate every daily Vercel cron route under `app/api/internal/` shares.
+ * The gate every daily cron route under `app/api/internal/` shares.
  *
  * Accepts the internal secret either as `x-internal-secret` (manual runs) or as
- * `Authorization: Bearer …` (Vercel cron, which cannot set custom headers).
- * Vercel signs its cron requests with CRON_SECRET, so that is accepted on the
- * bearer too — both come from src/env/server.mjs, so an unset one is a named
+ * `Authorization: Bearer …` (the cron path). The Worker's `scheduled()`
+ * handler (worker.ts) sends CRON_SECRET as the bearer, so that is accepted on
+ * the bearer too — both come from src/env/server.mjs, so an unset one is a named
  * hole in the environment rather than an undefined that quietly never matches.
  *
  * A refusal is logged under `label`. The failure mode this guards against is

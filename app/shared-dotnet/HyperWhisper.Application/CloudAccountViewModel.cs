@@ -117,7 +117,10 @@ public sealed class CloudAccountViewModel : ViewModelBase
         : null;
     public bool HasDailyReset => !string.IsNullOrEmpty(DailyReset);
     public bool IsCreditsExhausted => _balance is not null && _balance.CreditsRemaining <= 0;
-    public bool IsCreditsLow => _balance is { MinutesRemaining: > 0 and < 10 };
+    // The server floors minutes_remaining (credits / 1.67), so a balance under one minute arrives
+    // as 0 minutes with credits left; that is the most urgent low case, not "no data" (issue #2656).
+    // Same rule as macOS and Windows since #2618; at 0 credits IsCreditsExhausted shows instead.
+    public bool IsCreditsLow => _balance is { MinutesRemaining: < 10, CreditsRemaining: > 0 };
     public bool IsLoadingCredits { get => _isLoadingCredits; private set { if (Set(ref _isLoadingCredits, value)) Notify(nameof(ShowCreditsLoading)); } }
     public bool ShowCreditsLoading => IsLoadingCredits && !HasCredits;
     public string? CreditsError { get => _creditsError; private set { if (Set(ref _creditsError, value)) Notify(nameof(HasCreditsError)); } }

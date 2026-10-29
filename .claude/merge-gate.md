@@ -14,7 +14,7 @@ A change to this file is a change to what ships without review. Review it like o
 | Default branch | `main` |
 | App directory | one head per platform: `app/macos` (Swift), `app/windows` (WPF, .NET), `app/linux` (Avalonia); `nextjs/` (web), `hyperwhisper-cloud/` (cloud), `mintlify-help/` (docs) |
 | Package manager | per head; npm in `nextjs/` |
-| Production | the web app and the cloud service, on Vercel and Fly. The desktop apps reach users only through a release workflow |
+| Production | the web app and the cloud service, on Cloudflare Workers and Fly. The desktop apps reach users only through a release workflow |
 | Deploy on merge | web and cloud: yes, on merge. Desktop heads: no. A merge to a desktop head ships at the next `*-release` workflow |
 | Staging | `cloud-deploy-staging` exists for the cloud service. None for the web app or the desktop heads |
 | CI the gate reads | every workflow run on the PR head sha. One CI per head: `linux-ci`, `windows-ci`, `macos-ci`, `nextjs-ci`, `cloud-ci`, plus `shared-core-tests`, `binding-drift`, `static-gates`, `drizzle-journal`. Only the runs the PR head triggers count. |

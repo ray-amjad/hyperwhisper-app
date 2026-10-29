@@ -28,6 +28,8 @@ interface LicenseKeysCardProps {
  * License Keys Card
  *
  * Displays all license keys in a single card with show/hide and copy functionality.
+ * Active keys come first, so an inactive one never sits between two live ones
+ * (#1664).
  */
 export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -71,11 +73,16 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
     setShowKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // A stable sort: each group keeps the order the server sent.
+  const ordered = [...licenses].sort(
+    (a, b) => Number(b.status === "granted") - Number(a.status === "granted"),
+  );
+
   return (
     <div className="bg-white/5 rounded-xl border border-white/10 p-5">
       <p className="text-sm text-gray-400 mb-3">Account Keys</p>
       <div className="space-y-3">
-        {licenses.map((license) => {
+        {ordered.map((license) => {
           const isActive = license.status === "granted";
           const isShown = showKeys[license.id];
           const isCopied = copiedKey === license.key;
@@ -83,8 +90,11 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
 
           return (
             <div key={license.id}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* Both rows wrap, so on a phone the buttons and the badge drop
+                  under the key instead of squeezing it to a prefix every key
+                  shares, or pushing the page wider than the screen (#1664). */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
                   {/* Shown: wrap so a phone sees every character (#1325). Masked: one line.
                       dir="ltr": an RTL page must not reverse the segments (#1659). */}
                   <code

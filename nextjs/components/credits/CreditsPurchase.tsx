@@ -211,13 +211,13 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
             {t("eyebrow")}
           </span>
-          <h1 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h1>
           <p className="text-lg text-gray-400">{t("subtitle")}</p>
         </div>
 
-        <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
+        <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border border-purple-700 backdrop-blur-xl">
           <CardBody className="p-6 md:p-8">
             {/* Email */}
             <label
@@ -396,8 +396,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               )}
             </ErrorReveal>
 
+            {/* h-auto + whitespace-normal: the label wraps instead of being
+                clipped at 320px in bg, cs, el, fr, id, is, ms, nl, pt, ro, th
+                (#2871's sibling). */}
             <Button
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
+              className="h-auto min-h-12 whitespace-normal py-3 text-center w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
               size="lg"
               isLoading={loading}
               isDisabled={loading || !emailValid || !amountValid}
@@ -435,8 +438,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <Button
             variant="bordered"
             size="lg"
-            startContent={<LogIn className="w-4 h-4" strokeWidth={1.5} />}
-            className="border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
+            startContent={<LogIn className="w-4 h-4 shrink-0" strokeWidth={1.5} />}
+            // The label wraps instead of running past a 320px viewport in
+            // the longer locales (is, ro, fr, fi): #2871.
+            className="h-auto min-h-12 max-w-full whitespace-normal py-2 text-center border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
             onPress={() => {
               window.location.href = `/${locale}/user/sign-in`;
             }}

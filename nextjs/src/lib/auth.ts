@@ -7,7 +7,7 @@ import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
 import { env } from "@/src/env/server.mjs";
-import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
+import { DEFAULT_FROM_EMAIL, sendEmail } from "@/lib/clients/email";
 import { sha256Hex } from "@/lib/shared/sha256";
 import { redactAddresses } from "@/lib/shared/redact";
 import {
@@ -18,62 +18,6 @@ import {
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
 import { signInMethodForPath } from "./session-sign-in-method";
 import { authRateLimitOptions } from "./auth-rate-limit-storage";
-
-/**
- * Read `name` / `statusCode` / `message` off whatever Resend put in the `error`
- * slot, checking each field rather than asserting it, and return them already
- * stringified so the one call site below needs no `??` noise and cannot
- * interpolate `undefined`.
- *
- * The SDK's `ErrorResponse` type does not reliably carry `statusCode`, so the
- * parameter is `unknown` and every field is narrowed.
- *
- * `statusCode` has three outcomes on purpose. Resend's own network-failure path
- * (`resend/dist/index.mjs`, the `catch` around `fetch`) sets
- * `{ name: "application_error", statusCode: null }`, so an explicit `null` means
- * "the request never reached Resend" while a missing or wrong-typed field means
- * "Resend sent something this code does not understand". Collapsing both to one
- * token would make an unreachable API indistinguishable from a malformed error.
- *
- * This deliberately duplicates `resendErrorDetailsOf` in
- * `lib/services/email.ts` rather than importing it. NOT because of the import
- * graph — `auth.ts` already imports `@/src/db` directly (line 7) and reaches
- * `./db-layer` transitively through `./auth-license-key-plugin`, so the
- * database is in this file's graph either way. The real reasons are that
- * `resendErrorDetailsOf` is not exported (`email.ts` exports only the
- * `emailService` singleton), that #736 explicitly keeps the magic-link path off
- * the `sentEmails` / retry path that module owns, and that the two have
- * diverged for their different jobs: `email.ts` returns optional fields that
- * `isRetryableResendError` branches on, this one returns display strings.
- * Extracting a shared narrower would mean editing that retry decision's inputs,
- * which is out of scope for #736 and has no direct test coverage (the only test
- * that reaches `lib/services/email.ts` replaces the whole module with a mock).
- */
-function resendErrorFieldsOf(error: unknown): {
-  name: string;
-  statusCode: string;
-  message: string;
-} {
-  const fields = { name: "unknown", statusCode: "unknown", message: "" };
-
-  if (typeof error !== "object" || error === null) return fields;
-
-  if ("name" in error && typeof error.name === "string") {
-    fields.name = error.name;
-  }
-  if ("statusCode" in error) {
-    if (typeof error.statusCode === "number") {
-      fields.statusCode = String(error.statusCode);
-    } else if (error.statusCode === null) {
-      fields.statusCode = "null";
-    }
-  }
-  if ("message" in error && typeof error.message === "string") {
-    fields.message = error.message;
-  }
-
-  return fields;
-}
 
 const MAGIC_LINK_VERIFY_PATH = "/magic-link/verify";
 
@@ -170,7 +114,11 @@ function logMagicLinkVerify(ctx: {
     returned,
     newSession !== null,
   );
-  const ip = ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
+  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
+  const ip =
+    ctx.headers?.get("cf-connecting-ip")?.trim() ||
+    ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
   const line = JSON.stringify({
     event: "auth.magic_link_verify",
     outcome,
@@ -184,7 +132,7 @@ function logMagicLinkVerify(ctx: {
     ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
   });
 
-  // The website's console output is its server log (Vercel).
+  // The website's console output is its server log (Workers Logs).
   /* eslint-disable no-console */
   if (outcome === "ok") {
     console.log(line);
@@ -304,11 +252,20 @@ export const auth = betterAuth({
     }),
   },
   // Better Auth's own rate-limit rules, counted in the site's Upstash so every
-  // Vercel instance shares one budget (#2010). `customStorage`, deliberately
+  // Worker isolate shares one budget (#2010). `customStorage`, deliberately
   // not `secondaryStorage`: the latter would also move sessions off Postgres.
   // Fails open when Upstash is down or unconfigured. See
   // `./auth-rate-limit-storage.ts`.
   rateLimit: authRateLimitOptions(),
+  advanced: {
+    ipAddress: {
+      // Cloudflare sets cf-connecting-ip on every request and overwrites any
+      // client value. Its x-forwarded-for APPENDS to a client-supplied chain,
+      // so it must not come first. x-forwarded-for stays as the fallback for
+      // local dev and the tests, where no Cloudflare edge is in front.
+      ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+    },
+  },
   user: {
     additionalFields: {
       role: {
@@ -346,7 +303,7 @@ export const auth = betterAuth({
         const normalisedRecipient = email.trim().toLowerCase();
         const recipientHash = sha256Hex(normalisedRecipient).slice(0, 12);
 
-        const result = await resend.emails.send({
+        const result = await sendEmail({
           from: DEFAULT_FROM_EMAIL,
           to: email,
           subject: "Sign in to HyperWhisper",
@@ -354,54 +311,34 @@ export const auth = betterAuth({
           text: magicLinkEmailText({ url }),
         });
 
-        // The Resend SDK resolves to { data, error } and does NOT throw on
-        // API-level failures (bad domain, rate limit, suspended key, 5xx), so
-        // the error object must be inspected explicitly. Without this, a
-        // rejected send returned normally, Better Auth answered 200, and
-        // SignInClient.tsx told the user to check an inbox that would never
-        // receive a link — with no trace of the failure anywhere (#736).
+        // `sendEmail` never throws: a refused send (unverified sender,
+        // suppressed recipient, quota, an outage) comes back as `error`, so it
+        // must be inspected explicitly. Without this, a rejected send returned
+        // normally, Better Auth answered 200, and SignInClient.tsx told the
+        // user to check an inbox that would never receive a link — with no
+        // trace of the failure anywhere (#736).
         if (result.error) {
-          const { name, statusCode, message } = resendErrorFieldsOf(
-            result.error,
-          );
+          const { code, message } = result.error;
 
           // ONE line from this callback. The recipient appears in it only as a
           // 12-character SHA-256 prefix of the NORMALISED address — enough to
           // correlate a user's support report with this log.
           //
-          // `message` is kept because the name/statusCode pair rarely says what
-          // was actually wrong, but both it and `name` are provider-controlled
-          // text, so the assembled line goes through `redactAddresses` before it
-          // is logged. Resend's `validation_error` really does echo the rejected
-          // recipient ("... alice@corp.com is not a valid recipient"), which
-          // would otherwise put the address a few characters from the hash whose
-          // whole purpose is to avoid it. Redaction is what makes "never the
-          // address itself" true of the mechanism instead of true only of the
-          // wordings we happened to test.
+          // `message` is kept because the code rarely says what was actually
+          // wrong, but it is provider-controlled text and may echo the
+          // recipient, so the assembled line goes through `redactAddresses`
+          // before it is logged. Redaction is what makes "never the address
+          // itself" true of the mechanism instead of true only of the wordings
+          // we happened to test.
           //
-          // Exactly ONE record comes from this callback. In PRODUCTION it is
-          // also all the request emits: `betterAuth()` here configures neither
-          // `logger` nor `onAPIError`, and the `APIError` thrown below becomes
-          // the response before better-auth's and better-call's error handlers
-          // exist to log it — see the measurement at the throw.
-          //
-          // In a NON-production build there is a SECOND record, it is not
-          // redacted, and it lands before this one. The Resend SDK logs every
-          // failed send itself: `console.error("[Resend API Error]:", { status,
-          // error, path })` in `resend/dist/index.mjs` (`logError`), gated only
-          // on `process.env.NODE_ENV !== "production"`. So under `next dev` a
-          // `validation_error` whose message echoes the recipient prints the
-          // address in the clear whatever this line does.
-          //
-          // That log is deliberately NOT suppressed here. It never fires in
-          // production, it is pre-existing at all five `resend.emails.send` call
-          // sites (four of them in `lib/services/email.ts`, untouched by #736),
-          // and the SDK exposes no logger hook at that line — so quieting it
-          // means wrapping or muting the client app-wide. That belongs to #717,
-          // which owns plaintext addresses in logs across every call site.
+          // Exactly ONE record comes from this callback, and it is all the
+          // request emits: `betterAuth()` here configures neither `logger` nor
+          // `onAPIError`, and the `APIError` thrown below becomes the response
+          // before better-auth's and better-call's error handlers exist to log
+          // it — see the measurement at the throw.
           console.error(
             redactAddresses(
-              `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${recipientHash} message=${message}`,
+              `sendMagicLink failed: email error code=${code} recipientHash=${recipientHash} message=${message}`,
               normalisedRecipient.split("@")[1] ?? "",
             ),
           );
@@ -431,7 +368,7 @@ export const auth = betterAuth({
           // provider, and the sign-in page's "Resend Magic Link" button is the
           // retry that status invites.
           //
-          // NO address and NO Resend text in the message — it goes to a browser.
+          // NO address and NO provider text in the message — it goes to a browser.
           throw new APIError("SERVICE_UNAVAILABLE", {
             message: "Failed to send the magic-link email. Please try again.",
           });
