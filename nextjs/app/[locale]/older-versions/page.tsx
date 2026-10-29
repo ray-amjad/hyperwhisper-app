@@ -235,7 +235,7 @@ export default function DownloadsPage() {
       <div className="max-w-3xl mx-auto">
         {/* Page Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h1>
           <p className="text-lg text-gray-400">{t("subtitle")}</p>
@@ -303,7 +303,7 @@ export default function DownloadsPage() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <Card
                   key={i}
-                  className="bg-gray-900/50 backdrop-blur-xl border-gray-800 h-full"
+                  className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 h-full"
                 >
                   <CardBody className="p-6 space-y-4">
                     {["w-32", "w-40", "w-24", "w-28"].map((w) => (
@@ -331,7 +331,7 @@ export default function DownloadsPage() {
               {versions.map((version, index) => (
                 <Card
                   key={version.buildNumber}
-                  className={`bg-gray-900/50 backdrop-blur-xl border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
+                  className={`bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
                     isLatestVersion(index)
                       ? "ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/20"
                       : ""
@@ -383,15 +383,22 @@ export default function DownloadsPage() {
                           {formatDate(version.pubDate)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <HardDrive
-                          className="w-4 h-4 text-purple-400"
-                          strokeWidth={1.5}
-                        />
-                        <span className="text-sm">
-                          {formatFileSize(version.downloads[0]?.fileSize ?? 0)}
-                        </span>
-                      </div>
+                      {/* One size per card only when there is one file; a
+                          multi-arch card puts each file's size on its own
+                          button (#2086). */}
+                      {version.downloads.length === 1 && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <HardDrive
+                            className="w-4 h-4 text-purple-400"
+                            strokeWidth={1.5}
+                          />
+                          <span className="text-sm">
+                            {formatFileSize(
+                              version.downloads[0]?.fileSize ?? 0,
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-gray-400">
                         <Monitor
                           className="w-4 h-4 text-purple-400"
@@ -418,12 +425,27 @@ export default function DownloadsPage() {
                           size="lg"
                           startContent={
                             <Download
-                              className="w-4 h-4"
+                              className="w-4 h-4 shrink-0"
                               strokeWidth={isLatestVersion(index) ? 2 : 1.5}
                             />
                           }
                         >
-                          {dl.arch ? `${dl.arch}` : downloadLabel}
+                          {version.downloads.length > 1 ? (
+                            // Two buttons share a ~350px row: the size goes on
+                            // a second line, so the label, size and icon fit.
+                            // The space keeps the link's text and accessible
+                            // name "ARM64 172.02 MB", not "ARM64172.02 MB".
+                            <span className="flex flex-col items-start leading-tight">
+                              <span>{dl.arch}</span>{" "}
+                              <span className="text-xs font-normal opacity-80">
+                                {formatFileSize(dl.fileSize)}
+                              </span>
+                            </span>
+                          ) : dl.arch ? (
+                            `${dl.arch}`
+                          ) : (
+                            downloadLabel
+                          )}
                         </Button>
                       ))}
                     </div>

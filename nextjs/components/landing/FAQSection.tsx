@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
@@ -48,6 +48,9 @@ function parseMarkdownLinks(text: string) {
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const t = useTranslations("faq");
+  // Settle the reveal offset at mount under Reduce motion, so the blocks
+  // fade in place instead of snapping up on reveal (#1180, see FeaturesGrid).
+  const settle = useReducedMotion() ? { y: 0 } : undefined;
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -77,6 +80,7 @@ export default function FAQSection() {
   return (
     <section className="py-20" id="faq">
       <m.div
+        animate={settle}
         className="max-w-3xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
@@ -84,7 +88,7 @@ export default function FAQSection() {
         whileInView={{ opacity: 1, y: 0 }}
       >
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400">{t("subtitle")}</p>
@@ -132,6 +136,7 @@ export default function FAQSection() {
         </div>
 
         <m.div
+          animate={settle}
           className="text-center mt-12"
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.2 }}

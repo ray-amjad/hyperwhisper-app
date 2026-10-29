@@ -97,7 +97,7 @@ Each HyperWhisper Cloud tier has a fallback chain. If your chosen provider fails
 
 Deepgram, Groq, and Grok can report that they processed audio but still return an empty transcript. When this happens on the provider that you selected, HyperWhisper Cloud can try one reachable backup provider. It makes at most one additional provider call for this recovery.
 
-If the backup provider returns text, that provider and its model appear in the result, and its rate applies. If no backup provider returns text, the request stays a **No speech detected** result and costs 0 credits. A provider that reports no audio duration does not start this recovery.
+If the backup provider returns text, that provider and its model appear in the result, and its rate applies. If no backup provider returns text, the request stays a "No speech detected" result and costs 0 credits. A provider that reports no audio duration does not start this recovery.
 
 The other providers have no fallback. These providers include Azure MAI, Google Gemini 3.5 Transcribe, OpenAI, Gemini, AssemblyAI, Mistral, and Soniox. If one of these providers fails, you get an error. Try again, or change to a different provider.
 

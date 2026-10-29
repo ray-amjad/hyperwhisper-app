@@ -6,7 +6,14 @@ import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { PROSE_TEXT_LINK } from "@/components/text-link";
 import { serializeJsonLd } from "@/lib/security/json-ld";
-import { OG_IMAGES, SITE_URL, TWITTER_IMAGES } from "@/lib/site-metadata";
+import {
+  OG_IMAGES,
+  SITE_NAME,
+  SITE_URL,
+  TWITTER_CARD,
+  TWITTER_CREATOR,
+  TWITTER_IMAGES,
+} from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -52,15 +59,20 @@ export async function generateMetadata({ params }: Props) {
       url: canonical,
       title,
       description,
+      // This object replaces the layout's whole `openGraph` (shallow merge),
+      // so it restates the site name (#1316).
+      siteName: SITE_NAME,
       // A post with no front-matter image falls back to the site card (#844):
-      // this object replaces the layout's whole `openGraph`, so leaving it
-      // undefined sent no og:image at all under a summary_large_image card.
+      // leaving it undefined sent no og:image at all under a
+      // summary_large_image card.
       images: image ? [image] : OG_IMAGES,
     },
+    // Same for `twitter`: the layout's creator is dropped unless restated (#1316).
     twitter: {
-      card: "summary_large_image",
+      card: TWITTER_CARD,
       title,
       description,
+      creator: TWITTER_CREATOR,
       images: image ? [image.url] : TWITTER_IMAGES,
     },
   };
