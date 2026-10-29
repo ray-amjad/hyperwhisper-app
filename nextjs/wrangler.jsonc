@@ -10,6 +10,11 @@
   // Must not be newer than the workerd bundled with the pinned wrangler.
   "compatibility_date": "2026-10-15",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // esbuild keep_names wraps functions in a __name() helper. Next stringifies
+  // some of them into inline <script>s (the next-themes init script), where
+  // __name does not exist: "ReferenceError: __name is not defined" in the
+  // browser on every dynamically rendered page, e.g. /en/user/dashboard.
+  "keep_names": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
