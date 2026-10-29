@@ -2471,9 +2471,12 @@ static async Task RunModeSaveRaceTestsAsync(string root)
         var repository = new ModeRepository(db);
         var other = new Mode { Name = "B", SortOrder = 1 };
         await repository.UpsertAsync(other);
-        var editor = new ModesViewModel(repository);
+        var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "stale-editor-settings.json"));
+        var editor = new ModesViewModel(repository, settings);
         await editor.RefreshAsync();
         editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+        // What the Linux mode editor captures as it opens, and puts back on Cancel or the window's X.
+        var opened = editor.CaptureEditorState();
         editor.Name = "B renamed";
         Assert(await new ModeRepository(db).DeleteSafelyAsync(other.Id), "the outside writer could not delete B");
         await editor.SaveAsync();
@@ -2488,6 +2491,34 @@ static async Task RunModeSaveRaceTestsAsync(string root)
         Assert(editor.Selected is not null && editor.Items.Contains(editor.Selected),
             "after a save refused as modes.not_found nothing listed is selected");
 
+        // Cancel after that refusal must not put the deleted mode back as the selection: the page
+        // would highlight no card and the bottom bar would read "Mode: None" while settings name the
+        // fallback. It falls back as after a delete, with the fallback's own values in the editor.
+        editor.RestoreEditorState(opened);
+        AssertRestoreFellBack(editor, settings, other.Id, "a Cancel after a save refused as modes.not_found");
+
+        // The same for a delete refused as not_found from the editor (#2667).
+        var third = new Mode { Name = "C", SortOrder = 2 };
+        await repository.UpsertAsync(third);
+        await editor.RefreshAsync();
+        editor.Selected = editor.Items.Single(item => item.Id == third.Id);
+        opened = editor.CaptureEditorState();
+        Assert(await new ModeRepository(db).DeleteSafelyAsync(third.Id), "the outside writer could not delete C");
+        await editor.DeleteAsync();
+        Assert(editor.Status.ErrorCode == "modes.not_found", $"deleting a mode already gone showed {editor.Status.ErrorCode}");
+        editor.RestoreEditorState(opened);
+        AssertRestoreFellBack(editor, settings, third.Id, "a Cancel after a delete refused as modes.not_found");
+
+        // An ordinary Cancel still restores exactly what it captured, selection included.
+        var hyper = editor.Items.Single(item => item.IsDefault);
+        editor.Selected = hyper;
+        opened = editor.CaptureEditorState();
+        editor.Language = "fr";
+        editor.Name = "Abandoned";
+        editor.RestoreEditorState(opened);
+        Assert(ReferenceEquals(editor.Selected, hyper) && editor.Name == opened.Name && editor.Language == opened.Language,
+            $"an ordinary Cancel restored {editor.Selected?.Name}/{editor.Name}/{editor.Language}");
+
         // A create from the same page still inserts.
         editor.NewCommand.Execute(null);
         editor.Name = "Fresh";
@@ -2495,6 +2526,16 @@ static async Task RunModeSaveRaceTestsAsync(string root)
         Assert(!editor.Status.HasError && (await repository.ListAsync()).Any(item => item.Name == "Fresh"),
             $"a create from the Modes page failed: {editor.Status.ErrorCode}: {editor.Status.Message}");
     }
+}
+
+static void AssertRestoreFellBack(ModesViewModel editor, PortableSettingsService settings, Guid gone, string what)
+{
+    Assert(editor.Selected is { } selected && selected.Id != gone && editor.Items.Contains(selected),
+        $"{what} selected {editor.Selected?.Name ?? "nothing"} ({(editor.Selected is null ? "null" : editor.Items.Contains(editor.Selected) ? "listed" : "not listed")})");
+    Assert(!editor.IsCreating, $"{what} left the editor creating");
+    Assert(editor.Name == editor.Selected!.Name, $"{what} left '{editor.Name}' in the editor for {editor.Selected.Name}");
+    Assert(settings.Get<string>("selectedModeId") == editor.Selected.Id.ToString("D"),
+        $"{what} left settings naming {settings.Get<string>("selectedModeId")}, not the selected {editor.Selected.Id:D}");
 }
 
 static async Task<(ModeRepository Repository, ModeReadOverlapInterceptor Overlap, Mode A, Mode B)> NewModeSaveRaceStoreAsync(string directory)
