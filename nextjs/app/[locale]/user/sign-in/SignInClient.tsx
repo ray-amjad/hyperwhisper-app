@@ -11,6 +11,8 @@ import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
 import { ErrorReveal, shake } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import { BTN_GLASS, BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
+import { INPUT, LABEL } from "@/components/landing/dusk-pages";
 
 type Tab = "license-key" | "email";
 
@@ -22,10 +24,25 @@ type Tab = "license-key" | "email";
  */
 const DEAD_MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN"]);
 
-// Shared by every submit button. The hover gradient is a ::before overlay that
-// fades in by opacity, because a gradient background-image cannot transition.
-const GRADIENT_CTA_CLASS_NAME =
-  "relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed";
+// Shared by every submit button: the Dusk white pill, full width.
+const PRIMARY_CTA_CLASS_NAME = `${BTN_WHITE} ${BTN_LG} w-full disabled:cursor-not-allowed disabled:opacity-50`;
+
+// "Use a Different Email": the dark glass pill.
+const SECONDARY_CTA_CLASS_NAME = `${BTN_GLASS} ${BTN_LG} w-full`;
+
+// "Back to Home": a quiet text button under the card's actions.
+const BACK_CLASS_NAME =
+  "mx-auto block rounded px-2 py-1 text-sm text-[var(--dusk-mute)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+
+const FIELD_LABEL_CLASS_NAME = `mb-2 block text-start ${LABEL}`;
+const FIELD_HELP_CLASS_NAME =
+  "mt-2 text-start text-[12.5px] text-[var(--dusk-dim)]";
+
+// Each sign-in method's toggle: white when chosen, muted otherwise.
+const tabClassName = (active: boolean) =>
+  `rounded-[9px] px-3 py-[9px] text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] ${
+    active ? "bg-white text-[#0b0b14]" : "text-[var(--dusk-mute)] hover:text-white"
+  }`;
 
 /**
  * User Sign-In form (client half of `page.tsx`).
@@ -260,7 +277,7 @@ export default function SignInClient() {
   // mounted at a time, so the id is still unique on the page.
   const emailErrorBanner = emailError ? (
     <div
-      className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+      className="rounded-xl border border-red-400/30 bg-red-500/[.12] p-4"
       role="alert"
     >
       <p className="text-red-300 text-sm text-center" id="email-error">
@@ -274,7 +291,7 @@ export default function SignInClient() {
   // `#email` points at it while it shows, since the field is where the fix is.
   const magicLinkErrorBanner = magicLinkError ? (
     <div
-      className="p-4 bg-amber-500/20 border border-amber-500/30 rounded-lg"
+      className="rounded-xl border border-amber-300/30 bg-amber-500/[.12] p-4"
       role="alert"
     >
       <p className="text-amber-200 text-sm text-center" id="magic-link-error">
@@ -284,16 +301,44 @@ export default function SignInClient() {
   ) : null;
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
-      <div className="max-w-md w-full">
+    <main className="relative isolate flex min-h-[100svh] items-center justify-center overflow-hidden bg-[var(--dusk-night)] px-4 py-12 text-[var(--dusk-ink)]">
+      {/* The homepage's dusk sky behind the card. Absolutely placed, so the
+          card's position never depends on the image arriving. */}
+      <div aria-hidden="true" className="absolute inset-0 -z-20">
+        <img
+          alt=""
+          className="h-full w-full object-cover object-[center_60%] opacity-90"
+          decoding="async"
+          fetchPriority="high"
+          sizes="100vw"
+          src="/landing/dusk-1672.webp"
+          srcSet="/landing/dusk-960.webp 960w, /landing/dusk-1672.webp 1672w"
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[rgba(5,6,13,.25)]"
+      />
+      {/* The entrance is CSS (`dusk-enter`), on a wrapper so it never fights
+          the card's own height tween; Reduce motion turns it off. */}
+      <div className="dusk-enter w-full max-w-[420px]">
         <div
           ref={card}
-          className="t-resize overflow-clip bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20"
+          className="t-resize overflow-clip rounded-[22px] border border-white/[.14] bg-[rgba(10,12,28,.62)] p-6 text-center shadow-[0_40px_100px_rgba(0,0,0,.45)] backdrop-blur-[22px] sm:p-9"
         >
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">HyperWhisper</h1>
-            <p className="text-gray-400 text-sm">
+          <div className="mb-6 text-center">
+            <img
+              alt=""
+              className="mx-auto size-14 rounded-[15px] shadow-[0_0_0_1px_rgba(255,255,255,.1),0_10px_30px_rgba(0,0,0,.5)]"
+              height={56}
+              src="/icon/256.png"
+              width={56}
+            />
+            <h1 className="mt-4 text-[28px] font-semibold tracking-[-0.8px] text-white">
+              HyperWhisper
+            </h1>
+            <p className="mt-1.5 text-[15px] text-[var(--dusk-mute)]">
               Sign in to view your licenses and credits
             </p>
           </div>
@@ -301,8 +346,8 @@ export default function SignInClient() {
           {/* Auto sign-in loading overlay */}
           {autoSigningIn ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <Spinner className="h-8 w-8 text-emerald-400" />
-              <p className="text-gray-300 text-sm">Signing you in…</p>
+              <Spinner className="h-8 w-8 text-[var(--dusk-lav)]" />
+              <p className="text-sm text-[var(--dusk-mute)]">Signing you in…</p>
             </div>
           ) : (
           <>
@@ -313,18 +358,14 @@ export default function SignInClient() {
               aria-controls panels. */}
           <div
             aria-label="Sign-in method"
-            className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6"
+            className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-white/[.05] p-1"
             role="group"
           >
             <button
               aria-pressed={activeTab === "license-key"}
               type="button"
               onClick={() => setActiveTab("license-key")}
-              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
-                activeTab === "license-key"
-                  ? "bg-white/15 text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
+              className={tabClassName(activeTab === "license-key")}
             >
               Account Key
             </button>
@@ -332,11 +373,7 @@ export default function SignInClient() {
               aria-pressed={activeTab === "email"}
               type="button"
               onClick={() => setActiveTab("email")}
-              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
-                activeTab === "email"
-                  ? "bg-white/15 text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
+              className={tabClassName(activeTab === "email")}
             >
               Email
             </button>
@@ -350,7 +387,7 @@ export default function SignInClient() {
               <ErrorReveal gap="pb-6">
                 {licenseError && (
                   <div
-                    className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+                    className="rounded-xl border border-red-400/30 bg-red-500/[.12] p-4"
                     role="alert"
                   >
                     <p className="text-red-300 text-sm text-center" id="license-key-error">
@@ -361,7 +398,7 @@ export default function SignInClient() {
               </ErrorReveal>
 
               <div>
-                <label htmlFor="license-key" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="license-key" className={FIELD_LABEL_CLASS_NAME}>
                   Account Key
                 </label>
                 <input
@@ -373,7 +410,7 @@ export default function SignInClient() {
                   required
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
+                  className={`t-input ${INPUT} text-start font-mono tracking-wide`}
                   placeholder="HW-XXXX-XXXX-XXXX-XXXX"
                   /*
                     `off` is deliberate: the Account Key is a credential and we do not want a
@@ -384,7 +421,7 @@ export default function SignInClient() {
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <p className="text-gray-400 text-xs mt-2">
+                <p className={FIELD_HELP_CLASS_NAME}>
                   Enter the Account Key from your purchase confirmation
                 </p>
               </div>
@@ -393,7 +430,7 @@ export default function SignInClient() {
                 <button
                   type="submit"
                   disabled={licenseSubmitting}
-                  className={GRADIENT_CTA_CLASS_NAME}
+                  className={PRIMARY_CTA_CLASS_NAME}
                 >
                   {licenseSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -408,7 +445,7 @@ export default function SignInClient() {
                 <button
                   type="button"
                   onClick={() => router.push(`/${locale}`)}
-                  className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
+                  className={BACK_CLASS_NAME}
                 >
                   Back to Home
                 </button>
@@ -425,7 +462,7 @@ export default function SignInClient() {
                   <ErrorReveal gap="pb-6">{emailErrorBanner}</ErrorReveal>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="email" className={FIELD_LABEL_CLASS_NAME}>
                       Email address
                     </label>
                     <input
@@ -444,10 +481,10 @@ export default function SignInClient() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className={`t-input ${INPUT} text-start`}
                       placeholder="your@email.com"
                     />
-                    <p className="text-gray-400 text-xs mt-2">
+                    <p className={FIELD_HELP_CLASS_NAME}>
                       Use the same email you used to purchase your license
                     </p>
                   </div>
@@ -456,7 +493,7 @@ export default function SignInClient() {
                     <button
                       type="submit"
                       disabled={emailSubmitting}
-                      className={GRADIENT_CTA_CLASS_NAME}
+                      className={PRIMARY_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -471,7 +508,7 @@ export default function SignInClient() {
                     <button
                       type="button"
                       onClick={() => router.push(`/${locale}`)}
-                      className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
+                      className={BACK_CLASS_NAME}
                     >
                       Back to Home
                     </button>
@@ -486,13 +523,13 @@ export default function SignInClient() {
                           fades and rotates up out of a blur while its stroke
                           draws (.t-success-check); pathLength="1" lets the
                           dash length be 1 whatever the path's real length. */}
-                      <svg className="t-success-check mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <svg className="t-success-check mx-auto h-12 w-12 text-[var(--dusk-lav)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path pathLength={1} strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                       </svg>
                     </div>
-                    <p className="text-gray-300 mb-1">We sent a magic link to</p>
-                    <p className="font-semibold text-white mb-4">{email}</p>
-                    <p className="text-gray-400 text-sm">
+                    <p className="mb-1 text-[var(--dusk-ink)]">We sent a magic link to</p>
+                    <p className="mb-4 font-semibold text-white [overflow-wrap:anywhere]">{email}</p>
+                    <p className="text-sm text-[var(--dusk-mute)]">
                       Check your email and click the link to sign in. The link will expire in 10 minutes.
                     </p>
                   </div>
@@ -507,7 +544,7 @@ export default function SignInClient() {
                       type="button"
                       onClick={() => handleSendMagicLink()}
                       disabled={emailSubmitting}
-                      className={GRADIENT_CTA_CLASS_NAME}
+                      className={PRIMARY_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? "Sending..." : "Resend Magic Link"}
                     </button>
@@ -519,7 +556,7 @@ export default function SignInClient() {
                         setMagicLinkSent(false);
                         setEmailError(null);
                       }}
-                      className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
+                      className={SECONDARY_CTA_CLASS_NAME}
                     >
                       Use a Different Email
                     </button>

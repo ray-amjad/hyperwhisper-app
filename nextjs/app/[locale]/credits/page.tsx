@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { firstParam } from "./first-param";
 
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
+import { DuskPage } from "@/components/landing/DuskPage";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 type Props = {
@@ -59,8 +60,8 @@ export default async function CreditsPage({
   }
 
   return (
-    <div className="min-h-screen bg-black py-24 md:py-28">
+    <DuskPage>
       <CreditsPurchase locale={locale} />
-    </div>
+    </DuskPage>
   );
 }
