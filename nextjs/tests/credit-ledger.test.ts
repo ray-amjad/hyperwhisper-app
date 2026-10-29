@@ -1,5 +1,5 @@
 /**
- * The credit ledger in `src/lib/db-layer.ts`, run against a real Postgres
+ * The credit ledger in `src/lib/credit-ledger.ts`, run against a real Postgres
  * (PGlite, see `credit-ledger-harness.ts`) with the real migrations.
  *
  * A credit is a unit of paid cloud transcription. Every rule below is money:
