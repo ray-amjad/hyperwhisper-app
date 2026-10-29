@@ -211,7 +211,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
             {t("eyebrow")}
           </span>
-          <h1 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h1>
           <p className="text-lg text-gray-400">{t("subtitle")}</p>

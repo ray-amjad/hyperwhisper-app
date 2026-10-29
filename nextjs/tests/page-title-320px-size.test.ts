@@ -4,7 +4,8 @@
  * translated word is wider than the 272px column of a 320px phone, so its
  * letters are cut off and the page scrolls sideways (bg, et, ru, is/support).
  * Below `sm` (640px) these headings are 30px (`text-3xl`); 640px and up is
- * unchanged.
+ * unchanged. #2714 brought the four other page titles with the same gradient
+ * class string (pricing, FAQ, /credits, /older-versions) to the same sizes.
  *
  * At 30px the Bulgarian "професионалисти" is still 277px, 5px wider than the
  * 272px box. The gradient is only painted inside the box, so the last letter
@@ -22,6 +23,11 @@ import { test } from "node:test";
 const sites = [
   { file: "components/landing/FeaturesGrid.tsx", tag: "h2", bleed: true },
   { file: "app/[locale]/support/page.tsx", tag: "h1", bleed: false },
+  // #2714: the four siblings PR #2710 left out.
+  { file: "components/landing/PricingSection.tsx", tag: "h2", bleed: false },
+  { file: "components/landing/FAQSection.tsx", tag: "h2", bleed: false },
+  { file: "components/credits/CreditsPurchase.tsx", tag: "h1", bleed: false },
+  { file: "app/[locale]/older-versions/page.tsx", tag: "h1", bleed: false },
 ];
 
 for (const { file, tag, bleed } of sites) {
