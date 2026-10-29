@@ -764,13 +764,18 @@ struct MenuBarItems: View {
                     systemDefaultUID: audioManager.systemDefaultDeviceUID
                 )
 
-                // Each row is a Toggle, not a Button with a checkmark Image: the
-                // `.menu` MenuBarExtra bridges a Toggle to the NSMenuItem's
-                // check state, but drops an Image inside a Button's HStack, so
-                // no row ever showed as chosen.
+                // Each row is a Toggle, not a Button with a checkmark Image: an
+                // NSMenu-backed menu bridges a Toggle to the item's check
+                // state. A trailing Image in a Button's HStack shows only on
+                // some macOS versions, so users elsewhere saw no row chosen.
+                // Clicking the checked row sets false: ignore it, like the
+                // Settings picker does.
                 Toggle(isOn: Binding(
                     get: { preferred == nil },
-                    set: { _ in audioManager.selectDevice(nil) }
+                    set: { isOn in
+                        guard isOn else { return }
+                        audioManager.selectDevice(nil)
+                    }
                 )) {
                     Text(verbatim: MicrophonePickerLabels.defaultOption(defaultDeviceName: defaultName))
                 }
@@ -787,7 +792,8 @@ struct MenuBarItems: View {
                 ForEach(devices, id: \.self) { device in
                     Toggle(isOn: Binding(
                         get: { preferred?.uid == device.uid },
-                        set: { _ in
+                        set: { isOn in
+                            guard isOn else { return }
                             audioManager.selectDevice(device)
                             selectedMicrophone = device.name
                         }
@@ -814,7 +820,10 @@ struct MenuBarItems: View {
                     // checkmark (see the Microphone submenu above).
                     Toggle(isOn: Binding(
                         get: { appState.selectedModeId == mode.id.uuidString },
-                        set: { _ in appState.selectMode(mode, persist: true) }
+                        set: { isOn in
+                            guard isOn else { return }
+                            appState.selectMode(mode, persist: true)
+                        }
                     )) {
                         // An NSMenu grows to its widest item, so bound the
                         // free-text name (#1436). Only the label is cut.
