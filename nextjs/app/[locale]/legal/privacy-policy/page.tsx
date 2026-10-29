@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 27, 2026
+        Last Updated: October 29, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -1216,13 +1216,13 @@ export default function PrivacyPolicyPage() {
         Our website, the account area, and our licensing service are hosted by{" "}
         <a
           className="text-blue-400 hover:underline"
-          href="https://vercel.com/legal/privacy-notice"
+          href="https://www.cloudflare.com/privacypolicy/"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Vercel
+          Cloudflare
         </a>
-        . Vercel runs the code that handles each request to them, so it
+        . Cloudflare runs the code that handles each request to them, so it
         receives the request&apos;s IP address and browser or app details, and
         what the request carries: for example your Account Key and device
         details in a license activation or validation request, the email
@@ -1274,7 +1274,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers, Upstash, Resend, Vercel, and PlanetScale may process limited
+        Our payment and licensing providers, Upstash, Resend, Cloudflare, and PlanetScale may process limited
         personal information in multiple countries, including the United
         Kingdom, the European Economic Area, and the United States. Upstash
         hosts our rate-limit store. It also holds a one-hour cache, keyed by

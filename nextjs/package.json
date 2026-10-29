@@ -97,5 +97,10 @@
     "wrangler": "^4.151.0",
     "xml2js": "^0.6.2"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "@node-minify/core>glob": "10.5.0"
+    }
+  }
 }
