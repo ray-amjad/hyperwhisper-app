@@ -5,7 +5,7 @@
  *
  * The build has no runtime secrets: they are synced from Infisical to the
  * Worker and exist only at request time. But `next build` imports every route
- * to collect page data, and the Stripe and Resend SDKs (and others) throw at
+ * to collect page data, and the Stripe SDK (and others) throw at
  * import without a key. So any server variable the build environment does not
  * set gets an obviously fake placeholder here, for the build process only.
  *

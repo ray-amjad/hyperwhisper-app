@@ -2,8 +2,7 @@
  * Tell HyperWhisper Cloud that an Account Key string is dead.
  *
  * The cloud caches each key's licence verdict for an hour (`license:<key>` in
- * ITS OWN Upstash database — `lib/clients/redis.ts` explains why the site's
- * database is a different one). After a rotation the site already refuses the
+ * ITS OWN Upstash database; the site has none). After a rotation the site already refuses the
  * old string, but the cloud would keep admitting it until that hour ran out.
  * `POST /internal/license-cache/invalidate` on each cloud app overwrites the
  * entry with a stamped refusal (`hyperwhisper-cloud/src/routes/
