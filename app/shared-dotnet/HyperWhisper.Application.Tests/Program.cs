@@ -74,6 +74,7 @@ try
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
+    await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -2298,6 +2299,53 @@ static async Task RunModeDeleteFailureCodeTestsAsync(string root)
     await editor.DeleteAsync();
     Assert(!editor.Status.HasError && (await repository.ListAsync()).All(item => item.Id != other.Id),
         $"deleting a mode with another left failed: {editor.Status.ErrorCode}");
+}
+
+// Issue #2663: DeleteSafelyAsync read the rows, checked "last mode" and deleted with nothing around
+// the read and the write. Two overlapping deletes of different modes each saw two rows, both passed
+// the check, and the table could end with no modes. The interceptor holds the first delete after its read
+// until the second delete has read too, so the overlap happens every run, not by luck. The hold is
+// bounded: once the fix makes the second delete wait for the first, the first goes on alone.
+static async Task RunModeDeleteRaceTestsAsync(string root)
+{
+    // Two stores. In a healthy one the delete of the default also writes the other row (the flag
+    // moves to it), so on the old code the overlap ended either in an empty table or in a
+    // DbUpdateConcurrencyException, depending on which save landed first. A store restored with
+    // both rows flagged default moves nothing, and there the old code always deleted both modes.
+    foreach (var (store, secondIsDefault) in new[] { ("one-default", false), ("two-defaults", true) })
+    {
+        var directory = Path.Combine(root, store);
+        Directory.CreateDirectory(directory);
+        var overlap = new ModeReadOverlapInterceptor(TimeSpan.FromSeconds(2));
+        var options = new DbContextOptionsBuilder<HyperWhisper.Data.HyperWhisperDbContext>()
+            .UseSqlite($"Data Source={Path.Combine(directory, "hyperwhisper.db")}")
+            .AddInterceptors(overlap)
+            .Options;
+        var database = new ApplicationDb(() => new HyperWhisper.Data.HyperWhisperDbContext(options));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var first = new Mode { Name = "A", IsDefault = true, SortOrder = 0 };
+        var second = new Mode { Name = "B", IsDefault = secondIsDefault, SortOrder = 1 };
+        await repository.UpsertAsync(first);
+        await repository.UpsertAsync(second);
+
+        overlap.Armed = true;
+        var outcomes = await Task.WhenAll(new[] { first.Id, second.Id }.Select(id => Task.Run(async () =>
+        {
+            try { return await repository.DeleteSafelyAsync(id) ? "deleted" : "not found"; }
+            catch (ModeRuleViolationException rule) { return rule.Code; }
+            catch (Exception exception) { return exception.GetType().Name; }
+        }))).WaitAsync(TimeSpan.FromSeconds(60));
+        overlap.Armed = false;
+
+        var left = await repository.ListAsync();
+        Assert(overlap.Reads == 2, $"{store}: expected each delete to read the modes once, saw {overlap.Reads} reads");
+        Assert(outcomes.Count(item => item == "deleted") == 1 && outcomes.Count(item => item == "modes.last_mode") == 1,
+            $"{store}: two overlapping deletes answered [{string.Join(", ", outcomes)}] and left {left.Count} modes; " +
+            "expected one delete and one modes.last_mode refusal");
+        Assert(left.Count == 1 && left.Single().IsDefault,
+            $"{store}: two overlapping deletes left {left.Count} modes, {left.Count(item => item.IsDefault)} of them default");
+    }
 }
 
 static async Task RunDictationModeTestsAsync(string root)
@@ -4744,6 +4792,37 @@ file sealed class SingleThreadUiContext : SynchronizationContext
             task.GetAwaiter().GetResult();
         }
         finally { SetSynchronizationContext(previous); }
+    }
+}
+
+/// <summary>
+/// Issue #2663: holds the first armed read of the Modes table open until a second one has run, or
+/// until <paramref name="hold"/> passes. Only reads count: the deletes and default-flag updates
+/// SaveChanges sends go through untouched.
+/// </summary>
+file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+{
+    private readonly TaskCompletionSource _secondRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _reads;
+    public volatile bool Armed;
+    public int Reads => Volatile.Read(ref _reads);
+
+    // Disposing runs after the reader is closed, so the held read keeps no SQLite lock of its own:
+    // whatever the second delete waits on is the code under test, not this hook.
+    public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult DataReaderDisposing(
+        System.Data.Common.DbCommand command,
+        Microsoft.EntityFrameworkCore.Diagnostics.DataReaderDisposingEventData eventData,
+        Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result)
+    {
+        var text = command.CommandText.TrimStart();
+        if (Armed && text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) && text.Contains("FROM \"Modes\"", StringComparison.Ordinal))
+        {
+            if (Interlocked.Increment(ref _reads) == 1)
+                _secondRead.Task.Wait(hold);
+            else
+                _secondRead.TrySetResult();
+        }
+        return result;
     }
 }
 
