@@ -5,6 +5,7 @@ import {
   MIN_CREDIT_DOLLARS,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import LegalDocument from "@/components/legal/LegalDocument";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -28,14 +29,9 @@ const exampleRefundCents = example.creditCents - exampleUsedCents;
 
 export default function RefundPolicyPage() {
   return (
-    <div className="prose prose-lg max-w-none prose-invert">
-      <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 6, 2026
-      </p>
+    <LegalDocument title="Refund Policy" updated="Last Updated: October 6, 2026">
 
-      <h1>Refund Policy</h1>
-
-      <p className="text-lg text-gray-300 bg-blue-900/20 border border-blue-800 rounded-lg p-4 mb-8">
+      <p className="not-prose mb-10 rounded-[22px] border border-[rgba(196,181,253,.28)] bg-[var(--dusk-glass)] px-6 py-[22px] text-base leading-[1.6] text-[#d6d8ea] [&_strong]:font-semibold [&_strong]:text-[var(--dusk-lav)]">
         <strong>14-Day Money Back Guarantee:</strong> If you&apos;re not
         satisfied with a HyperWhisper Cloud credit purchase, we&apos;ll refund
         the credits you have not used, no questions asked. Only unused,
@@ -43,7 +39,7 @@ export default function RefundPolicyPage() {
         credits and the processing fee are not refunded.
       </p>
 
-      <h2>I. What This Policy Covers</h2>
+      <h2 id="what-this-policy-covers">I. What This Policy Covers</h2>
 
       <p>
         HyperWhisper sells HyperWhisper Cloud credits. This policy covers those
@@ -53,7 +49,7 @@ export default function RefundPolicyPage() {
         {MAX_CREDIT_DOLLARS}.
       </p>
 
-      <h2>II. What Can Be Refunded</h2>
+      <h2 id="what-can-be-refunded">II. What Can Be Refunded</h2>
 
       <ul>
         <li>
@@ -90,7 +86,7 @@ export default function RefundPolicyPage() {
         not use. The {formatDollars(example.feeCents)} fee is not refunded.
       </p>
 
-      <h2>III. Refund Eligibility</h2>
+      <h2 id="refund-eligibility">III. Refund Eligibility</h2>
 
       <p>
         You are eligible for a refund of your unused, unexpired purchased
@@ -111,7 +107,7 @@ export default function RefundPolicyPage() {
         welcome to help us improve.
       </p>
 
-      <h2>IV. How to Request a Refund</h2>
+      <h2 id="how-to-request-a-refund">IV. How to Request a Refund</h2>
 
       <p>Requesting a refund is simple and straightforward:</p>
 
@@ -119,7 +115,6 @@ export default function RefundPolicyPage() {
         <li>
           <strong>Contact our support team</strong> via email at{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="mailto:hi@support.hyperwhisper.com"
           >
             hi@support.hyperwhisper.com
@@ -138,7 +133,7 @@ export default function RefundPolicyPage() {
         </li>
       </ol>
 
-      <h2>V. Refund Processing</h2>
+      <h2 id="refund-processing">V. Refund Processing</h2>
 
       <h3>Processing Time</h3>
       <ul>
@@ -159,14 +154,14 @@ export default function RefundPolicyPage() {
         or accounts for security reasons.
       </p>
 
-      <h2>VI. What Happens After a Refund</h2>
+      <h2 id="what-happens-after-a-refund">VI. What Happens After a Refund</h2>
 
       <p>
         Once your refund is processed, the refunded credits are removed from
         your HyperWhisper Cloud balance.
       </p>
 
-      <h2>VII. Special Circumstances</h2>
+      <h2 id="special-circumstances">VII. Special Circumstances</h2>
 
       <h3>Technical Issues</h3>
       <p>
@@ -190,7 +185,7 @@ export default function RefundPolicyPage() {
         shape HyperWhisper&apos;s development.
       </p>
 
-      <h2>VIII. Promotional Purchases</h2>
+      <h2 id="promotional-purchases">VIII. Promotional Purchases</h2>
 
       <p>
         If you used a promotion code, the refund is the share of the amount you
@@ -199,7 +194,7 @@ export default function RefundPolicyPage() {
         future purchases.
       </p>
 
-      <h2>IX. Beyond the 14-Day Period</h2>
+      <h2 id="beyond-the-14-day-period">IX. Beyond the 14-Day Period</h2>
 
       <p>
         While our standard guarantee is 14 days, we understand that exceptional
@@ -208,7 +203,7 @@ export default function RefundPolicyPage() {
         team. We&apos;ll work with you to find a fair solution.
       </p>
 
-      <h2>X. Multiple Purchases</h2>
+      <h2 id="multiple-purchases">X. Multiple Purchases</h2>
 
       <p>
         If you&apos;ve made more than one credit purchase, each purchase is
@@ -216,7 +211,7 @@ export default function RefundPolicyPage() {
         date.
       </p>
 
-      <h2>XI. Fraudulent Activity</h2>
+      <h2 id="fraudulent-activity">XI. Fraudulent Activity</h2>
 
       <p>
         We reserve the right to refuse refunds in cases of suspected fraudulent
@@ -230,18 +225,17 @@ export default function RefundPolicyPage() {
         <li>Violation of our Terms of Service</li>
       </ul>
 
-      <h2>XII. Contact Information</h2>
+      <h2 id="contact-information">XII. Contact Information</h2>
 
       <p>
         For all refund requests and questions about this policy, please contact
         us:
       </p>
 
-      <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-800">
+      <div className="rounded-[22px] border border-[var(--dusk-line)] bg-[var(--dusk-glass)] p-6">
         <p className="mb-2">
           <strong>Provider:</strong> Ray Amjad LTD (
           <a
-            className="text-blue-400 hover:underline"
             href="https://find-and-update.company-information.service.gov.uk/company/14506459"
             rel="noopener noreferrer"
             target="_blank"
@@ -253,7 +247,6 @@ export default function RefundPolicyPage() {
         <p className="mb-2">
           <strong>Email:</strong>{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="mailto:hi@support.hyperwhisper.com"
           >
             hi@support.hyperwhisper.com
@@ -263,12 +256,12 @@ export default function RefundPolicyPage() {
           <strong>Subject Line:</strong> &quot;Refund Request&quot;, plus your
           order number if you have it
         </p>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-[var(--dusk-dim)]">
           We review refund requests and reply by email.
         </p>
       </div>
 
-      <h2>XIII. Policy Updates</h2>
+      <h2 id="policy-updates">XIII. Policy Updates</h2>
 
       <p>
         We may update this refund policy from time to time. Any changes will be
@@ -281,16 +274,16 @@ export default function RefundPolicyPage() {
         your purchase.
       </p>
 
-      <div className="bg-emerald-900/20 border border-emerald-800 rounded-lg p-6 mt-8">
-        <h3 className="text-emerald-200 mt-0 mb-3">
+      <div className="mt-10 rounded-[22px] border border-[rgba(196,181,253,.35)] bg-[linear-gradient(180deg,rgba(129,90,220,.2),rgba(255,255,255,.03))] p-6">
+        <h3 className="mb-3 mt-0 text-white">
           <a className="hover:underline" href="/">
             Ready to try HyperWhisper?
           </a>
         </h3>
-        <p className="text-emerald-300 mb-0">
+        <p className="mb-0 text-[#d6d8ea]">
           With our 14-day money back guarantee on unused credits, you can{" "}
           <a
-            className="text-emerald-200 underline hover:no-underline"
+            className="underline hover:no-underline"
             href="/credits"
           >
             buy HyperWhisper Cloud credits
@@ -298,6 +291,6 @@ export default function RefundPolicyPage() {
           with confidence.
         </p>
       </div>
-    </div>
+    </LegalDocument>
   );
 }
