@@ -416,7 +416,10 @@ export default function DownloadsPage() {
                         <Button
                           key={dl.arch || "default"}
                           as="a"
-                          className={`flex-1 ${
+                          // min-h-12: in the stacked flex-col (below sm)
+                          // flex-1's 0 basis beats HeroUI lg's h-12, and the
+                          // buttons shrink to 36px around a two-line label.
+                          className={`flex-1 min-h-12 ${
                             isLatestVersion(index)
                               ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
                               : "bg-purple-600/20 hover:bg-purple-600/30 text-purple-300"
