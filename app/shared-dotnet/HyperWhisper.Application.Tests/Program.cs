@@ -84,6 +84,7 @@ try
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunShellCloudBalanceOnLaunchTestsAsync(Path.Combine(root, "shell-cloud-balance"));
+    await RunCloudLowCreditTestsAsync();
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
     await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
@@ -1997,6 +1998,46 @@ static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
             && relaunched.Credits == "42.5" && relaunched.MinutesRemaining == "7"
             && relaunched.CostPerMinute == "~5.5" && relaunched.HasCredits,
             $"after a relaunch the balance was not fetched (credits '{relaunched.Credits}', cost '{relaunched.CostPerMinute}', {http.UsageCalls - usageBefore} /usage calls)");
+    }
+}
+
+// Issue #2656: the server floors minutes_remaining (credits / 1.67), so a balance under one minute
+// arrives as 0 minutes with credits still above 0. IsCreditsLow wanted minutes > 0 and
+// IsCreditsExhausted wants credits <= 0, so neither banner showed in the most urgent case. The rule
+// is now the one macOS and Windows use since #2618: under 10 minutes while any credit is left.
+static async Task RunCloudLowCreditTestsAsync()
+{
+    var store = new MemoryCredentialStore();
+    var http = new CloudAccountHttpHandler();
+    using var service = new PortableCloudAccountService(
+        store,
+        new PortableLicenseStateStore(store, new MemoryPrivateFileService(), "/low-credit-license-state.json"),
+        new HttpClient(http) { Timeout = Timeout.InfiniteTimeSpan });
+    var account = new CloudAccountViewModel(service, new StaticDeviceIdentity(), "Ray Linux",
+        _ => PlatformResult.Success()) { AccountKey = "HW-0000-0000-2656" };
+    await account.ActivateAsync();
+    Assert(account.IsActiveAccount, "the test account did not activate");
+    var notified = new List<string?>();
+    account.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+    foreach (var (credits, minutes, low, exhausted) in new[]
+    {
+        ("1.5", 0, true, false),    // under a minute: the case the old rule missed
+        ("0", 0, false, true),      // nothing left: the exhausted banner, not the low one
+        ("18.4", 11, false, false), // eleven minutes: neither
+        ("11.7", 7, true, false),   // a few minutes: low, as before
+    })
+    {
+        http.UsageBody = $"{{\"credits_remaining\":{credits},\"minutes_remaining\":{minutes},\"credits_per_minute\":1.67,\"is_licensed\":true,\"is_anonymous\":false}}";
+        notified.Clear();
+        await account.RefreshCreditsAsync();
+        Assert(account.MinutesRemaining == minutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            $"{credits} credits / {minutes} minutes: the balance did not refresh ({account.Status.Message})");
+        Assert(account.IsCreditsLow == low && account.IsCreditsExhausted == exhausted,
+            $"{credits} credits / {minutes} minutes: IsCreditsLow {account.IsCreditsLow} (expected {low}), " +
+            $"IsCreditsExhausted {account.IsCreditsExhausted} (expected {exhausted})");
+        Assert(notified.Contains(nameof(CloudAccountViewModel.IsCreditsLow)),
+            $"{credits} credits / {minutes} minutes: a refresh did not notify IsCreditsLow, so the banner binding never re-reads it");
     }
 }
 
@@ -5065,6 +5106,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
     public string? ValidateLicenseKey { get; private set; }
     public int ValidateCalls { get; private set; }
     public int UsageCalls { get; private set; }
+    public string UsageBody { get; set; } =
+        "{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}";
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -5082,7 +5125,7 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         if (path == "/usage")
         {
             UsageCalls++;
-            return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+            return Json(UsageBody);
         }
         if (path == "/api/license/deactivate")
             return Json("{\"success\":true}");
