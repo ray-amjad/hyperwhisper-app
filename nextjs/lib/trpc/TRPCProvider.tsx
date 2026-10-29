@@ -40,7 +40,7 @@ function getBaseUrl(): string {
     return "";
   }
   if (env.NEXT_PUBLIC_SITE_URL) {
-    // Deployed site (a Workers Builds build variable)
+    // Deployed site (set at build in nextjs-deploy.yml)
     return env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
   }
   // Local development

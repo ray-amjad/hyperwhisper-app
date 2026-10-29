@@ -7,7 +7,7 @@ import {
 } from "@/src/i18n/locales";
 
 // Rebuilt hourly from the database, like the pages it lists. Without this the
-// sitemap is rendered once and never again, and the build (Workers Builds) has
+// sitemap is rendered once and never again, and the build has
 // no database, so it would hold only the code blog posts until the next
 // revalidatePath from the add-blog-post webhook. scripts/cf-build.mjs also
 // keeps that build-time render out of the deployed cache. A failed
