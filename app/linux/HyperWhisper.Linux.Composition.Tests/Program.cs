@@ -128,6 +128,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
+    ("tray mode selection is validated before it reaches the window", TrayModeSelectionIsValidated),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("the storage maintenance loop starts once and survives a failed tick", StorageMaintenanceLoopStartsOnce),
     ("a later window Opened retries only what has not yet succeeded", WindowStartupGateRetriesOnlyWhatFailed),
@@ -772,8 +773,8 @@ static async Task TypedTrayActionsRouteSafely()
         "microphone changed during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.TranscribeFile)).Error?.Code == "tray.unsafe_state",
         "file import started during recording");
-    Assert((await handler.HandleAsync(StatusNotifierAction.CycleMode)).IsSuccess,
-        "future mode could not be cycled during recording");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode could not be selected during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.StopRecording)).IsSuccess,
         "active recording could not be stopped");
 
@@ -783,6 +784,7 @@ static async Task TypedTrayActionsRouteSafely()
         StatusNotifierAction.SelectPreviousMicrophone,
         StatusNotifierAction.SelectNextMicrophone,
         StatusNotifierAction.TranscribeFile,
+        StatusNotifierAction.OpenModes,
         StatusNotifierAction.OpenHistory,
         StatusNotifierAction.OpenSettings,
         StatusNotifierAction.OpenHelp,
@@ -796,7 +798,7 @@ static async Task TypedTrayActionsRouteSafely()
         Assert((await handler.HandleAsync(action)).IsSuccess, $"{action} did not route");
 
     Assert(target.Events.SequenceEqual([
-        "start", "mode", "stop", "mic-default", "mic-previous", "mic-next", "file", "history",
+        "start", "mode:" + FakeTrayTarget.KnownMode, "stop", "mic-default", "mic-previous", "mic-next", "file", "modes", "history",
         "settings", "help", "support", "feedback", "show", "hide", "quit"]),
         "typed tray action mapping changed");
 
@@ -822,6 +824,44 @@ static async Task TypedTrayActionsRouteSafely()
     handler.Dispose();
     Assert((await handler.HandleAsync(StatusNotifierAction.Show)).Error?.Code == "tray.disposed",
         "disposed handler accepted an action");
+}
+
+// A Select Mode click reaches the handler with an id the tray service resolved from its own
+// snapshot. The handler still refuses a missing id, an empty id, a pick during onboarding,
+// and a mode that was deleted after the publish, and it never takes the operation lock.
+static async Task TrayModeSelectionIsValidated()
+{
+    var target = new FakeTrayTarget();
+    using var handler = target.CreateHandler();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode))).Error?.Code
+        == "tray.action_unknown", "a mode click without an id was accepted");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.Empty))).Error?.Code
+        == "tray.action_unknown", "an empty mode id was accepted");
+    Assert((await handler.HandleAsync(StatusNotifierAction.SelectMode)).Error?.Code == "tray.action_unknown",
+        "the bare SelectMode action routed without an id");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.NewGuid()))).Error?.Code
+        == "tray.unsafe_state", "a deleted mode was reported as selected");
+    target.OnboardingOpen = true;
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.unsafe_state", "a mode was selected while onboarding was open");
+    target.OnboardingOpen = false;
+    Assert(target.Events.Count == 0, "a refused mode click reached the window");
+
+    var blocked = new FakeTrayTarget { StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+    using var blockedHandler = blocked.CreateHandler();
+    var pendingStart = blockedHandler.HandleAsync(StatusNotifierAction.StartRecording);
+    Assert((await blockedHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode pick waited on a long-running recording start");
+    blocked.StartGate.SetResult();
+    await pendingStart;
+
+    var throwing = new FakeTrayTarget { ThrowOnSelect = true };
+    using var throwingHandler = throwing.CreateHandler();
+    Assert((await throwingHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.action_failed", "a throwing mode pick escaped the handler");
+    handler.Dispose();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.disposed", "a disposed handler selected a mode");
 }
 
 static Task TrayMicrophoneSelectionIsDeterministic()
@@ -2693,6 +2733,9 @@ sealed class FakeTrayTarget
     public bool Active { get; private set; }
     public bool Importing { get; set; }
     public TaskCompletionSource? StartGate { get; init; }
+    public bool OnboardingOpen { get; set; }
+    public bool ThrowOnSelect { get; init; }
+    public static readonly Guid KnownMode = Guid.Parse("6f1c1f0e-2a8f-4d0b-9a65-3b0f2a1c7d11");
 
     public LinuxTrayActionHandler CreateHandler() => new(
         () => Active,
@@ -2708,7 +2751,15 @@ sealed class FakeTrayTarget
         () => Events.Add("mic-default"),
         () => Events.Add("mic-previous"),
         () => Events.Add("mic-next"),
-        () => Events.Add("mode"),
+        id =>
+        {
+            if (ThrowOnSelect) throw new InvalidOperationException("select");
+            if (id != KnownMode) return false;
+            Events.Add("mode:" + id);
+            return true;
+        },
+        () => OnboardingOpen,
+        () => Events.Add("modes"),
         () => Events.Add("history"),
         () => Events.Add("settings"),
         () => Events.Add("help"),
