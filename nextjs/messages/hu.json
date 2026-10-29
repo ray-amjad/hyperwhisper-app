@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkciók",
+    "modes": "Módok",
     "faq": "GYIK",
     "support": "Támogatás",
     "download": "Letöltés",
@@ -19,23 +20,32 @@
     "githubAria": "A HyperWhisper megtekintese a GitHubon"
   },
   "hero": {
-    "logoAlt": "HyperWhisper logó",
-    "headline": "Írj, alkoss és hozz létre",
-    "headlineAccent": "5x gyorsabban AI-val",
-    "subheadline": "A HyperWhisper elképesztő pontossággal írja át a hangodat. Csak beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek.",
-    "downloadCta": "Letöltés most",
-    "demoCta": "Demó megtekintése",
-    "availableOn": "Elérhető",
+    "badge": "Új",
+    "headline": "Csak beszéljen.",
+    "headlineAccent": "Mi gépelünk.",
+    "subheadline": "Igényes szöveg bármelyik alkalmazásban.",
+    "downloadMac": "Letöltés Macre",
+    "freeForever": "Örökre ingyenes",
+    "worksOffline": "Offline is működik",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Görgessen",
+    "closing": {
+      "line1": "Ne gépeljen.",
+      "line2": "Beszéljen.",
+      "meta": "Ingyenes és nyílt forráskódú. Fiók nélkül."
+    }
   },
   "features": {
-    "title": "Profiknak tervezve",
-    "subtitle": "Minden funkciót azért terveztünk, hogy gyorsabban és hatékonyabban dolgozhass",
+    "title": "Azoknak, akik egész nap írnak.",
     "customVocabulary": {
       "title": "Egyéni szókincs",
       "description": "Adj hozzá neveket, rövidítéseket és speciális kifejezéseket a tökéletes pontosságért minden alkalommal."
+    },
+    "realTime": {
+      "title": "Valós idejű streamelés",
+      "description": "Lásd, ahogy a szavaid azonnal megjelennek beszéd közben. Iparágvezető pontosság 700 ms alatti késleltetéssel."
     },
     "languages": {
       "title": "100+ nyelv",
@@ -45,25 +55,9 @@
       "title": "Offline támogatás",
       "description": "Teljesen offline működik. Az adataid soha nem hagyják el az eszközödet."
     },
-    "privacy": {
-      "title": "Adatvédelem-központú",
-      "description": "Nincs szükség fiókra. Nincs követés. A hangadataid a Maceden vagy PC-den maradnak."
-    },
-    "hybridProcessing": {
-      "title": "Hibrid feldolgozás",
-      "description": "Válassz helyi modelleket az adatvédelemhez vagy felhős API-kat a sebességhez. A legjobb mindkét világból."
-    },
-    "customizable": {
-      "title": "Erősen testreszabható",
-      "description": "Válassz 9+ API-szolgáltató és 30+ átírási modell közül."
-    },
-    "realTime": {
-      "title": "Valós idejű streamelés",
-      "description": "Lásd, ahogy a szavaid azonnal megjelennek beszéd közben. Iparágvezető pontosság 700 ms alatti késleltetéssel."
-    },
-    "fileImport": {
-      "title": "Fájlimport",
-      "description": "Importálj hang- vagy videófájlokat átíráshoz. Minden fő formátum támogatott automatikus csendérzékeléssel."
+    "openSource": {
+      "title": "Nyilt forraskod",
+      "description": "Apache-2.0 licenc alatt. Vizsgaljon meg minden sort, forkolja, vagy uzemeltesse sajat maga. Nincsenek fekete dobozok, nincs bezartsag."
     },
     "screenOcr": {
       "title": "Képernyő OCR",
@@ -73,28 +67,57 @@
       "title": "Helyi API és MCP-kiszolgáló",
       "description": "A beépített MCP-kiszolgáló lehetővé teszi a Claude, a Cursor és más AI-ügynökök számára a HyperWhisper vezérlését. Csak helyi HTTP API szkriptekhez és automatizáláshoz."
     },
+    "fileImport": {
+      "title": "Fájlimport",
+      "description": "Importálj hang- vagy videófájlokat átíráshoz. Minden fő formátum támogatott automatikus csendérzékeléssel."
+    },
     "modes": {
-      "title": "Módok minden helyzetre",
-      "description": "Válts különböző átírási módok között, amelyek meetingekhez, jegyzeteléshez, emailekhez, kódoláshoz és más feladatokhoz optimalizáltak. Minden mód egyedi promptokat használ, hogy tökéletesen formázza a szövegedet.",
-      "meeting": "Meeting",
+      "heading": "Egy hang. Minden formátum.",
+      "lead": "Minden mód átírja, amit mondott, ahhoz igazítva, ahová kerül.",
       "email": "Email",
       "note": "Jegyzet",
       "code": "Kód",
+      "meeting": "Meeting",
       "legal": "Jogi",
       "medical": "Orvosi",
-      "presetModes": "Előre beállított módok",
-      "customModes": "Egyéni módok"
-    },
-    "openSource": {
-      "title": "Nyilt forraskod",
-      "description": "Apache-2.0 licenc alatt. Vizsgaljon meg minden sort, forkolja, vagy uzemeltesse sajat maga. Nincsenek fekete dobozok, nincs bezartsag."
+      "youSaid": "Ön ezt mondta",
+      "hyperWhisperWrote": "HyperWhisper ezt írta",
+      "sample": "öö szóval mondd meg johnnak hogy a launch csütörtökre csúszik mert a linux QA még nincs kész és hát köszi a türelmet",
+      "output": {
+        "email": "Szia John!\n\nA launch csütörtökre csúszik, amíg befejezzük a Linux QA-t. Köszönöm a türelmed.\n\nÜdv,",
+        "note": "• Launch → csütörtök\n• Akadály: a Linux QA nincs kész\n• Szólni Johnnak",
+        "code": "// TODO(john): a launch csütörtökre csúszott, a Linux QA még folyamatban",
+        "meeting": "Döntés: a launch csütörtökre csúszik.\nIndok: a Linux QA nincs kész.\nFelelős: John értesítése.",
+        "legal": "Tájékoztatjuk, hogy a bevezetés időpontja csütörtökre módosult, a Linux minőségbiztosítás lezárásáig.",
+        "medical": "Terv: a launch halasztása csütörtökre. Állapot: Linux QA függőben. Követés: John tájékoztatása."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Bárhol működik, ahol ír",
+    "eyebrow": "Hogyan működik",
+    "titleLine1": "Nyomjon le egy billentyűt.",
+    "titleLine2": "Mondja ki.",
+    "titleAccent": "Kész.",
+    "lead": "A szavai letisztázva oda kerülnek, ahol a kurzor áll.",
+    "step1": "Nyomja le a billentyűparancsot",
+    "step2Key": "Beszéljen",
+    "step2": "Beszéljen úgy, ahogy szokott",
+    "step3Key": "Újra",
+    "step3": "Tiszta szöveg, a helyére beillesztve",
+    "watchVideo": "A teljes demó megtekintése",
+    "closeVideo": "Videó bezárása",
+    "exampleLabel": "Animált példa: egy kimondott válasz begépelődik egy Slack-üzenetbe",
+    "message1": "Még mindig tartjuk a csütörtöki Linux kiadást?",
+    "message2": "Nálam átment a QA 👍",
+    "composePlaceholder": "Üzenet ide: #launch",
+    "typed": "Igen, a Linux QA ma reggel átment, úgyhogy csütörtökre minden rendben. Délig kiteszem a kiadási jegyzeteket.",
+    "listening": "Figyelek",
+    "cleaningUp": "Tisztázás…",
     "fasterThanTyping": "Gyorsabb, mint a gépelés",
     "accuracyRate": "Pontossági arány",
     "languagesSupported": "Támogatott nyelvek",
-    "providersSupported": "Támogatott szolgáltatók"
+    "modelsSupported": "Átírási modellek"
   },
   "faq": {
     "title": "Gyakran ismételt kérdések",
@@ -280,6 +303,7 @@
       "dataTraining": "Adatvédelem"
     },
     "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
+    "madeBy": "Készítette: Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Kövesd a HyperWhispert az X-en (Twitter)",
     "githubAria": "A HyperWhisper a GitHubon"

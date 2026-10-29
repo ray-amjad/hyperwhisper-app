@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funcions",
+    "modes": "Modes",
     "faq": "PMF",
     "support": "Suport",
     "download": "Descarrega",
@@ -19,23 +20,32 @@
     "githubAria": "Mostra HyperWhisper a GitHub"
   },
   "hero": {
-    "logoAlt": "Logotip de HyperWhisper",
-    "headline": "Escriu, compon i crea",
-    "headlineAccent": "5x més ràpid amb IA",
-    "subheadline": "HyperWhisper transcriu la teva veu amb una precisió increïble. Només has de parlar de manera natural i veure com apareixen les teves paraules a l'instant.",
-    "downloadCta": "Descarrega ara",
-    "demoCta": "Mira la demo",
-    "availableOn": "Disponible a",
+    "badge": "Nou",
+    "headline": "Només parla.",
+    "headlineAccent": "Nosaltres escrivim.",
+    "subheadline": "Text polit a qualsevol app.",
+    "downloadMac": "Descarrega per a Mac",
+    "freeForever": "Gratuït per sempre",
+    "worksOffline": "Funciona fora de línia",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Desplaça't",
+    "closing": {
+      "line1": "Prou de teclejar.",
+      "line2": "Comença a parlar.",
+      "meta": "Gratuït i de codi obert. Sense necessitat de compte."
+    }
   },
   "features": {
-    "title": "Creat per a professionals",
-    "subtitle": "Cada funció està dissenyada per ajudar-te a treballar més ràpid i amb més eficiència",
+    "title": "Fet per a qui escriu tot el dia.",
     "customVocabulary": {
       "title": "Vocabulari personalitzat",
       "description": "Afegeix noms, acrònims i termes especials per aconseguir una precisió perfecta cada vegada."
+    },
+    "realTime": {
+      "title": "Streaming en temps real",
+      "description": "Veu com apareixen les paraules a l'instant mentre parles. Precisió líder del sector amb latència inferior a 700 ms."
     },
     "languages": {
       "title": "Més de 100 idiomes",
@@ -45,25 +55,9 @@
       "title": "Suport fora de línia",
       "description": "Funciona completament fora de línia. Les teves dades no surten mai del teu dispositiu."
     },
-    "privacy": {
-      "title": "Privadesa primer",
-      "description": "No cal compte. Sense seguiment. Les dades de veu es queden al teu Mac o PC."
-    },
-    "hybridProcessing": {
-      "title": "Processament híbrid",
-      "description": "Tria entre models locals per a la privadesa o API al núvol per a la velocitat. El millor dels dos mons."
-    },
-    "customizable": {
-      "title": "Molt personalitzable",
-      "description": "Escull entre més de 9 proveïdors d'API i més de 30 models de transcripció."
-    },
-    "realTime": {
-      "title": "Streaming en temps real",
-      "description": "Veu com apareixen les paraules a l'instant mentre parles. Precisió líder del sector amb latència inferior a 700 ms."
-    },
-    "fileImport": {
-      "title": "Importació de fitxers",
-      "description": "Importa fitxers d'àudio o vídeo per transcriure. Compatible amb els formats principals i detecció automàtica de silencis."
+    "openSource": {
+      "title": "Codi obert",
+      "description": "Amb llicència Apache-2.0. Inspecciona cada línia, fes-ne un fork o allotja-ho tu mateix. Sense caixes negres, sense dependència forçada."
     },
     "screenOcr": {
       "title": "OCR de pantalla",
@@ -73,28 +67,57 @@
       "title": "API local i servidor MCP",
       "description": "El servidor MCP integrat permet que Claude, Cursor i altres agents d'IA controlin HyperWhisper. API HTTP només local per a scripts i automatitzacions."
     },
+    "fileImport": {
+      "title": "Importació de fitxers",
+      "description": "Importa fitxers d'àudio o vídeo per transcriure. Compatible amb els formats principals i detecció automàtica de silencis."
+    },
     "modes": {
-      "title": "Modes per a cada situació",
-      "description": "Canvia entre diferents modes de transcripció optimitzats per a reunions, notes, correus, programació i molt més. Cada mode utilitza prompts personalitzats per donar el format perfecte al text.",
-      "meeting": "Reunió",
+      "heading": "Una veu. Tots els formats.",
+      "lead": "Cada mode reescriu el que has dit segons on va.",
       "email": "Correu",
       "note": "Nota",
       "code": "Codi",
+      "meeting": "Reunió",
       "legal": "Legal",
       "medical": "Mèdic",
-      "presetModes": "Modes predefinits",
-      "customModes": "Modes personalitzats"
-    },
-    "openSource": {
-      "title": "Codi obert",
-      "description": "Amb llicència Apache-2.0. Inspecciona cada línia, fes-ne un fork o allotja-ho tu mateix. Sense caixes negres, sense dependència forçada."
+      "youSaid": "Has dit",
+      "hyperWhisperWrote": "HyperWhisper ha escrit",
+      "sample": "eh doncs digues-li al john que el llançament passa a dijous perquè el QA de linux encara no està acabat i mmm gràcies per la paciència",
+      "output": {
+        "email": "Hola, John,\n\nEl llançament passa a dijous mentre acabem el QA de Linux. Gràcies per la paciència.\n\nSalutacions,",
+        "note": "• Llançament → dijous\n• Bloqueig: QA de Linux sense acabar\n• Avisar en John",
+        "code": "// TODO(john): llançament ajornat a dijous, QA de Linux encara en curs",
+        "meeting": "Decisió: el llançament passa a dijous.\nMotiu: QA de Linux incomplet.\nResponsable: avisar en John.",
+        "legal": "Per la present s'informa que la data de llançament s'ha reprogramat per a dijous, a l'espera que finalitzi el control de qualitat de Linux.",
+        "medical": "Pla: ajornar el llançament a dijous. Estat: QA de Linux pendent. Seguiment: informar en John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funciona allà on escriguis",
+    "eyebrow": "Com funciona",
+    "titleLine1": "Prem una tecla.",
+    "titleLine2": "Digues-ho.",
+    "titleAccent": "Fet.",
+    "lead": "Les teves paraules arriben, ja polides, allà on tens el cursor.",
+    "step1": "Prem la teva drecera",
+    "step2Key": "Parla",
+    "step2": "Parla com ho faries normalment",
+    "step3Key": "Torna a prémer",
+    "step3": "Text net, enganxat al seu lloc",
+    "watchVideo": "Mira la demo completa",
+    "closeVideo": "Tanca el vídeo",
+    "exampleLabel": "Exemple animat: una resposta dictada s'escriu en un missatge de Slack",
+    "message1": "Encara anem bé per publicar la build de Linux dijous?",
+    "message2": "QA superat per part meva 👍",
+    "composePlaceholder": "Missatge a #launch",
+    "typed": "Sí, el QA de Linux ha passat aquest matí, així que anem bé per dijous. Publicaré les notes de la versió abans del migdia.",
+    "listening": "Escoltant",
+    "cleaningUp": "Netejant…",
     "fasterThanTyping": "Més ràpid que escriure",
     "accuracyRate": "Taxa de precisió",
     "languagesSupported": "Idiomes compatibles",
-    "providersSupported": "Proveïdors compatibles"
+    "modelsSupported": "Models de transcripció"
   },
   "faq": {
     "title": "Preguntes freqüents",
@@ -280,6 +303,7 @@
       "dataTraining": "Privadesa de dades"
     },
     "copyright": "© 2026 HyperWhisper. Tots els drets reservats.",
+    "madeBy": "Creat per Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Segueix HyperWhisper a X (Twitter)",
     "githubAria": "HyperWhisper a GitHub"
