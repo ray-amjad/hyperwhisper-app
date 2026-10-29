@@ -85,7 +85,7 @@ this Worker is about 4.5 MiB gzipped).
    | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | `postgres://unused:unused@127.0.0.1:5432/unused` (deploy step only; not a secret, see below) |
 
    `cf:build` sets `SKIP_ENV_VALIDATION=1` and fake values for the server
-   secrets some SDKs need at import time (Stripe, Resend, Upstash). The build
+   secrets some SDKs need at import time (Stripe, for one). The build
    step is given no real secret, so none can be inlined; the script also
    fails the build if a placeholder shows up in `.open-next/`.
 

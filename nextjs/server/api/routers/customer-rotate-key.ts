@@ -3,7 +3,7 @@
  * fresh `HW-XXXX-XXXX-XXXX-XXXX` string.
  *
  * Kept out of `customer.ts` and loaded on first use, because it pulls in the
- * email client, the Upstash limiter and the cloud purge, which the router's
+ * email client, the rate limiter and the cloud purge, which the router's
  * read procedures (and the suites that drive them) do not need.
  *
  * Order of work:

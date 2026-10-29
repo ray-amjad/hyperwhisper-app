@@ -23,20 +23,15 @@
   "workers_dev": true,
   // Production only: no per-version preview URLs.
   "preview_urls": false,
-  // Cutover only (the owner attaches these; adding them here would claim the
-  // live hostnames on the next deploy):
-  // "routes": [
-  //   { "pattern": "hyperwhisper.com", "custom_domain": true },
-  //   { "pattern": "www.hyperwhisper.com", "custom_domain": true }
-  // ],
+  // The live hostnames are attached in the dashboard (Settings -> Domains &
+  // Routes), not here.
   "vars": {
     // Read at runtime: cloud licence-cache purge defaults
     // (lib/services/cloud-license-cache.ts) and the Sentry environment.
     "DEPLOY_ENV": "production"
   },
-  // PlanetScale Postgres through Hyperdrive. Create the config with caching
-  // disabled (see DEPLOY-CLOUDFLARE.md) and replace the placeholder BEFORE
-  // this branch merges, or the first deploy fails.
+  // PlanetScale Postgres through Hyperdrive, caching disabled (see
+  // DEPLOY-CLOUDFLARE.md).
   // Local dev: set CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in
   // the shell; never add localConnectionString here.
   "hyperdrive": [

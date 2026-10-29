@@ -251,10 +251,11 @@ export const auth = betterAuth({
       }
     }),
   },
-  // Better Auth's own rate-limit rules, counted in the site's Upstash so every
-  // Worker isolate shares one budget (#2010). `customStorage`, deliberately
-  // not `secondaryStorage`: the latter would also move sessions off Postgres.
-  // Fails open when Upstash is down or unconfigured. See
+  // Better Auth's own rate-limit rules, counted by Cloudflare rate-limit
+  // bindings so Worker isolates share a budget per location (#2010).
+  // `customStorage`, deliberately not `secondaryStorage`: the latter would
+  // also move sessions off Postgres.
+  // Fails open when a binding is missing or errors. See
   // `./auth-rate-limit-storage.ts`.
   rateLimit: authRateLimitOptions(),
   advanced: {
