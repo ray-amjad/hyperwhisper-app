@@ -47,6 +47,10 @@ You can select any audio input device on your system in **Settings → Sound →
   </Tab>
 </Tabs>
 
+<Note>
+  If the system default input is a virtual device, for example BlackHole, Loopback, VB-Cable, or VoiceMeeter, and a physical microphone is connected, the **Default** option does not record from the virtual device. It uses the first physical microphone instead, because a virtual device carries app audio and not your voice. The same rule applies when your selected microphone is disconnected. If only virtual inputs are connected, HyperWhisper records from the system default. A device that you select by hand is always used.
+</Note>
+
 ## Real-time device discovery
 
 You do not need to restart HyperWhisper after you connect new hardware.
@@ -65,14 +69,14 @@ You do not need to restart HyperWhisper after you connect new hardware.
 
 ## When a device disconnects
 
-A Bluetooth disconnection or a USB unplug can remove your selected microphone. If this occurs, HyperWhisper keeps your choice. The picker shows **&lt;name&gt; (not connected)** with an amber line, **Using &lt;device&gt; until &lt;name&gt; is reconnected.** Meanwhile HyperWhisper records from the default input device. When the device returns, HyperWhisper changes back to it.
+A Bluetooth disconnection or a USB unplug can remove your selected microphone. If this occurs, HyperWhisper keeps your choice. The picker shows **&lt;name&gt; (not connected)** with an amber line, "Using &lt;device&gt; until &lt;name&gt; is reconnected." Meanwhile HyperWhisper records from the default input device. When the device returns, HyperWhisper changes back to it.
 
 <Tabs>
   <Tab title="macOS">
     If the device disconnects during a recording, the recording continues on the macOS default input device, in the same file.
   </Tab>
   <Tab title="Windows">
-    If your saved device is unplugged and no other microphone is connected, the amber line reads **No microphone is connected. HyperWhisper will use &lt;name&gt; when it is reconnected.**
+    If your saved device is unplugged and no other microphone is connected, the amber line reads "No microphone is connected. HyperWhisper will use &lt;name&gt; when it is reconnected."
   </Tab>
 </Tabs>
 

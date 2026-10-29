@@ -71,6 +71,8 @@ A health probe retries with backoff (3 attempts maximum) before HyperWhisper mar
   </Tab>
   <Tab title="Windows">
     Open **Model Library → API Keys**. Each provider row shows if a key is configured. To see the health status for each provider entry in the model list, open **Model Library**.
+
+    The status bar of the main window also shows the state of the current mode's provider key: **(Ready)**, **(No API key)** when no key is saved, or **(Key invalid)** when the provider rejected the key.
   </Tab>
 </Tabs>
 
@@ -95,7 +97,7 @@ Each HyperWhisper Cloud tier has a fallback chain. If your chosen provider fails
 
 Deepgram, Groq, and Grok can report that they processed audio but still return an empty transcript. When this happens on the provider that you selected, HyperWhisper Cloud can try one reachable backup provider. It makes at most one additional provider call for this recovery.
 
-If the backup provider returns text, that provider and its model appear in the result, and its rate applies. If no backup provider returns text, the request stays a **No speech detected** result and costs 0 credits. A provider that reports no audio duration does not start this recovery.
+If the backup provider returns text, that provider and its model appear in the result, and its rate applies. If no backup provider returns text, the request stays a "No speech detected" result and costs 0 credits. A provider that reports no audio duration does not start this recovery.
 
 The other providers have no fallback. These providers include Azure MAI, Google Gemini 3.5 Transcribe, OpenAI, Gemini, AssemblyAI, Mistral, and Soniox. If one of these providers fails, you get an error. Try again, or change to a different provider.
 

@@ -140,8 +140,27 @@ public sealed partial class ModesViewModel : ViewModelBase
     public ICommand NewCommand { get; }
     public ICommand DeleteCommand { get; }
 
+    /// <summary>
+    /// True while <see cref="RefreshAsync"/> runs. The list is cleared before the
+    /// repository is awaited, so an observer that mirrors <see cref="Items"/> elsewhere
+    /// (the Linux tray's Select Mode menu) waits for this to drop instead of
+    /// publishing the transient empty list.
+    /// </summary>
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        private set
+        {
+            if (_isRefreshing == value) return;
+            _isRefreshing = value;
+            Notify(nameof(IsRefreshing));
+        }
+    }
+    private bool _isRefreshing;
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
+        IsRefreshing = true;
         try
         {
             Items.Clear();
@@ -153,6 +172,7 @@ public sealed partial class ModesViewModel : ViewModelBase
             Status.Success(Plural.Count(Items.Count, "mode", "modes"));
         }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
+        finally { IsRefreshing = false; }
     }
     private Mode? FallbackSelection() => Items.FirstOrDefault(item => item.IsDefault)
         ?? Items.OrderBy(item => item.SortOrder).FirstOrDefault();
@@ -377,7 +397,8 @@ public sealed partial class ModesViewModel : ViewModelBase
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
         var selected = Selected;
         try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
-        catch (InvalidOperationException exception) { Status.Failure("modes.last_mode", exception.Message); }
+        // Only the repository's own rule says "last mode"; an EF or storage fault is a failed delete (issue #2561).
+        catch (ModeRuleViolationException rule) { Status.Failure(rule.Code, rule.Message); }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
     }
 }

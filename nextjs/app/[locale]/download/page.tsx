@@ -511,7 +511,7 @@ export default function DownloadPage() {
                       <AnimatePresence initial={false} mode="popLayout">
                         <m.span
                           key={copied ? "copied" : "copy"}
-                          className="inline-flex mr-1"
+                          className="inline-flex me-1"
                           {...ICON_SWAP}
                         >
                           {copied ? (

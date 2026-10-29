@@ -73,6 +73,7 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
+    await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -269,7 +270,20 @@ try
     reloadedSettings.Set("selectedModeId", Guid.NewGuid().ToString("D"));
     Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
     var modeSelection = new ModesViewModel(modes, reloadedSettings);
+    // The Linux tray skips publishing while IsRefreshing, so every list change a reload makes
+    // (the Clear and each Add) must happen with it raised, and its drop must be announced.
+    var refreshingAtEachChange = new List<bool>();
+    var refreshingNotices = new List<bool>();
+    modeSelection.Items.CollectionChanged += (_, _) => refreshingAtEachChange.Add(modeSelection.IsRefreshing);
+    modeSelection.PropertyChanged += (_, e) =>
+    {
+        if (e.PropertyName == nameof(ModesViewModel.IsRefreshing)) refreshingNotices.Add(modeSelection.IsRefreshing);
+    };
     await modeSelection.RefreshAsync();
+    Assert(refreshingAtEachChange.Count > 1 && refreshingAtEachChange.All(value => value),
+        "a mode reload changed the list while IsRefreshing was false");
+    Assert(refreshingNotices.SequenceEqual(new[] { true, false }) && !modeSelection.IsRefreshing,
+        "a mode reload did not announce IsRefreshing rising and then dropping");
     Assert(modeSelection.CloudProviders.Contains("meta", StringComparer.Ordinal),
         "the portable mode editor does not offer the enabled Meta BYOK provider");
     Assert(modeSelection.Selected?.Id == mode.Id,
@@ -2240,6 +2254,50 @@ static async Task RunModeNameTakenTestsAsync(string root)
         $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
     Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
         && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
+}
+
+// Issue #2561: DeleteAsync caught every InvalidOperationException as the last-mode rule, so an EF
+// fault on delete showed "modes.last_mode" with EF's own exception text.
+static async Task RunModeDeleteFailureCodeTestsAsync(string root)
+{
+    var paths = new TestPaths(root);
+    var faulted = false;
+    var database = new ApplicationDb(() =>
+    {
+        var context = new HyperWhisper.Data.HyperWhisperDbContext(paths);
+        // A disposed context throws ObjectDisposedException, an InvalidOperationException that is
+        // not a mode rule.
+        if (faulted) context.Dispose();
+        return context;
+    });
+    await database.InitializeAsync();
+    var repository = new ModeRepository(database);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 1, $"expected one seeded mode, got {editor.Items.Count}");
+
+    // The rule itself still shows under its own code.
+    editor.Selected = editor.Items.Single();
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"deleting the last mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == 1, "the last mode was deleted");
+
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    faulted = true;
+    await editor.DeleteAsync();
+    faulted = false;
+    Assert(editor.Status.ErrorCode == "modes.delete_failed" && editor.Status.Message == "Could not delete the mode.",
+        $"a storage fault on delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Any(item => item.Id == other.Id) && (await repository.ListAsync()).Any(item => item.Id == other.Id),
+        "a failed delete removed the mode");
+
+    await editor.DeleteAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).All(item => item.Id != other.Id),
+        $"deleting a mode with another left failed: {editor.Status.ErrorCode}");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
