@@ -212,6 +212,7 @@ fn transcript(text: &str) -> Transcript {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::test_support::fields;
     use crate::contract::{Body, Part};
 
     fn params() -> TranscribeParams {
@@ -221,16 +222,6 @@ mod tests {
             audio_path: "/tmp/rec.wav".to_string(),
             ..Default::default()
         }
-    }
-
-    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
-        parts
-            .iter()
-            .filter_map(|p| match p {
-                Part::Field { name: n, value } if n == name => Some(value.as_str()),
-                _ => None,
-            })
-            .collect()
     }
 
     #[test]
