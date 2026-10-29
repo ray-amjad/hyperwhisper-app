@@ -1,5 +1,6 @@
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import { BTN_PRIMARY_XS, BTN_SECONDARY_XS } from "@/components/user/panel-styles";
 
 /** Every string the view shows, already translated by the container. */
 export interface RotateAccountKeyLabels {
@@ -118,26 +119,26 @@ export default function RotateAccountKeyView({
   ) => (
     <div
       aria-labelledby={`${panelId}-title`}
-      className="mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3"
+      className="mt-1.5 rounded-2xl border border-[rgba(253,186,140,.26)] bg-[linear-gradient(180deg,rgba(253,186,140,.09),rgba(255,255,255,.02))] p-4"
       id={panelId}
       role="group"
     >
       <p className="text-sm font-medium text-white" id={`${panelId}-title`}>
         {title}
       </p>
-      <p className="mt-1 text-xs text-gray-300">{body}</p>
+      <p className="mt-1 text-[13px] leading-[1.5] text-[var(--dusk-mute)]">{body}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 rounded transition-colors disabled:opacity-50"
+          className={BTN_PRIMARY_XS}
           disabled={busy}
           type="button"
           onClick={onAction}
         >
-          {busy ? <Spinner className="w-3 h-3" /> : null}
+          {busy ? <Spinner className="w-3.5 h-3.5" /> : null}
           {busy ? busyLabel : action}
         </button>
         <button
-          className="px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+          className={BTN_SECONDARY_XS}
           disabled={busy}
           type="button"
           onClick={onCancel}
@@ -154,7 +155,7 @@ export default function RotateAccountKeyView({
         <button
           aria-controls={panelId}
           aria-expanded={false}
-          className="text-xs text-gray-400 hover:text-white transition-colors"
+          className="rounded text-xs text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
           type="button"
           onClick={onStart}
         >
@@ -184,13 +185,13 @@ export default function RotateAccountKeyView({
 
       <p
         aria-live="polite"
-        className="pt-1.5 text-xs text-emerald-300 empty:hidden"
+        className="pt-1.5 text-xs text-[var(--dusk-lav)] empty:hidden"
         role="status"
       >
         {notice}
       </p>
       <ErrorReveal className="" open={Boolean(error)}>
-        <p className="pt-1.5 text-xs text-red-400 empty:hidden" role="alert">
+        <p className="pt-1.5 text-xs text-rose-300 empty:hidden" role="alert">
           {error}
         </p>
       </ErrorReveal>

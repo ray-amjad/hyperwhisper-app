@@ -1,3 +1,5 @@
+import { CARD, SKEL } from "@/components/user/panel-styles";
+
 /**
  * Portal route fallback (#915)
  *
@@ -16,8 +18,8 @@ export default function PortalSkeleton({
 }: {
   variant: "table" | "panel";
 }) {
-  const bar = "bg-white/10 rounded animate-pulse motion-reduce:animate-none";
-  const card = "bg-white/5 rounded-xl border border-white/10";
+  const bar = SKEL;
+  const card = CARD;
 
   return (
     <div aria-busy="true" className="space-y-6" role="status">
@@ -28,10 +30,10 @@ export default function PortalSkeleton({
       </div>
       {variant === "table" ? (
         <div className={`${card} overflow-hidden`}>
-          <div className="border-b border-white/10 px-6 py-4">
+          <div className="border-b border-[var(--dusk-line)] px-6 py-4">
             <div className={`h-3 w-40 ${bar}`} />
           </div>
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-[var(--dusk-line)]">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex gap-12 px-6 py-4">
                 <div className={`h-4 w-48 ${bar}`} />

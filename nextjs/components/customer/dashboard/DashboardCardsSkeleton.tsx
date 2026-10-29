@@ -1,3 +1,5 @@
+import { CARD, SKEL } from "@/components/user/panel-styles";
+
 /**
  * Dashboard cards placeholder (#865)
  *
@@ -7,8 +9,8 @@
  * `PortalSkeleton`.
  */
 export default function DashboardCardsSkeleton() {
-  const bar = "bg-white/10 rounded animate-pulse motion-reduce:animate-none";
-  const card = "bg-white/5 rounded-xl border border-white/10 p-5";
+  const bar = SKEL;
+  const card = `${CARD} p-5 sm:p-6`;
 
   return (
     <div className="space-y-6">
@@ -30,7 +32,7 @@ export default function DashboardCardsSkeleton() {
         </div>
         <div className="grid grid-cols-3 gap-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className={`h-[86px] rounded-lg ${bar}`} />
+            <div key={i} className={`h-[86px] rounded-2xl ${bar}`} />
           ))}
         </div>
       </div>
