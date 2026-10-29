@@ -78,7 +78,7 @@ describe("POST /api/license/validate", () => {
     assert.deepEqual(calls.findAccountByKey, []);
   });
 
-  test("keys the rate limiter on the Vercel forwarded address, not the raw chain", async () => {
+  test("keys the rate limiter on cf-connecting-ip, not the forgeable forwarded chain", async () => {
     storeRow(accountKeyRow({ key: GRANTED_KEY }));
     const { POST } = await loadValidateRoute();
 
@@ -87,8 +87,9 @@ describe("POST /api/license/validate", () => {
         VALIDATE_PATH,
         { license_key: GRANTED_KEY },
         {
-          "x-vercel-forwarded-for": "203.0.113.7, 198.51.100.9",
-          "x-forwarded-for": "198.51.100.9",
+          "cf-connecting-ip": "203.0.113.7",
+          "x-forwarded-for": "198.51.100.9, 203.0.113.7",
+          "x-vercel-forwarded-for": "198.51.100.9",
         },
       ),
     );
@@ -943,7 +944,7 @@ describe("the licence routes fail open when the rate limiter is down (#2058)", (
         postRequest(
           path,
           { license_key: GRANTED_KEY },
-          { "x-vercel-forwarded-for": "203.0.113.7" },
+          { "cf-connecting-ip": "203.0.113.7" },
         ),
       );
       const body = await readJson(response);

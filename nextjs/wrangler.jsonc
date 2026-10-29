@@ -1,0 +1,76 @@
+// Cloudflare Worker for the website (nextjs/), built with @opennextjs/cloudflare.
+// Runbook: DEPLOY-CLOUDFLARE.md. This repo is public: no secret values here.
+// Secrets are authored in Infisical and synced to this Worker.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must equal the Worker that Workers Builds is connected to.
+  "name": "hyperwhisper-web",
+  // Custom entry: wraps .open-next/worker.js to add the cron handler.
+  "main": "worker.ts",
+  // Must not be newer than the workerd bundled with the pinned wrangler.
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // *.workers.dev stays on for smoke tests before and after cutover.
+  "workers_dev": true,
+  // Production only: no per-version preview URLs.
+  "preview_urls": false,
+  // Cutover only (the owner attaches these; adding them here would claim the
+  // live hostnames on the next deploy):
+  // "routes": [
+  //   { "pattern": "hyperwhisper.com", "custom_domain": true },
+  //   { "pattern": "www.hyperwhisper.com", "custom_domain": true }
+  // ],
+  "vars": {
+    // Read at runtime: cloud licence-cache purge defaults
+    // (lib/services/cloud-license-cache.ts) and the Sentry environment.
+    "DEPLOY_ENV": "production"
+  },
+  // PlanetScale Postgres through Hyperdrive. Create the config with caching
+  // disabled (see DEPLOY-CLOUDFLARE.md) and replace the placeholder BEFORE
+  // this branch merges, or the first Workers Build deploy fails.
+  // Local dev: set CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in
+  // the shell; never add localConnectionString here.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "88898df7eb564ef7bcb3efc3a6c6ad34"
+    }
+  ],
+  // OpenNext ISR cache: blog (60s), latency and choosing-a-model (1h) pages,
+  // plus revalidatePath from the add-blog-post webhook.
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "hyperwhisper-web-opennext-cache"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+      { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"]
+    }
+  ],
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "hyperwhisper-web" }
+  ],
+  // UTC. Keep in step with config/cron-jobs.mjs (tests/cron-jobs.test.ts).
+  "triggers": {
+    "crons": ["17 4 * * *", "37 4 * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "invocation_logs": true }
+  },
+  "upload_source_maps": true
+}

@@ -185,8 +185,9 @@ git pull --ff-only origin main    # the Action pushed the bump + appcast
 <important>
 Publishing the release does **not** deliver it. The Windows app polls
 `https://www.hyperwhisper.com/appcast-windows.xml` (`UpdateService.cs`, `AppcastUrl`),
-which is a static file in `nextjs/public/` — it only reaches users when **Vercel
-deploys the Next.js site**. The Action commits the appcast to the repo and stops there.
+which is a static file in `nextjs/public/` — it only reaches users when **the Cloudflare
+Workers Build deploys the Next.js site** (Worker `hyperwhisper-web`, see
+`nextjs/DEPLOY-CLOUDFLARE.md`). The Action commits the appcast to the repo and stops there.
 A release can go green, with signed installers on GitHub and R2, while being delivered
 to nobody.
 </important>
@@ -204,10 +205,12 @@ days) and `HEAD`s both installer URLs. If it times out, users are not getting th
 update. Diagnose the deploy side:
 
 ```bash
-vercel ls hyperwhisper --scope ray-amjad --prod 2>&1 | head -6
+cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1 | head -20
 ```
 
-A last production deploy older than the release commit is the smoking gun. Report it
+A last production deploy older than the release commit is the smoking gun (the
+Workers Builds tab of `hyperwhisper-web` in the Cloudflare dashboard shows the build
+log). Report it
 to the user and ask before force-deploying — promoting to production is an
 outward-facing action affecting the live site, and the site may contain unrelated
 unshipped work.
@@ -229,9 +232,8 @@ Tell the user:
 | Authenticode signing fails | SSL.com eSigner credentials (`ES_*`) — the workflow computes TOTP itself because CodeSignTool's internal TOTP fails with this secret. |
 | Build fails on the Rust core | `shared-core-rs/rust-toolchain.toml` pins the toolchain; the ARM64 cross target is added in the workflow. A missing DLL hard-errors via the `EnsureRustCoreDll` target. |
 | PR merge fails at the end | The bump lands via auto-merged PR (`main` requires PRs). It retries 5×; check the `release/windows-vX.Y.Z` PR and merge manually. |
-| Release is green but users don't see the update | Step 10. Almost always a stale Vercel production deploy. |
-| Vercel production deploys silently stop happening | `env_vars_too_large` — Vercel caps a target's env vars at 64KB total and rejects the deployment at *creation*, so nothing appears in the dashboard, no email fires, and the project just goes quiet. Infisical syncs the whole secret set to Vercel Production, including large build secrets the Next.js app never reads, which is what pushes it over. The error only surfaces if you trigger a deploy manually. Fix by narrowing the Infisical → Vercel sync, **never** by deleting vars in Vercel (the next sync restores them). |
-| `nextjs` preview deploys are red | Read the log before dismissing it. Previews used to fail for environment reasons and were safely ignored; that is no longer a standing excuse. |
+| Release is green but users don't see the update | Step 10. Almost always a stale or failed Workers Build of `hyperwhisper-web`. |
+| Workers Build is red | Read the build log in the Cloudflare dashboard (Workers & Pages → `hyperwhisper-web` → Builds). There are no per-PR previews; `nextjs-ci` is the pre-merge gate. |
 
 ## Key Files
 

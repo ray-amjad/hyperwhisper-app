@@ -9,8 +9,8 @@
  *
  * `app/global-not-found.tsx` serves every unmatched URL (/de/zzz). It must
  * wrap that same content in the [locale] layout, in the request locale, so the
- * page gets the site chrome, and set its own noindex on Vercel only: next start
- * injects one there, Vercel does not.
+ * page gets the site chrome, and leave robots to the noindex Next injects
+ * (next start and OpenNext on Workers both do).
  *
  * `app/not-found.tsx` catches a first segment that is not a locale. It wraps
  * the same content the same way, but must not read the request locale: Next
@@ -299,27 +299,18 @@ test("the root not-found wraps the [locale] 404 in the default locale, never the
   assert.equal((await generateMetadata()).title, `${en.title} - HyperWhisper`);
 });
 
-test("both root 404s mark the page noindex on Vercel only", async () => {
-  // Vercel served no noindex on an unmatched URL (/de/zzz); next start injects
-  // one itself, so a second there would be a duplicate tag.
+test("both root 404s leave robots to the noindex Next injects", async () => {
+  // next start and OpenNext on Workers both inject a noindex on an unmatched
+  // URL (/de/zzz), so one set here would be a duplicate tag. Only Vercel did
+  // not inject it, and the site no longer runs there.
   request.locale = "de";
   const modules = (await Promise.all([
     import(GLOBAL_NOT_FOUND_PATH),
     import(ROOT_NOT_FOUND_PATH),
   ])) as RootNotFoundModule[];
-  const vercel = process.env.VERCEL;
 
-  try {
-    for (const { generateMetadata } of modules) {
-      process.env.VERCEL = "1";
-      assert.deepEqual((await generateMetadata()).robots, { index: false });
-
-      delete process.env.VERCEL;
-      assert.equal((await generateMetadata()).robots, undefined);
-    }
-  } finally {
-    if (vercel === undefined) delete process.env.VERCEL;
-    else process.env.VERCEL = vercel;
+  for (const { generateMetadata } of modules) {
+    assert.equal((await generateMetadata()).robots, undefined);
   }
 });
 

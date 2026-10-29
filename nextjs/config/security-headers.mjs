@@ -13,13 +13,15 @@
  * PostHog and Stripe all load third-party scripts, so a `script-src` /
  * `default-src` policy needs its own Report-Only run before it is enforced.
  *
- * These headers DO reach `/docs`, though it (with `/_mintlify`,
- * `/mintlify-assets` and `/api/request`) is a Vercel rewrite to Mintlify
- * (vercel.json): production sends them on the rewritten responses, and our
- * `Content-Security-Policy` replaces Mintlify's own (#1343). The docs were
- * checked with them on 2026-10-06: pages render, Ctrl+K search works and the
- * Loom videos play. So a fuller CSP here would apply to the Mintlify docs
- * too, and must be checked there as well.
+ * `/docs` (with `/_mintlify`, `/mintlify-assets` and `/api/request`) is a
+ * rewrite to Mintlify (config/mintlify-rewrites.mjs). On Vercel these headers
+ * reached the rewritten responses and our `Content-Security-Policy` replaced
+ * Mintlify's own (#1343). On Cloudflare Workers (wrangler dev, 2026-10-29)
+ * X-Frame-Options etc. still arrive, but Mintlify's own CSP passes through
+ * instead of ours. The docs were checked with our CSP on 2026-10-06 (pages
+ * render, Ctrl+K search works, the Loom videos play), so a fuller CSP here
+ * would apply to the Mintlify docs too if it is ever made to replace theirs.
+ * Static files in public/ get these headers from public/_headers instead.
  */
 export const securityHeaders = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },

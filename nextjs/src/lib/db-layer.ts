@@ -447,7 +447,7 @@ const GRANT_LICENSE_LOCK_CLASS = 2481;
  * granted keys: the first caller mints, and every caller queued behind it
  * finds that key and gets it back with no new key and no second credit grant.
  * The lock also serialises the user insert, so a brand-new email no longer
- * trips `user_email_unique` for the losers. Several Vercel instances share it,
+ * trips `user_email_unique` for the losers. Every Worker isolate shares it,
  * because it lives in Postgres.
  */
 export async function provisionAccountKeyForEmail(email: string): Promise<AccountKeyRow> {

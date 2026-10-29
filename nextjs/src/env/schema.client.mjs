@@ -30,11 +30,10 @@
 
 const ENVIRONMENTS = ["development", "test", "production"];
 
-const asciiTabOrNewline = /[\t\n\r]/g;
-
 /**
  * zod 4's `z.string().url()`: the trimmed value must parse as a URL, and the
- * value it hands back is trimmed, with every ASCII tab, LF and CR deleted.
+ * value it hands back is the trimmed input, as typed. (Earlier zod 4 releases
+ * also deleted every ASCII tab, LF and CR; zod 4.4.3 keeps them.)
  * @param {string} value
  * @returns {string | null} the normalised value, or null when it is not a URL
  */
@@ -51,7 +50,7 @@ function parseUrl(value) {
   } catch {
     ok = false;
   }
-  return ok ? trimmed.replace(asciiTabOrNewline, "") : null;
+  return ok ? trimmed : null;
 }
 
 /**

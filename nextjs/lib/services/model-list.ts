@@ -260,8 +260,8 @@ export type AvailableModels = {
 };
 
 // Per-instance in-memory cache (~1h TTL). Bounds the 6-provider fan-out even
-// against cache-busting query strings, which bypass Vercel's edge cache and
-// hit the function directly. In-flight de-duplication collapses concurrent
+// against cache-busting query strings, which bypass any edge cache and hit
+// the function directly. In-flight de-duplication collapses concurrent
 // cold-start requests into a single upstream fan-out.
 const CACHE_TTL_MS = 60 * 60 * 1000;
 // If every provider failed (e.g. a transient cold-start network blip), cache
