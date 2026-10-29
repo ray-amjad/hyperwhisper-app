@@ -371,6 +371,7 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
             if (_modeWriterRunning || _process is null) return;
             _modeWriterRunning = true;
         }
+        // ast-grep-ignore: no-discarded-task-run -- a publish runs on the UI thread and must not block on the helper's stdin pipe; DrainModeMenuAsync catches its own write failures and the next helper start re-sends the snapshot.
         _ = Task.Run(DrainModeMenuAsync);
     }
 
