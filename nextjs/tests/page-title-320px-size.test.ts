@@ -5,7 +5,8 @@
  * letters are cut off and the page scrolls sideways (bg, et, ru, is/support).
  * Below `sm` (640px) these headings are 30px (`text-3xl`); 640px and up is
  * unchanged. #2714 brought the four other page titles with the same gradient
- * class string (pricing, FAQ, /credits, /older-versions) to the same sizes.
+ * class string (pricing, FAQ, /credits, /older-versions) to the same sizes,
+ * and #2872 brought /choosing-a-model.
  *
  * At 30px the Bulgarian "професионалисти" is still 277px, 5px wider than the
  * 272px box. The gradient is only painted inside the box, so the last letter
@@ -28,6 +29,8 @@ const sites = [
   { file: "components/landing/FAQSection.tsx", tag: "h2", bleed: false },
   { file: "components/credits/CreditsPurchase.tsx", tag: "h1", bleed: false },
   { file: "app/[locale]/older-versions/page.tsx", tag: "h1", bleed: false },
+  // #2872: same class set in a different order, so the #2714 grep missed it.
+  { file: "app/[locale]/choosing-a-model/page.tsx", tag: "h1", bleed: false },
 ];
 
 for (const { file, tag, bleed } of sites) {

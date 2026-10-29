@@ -79,7 +79,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
         exists rather than a link to the Artificial Analysis leaderboard.
       */}
       <header className="mx-auto max-w-3xl text-center">
-        <h1 className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+        <h1 className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl md:text-5xl">
           Which model should you use?
         </h1>
         {/*
