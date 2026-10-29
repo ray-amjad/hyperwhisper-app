@@ -441,7 +441,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
             startContent={<LogIn className="w-4 h-4 shrink-0" strokeWidth={1.5} />}
             // The label wraps instead of running past a 320px viewport in
             // the longer locales (is, ro, fr, fi): #2871.
-            className="h-auto min-h-12 max-w-full whitespace-normal py-3 text-center border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
+            className="h-auto min-h-12 max-w-full whitespace-normal py-2 text-center border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
             onPress={() => {
               window.location.href = `/${locale}/user/sign-in`;
             }}
