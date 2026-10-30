@@ -1016,6 +1016,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 real: licence 'Get Credits no browser' = box has no browser (#2632 toast). Onboarding walked BOTH Skip and Continue-to-Finish: unlicensed Finish completes (test disabled, by design); mic pick equal to auto-pick is not saved (by design, follows default). core-settings: 7 General + Sound + mic toggles persist across page round-trip; autostart .desktop 0600; launchMinimized is gated on a live tray. Next: these 3 routes look mined out."
+    },
+    {
+      "at": "2026-10-30T13:18:50Z",
+      "platform": "linux",
+      "commit": "a7b95bd7",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2911
+      ],
+      "licensed": false,
+      "note": "unlicensed. Codex 3 routes: 4 defects, 1 real (Home file field -> deleted import copy, #2911). History badges after #1158 render fine (seed 7 rows incl. AudioFilePath). Held back, needs a runtime repro: Linux live-streaming rows store enum name (LinuxInteractionRecordingSession.cs:352 Provider.ToString() -> 'ParakeetLocal'/'OpenAi') while batch rows store display names; streaming needs a hotkey, not drivable headless. 'No supported clipboard helper' footer error is sticky across pages (box trigger)."
     }
   ]
 }
