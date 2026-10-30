@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   LicenseKeysCard,
   CloudCreditsCard,
@@ -9,6 +10,8 @@ import {
   DashboardCardsSkeleton,
 } from "@/components/customer/dashboard";
 import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
+import DeleteAccountKeyControl from "@/components/customer/dashboard/DeleteAccountKeyControl";
+import IssueAccountKeyControl from "@/components/customer/dashboard/IssueAccountKeyControl";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
 
@@ -18,7 +21,10 @@ interface UserDashboardClientProps {
     id: string;
   };
   isAdmin: boolean;
-  /** This session was proven by email, so it may rotate an Account Key. */
+  /**
+   * This session was proven by email, so it may rotate, add or delete an
+   * Account Key.
+   */
   canRotateKeys: boolean;
 }
 
@@ -49,6 +55,13 @@ export default function UserDashboardClient({
   const totalCredits = data?.totalCredits ?? 0;
   const totalMinutesRemaining = data?.totalMinutesRemaining ?? 0;
   const activeLicenseKey = data?.licenses?.find((l) => l.status === "granted")?.key ?? null;
+  // Live keys: the server refuses to delete the last one, and to add one past
+  // MAX_LIVE_ACCOUNT_KEYS or to an account with none, and so do the controls.
+  const liveKeyCount =
+    data?.licenses?.filter((l) => l.status === "granted").length ?? 0;
+  const t = useTranslations("licenseKeysCard");
+  // The line a delete leaves: its control unmounts with the deleted row.
+  const [keyNotice, setKeyNotice] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -134,17 +147,51 @@ export default function UserDashboardClient({
             {data?.licenses && data.licenses.length > 0 ? (
               <>
                 <LicenseKeysCard
+                  // Only an account that already holds a live key may add one
+                  // (never a way to a first key); the server enforces it too.
+                  footer={
+                    liveKeyCount > 0 ? (
+                      <>
+                        <p
+                          aria-live="polite"
+                          className="pt-2 text-xs text-emerald-300 empty:hidden"
+                          role="status"
+                        >
+                          {keyNotice}
+                        </p>
+                        <IssueAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          liveKeyCount={liveKeyCount}
+                        />
+                      </>
+                    ) : null
+                  }
                   licenses={data.licenses}
                   // Only a granted key rotates (a revoked or refunded one is already
                   // dead); the server enforces the same rule.
                   renderActions={(license, reveal) =>
                     license.status === "granted" ? (
-                      <RotateAccountKeyControl
-                        email={user.email}
-                        emailProven={canRotateKeys}
-                        license={license}
-                        onRotated={reveal}
-                      />
+                      // Stacked, not side by side: an open confirmation
+                      // takes the row's full width.
+                      <div>
+                        <RotateAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          license={license}
+                          onRotated={() => {
+                            setKeyNotice(null);
+                            reveal();
+                          }}
+                        />
+                        <DeleteAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          isLastLiveKey={liveKeyCount <= 1}
+                          license={license}
+                          onDeleted={() => setKeyNotice(t("deleted"))}
+                        />
+                      </div>
                     ) : null
                   }
                 />

@@ -22,6 +22,11 @@ interface LicenseKeysCardProps {
    * after a rotation, so the new key is on screen to copy).
    */
   renderActions?: (license: License, reveal: () => void) => ReactNode;
+  /**
+   * Account-level controls under the list (the dashboard passes the "Add a
+   * new key" control and the line a delete leaves behind).
+   */
+  footer?: ReactNode;
 }
 
 /**
@@ -31,7 +36,11 @@ interface LicenseKeysCardProps {
  * Active keys come first, so an inactive one never sits between two live ones
  * (#1664).
  */
-export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeysCardProps) {
+export default function LicenseKeysCard({
+  licenses,
+  renderActions,
+  footer,
+}: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // The row whose last copy was refused (#872). Cleared by the next copy click.
@@ -189,6 +198,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
           );
         })}
       </div>
+      {footer ? <div className="mt-3 border-t border-white/10 pt-1">{footer}</div> : null}
     </div>
   );
 }
