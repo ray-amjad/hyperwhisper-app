@@ -638,10 +638,21 @@ async function pollUntilTerminal(
       await sleep(POLL_INTERVAL_MS);
       polls += 1;
 
-      const pollResp = await fetchWithTimeout(provider, pollUrl, {
-        method: 'GET',
-        headers: authHeaders(apiKey),
-      }, context);
+      let pollResp: Response;
+      try {
+        pollResp = await fetchWithTimeout(provider, pollUrl, {
+          method: 'GET',
+          headers: authHeaders(apiKey),
+        }, context);
+      } catch (error) {
+        // A network error or per-request timeout on ONE poll is a transient
+        // blip like a 5xx poll: the job is already running and billed upstream,
+        // so keep polling until the deadline rather than abandoning it (#2923).
+        // fetchWithTimeout already logged the transport_error detail.
+        if (!(error instanceof ProviderUnavailableError)) throw error;
+        logProviderEvent(provider, 'poll_transport_error', { kind: error.kind, polls }, context);
+        continue;
+      }
 
       if (!pollResp.ok) {
         // Transient poll error — retry until the deadline rather than failing the
