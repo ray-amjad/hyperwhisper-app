@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { Check, X, Sparkles, Building2, Cloud, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -23,6 +23,9 @@ import { useDownloadModal } from "@/contexts/DownloadModalContext";
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
   const t = useTranslations("cloudSection");
+  // Settle the reveal offset at mount under Reduce motion, so the blocks
+  // fade in place instead of snapping up on reveal (#1180, see FeaturesGrid).
+  const settle = useReducedMotion() ? { y: 0 } : undefined;
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
 
   const byoFeatures = [
@@ -44,6 +47,7 @@ export default function PricingSection() {
   return (
     <section className="py-20" id="cloud">
       <m.div
+        animate={settle}
         className="max-w-6xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
@@ -54,7 +58,7 @@ export default function PricingSection() {
           <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
             {t("eyebrow")}
           </span>
-          <h2 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
@@ -65,12 +69,13 @@ export default function PricingSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Bring your own keys */}
           <m.div
+            animate={settle}
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Card className="h-full bg-gray-900/50 border-gray-800 backdrop-blur-xl">
+            <Card className="h-full bg-gray-900/50 border border-gray-800 backdrop-blur-xl">
               {/* text-start overrides the physical `text-left` baked into
                   HeroUI's CardBody slot, which would otherwise leave the
                   heading and body copy flush left under dir="rtl". */}
@@ -118,6 +123,7 @@ export default function PricingSection() {
 
           {/* HyperWhisper Cloud Credits */}
           <m.div
+            animate={settle}
             className="relative"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -130,7 +136,7 @@ export default function PricingSection() {
                 {t("credits.badge")}
               </div>
             </div>
-            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
+            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border border-purple-700 backdrop-blur-xl">
               <CardBody className="p-8 flex flex-col text-start">
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-5 h-5 text-purple-300" strokeWidth={2.5} />
@@ -152,7 +158,8 @@ export default function PricingSection() {
                 <Button
                   as={Link}
                   href="/credits"
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-auto"
+                  role="link"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-auto"
                   size="lg"
                 >
                   {t("credits.cta")}
@@ -164,13 +171,14 @@ export default function PricingSection() {
 
         {/* Enterprise */}
         <m.div
+          animate={settle}
           className="max-w-4xl mx-auto mt-12"
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
-          <Card className="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border-orange-700/50 backdrop-blur-xl">
+          <Card className="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border border-orange-700/50 backdrop-blur-xl">
             <CardBody className="p-6 text-start">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">

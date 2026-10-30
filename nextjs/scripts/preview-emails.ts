@@ -39,7 +39,7 @@ const sample = {
   customerEmail: "ada@example.com",
   productName: "HyperWhisper",
   // The address `lib/services/stripe-webhook.ts` really passes. It is
-  // deliberately not the Resend `from` (support@) or the footer (hello@).
+  // deliberately not the sending `from` (support@) or the footer (hello@).
   supportEmail: "hi@support.hyperwhisper.com",
   // Obviously fake, and the same fixture the tests use. A realistic-looking
   // key trips the gitleaks `generic-api-key` rule in the Secrets CI job.

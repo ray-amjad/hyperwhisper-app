@@ -8,6 +8,7 @@ import { transcribeWithGroq } from './groq';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
+import { captureMultipartRequest, stubErrorResponse } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
 let restoreKey: () => void;
@@ -23,18 +24,7 @@ afterEach(() => {
   restoreKey();
 });
 
-function captureRequest(body: unknown) {
-  const captured: { url?: string; headers?: HeadersInit; form?: FormData } = {};
-  globalThis.fetch = mock(async (url: string, init: RequestInit) => {
-    captured.url = url;
-    captured.headers = init.headers;
-    captured.form = init.body as FormData;
-    return typeof body === 'string' ? new Response(body, { status: 200 }) : Response.json(body);
-  }) as unknown as typeof fetch;
-  return captured;
-}
-
-/** Like `captureRequest`, but with response headers — Groq's request id is one. */
+/** A JSON 200 with extra response headers — Groq's request id is one. Captures nothing. */
 function jsonWithHeaders(body: unknown, headers: Record<string, string>) {
   globalThis.fetch = mock(async () => new Response(JSON.stringify(body), {
     status: 200,
@@ -42,27 +32,10 @@ function jsonWithHeaders(body: unknown, headers: Record<string, string>) {
   })) as unknown as typeof fetch;
 }
 
-/** A raw 200 body, so a JSON literal `JSON.stringify` cannot produce is testable. */
-function captureRequestRaw(body: string) {
-  globalThis.fetch = mock(async () => new Response(body, {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })) as unknown as typeof fetch;
-}
-
-function errorResponse(status: number, text = 'upstream said no') {
-  let called = false;
-  globalThis.fetch = mock(async () => {
-    called = true;
-    return new Response(text, { status });
-  }) as unknown as typeof fetch;
-  return () => called;
-}
-
 describe('transcribeWithGroq — multipart request shape', () => {
   test('throws a plain Error (not a fallback signal) when GROQ_API_KEY is missing', async () => {
     delete process.env.GROQ_API_KEY;
-    const wasCalled = errorResponse(200);
+    const wasCalled = stubErrorResponse(200);
 
     const thrown = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
@@ -72,7 +45,7 @@ describe('transcribeWithGroq — multipart request shape', () => {
 
   test('posts verbose_json to the Groq transcriptions endpoint with a bearer key', async () => {
     process.env.GROQ_API_KEY = 'gsk-unit-test';
-    const captured = captureRequest({ text: 'hi', duration: 5 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 5 });
 
     await transcribeWithGroq(audio(), 'audio/wav');
     expect(captured.url).toBe('https://api.groq.com/openai/v1/audio/transcriptions');
@@ -81,27 +54,27 @@ describe('transcribeWithGroq — multipart request shape', () => {
   });
 
   test('defaults to whisper-large-v3-turbo and honours a model from the context', async () => {
-    const byDefault = captureRequest({ text: 'hi', duration: 5 });
+    const byDefault = captureMultipartRequest({ text: 'hi', duration: 5 });
     await transcribeWithGroq(audio(), 'audio/wav');
     expect(byDefault.form?.get('model')).toBe('whisper-large-v3-turbo');
 
-    const override = captureRequest({ text: 'hi', duration: 5 });
+    const override = captureMultipartRequest({ text: 'hi', duration: 5 });
     await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { model: 'whisper-large-v3' });
     expect(override.form?.get('model')).toBe('whisper-large-v3');
   });
 
   test('strips a BCP-47 region subtag, and omits the field for "auto"', async () => {
-    const regional = captureRequest({ text: 'hi', duration: 5 });
+    const regional = captureMultipartRequest({ text: 'hi', duration: 5 });
     await transcribeWithGroq(audio(), 'audio/wav', 'en_US');
     expect(regional.form?.get('language')).toBe('en');
 
-    const auto = captureRequest({ text: 'hi', duration: 5 });
+    const auto = captureMultipartRequest({ text: 'hi', duration: 5 });
     await transcribeWithGroq(audio(), 'audio/wav', 'auto');
     expect(auto.form?.has('language')).toBe(false);
   });
 
   test('forwards an initial prompt and names the file part from the content type', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 5 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 5 });
 
     await transcribeWithGroq(audio(), 'audio/flac', undefined, 'HyperWhisper');
     expect(captured.form?.get('prompt')).toBe('HyperWhisper');
@@ -111,7 +84,7 @@ describe('transcribeWithGroq — multipart request shape', () => {
 
 describe('transcribeWithGroq — HTTP error classification', () => {
   test('403 is treated as an edge-region block and fails over, not as a bad key', async () => {
-    errorResponse(403);
+    stubErrorResponse(403);
 
     const thrown = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -119,7 +92,7 @@ describe('transcribeWithGroq — HTTP error classification', () => {
   });
 
   test('401 throws a plain Error so the chain does NOT retry a bad key', async () => {
-    errorResponse(401);
+    stubErrorResponse(401);
 
     const thrown = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
@@ -128,19 +101,19 @@ describe('transcribeWithGroq — HTTP error classification', () => {
   });
 
   test('429 and 5xx fail over to the next provider', async () => {
-    errorResponse(429);
+    stubErrorResponse(429);
     const rateLimited = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(rateLimited).toBeInstanceOf(ProviderUnavailableError);
     expect(rateLimited.message).toContain('rate limit exceeded');
 
-    errorResponse(502);
+    stubErrorResponse(502);
     const upstream = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(upstream).toBeInstanceOf(ProviderUnavailableError);
     expect(upstream.message).toContain('upstream 5xx: 502');
   });
 
   test('other 4xx becomes ProviderInputError carrying the status', async () => {
-    errorResponse(400, 'bad language');
+    stubErrorResponse(400, 'bad language');
 
     const thrown = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
@@ -148,7 +121,7 @@ describe('transcribeWithGroq — HTTP error classification', () => {
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {
-    captureRequest('not json');
+    captureMultipartRequest('not json');
 
     const thrown = await transcribeWithGroq(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -158,7 +131,7 @@ describe('transcribeWithGroq — HTTP error classification', () => {
 
 describe('transcribeWithGroq — transcript, duration and billing', () => {
   test('returns the transcript, language and duration the upstream reports', async () => {
-    captureRequest({ text: 'hello world', language: 'en', duration: 60 });
+    captureMultipartRequest({ text: 'hello world', language: 'en', duration: 60 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav');
     expect(result.text).toBe('hello world');
@@ -168,10 +141,10 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
   });
 
   test('bills whisper-large-v3 above turbo for the same duration', async () => {
-    captureRequest({ text: 'hello', duration: 3_600 });
+    captureMultipartRequest({ text: 'hello', duration: 3_600 });
     const turbo = await transcribeWithGroq(audio(), 'audio/wav');
 
-    captureRequest({ text: 'hello', duration: 3_600 });
+    captureMultipartRequest({ text: 'hello', duration: 3_600 });
     const large = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { model: 'whisper-large-v3' });
 
     expect(turbo.costUsd).toBeGreaterThan(0);
@@ -179,7 +152,7 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
   });
 
   test('a transcript with no duration still bills the 10-second minimum, not $0', async () => {
-    captureRequest({ text: 'hello', duration: 0 });
+    captureMultipartRequest({ text: 'hello', duration: 0 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav');
     expect(result.durationSeconds).toBe(0);
@@ -188,7 +161,7 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
 
   test('an empty or whitespace-only transcript returns no_speech at zero duration and zero cost', async () => {
     for (const text of ['', '  ']) {
-      captureRequest({ text, language: 'en', duration: 30 });
+      captureMultipartRequest({ text, language: 'en', duration: 30 });
 
       const result = await transcribeWithGroq(audio(), 'audio/wav');
       expect(result.source).toBe('no_speech');
@@ -200,11 +173,11 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
   });
 
   test('the no_speech log event records the upstream duration, and null when there is none', async () => {
-    captureRequest({ text: '', language: 'en', duration: 30 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 30 });
     const reported = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
     expect(reported.upstreamDurationSeconds).toBe(30);
 
-    captureRequest({ text: '', language: 'en' });
+    captureMultipartRequest({ text: '', language: 'en' });
     const missing = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
     expect(missing.upstreamDurationSeconds).toBeNull();
   });
@@ -212,7 +185,7 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
 
 describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => {
   test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
-    captureRequest({ text: '', language: 'en', duration: 30 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 30 });
 
     let thrown: unknown;
     try {
@@ -244,7 +217,7 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     // measurable". For the three covered providers the refusal path IS the common
     // path, so an event that fires only when the adapter does NOT refuse counts
     // nothing. Without this the field is dead by construction.
-    captureRequest({ text: '', language: 'en', duration: 30 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 30 });
 
     const reported = await captureNoSpeechEvent(async () => {
       await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true })
@@ -258,7 +231,7 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     // The gate is "the route says a sibling is there", never `attempt === 1`.
     // A geo-degraded chain's only provider is still its first attempt, and
     // refusing there would return 429 for what is a benign no_speech.
-    captureRequest({ text: '', language: 'en', duration: 30 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 30 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { attempt: 1 });
     expect(result.source).toBe('no_speech');
@@ -267,7 +240,7 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
   });
 
   test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
-    captureRequest({ text: '', language: 'en' });
+    captureMultipartRequest({ text: '', language: 'en' });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');
@@ -300,7 +273,7 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     // `JSON.parse('{"duration":1e999}')` is Infinity, which passes `> 0`. The
     // hand-written guard produced "empty transcript for Infinitys of audio" and
     // failed the request over on a number nobody reported.
-    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+    captureMultipartRequest('{"text":"","language":"en","duration":1e999}', { headers: { 'Content-Type': 'application/json' } });
 
     const reported = await captureNoSpeechEvent(
       () => transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true }),
@@ -308,7 +281,7 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     expect(reported.upstreamDurationSeconds).toBeNull();
     expect(reported.refused).toBe(false);
 
-    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+    captureMultipartRequest('{"text":"","language":"en","duration":1e999}', { headers: { 'Content-Type': 'application/json' } });
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');
   });
@@ -318,14 +291,14 @@ describe('transcribeWithGroq — Whisper silence on the empty-transcript recover
   const recovery = { isEmptyTranscriptRecovery: true };
 
   test('"Thank you." on a recovery attempt returns no_speech at zero cost', async () => {
-    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+    captureMultipartRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, recovery);
     expect(result).toMatchObject({ text: '', source: 'no_speech', costUsd: 0, durationSeconds: 0 });
   });
 
   test('the no_speech event names the verdict and the length, never the discarded text', async () => {
-    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+    captureMultipartRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
 
     const reported = await captureNoSpeechEvent(
       () => transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, recovery),
@@ -337,7 +310,7 @@ describe('transcribeWithGroq — Whisper silence on the empty-transcript recover
   });
 
   test('never refuses on a recovery attempt, even if a grant were also passed', async () => {
-    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+    captureMultipartRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, {
       ...recovery,
       mayRefuseEmptyTranscript: true,
@@ -346,7 +319,7 @@ describe('transcribeWithGroq — Whisper silence on the empty-transcript recover
   });
 
   test('real speech on a recovery attempt is returned and billed', async () => {
-    captureRequest({
+    captureMultipartRequest({
       text: ' Send the report by Friday.',
       language: 'en',
       duration: 2.3,
@@ -359,7 +332,7 @@ describe('transcribeWithGroq — Whisper silence on the empty-transcript recover
   });
 
   test('without the recovery flag, "Thank you." is a transcript like any other', async () => {
-    captureRequest({ text: ' Thank you.', language: 'en', duration: 1.2 });
+    captureMultipartRequest({ text: ' Thank you.', language: 'en', duration: 1.2 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav');
     expect(result.text).toBe(' Thank you.');

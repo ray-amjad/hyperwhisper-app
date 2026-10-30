@@ -35,6 +35,8 @@ export default defineConfig([globalIgnores([
     "**/node_modules",
     "**/coverage",
     "**/.next",
+    "**/.open-next",
+    "**/.wrangler",
     "**/build",
     "!**/.commitlintrc.cjs",
     "!**/.lintstagedrc.cjs",

@@ -263,7 +263,7 @@ export const customerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Loaded on first use: it pulls in the email client, the Upstash
+      // Loaded on first use: it pulls in the email client, the rate
       // limiter and the cloud purge, none of which the read procedures above
       // need at import time.
       const { rotateKeyForCaller } = await import("./customer-rotate-key");
