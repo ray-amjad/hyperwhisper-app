@@ -505,8 +505,10 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
   color: transparent;
 }
 
-/* Above-the-fold entrance (hero, closing buttons): CSS, not JS, so it plays
-   from the server HTML on first paint instead of waiting for hydration. */
+/* The hero's entrance: CSS, not JS, so it plays from the server HTML on first
+   paint instead of waiting for hydration. (Everything below the hero,
+   including the closing section's buttons, enters through Reveal; see the
+   fallbacks after the keyframes.) */
 @keyframes dusk-enter {
   from {
     opacity: 0;
@@ -592,7 +594,13 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 }
 
 .dusk-marquee {
-  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
   mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
@@ -631,7 +639,28 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 }
 
 /* Scroll reveals (components/landing/Reveal.tsx) are server-rendered at their
-   hidden start. Under Reduce motion they are shown from first paint, before
+   hidden start (opacity 0, inline), and only framer-motion's JS reveals them.
+   Two fallbacks keep the page readable without it:
+   - JavaScript off: app/[locale]/page.tsx carries a <noscript> style that
+     shows every [data-reveal] at once.
+   - JavaScript on, but the page never hydrates (a chunk fails to load): this
+     rule shows them after 3s. The first Reveal to mount sets
+     data-reveal-ready on <html>, which switches it off, so a page that
+     hydrates keeps its scroll entrances. An animation, not a declaration,
+     because only an animation outranks the inline opacity. */
+@keyframes dusk-reveal-fallback {
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+html:not([data-reveal-ready]) [data-reveal] {
+  animation: dusk-reveal-fallback 0s linear 3s forwards;
+}
+
+/* Under Reduce motion they are shown from first paint, before
    hydration, and every loop above stops. */
 @media (prefers-reduced-motion: reduce) {
   .dusk-enter,
@@ -652,5 +681,30 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
+  }
+
+  /* A still marquee would show only the logos that fit the first screen
+     width. Show every logo once instead: one centred, wrapping set, with the
+     duplicate (aria-hidden) set and the edge fade dropped. */
+  .dusk-marquee {
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .dusk-marquee-track {
+    width: auto !important;
+    max-width: 1200px;
+    margin-inline: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 20px;
+    /* Each tile carries a 28px trailing margin; matching it at the start keeps
+       every row centred. */
+    padding-inline: 24px;
+    padding-inline-start: calc(24px + 28px);
+  }
+
+  .dusk-marquee-track > [aria-hidden="true"] {
+    display: none;
   }
 }

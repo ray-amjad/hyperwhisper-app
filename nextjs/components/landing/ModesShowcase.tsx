@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import Reveal from "./Reveal";
+import { usePageVisible } from "./use-page-visible";
 
 const MODES = ["email", "note", "code", "meeting", "legal", "medical"] as const;
 
@@ -22,17 +23,18 @@ export default function ModesShowcase() {
   const reduceMotion = useReducedMotion();
   const boxRef = useRef<HTMLDivElement>(null);
   const inView = useInView(boxRef, { amount: 0.4 });
+  const pageVisible = usePageVisible();
   const [active, setActive] = useState<Mode>("email");
   const [picked, setPicked] = useState(false);
 
   useEffect(() => {
-    if (reduceMotion || picked || !inView) return;
+    if (reduceMotion || picked || !inView || !pageVisible) return;
     const id = window.setInterval(() => {
       setActive((m) => MODES[(MODES.indexOf(m) + 1) % MODES.length]);
     }, 3200);
 
     return () => window.clearInterval(id);
-  }, [reduceMotion, picked, inView]);
+  }, [reduceMotion, picked, inView, pageVisible]);
 
   return (
     <section className="pb-24 pt-10 md:pb-[140px]" id="modes">

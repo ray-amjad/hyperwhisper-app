@@ -174,7 +174,6 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
         wrapper:
           "flex-wrap h-auto min-h-[var(--navbar-height)] max-w-[1340px] gap-y-2 py-2 px-6 md:px-8",
       }}
-      data-solid={solid}
       height="72px"
       isBlurred={false}
       isMenuOpen={isMenuOpen}

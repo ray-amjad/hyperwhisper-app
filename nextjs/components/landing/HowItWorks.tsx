@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import Reveal from "./Reveal";
+import { usePageVisible } from "./use-page-visible";
 import VideoDemo from "./VideoDemo";
 
 /**
@@ -42,7 +43,14 @@ const WAVE = Array.from({ length: 14 }, (_, i) => ({
  * zh, th), so the reply still types in steps.
  */
 function chunks(text: string): string[] {
-  return text.includes(" ") ? text.split(/(?<= )/) : Array.from(text);
+  if (!text.includes(" ")) return Array.from(text);
+  // Split on the space and put it back, rather than a lookbehind regex:
+  // Safari before 16.4 cannot parse `(?<= )`, and the whole chunk would fail.
+  const words = text.split(" ");
+
+  return words
+    .map((word, i) => (i < words.length - 1 ? `${word} ` : word))
+    .filter((part) => part !== "");
 }
 
 export default function HowItWorks() {
@@ -52,7 +60,7 @@ export default function HowItWorks() {
   // Not `once`: the loop stops when the window leaves the view, or the tab is
   // hidden, and starts over when both are back.
   const inView = useInView(appRef, { amount: 0.4 });
-  const [pageVisible, setPageVisible] = useState(true);
+  const pageVisible = usePageVisible();
   const [shortcut, setShortcut] = useState(MAC_SHORTCUT);
   const [phase, setPhase] = useState<Phase>("idle");
   const [typed, setTyped] = useState("");
@@ -61,23 +69,24 @@ export default function HowItWorks() {
 
   useEffect(() => setShortcut(detectShortcut()), []);
 
-  useEffect(() => {
-    const onChange = () => setPageVisible(!document.hidden);
-
-    onChange();
-    document.addEventListener("visibilitychange", onChange);
-
-    return () => document.removeEventListener("visibilitychange", onChange);
-  }, []);
-
   // The loop: idle -> listening -> cleaning up -> the reply types in -> hold.
   // It runs while the window is 40% in view in a visible tab, from the top
-  // each time it comes back. Reduce motion shows the end state and never advances.
+  // each time it comes back; a pause drops back to idle, so the Listening HUD
+  // never freezes on screen. Reduce motion shows the end state and never
+  // advances.
   useEffect(() => {
     if (reduceMotion || !inView || !pageVisible) return;
     let cancelled = false;
+    const timers = new Set<number>();
     const wait = (ms: number) =>
-      new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+      new Promise<void>((resolve) => {
+        const id = window.setTimeout(() => {
+          timers.delete(id);
+          resolve();
+        }, ms);
+
+        timers.add(id);
+      });
 
     (async () => {
       const parts = chunks(reply);
@@ -109,6 +118,10 @@ export default function HowItWorks() {
 
     return () => {
       cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+      timers.clear();
+      setPhase("idle");
+      setTyped("");
     };
   }, [reduceMotion, inView, pageVisible, reply]);
 

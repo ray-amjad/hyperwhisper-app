@@ -1,10 +1,11 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
+import { useInView, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import PlatformButtons from "./PlatformButtons";
+import { usePageVisible } from "./use-page-visible";
 
 import { Link } from "@/src/i18n/navigation";
 
@@ -30,19 +31,24 @@ export default function HeroSection() {
   const tBanner = useTranslations("openSourceBanner");
   const reduceMotion = useReducedMotion();
   const [app, setApp] = useState(0);
+  // The app names only rotate while the hero is on screen in a visible tab.
+  const heroRef = useRef<HTMLElement>(null);
+  const inView = useInView(heroRef);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || !inView || !pageVisible) return;
     const id = window.setInterval(
       () => setApp((i) => (i + 1) % APPS.length),
       2000,
     );
 
     return () => window.clearInterval(id);
-  }, [reduceMotion]);
+  }, [reduceMotion, inView, pageVisible]);
 
   return (
     <section
+      ref={heroRef}
       aria-labelledby="hero-title"
       className="relative isolate flex min-h-[max(100svh,620px)] items-center justify-center overflow-hidden py-28 text-center md:min-h-[max(100svh,820px)] md:pb-[232px]"
     >

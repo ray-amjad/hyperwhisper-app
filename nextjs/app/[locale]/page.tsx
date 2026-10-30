@@ -21,6 +21,15 @@ export default function Home() {
     <div
       className={`min-h-screen overflow-x-clip bg-[var(--dusk-night)] text-[var(--dusk-ink)] ${fontMono.variable}`}
     >
+      {/* JavaScript off: show every scroll reveal at once (they are
+          server-rendered at their hidden start; see globals.css). */}
+      <noscript>
+        <style>
+          {
+            "[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}"
+          }
+        </style>
+      </noscript>
       <HeroSection />
       <LogoMarquee />
       <HowItWorks />
