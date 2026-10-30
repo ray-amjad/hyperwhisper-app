@@ -44,3 +44,12 @@ test("the language switcher routes English-only pages through isEnglishOnlyRoute
   assert.match(source, /isEnglishOnlyRoute\(pathname\)/);
   assert.match(source, /window\.location\.hash/);
 });
+
+test("the language switcher never styles <html> (WebKit closed the phone menu)", () => {
+  const source = readFileSync(
+    new URL("../components/language-switcher.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(source, /document\.documentElement/);
+});
