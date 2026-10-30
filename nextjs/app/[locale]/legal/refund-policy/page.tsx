@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import {
   CREDIT_FEE_RATE,
   CREDITS_PER_DOLLAR,
@@ -27,7 +28,16 @@ const exampleUsedCredits = example.creditAmount / 10;
 const exampleUsedCents = example.creditCents / 10;
 const exampleRefundCents = example.creditCents - exampleUsedCents;
 
-export default function RefundPolicyPage() {
+// LegalDocument reads translations, so the page sets its locale itself or it renders
+// dynamically on every request (#843).
+export default async function RefundPolicyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  setRequestLocale((await params).locale);
+
+
   return (
     <LegalDocument title="Refund Policy" updated="Last Updated: October 6, 2026">
 
