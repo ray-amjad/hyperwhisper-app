@@ -40,7 +40,7 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
       webhooks: {
-        constructEvent: () => {
+        constructEventAsync: async () => {
           if (!verifiedEvent) throw new Error("No signatures found");
           return verifiedEvent;
         },

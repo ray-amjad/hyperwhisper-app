@@ -3,6 +3,8 @@
 // second global `Program` that shadows it — `Program.IsNoSpaceLanguage` then
 // fails to resolve (CS0436 + CS0117). A named entry point keeps the daemon's
 // type reachable.
+using NAudio.Wave;
+
 internal static class DaemonTests
 {
     private static int Main()
@@ -20,6 +22,12 @@ internal static class DaemonTests
             ("an auto-language join does not depend on where the VAD split", AutoLanguageJoinIsBoundaryIndependent),
             ("--segment-join parses to the host's separator", SegmentJoinArgument),
             ("a host-decided separator wins over the language", SegmentJoinOverridesLanguage),
+            ("a 48 kHz 6-channel Extensible PCM WAV decodes and folds to 16 kHz mono", ExtensibleSixChannelWav),
+            ("an Extensible float WAV decodes like a plain one", ExtensibleFloatWav),
+            ("plain mono and stereo WAVs decode as before", PlainMonoAndStereoWav),
+            ("the fold carries a partial frame across reads", MonoFoldCarriesPartialFrame),
+            ("a WAV whose data ends mid-frame decodes its whole frames", WavEndingMidFrame),
+            ("a header rate outside 4-768 kHz is refused before resampling", OutOfRangeRateRefused),
         };
 
         var failures = 0;
@@ -168,6 +176,164 @@ internal static class DaemonTests
     /// </summary>
     private static string JoinLikeDaemon(string language, string[] parts)
         => EngineSession.JoinSegments(language, parts);
+
+    // #1541: ffmpeg writes every WAV with more than two channels as WAVE_FORMAT_EXTENSIBLE.
+    // On main this file failed twice: ACM ("NoDriver calling acmFormatSuggest", or no msacm32
+    // at all off Windows) and then StereoToMonoSampleProvider ("Source must be stereo").
+    private static void ExtensibleSixChannelWav()
+    {
+        // Channel c carries a DC level of (c + 1) / 8, so the mono average is 3.5 / 8.
+        var path = WriteWav(48000, 6, 16, extensible: true, float32: false, frames: 48000,
+            (frame, channel) => (channel + 1) / 8.0);
+        try
+        {
+            var audio = Program.ReadAudio(path);
+            Equal(16000, audio.SampleRate);
+            True(Math.Abs(audio.Samples.Length - 16000) <= 64, $"expected ~16000 samples, got {audio.Samples.Length}");
+            var middle = audio.Samples[8000];
+            True(Math.Abs(middle - 3.5f / 8) < 0.01f, $"expected the 6-channel average 0.4375, got {middle}");
+        }
+        finally { File.Delete(path); }
+    }
+
+    private static void ExtensibleFloatWav()
+    {
+        var path = WriteWav(16000, 3, 32, extensible: true, float32: true, frames: 1600,
+            (frame, channel) => channel == 0 ? 0.3 : 0.0);
+        try
+        {
+            var audio = Program.ReadAudio(path);
+            Equal(1600, audio.Samples.Length);
+            True(Math.Abs(audio.Samples[800] - 0.1f) < 0.001f, $"expected 0.1, got {audio.Samples[800]}");
+        }
+        finally { File.Delete(path); }
+    }
+
+    private static void PlainMonoAndStereoWav()
+    {
+        var mono = WriteWav(16000, 1, 16, extensible: false, float32: false, frames: 1600, (_, _) => 0.25);
+        var stereo = WriteWav(16000, 2, 16, extensible: false, float32: false, frames: 1600,
+            (_, channel) => channel == 0 ? 0.5 : 0.0);
+        try
+        {
+            var m = Program.ReadAudio(mono);
+            Equal(1600, m.Samples.Length);
+            True(Math.Abs(m.Samples[800] - 0.25f) < 0.001f, $"mono: expected 0.25, got {m.Samples[800]}");
+            var s = Program.ReadAudio(stereo);
+            Equal(1600, s.Samples.Length);
+            // The old StereoToMonoSampleProvider 0.5/0.5 mix.
+            True(Math.Abs(s.Samples[800] - 0.25f) < 0.001f, $"stereo: expected 0.25, got {s.Samples[800]}");
+        }
+        finally { File.Delete(mono); File.Delete(stereo); }
+    }
+
+    private static void MonoFoldCarriesPartialFrame()
+    {
+        // 3 channels, frames (1,2,3) (4,5,6) (7,8,9), handed out 2 samples at a time.
+        var fold = new MonoFoldSampleProvider(new TrickleProvider([1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 2));
+        var output = new List<float>();
+        var buffer = new float[4];
+        int read;
+        while ((read = fold.Read(buffer, 0, buffer.Length)) > 0) output.AddRange(buffer.Take(read));
+        Equal("2,5,8", string.Join(",", output));
+    }
+
+    private static void WavEndingMidFrame()
+    {
+        // A recorder killed mid-write leaves a data chunk that is not a whole number of
+        // frames. NAudio's WaveFileReader refuses a read that is not whole blocks, so the
+        // fold must never ask for one after it carries the partial frame.
+        foreach (var (channels, extensible) in new[] { (2, false), (6, true) })
+        {
+            var path = WriteWav(16000, channels, 16, extensible, float32: false, frames: 1600, (_, _) => 0.25);
+            try
+            {
+                AppendPartialFrame(path);
+                var audio = Program.ReadAudio(path);
+                Equal(1600, audio.Samples.Length);
+                True(Math.Abs(audio.Samples[1599] - 0.25f) < 0.001f, $"{channels} ch: expected 0.25, got {audio.Samples[1599]}");
+            }
+            finally { File.Delete(path); }
+        }
+    }
+
+    private static void OutOfRangeRateRefused()
+    {
+        foreach (var rate in new[] { 1, 1_000_000 })
+        {
+            var path = WriteWav(rate, 6, 16, extensible: true, float32: false, frames: 100, (_, _) => 0.25);
+            try
+            {
+                var refused = false;
+                try { Program.ReadAudio(path); }
+                catch (InvalidDataException) { refused = true; }
+                True(refused, $"{rate} Hz was not refused");
+            }
+            finally { File.Delete(path); }
+        }
+
+        var ok = WriteWav(8000, 1, 16, extensible: false, float32: false, frames: 800, (_, _) => 0.25);
+        try { Equal(1600, Program.ReadAudio(ok).Samples.Length); }
+        finally { File.Delete(ok); }
+    }
+
+    /// <summary>Appends one 16-bit sample (half a stereo frame) and grows both sizes to match.</summary>
+    private static void AppendPartialFrame(string path)
+    {
+        var bytes = File.ReadAllBytes(path).ToList();
+        bytes.AddRange(new byte[] { 0x00, 0x20 });
+        var file = bytes.ToArray();
+        BitConverter.GetBytes(file.Length - 8).CopyTo(file, 4);
+        var data = file.Length - 4;
+        for (var i = 12; i < file.Length - 8; i++)
+            if (file[i] == 'd' && file[i + 1] == 'a' && file[i + 2] == 't' && file[i + 3] == 'a') { data = i; break; }
+        BitConverter.GetBytes(file.Length - data - 8).CopyTo(file, data + 4);
+        File.WriteAllBytes(path, file);
+    }
+
+    private sealed class TrickleProvider(float[] samples, int channels, int perRead) : ISampleProvider
+    {
+        private int _position;
+        public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(16000, channels);
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var n = Math.Min(Math.Min(count, perRead), samples.Length - _position);
+            Array.Copy(samples, _position, buffer, offset, n);
+            _position += n;
+            return n;
+        }
+    }
+
+    /// <summary>Writes a WAV by hand, so the header (plain or Extensible) is exactly what ffmpeg writes.</summary>
+    private static string WriteWav(int rate, int channels, int bits, bool extensible, bool float32, int frames,
+        Func<int, int, double> sample)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pe-test-{Guid.NewGuid():N}.wav");
+        var blockAlign = channels * bits / 8;
+        var dataSize = frames * blockAlign;
+        var fmtSize = extensible ? 40 : 16;
+        using var w = new BinaryWriter(File.Create(path));
+        w.Write("RIFF"u8); w.Write(4 + 8 + fmtSize + 8 + dataSize); w.Write("WAVE"u8);
+        w.Write("fmt "u8); w.Write(fmtSize);
+        w.Write((ushort)(extensible ? 0xFFFE : float32 ? 3 : 1));
+        w.Write((ushort)channels); w.Write(rate); w.Write(rate * blockAlign);
+        w.Write((ushort)blockAlign); w.Write((ushort)bits);
+        if (extensible)
+        {
+            w.Write((ushort)22); w.Write((ushort)bits); w.Write(channels == 6 ? 0x3F : 0);
+            w.Write(new Guid(float32 ? "00000003-0000-0010-8000-00aa00389b71" : "00000001-0000-0010-8000-00aa00389b71").ToByteArray());
+        }
+        w.Write("data"u8); w.Write(dataSize);
+        for (var frame = 0; frame < frames; frame++)
+            for (var channel = 0; channel < channels; channel++)
+            {
+                var value = sample(frame, channel);
+                if (float32) w.Write((float)value);
+                else w.Write((short)Math.Round(value * 32767));
+            }
+        return path;
+    }
 
     private static void True(bool condition, string because)
     {

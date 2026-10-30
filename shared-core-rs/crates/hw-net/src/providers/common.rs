@@ -474,6 +474,7 @@ pub fn filename_of(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::test_support::field;
 
     #[test]
     fn filename_handles_unix_windows_and_empty() {
@@ -509,10 +510,7 @@ mod tests {
 
     fn language_field(req: &HttpRequest) -> Option<String> {
         match &req.body {
-            Body::Multipart { parts, .. } => parts.iter().find_map(|p| match p {
-                Part::Field { name, value } if name == "language" => Some(value.clone()),
-                _ => None,
-            }),
+            Body::Multipart { parts, .. } => field(parts, "language").map(str::to_owned),
             _ => None,
         }
     }

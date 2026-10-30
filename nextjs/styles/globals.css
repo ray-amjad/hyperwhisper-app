@@ -471,3 +471,237 @@ body {
 html[data-os-banner="dismissed"] [data-os-banner-root] {
   display: none;
 }
+
+/* ------------------------------------------------------------------------
+   Dusk: the homepage design (components/landing/*), and the shared navbar and
+   footer. Tokens are --dusk-* so they cannot collide with Tailwind's or
+   HeroUI's own variables. Every loop below is decorative and stops under
+   Reduce motion (the block at the end of this section).
+   ------------------------------------------------------------------------ */
+:root {
+  --dusk-night: #05060d;
+  --dusk-navy: #0a0f2a;
+  --dusk-ink: #f5f5ff;
+  --dusk-mute: #9aa0bf;
+  /* Small print (11-14px): at least 4.5:1 (WCAG AA) on night (6.5:1), on
+     glass and the hovered feature tile (5.8:1), in the demo and modes panels
+     (5.9:1), and under the brightest point of the modes box's purple glow
+     (4.6:1). Same hue as --dusk-mute, one step darker. */
+  --dusk-dim: #8a90b3;
+  --dusk-line: rgba(255, 255, 255, 0.09);
+  --dusk-glass: rgba(255, 255, 255, 0.045);
+  --dusk-lav: #c4b5fd;
+  --dusk-peach: #fdba8c;
+  --dusk-accent: linear-gradient(90deg, #c4b5fd, #f0abfc 45%, #fdba8c);
+  --dusk-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Gradient text for one accent word. Only ever on an inline span, never on a
+   whole heading, so a long translated word is not clipped by its box. */
+.dusk-grad {
+  background: var(--dusk-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The hero's entrance: CSS, not JS, so it plays from the server HTML on first
+   paint instead of waiting for hydration. (Everything below the hero,
+   including the closing section's buttons, enters through Reveal; see the
+   fallbacks after the keyframes.) */
+@keyframes dusk-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+}
+
+.dusk-enter {
+  animation: dusk-enter 400ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Hero sky: a very slow drift, plus a light sheen sweeping across it. */
+@keyframes dusk-drift {
+  from {
+    transform: scale(1.04) translate(-1%, 0);
+  }
+  to {
+    transform: scale(1.1) translate(1%, -1.5%);
+  }
+}
+
+.dusk-drift {
+  animation: dusk-drift 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes dusk-sheen {
+  0% {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+
+.dusk-sheen {
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 220, 255, 0.1) 45%,
+    transparent 60%
+  );
+  mix-blend-mode: screen;
+  animation: dusk-sheen 9s ease-in-out infinite;
+}
+
+@keyframes dusk-scroll-hint {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  50% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  51% {
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+.dusk-scroll-hint {
+  animation: dusk-scroll-hint 2s ease-in-out infinite;
+}
+
+/* Logo marquee: the track holds the list twice and slides by half its width.
+   Hover (or keyboard focus inside) pauses it. */
+@keyframes dusk-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.dusk-marquee {
+  -webkit-mask: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+  mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.dusk-marquee-track {
+  animation: dusk-marquee 50s linear infinite;
+}
+
+.dusk-marquee:hover .dusk-marquee-track,
+.dusk-marquee:focus-within .dusk-marquee-track {
+  animation-play-state: paused;
+}
+
+/* "How it works" demo: the Listening HUD's waveform and the typing caret. */
+@keyframes dusk-wave {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.dusk-wave-bar {
+  animation: dusk-wave 0.9s ease-in-out infinite;
+}
+
+@keyframes dusk-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.dusk-caret {
+  animation: dusk-blink 1s steps(1) infinite;
+}
+
+/* Scroll reveals (components/landing/Reveal.tsx) are server-rendered at their
+   hidden start (opacity 0, inline), and only framer-motion's JS reveals them.
+   With JavaScript off, app/[locale]/page.tsx carries a <noscript> style that
+   shows every [data-reveal] at once, and the `scripting: none` rule at the end
+   of this file does the same on every other page. Under Reduce motion they
+   are shown from first paint, before hydration, and every loop above stops. */
+@media (prefers-reduced-motion: reduce) {
+  .dusk-enter,
+  .dusk-drift,
+  .dusk-sheen,
+  .dusk-scroll-hint,
+  .dusk-marquee-track,
+  .dusk-wave-bar,
+  .dusk-caret {
+    animation: none;
+  }
+
+  .dusk-sheen {
+    opacity: 0;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* A still marquee would show only the logos that fit the first screen
+     width. Show every logo once instead: one centred, wrapping set, with the
+     duplicate (aria-hidden) set and the edge fade dropped. */
+  .dusk-marquee {
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .dusk-marquee-track {
+    width: auto !important;
+    max-width: 1200px;
+    margin-inline: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 20px;
+    /* Each tile carries a 28px trailing margin; matching it at the start keeps
+       every row centred. */
+    padding-inline: 24px;
+    padding-inline-start: calc(24px + 28px);
+  }
+
+  .dusk-marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/*
+  With JavaScript off, framer never runs, so a scroll Reveal stays at its
+  server-rendered hidden start. Show every one of them, on every page (the
+  homepage's <noscript> style sets the same declarations, so the two agree).
+  A media query rather than a <noscript><style>, so no CSS text lands in the
+  rendered markup of a sub-page.
+*/
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

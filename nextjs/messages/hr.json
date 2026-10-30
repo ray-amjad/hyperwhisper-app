@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Značajke",
+    "modes": "Načini rada",
     "faq": "ČPP",
     "support": "Podrška",
     "download": "Preuzmi",
@@ -19,23 +20,32 @@
     "githubAria": "Pogledajte HyperWhisper na GitHubu"
   },
   "hero": {
-    "logoAlt": "HyperWhisper logotip",
-    "headline": "Pišite, sastavljajte i stvarajte",
-    "headlineAccent": "5x brže uz AI",
-    "subheadline": "HyperWhisper transkribira vaš glas s nevjerojatnom točnošću. Samo govorite prirodno i gledajte kako se vaše riječi pojavljuju odmah.",
-    "downloadCta": "Preuzmi odmah",
-    "demoCta": "Pogledaj demo",
-    "availableOn": "Dostupno na",
+    "badge": "Novo",
+    "headline": "Samo govorite.",
+    "headlineAccent": "Mi tipkamo.",
+    "subheadline": "Uredan tekst u bilo kojoj aplikaciji.",
+    "downloadMac": "Preuzmi za Mac",
+    "freeForever": "Zauvijek besplatno",
+    "worksOffline": "Radi offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Pomaknite se",
+    "closing": {
+      "line1": "Prestanite tipkati.",
+      "line2": "Počnite govoriti.",
+      "meta": "Besplatno i otvorenog koda. Bez računa."
+    }
   },
   "features": {
-    "title": "Stvoreno za profesionalce",
-    "subtitle": "Svaka je značajka osmišljena da vam pomogne raditi brže i učinkovitije",
+    "title": "Stvoreno za ljude koji pišu cijeli dan.",
     "customVocabulary": {
       "title": "Prilagođeni rječnik",
       "description": "Dodajte imena, kratice i posebne pojmove za savršenu točnost svaki put."
+    },
+    "realTime": {
+      "title": "Prijenos u stvarnom vremenu",
+      "description": "Gledajte kako se vaše riječi pojavljuju odmah dok govorite. Vodeća točnost u industriji uz latenciju ispod 700 ms."
     },
     "languages": {
       "title": "100+ jezika",
@@ -45,25 +55,9 @@
       "title": "Offline podrška",
       "description": "Radi potpuno offline. Vaši podaci nikad ne napuštaju vaš uređaj."
     },
-    "privacy": {
-      "title": "Fokus na privatnost",
-      "description": "Nije potreban račun. Nema praćenja. Vaši glasovni podaci ostaju na vašem Macu ili PC-u."
-    },
-    "hybridProcessing": {
-      "title": "Hibridna obrada",
-      "description": "Birajte između lokalnih modela za privatnost ili cloud API-ja za brzinu. Najbolje iz oba svijeta."
-    },
-    "customizable": {
-      "title": "Visoko prilagodljivo",
-      "description": "Birajte između 9+ API pružatelja i 30+ modela transkripcije."
-    },
-    "realTime": {
-      "title": "Prijenos u stvarnom vremenu",
-      "description": "Gledajte kako se vaše riječi pojavljuju odmah dok govorite. Vodeća točnost u industriji uz latenciju ispod 700 ms."
-    },
-    "fileImport": {
-      "title": "Uvoz datoteka",
-      "description": "Uvezite audio ili video datoteke za transkripciju. Podržani su svi glavni formati uz automatsko prepoznavanje tišine."
+    "openSource": {
+      "title": "Otvoreni kod",
+      "description": "Licencirano pod Apache-2.0. Pregledajte svaki redak, forkajte ga ili samostalno hostajte. Bez crnih kutija, bez zakljucavanja."
     },
     "screenOcr": {
       "title": "OCR zaslona",
@@ -73,28 +67,57 @@
       "title": "Lokalni API i MCP server",
       "description": "Ugrađeni MCP server omogućuje Claudeu, Cursoru i drugim AI agentima upravljanje HyperWhisperom. Samo lokalni HTTP API za skripte i automatizacije."
     },
+    "fileImport": {
+      "title": "Uvoz datoteka",
+      "description": "Uvezite audio ili video datoteke za transkripciju. Podržani su svi glavni formati uz automatsko prepoznavanje tišine."
+    },
     "modes": {
-      "title": "Načini rada za svaku situaciju",
-      "description": "Prebacujte se između različitih načina transkripcije optimiziranih za sastanke, bilješke, emailove, programiranje i još mnogo toga. Svaki način koristi prilagođene promptove za savršeno formatiranje teksta.",
-      "meeting": "Sastanak",
+      "heading": "Jedan glas. Svaki format.",
+      "lead": "Svaki način rada preoblikuje ono što ste rekli za mjesto kamo ide.",
       "email": "Email",
       "note": "Bilješka",
       "code": "Kod",
+      "meeting": "Sastanak",
       "legal": "Pravni",
       "medical": "Medicinski",
-      "presetModes": "Unaprijed postavljeni načini",
-      "customModes": "Prilagođeni načini"
-    },
-    "openSource": {
-      "title": "Otvoreni kod",
-      "description": "Licencirano pod Apache-2.0. Pregledajte svaki redak, forkajte ga ili samostalno hostajte. Bez crnih kutija, bez zakljucavanja."
+      "youSaid": "Rekli ste",
+      "hyperWhisperWrote": "HyperWhisper je napisao",
+      "sample": "ovaj reci johnu da se lansiranje pomiče na četvrtak jer linux QA još nije gotov i ono hvala na strpljenju",
+      "output": {
+        "email": "Bok Johne,\n\nLansiranje se pomiče na četvrtak dok ne završimo Linux QA. Hvala na strpljenju.\n\nLijep pozdrav,",
+        "note": "• Lansiranje → četvrtak\n• Prepreka: Linux QA nije završen\n• Javiti Johnu",
+        "code": "// TODO(john): lansiranje pomaknuto na četvrtak, Linux QA još u tijeku",
+        "meeting": "Odluka: lansiranje se pomiče na četvrtak.\nRazlog: Linux QA nije dovršen.\nZadužen: obavijestiti Johna.",
+        "legal": "Ovim Vas obavještavamo da je datum lansiranja pomaknut na četvrtak, do završetka osiguranja kvalitete za Linux.",
+        "medical": "Plan: odgoditi lansiranje na četvrtak. Status: Linux QA na čekanju. Kontrola: obavijestiti Johna."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Radi gdje god pišete",
+    "eyebrow": "Kako radi",
+    "titleLine1": "Pritisnite tipku.",
+    "titleLine2": "Izgovorite.",
+    "titleAccent": "Gotovo.",
+    "lead": "Vaše riječi stižu, uredno očišćene, točno tamo gdje je kursor.",
+    "step1": "Pritisnite svoj prečac",
+    "step2Key": "Govorite",
+    "step2": "Govorite kao i inače",
+    "step3Key": "Opet pritisnite",
+    "step3": "Čist tekst, zalijepljen na mjesto",
+    "watchVideo": "Pogledajte cijeli demo",
+    "closeVideo": "Zatvori video",
+    "exampleLabel": "Animirani primjer: izgovoreni odgovor upisuje se u Slack poruku",
+    "message1": "Jesmo li još uvijek spremni objaviti Linux verziju u četvrtak?",
+    "message2": "QA je kod mene prošao 👍",
+    "composePlaceholder": "Poruka za #launch",
+    "typed": "Da, Linux QA je prošao jutros, tako da smo spremni za četvrtak. Bilješke o izdanju objavit ću do podneva.",
+    "listening": "Slušam",
+    "cleaningUp": "Uređujem…",
     "fasterThanTyping": "Brže od tipkanja",
     "accuracyRate": "Stopa točnosti",
     "languagesSupported": "Podržani jezici",
-    "providersSupported": "Podržani pružatelji"
+    "modelsSupported": "Modeli za transkripciju"
   },
   "faq": {
     "title": "Često postavljana pitanja",
@@ -189,7 +212,11 @@
     "emailTemplate": {
       "subject": "Zahtjev za podršku HyperWhisper",
       "body": "Bok,\n\nVerzija: \n[možete provjeriti u Postavke > O aplikaciji]\n\nProblem: \n[Opišite svoj problem]\n\nDetalji: \n[Navedite relevantne detalje, što ste radili prije rušenja]\n\n[Vaša poruka ovdje]\n\nSrdačno,"
-    }
+    },
+    "helpCenterHint": "Postavljanje, prečaci i modeli.",
+    "chooseModelHint": "Poredajte modele prema načinu na koji radite.",
+    "accountHint": "Prijavite se ključem računa.",
+    "chooseModelTitle": "Odaberite model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotip",
@@ -228,7 +255,12 @@
     "linuxInputGroupNote": "Nakon pridruživanja grupi input odjavite se i ponovno prijavite. Članstvo nije obavezno, ali ga trebaju globalni prečaci i automatsko lijepljenje.",
     "aptTitle": "Vlastiti APT repozitorij",
     "aptBody": "Linux izdanja uključuju i arhivu statičnog APT repozitorija. HyperWhisper trenutačno ne održava javni APT poslužitelj; za potpisano, samostalno hostano postavljanje, desktop dodatke, pojedinosti o privatnosti i uklanjanje pogledajte vodič za instalaciju na Linuxu.",
-    "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu"
+    "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu",
+    "heroLead": "Besplatno i otvorenog koda. Odaberite svoju platformu.",
+    "releaseNotes": "Bilješke o izdanju",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon i Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 i ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starije verzije",
@@ -280,6 +312,7 @@
       "dataTraining": "Privatnost podataka"
     },
     "copyright": "© 2026 HyperWhisper. Sva prava pridržana.",
+    "madeBy": "Izradio Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Pratite HyperWhisper na X-u (Twitter)",
     "githubAria": "HyperWhisper na GitHubu"
@@ -412,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ova poveznica za prijavu je istekla ili je već iskorištena. Unesite svoju e-poštu kako biste dobili novu.",
     "magicLinkFailed": "Nismo vas mogli prijaviti tom poveznicom. Unesite svoju e-poštu kako biste dobili novu."
+  },
+  "legal": {
+    "onThisPage": "Na ovoj stranici"
   }
 }

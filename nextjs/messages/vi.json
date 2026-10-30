@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Tính năng",
+    "modes": "Chế độ",
     "faq": "Câu hỏi thường gặp",
     "support": "Hỗ trợ",
     "download": "Tải xuống",
@@ -19,23 +20,32 @@
     "githubAria": "Xem HyperWhisper trên GitHub"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Viết, soạn thảo và sáng tạo",
-    "headlineAccent": "nhanh hơn 5x với AI",
-    "subheadline": "HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng. Chỉ cần nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức.",
-    "downloadCta": "Tải xuống ngay",
-    "demoCta": "Xem demo",
-    "availableOn": "Có trên",
+    "badge": "Mới",
+    "headline": "Cứ nói.",
+    "headlineAccent": "Chúng tôi gõ.",
+    "subheadline": "Văn bản chỉn chu trong mọi ứng dụng.",
+    "downloadMac": "Tải xuống cho Mac",
+    "freeForever": "Miễn phí mãi mãi",
+    "worksOffline": "Dùng được offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Cuộn xuống",
+    "closing": {
+      "line1": "Thôi gõ phím.",
+      "line2": "Hãy cất lời.",
+      "meta": "Miễn phí và mã nguồn mở. Không cần tài khoản."
+    }
   },
   "features": {
-    "title": "Xây dựng cho chuyên gia",
-    "subtitle": "Mọi tính năng đều được thiết kế để giúp bạn làm việc nhanh hơn và hiệu quả hơn",
+    "title": "Dành cho người viết cả ngày.",
     "customVocabulary": {
       "title": "Từ vựng tùy chỉnh",
       "description": "Thêm tên riêng, từ viết tắt và thuật ngữ chuyên biệt để đạt độ chính xác hoàn hảo mỗi lần."
+    },
+    "realTime": {
+      "title": "Luồng thời gian thực",
+      "description": "Xem từ ngữ xuất hiện ngay khi bạn nói. Độ chính xác hàng đầu ngành với độ trễ dưới 700ms."
     },
     "languages": {
       "title": "100+ ngôn ngữ",
@@ -45,25 +55,9 @@
       "title": "Hỗ trợ offline",
       "description": "Hoạt động hoàn toàn ngoại tuyến. Dữ liệu của bạn không bao giờ rời khỏi thiết bị."
     },
-    "privacy": {
-      "title": "Ưu tiên quyền riêng tư",
-      "description": "Không cần tài khoản. Không theo dõi. Dữ liệu giọng nói của bạn ở lại trên Mac hoặc PC của bạn."
-    },
-    "hybridProcessing": {
-      "title": "Xử lý kết hợp",
-      "description": "Chọn mô hình cục bộ để bảo mật hoặc API đám mây để tăng tốc. Tốt nhất của cả hai thế giới."
-    },
-    "customizable": {
-      "title": "Tùy biến cao",
-      "description": "Chọn từ hơn 9 nhà cung cấp API và hơn 30 mô hình chuyển giọng nói."
-    },
-    "realTime": {
-      "title": "Luồng thời gian thực",
-      "description": "Xem từ ngữ xuất hiện ngay khi bạn nói. Độ chính xác hàng đầu ngành với độ trễ dưới 700ms."
-    },
-    "fileImport": {
-      "title": "Nhập tệp",
-      "description": "Nhập tệp âm thanh hoặc video để chuyển văn bản. Hỗ trợ tất cả định dạng phổ biến với phát hiện khoảng lặng tự động."
+    "openSource": {
+      "title": "Mã nguồn mở",
+      "description": "Được cấp phép Apache-2.0. Kiểm tra từng dòng, fork nó, hoặc tự lưu trữ. Không có hộp đen, không bị khóa chân."
     },
     "screenOcr": {
       "title": "OCR màn hình",
@@ -73,28 +67,57 @@
       "title": "API cục bộ và máy chủ MCP",
       "description": "Máy chủ MCP tích hợp cho phép Claude, Cursor và các tác nhân AI khác điều khiển HyperWhisper. API HTTP chỉ chạy trên máy, dùng cho script và tự động hóa."
     },
+    "fileImport": {
+      "title": "Nhập tệp",
+      "description": "Nhập tệp âm thanh hoặc video để chuyển văn bản. Hỗ trợ tất cả định dạng phổ biến với phát hiện khoảng lặng tự động."
+    },
     "modes": {
-      "title": "Chế độ cho mọi tình huống",
-      "description": "Chuyển giữa các chế độ chuyển giọng nói được tối ưu cho họp, ghi chú, email, lập trình và hơn thế nữa. Mỗi chế độ dùng prompt tùy chỉnh để định dạng văn bản hoàn hảo.",
-      "meeting": "Họp",
+      "heading": "Một giọng nói. Mọi định dạng.",
+      "lead": "Mỗi chế độ viết lại lời bạn nói cho phù hợp với nơi nó sẽ đến.",
       "email": "Email",
       "note": "Ghi chú",
       "code": "Mã",
+      "meeting": "Họp",
       "legal": "Pháp lý",
       "medical": "Y tế",
-      "presetModes": "Chế độ có sẵn",
-      "customModes": "Chế độ tùy chỉnh"
-    },
-    "openSource": {
-      "title": "Mã nguồn mở",
-      "description": "Được cấp phép Apache-2.0. Kiểm tra từng dòng, fork nó, hoặc tự lưu trữ. Không có hộp đen, không bị khóa chân."
+      "youSaid": "Bạn đã nói",
+      "hyperWhisperWrote": "HyperWhisper đã viết",
+      "sample": "ừm thì bảo john là ra mắt dời sang thứ năm vì linux QA chưa xong và à cảm ơn vì đã kiên nhẫn nhé",
+      "output": {
+        "email": "Chào John,\n\nBuổi ra mắt sẽ dời sang thứ Năm trong lúc chúng tôi hoàn tất Linux QA. Cảm ơn bạn đã kiên nhẫn.\n\nTrân trọng,",
+        "note": "• Ra mắt → thứ Năm\n• Vướng mắc: Linux QA chưa xong\n• Báo cho John",
+        "code": "// TODO(john): ra mắt dời sang thứ Năm, Linux QA vẫn đang thực hiện",
+        "meeting": "Quyết định: ra mắt dời sang thứ Năm.\nLý do: Linux QA chưa hoàn tất.\nPhụ trách: thông báo cho John.",
+        "legal": "Xin lưu ý rằng ngày ra mắt đã được dời sang thứ Năm, trong khi chờ hoàn tất việc kiểm định chất lượng Linux.",
+        "medical": "Kế hoạch: hoãn ra mắt đến thứ Năm. Tình trạng: Linux QA đang chờ. Theo dõi: thông báo cho John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Hoạt động ở mọi nơi bạn viết",
+    "eyebrow": "Cách hoạt động",
+    "titleLine1": "Nhấn phím.",
+    "titleLine2": "Nói ra.",
+    "titleAccent": "Xong.",
+    "lead": "Lời bạn nói được làm gọn và xuất hiện ngay tại vị trí con trỏ.",
+    "step1": "Nhấn phím tắt của bạn",
+    "step2Key": "Nói",
+    "step2": "Nói như bạn vẫn thường nói",
+    "step3Key": "Nhấn lại",
+    "step3": "Văn bản gọn gàng, dán đúng chỗ",
+    "watchVideo": "Xem toàn bộ demo",
+    "closeVideo": "Đóng video",
+    "exampleLabel": "Ví dụ động: một câu trả lời bằng giọng nói được gõ vào tin nhắn Slack",
+    "message1": "Thứ Năm mình vẫn kịp phát hành bản Linux chứ?",
+    "message2": "Bên mình QA đã qua 👍",
+    "composePlaceholder": "Nhắn tin tới #launch",
+    "typed": "Ừ, Linux QA đã qua sáng nay nên thứ Năm ổn nhé. Mình sẽ đăng release notes trước buổi trưa.",
+    "listening": "Đang nghe",
+    "cleaningUp": "Đang làm gọn…",
     "fasterThanTyping": "Nhanh hơn gõ phím",
     "accuracyRate": "Tỷ lệ chính xác",
     "languagesSupported": "Ngôn ngữ hỗ trợ",
-    "providersSupported": "Nhà cung cấp hỗ trợ"
+    "modelsSupported": "Mô hình chuyển giọng nói"
   },
   "faq": {
     "title": "Câu hỏi thường gặp",
@@ -189,7 +212,11 @@
     "emailTemplate": {
       "subject": "Yêu cầu Hỗ trợ HyperWhisper",
       "body": "Xin chào,\n\nPhiên bản: \n[bạn có thể kiểm tra trong Settings > About]\n\nVấn đề: \n[Mô tả vấn đề của bạn]\n\nChi tiết: \n[Cung cấp chi tiết liên quan, bạn đã làm gì trước khi bị crash]\n\n[Tin nhắn của bạn ở đây]\n\nTrân trọng,"
-    }
+    },
+    "helpCenterHint": "Cài đặt, phím tắt và mô hình.",
+    "chooseModelHint": "Xếp hạng các mô hình theo cách bạn làm việc.",
+    "accountHint": "Đăng nhập bằng khóa tài khoản của bạn.",
+    "chooseModelTitle": "Chọn mô hình"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +255,12 @@
     "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
     "aptTitle": "Tự lưu trữ kho APT",
     "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
-    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux"
+    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux",
+    "heroLead": "Miễn phí và mã nguồn mở. Chọn nền tảng của bạn.",
+    "releaseNotes": "Ghi chú phát hành",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon và Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 và ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Phiên bản cũ",
@@ -280,6 +312,7 @@
       "dataTraining": "Quyền riêng tư dữ liệu"
     },
     "copyright": "© 2026 HyperWhisper. Đã đăng ký mọi quyền.",
+    "madeBy": "Tạo bởi Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Theo dõi HyperWhisper trên X (Twitter)",
     "githubAria": "HyperWhisper trên GitHub"
@@ -412,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Liên kết đăng nhập này đã hết hạn hoặc đã được sử dụng. Nhập email của bạn để nhận liên kết mới.",
     "magicLinkFailed": "Chúng tôi không thể đăng nhập cho bạn bằng liên kết đó. Nhập email của bạn để nhận liên kết mới."
+  },
+  "legal": {
+    "onThisPage": "Trên trang này"
   }
 }

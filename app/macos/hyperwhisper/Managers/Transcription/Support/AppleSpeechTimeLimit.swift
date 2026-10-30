@@ -72,8 +72,13 @@ enum AppleSpeechTimeLimit {
     // own `CancellationError` exactly as it did before the limit existed. The
     // timer keeps running meanwhile: an operation that ignores the
     // cancellation still ends with `TimedOut` at the limit.
+    //
+    // `sleep` is the timer. Production uses the default; tests pass one they
+    // end by hand, so no assertion depends on a loaded runner's clock (#2400).
+    // It must throw when its task is cancelled, as `Task.sleep` does.
     static func run<T: Sendable>(
         limit: Duration,
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         onTimeout: @escaping @Sendable () async -> Void,
         operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {
@@ -86,7 +91,7 @@ enum AppleSpeechTimeLimit {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
                 let timer = Task {
                     do {
-                        try await Task.sleep(for: limit)
+                        try await sleep(limit)
                     } catch {
                         // Cancelled: the work ended first.
                         return

@@ -19,10 +19,22 @@ test("prefers trusted edge headers over raw forwarded headers", () => {
     getClientIPFromHeaders(
       new Headers({
         "x-forwarded-for": "203.0.113.10",
-        "x-vercel-forwarded-for": "198.51.100.7",
+        "cf-connecting-ip": "198.51.100.7",
       })
     ),
     "198.51.100.7"
+  );
+});
+
+test("ignores x-vercel-forwarded-for, which any client can send off Vercel", () => {
+  assert.equal(
+    getClientIPFromHeaders(
+      new Headers({
+        "x-vercel-forwarded-for": "198.51.100.7",
+        "cf-connecting-ip": "203.0.113.10",
+      })
+    ),
+    "203.0.113.10"
   );
 });
 
@@ -31,7 +43,7 @@ test("skips malformed forwarded values before considering fallback headers", () 
     getClientIPFromHeaders(
       new Headers({
         "x-forwarded-for": "1.1.1.1/../../foo?x=",
-        "x-vercel-forwarded-for": "198.51.100.7",
+        "cf-connecting-ip": "198.51.100.7",
       })
     ),
     "198.51.100.7"

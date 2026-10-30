@@ -16,7 +16,7 @@
  * 2. those arguments are POSTed to the REAL Better Auth handler, built from
  *    `src/lib/auth.ts`'s own options (its real `magicLink` plugin and its real
  *    `sendMagicLink`), with only the database swapped for Better Auth's memory
- *    adapter and the Resend client stubbed so the emailed URL can be read;
+ *    adapter and the email client stubbed so the emailed URL can be read;
  * 3. the emailed link is opened once (it signs in), then again, and a second
  *    link is opened after it expired; each dead link's redirect must keep the
  *    error code AND the `returnTo`;
@@ -56,21 +56,17 @@ process.env.BETTER_AUTH_SECRET =
   "test-secret-for-2070-dead-magic-link-0123456789";
 
 // ---------------------------------------------------------------------------
-// The Resend edge: the one stub on the server side. The emailed URL is read
+// The email edge: the one stub on the server side. The emailed URL is read
 // back out of the plain-text body the real `sendMagicLink` builds.
 // ---------------------------------------------------------------------------
 
 const sentEmails: Array<{ text?: string }> = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: { text?: string }) => {
-          sentEmails.push(payload);
-          return { data: { id: "unused" }, error: null };
-        },
-      },
+    sendEmail: async (payload: { text?: string }) => {
+      sentEmails.push(payload);
+      return { data: { id: "unused" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -216,7 +212,7 @@ async function realAuthOnMemory() {
   return betterAuth({
     ...auth.options,
     database: memoryAdapter(store),
-    // The app's limiter is Upstash-backed; it is not what this file tests.
+    // The app's limiter is a Cloudflare binding; it is not what this file tests.
     rateLimit: { enabled: false },
   });
 }
