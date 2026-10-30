@@ -187,7 +187,10 @@ internal sealed class LinuxLocalApiPostProcessor(
             throw new InvalidOperationException("Local post-processing is unavailable for this request.");
         return new(
             result.Text,
-            result.Provider,
+            // The provider id the run used (`openai`, `local_llm`,
+            // `custom:<uuid>`), the same field macOS and Windows emit — not the
+            // display label in `result.Provider` (issue #1158).
+            result.StoredProvider!,
             // Report the model that ACTUALLY ran (issue #314), not the one stored
             // on the working Mode — every fallback inside the cloud and local
             // post-processors happens after the Mode was read. `preset` is not
@@ -229,13 +232,9 @@ internal sealed class LinuxLocalApiPostProcessor(
     /// </para>
     /// <para>
     /// There is deliberately NO provider rule here, and the sibling heads'
-    /// provider-spelling preservation is NOT copied. This head's `provider` is
-    /// already taken from the run (<c>PortablePostProcessingResult.Provider</c>),
-    /// so it was never part of #314 — and it is a HUMAN DISPLAY LABEL
-    /// (<c>"OpenAI · gpt-5.6-luna"</c>) where macOS and Windows emit an id
-    /// (<c>"openai"</c>), so neither a string compare nor a provider parse could
-    /// match it against a stored id anyway. That divergence is pre-existing and
-    /// out of scope for #314.
+    /// provider-spelling preservation is NOT copied: this head's `provider` is
+    /// taken from the run (<c>PortablePostProcessingResult.ProviderId</c>, the
+    /// stored id since issue #1158), so it was never part of #314.
     /// </para>
     /// </summary>
     private static string ResponseModel(Mode mode, string? resolvedModel) =>

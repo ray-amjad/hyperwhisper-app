@@ -35,6 +35,8 @@ export default defineConfig([globalIgnores([
     "**/node_modules",
     "**/coverage",
     "**/.next",
+    "**/.open-next",
+    "**/.wrangler",
     "**/build",
     "!**/.commitlintrc.cjs",
     "!**/.lintstagedrc.cjs",
@@ -74,6 +76,10 @@ export default defineConfig([globalIgnores([
             ecmaFeatures: {
                 jsx: true,
             },
+
+            // Type information for the type-aware @typescript-eslint rules below.
+            projectService: true,
+            tsconfigRootDir: __dirname,
         },
     },
 
@@ -123,6 +129,14 @@ export default defineConfig([globalIgnores([
             argsIgnorePattern: "^_.*?$",
         }],
 
+        // Type-aware: they catch an untyped JSON.parse / .json() read or an
+        // unawaited promise, which neither a grep nor tsc --noEmit sees.
+        "@typescript-eslint/no-unsafe-argument": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+
         "import/order": ["warn", {
             groups: [
                 "type",
@@ -166,5 +180,24 @@ export default defineConfig([globalIgnores([
                 prev: ["const", "let", "var"],
                 next: ["const", "let", "var"],
             }],
+    },
+}, {
+    // tsconfig excludes the Worker entry (it imports the generated
+    // `.open-next/worker.js`) and the `npm run cf-typegen` output, so the
+    // project service has no types for either.
+    files: ["worker.ts", "worker-configuration.d.ts"],
+
+    languageOptions: {
+        parserOptions: {
+            projectService: false,
+        },
+    },
+
+    rules: {
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-floating-promises": "off",
     },
 }]);

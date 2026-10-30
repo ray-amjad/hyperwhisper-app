@@ -1,3 +1,4 @@
+import LegalDocument from "@/components/legal/LegalDocument";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -40,12 +41,7 @@ const ERROR_LOG_EXCEPTION = (
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="prose prose-lg max-w-none prose-invert">
-      <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 27, 2026
-      </p>
-
-      <h1>Privacy Policy</h1>
+    <LegalDocument title="Privacy Policy" updated="Last Updated: October 29, 2026">
 
       <p>
         HyperWhisper is built to keep your data on your device. You can
@@ -58,7 +54,6 @@ export default function PrivacyPolicyPage() {
       <p>
         Ray Amjad LTD (
         <a
-          className="text-blue-400 hover:underline"
           href="https://find-and-update.company-information.service.gov.uk/company/14506459"
           target="_blank"
           rel="noopener noreferrer"
@@ -69,7 +64,7 @@ export default function PrivacyPolicyPage() {
         and acts as the data controller for the limited personal data we handle.
       </p>
 
-      <h2>What We Collect</h2>
+      <h2 id="what-we-collect">What We Collect</h2>
       <ul>
         <li>
           <strong>Email</strong>: Used to deliver receipts, licenses, and
@@ -79,30 +74,18 @@ export default function PrivacyPolicyPage() {
           troubleshooting. We do not store the message body. When you request
           the download link from our website, we record the email address you
           submit so we can send it. We use the IP address of that request only
-          to rate limit the form (10 requests per IP address per hour) and we
+          to rate limit the form (2 requests per IP address per minute) and we
           do not store the IP address, browser user agent, or country with the
-          email record. The rate limit does write the IP address to our
-          rate-limit store, hosted by{" "}
+          email record. The rate limit counts requests per IP address in
+          Cloudflare&apos;s rate limiting service; those counters expire
+          within about a minute and hold no email address, browser user agent,
+          or country. Our transactional emails are delivered by{" "}
           <a
-            className="text-blue-400 hover:underline"
-            href="https://upstash.com"
+            href="https://www.cloudflare.com/privacypolicy/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Upstash
-          </a>
-          , in two forms: request counters, which expire within about two
-          hours, and an hourly summary of requests per IP address and whether
-          each one was allowed, which has no automatic deletion period today.
-          Neither holds your email address, browser user agent, or country.
-          Our transactional emails are delivered by{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href="https://resend.com/legal/privacy-policy"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Resend
+            Cloudflare
           </a>
           , which receives the recipient address and the message content in
           order to deliver them. For license key, Account Key, and sign-in
@@ -112,7 +95,6 @@ export default function PrivacyPolicyPage() {
           <strong>Order and billing info</strong>: Processed by our payment
           provider (
           <a
-            className="text-blue-400 hover:underline"
             href="https://stripe.com"
             target="_blank"
             rel="noopener noreferrer"
@@ -125,7 +107,6 @@ export default function PrivacyPolicyPage() {
           <strong>Crash and performance diagnostics</strong>: The HyperWhisper
           desktop apps for macOS, Windows, and Linux send diagnostics to{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://sentry.io/privacy/"
             target="_blank"
             rel="noopener noreferrer"
@@ -185,7 +166,6 @@ export default function PrivacyPolicyPage() {
           HyperWhisper Cloud service hits an unexpected error on our servers, it
           sends an error report to{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://sentry.io/privacy/"
             target="_blank"
             rel="noopener noreferrer"
@@ -213,10 +193,8 @@ export default function PrivacyPolicyPage() {
           usage policy. No audio or transcripts are transmitted. The licensing
           service also sees the IP address of each activation and validation
           request. We use it only to rate limit those endpoints (30 requests per
-          IP address per minute). It goes into the same Upstash rate-limit
-          store: its request counters expire within a few minutes, and the
-          hourly summary of requests per IP address and whether each one was
-          allowed has no automatic deletion period today.
+          IP address per minute), counted in Cloudflare&apos;s rate limiting
+          service, where the counters expire within about a minute.
         </li>
         <li>
           <strong>Website sign-in</strong>: When you sign in to the website, we
@@ -254,7 +232,7 @@ export default function PrivacyPolicyPage() {
         exception. {CHIRP_BUCKET_EXCEPTION} {ERROR_LOG_EXCEPTION}
       </p>
 
-      <h2>What Stays On Your Device</h2>
+      <h2 id="what-stays-on-your-device">What Stays On Your Device</h2>
       <ul>
         <li>
           <strong>Recordings</strong>: Your audio stays on your device unless
@@ -284,7 +262,6 @@ export default function PrivacyPolicyPage() {
           when and how it was added, and an entry ID. Apple handles this data
           under its{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.apple.com/legal/privacy/"
             target="_blank"
             rel="noopener noreferrer"
@@ -296,13 +273,12 @@ export default function PrivacyPolicyPage() {
         </li>
       </ul>
 
-      <h2>Transcription Processing</h2>
+      <h2 id="transcription-processing">Transcription Processing</h2>
       <p>
         HyperWhisper supports both local (on-device) and cloud-based
         transcription. When using local models, no audio data ever leaves your
         device. The app downloads local models directly from{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://huggingface.co/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -336,7 +312,6 @@ export default function PrivacyPolicyPage() {
       <ul>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://openai.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -346,7 +321,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://deepgram.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -356,7 +330,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://elevenlabs.io/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -366,7 +339,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://groq.com/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -376,7 +348,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.assemblyai.com/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -386,7 +357,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://mistral.ai/terms/#privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -396,7 +366,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://soniox.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -406,7 +375,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://x.ai/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -416,7 +384,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://policies.google.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -428,7 +395,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://dev.meta.ai/docs/speech-to-text/"
             target="_blank"
             rel="noopener noreferrer"
@@ -451,7 +417,6 @@ export default function PrivacyPolicyPage() {
       <ul>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://openai.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -461,7 +426,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.anthropic.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -471,7 +435,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://policies.google.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -481,7 +444,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://groq.com/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -491,7 +453,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://cerebras.ai/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -501,7 +462,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://x.ai/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -511,7 +471,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://mistral.ai/terms/#privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -535,7 +494,6 @@ export default function PrivacyPolicyPage() {
         Account Key is valid and its remaining credit balance for up to one
         hour, keyed by your Account Key, in a store hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://upstash.com/trust/privacy.pdf"
           target="_blank"
           rel="noopener noreferrer"
@@ -556,7 +514,6 @@ export default function PrivacyPolicyPage() {
       <p>
         HyperWhisper Cloud&apos;s edge servers are hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://fly.io/legal/privacy-policy/"
           target="_blank"
           rel="noopener noreferrer"
@@ -566,7 +523,6 @@ export default function PrivacyPolicyPage() {
         . The service writes operational logs, and a log shipper we run on
         Fly.io sends them to{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://axiom.co/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -594,7 +550,6 @@ export default function PrivacyPolicyPage() {
         speed measurement in our database for each provider it calls to
         transcribe a recording. These measurements build our public{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.hyperwhisper.com/en/latency"
         >
           speed comparison page
@@ -617,7 +572,6 @@ export default function PrivacyPolicyPage() {
       <ul>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://deepgram.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -629,7 +583,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://groq.com/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -641,7 +594,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://elevenlabs.io/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -653,7 +605,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://cloud.google.com/terms/cloud-privacy-notice"
             target="_blank"
             rel="noopener noreferrer"
@@ -666,7 +617,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://x.ai/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -678,7 +628,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://privacy.microsoft.com/privacystatement"
             target="_blank"
             rel="noopener noreferrer"
@@ -689,7 +638,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://openai.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -700,7 +648,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://policies.google.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -711,7 +658,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://policies.google.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -722,7 +668,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.assemblyai.com/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -733,7 +678,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://mistral.ai/terms/#privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -744,7 +688,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://soniox.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -755,7 +698,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://dev.meta.ai/docs/speech-to-text/"
             target="_blank"
             rel="noopener noreferrer"
@@ -791,7 +733,6 @@ export default function PrivacyPolicyPage() {
       <ul>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.cerebras.ai/policies"
             target="_blank"
             rel="noopener noreferrer"
@@ -802,7 +743,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://groq.com/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -814,7 +754,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://www.anthropic.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -825,7 +764,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://x.ai/legal/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -836,7 +774,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://openai.com/policies/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -847,7 +784,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://policies.google.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -859,7 +795,6 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <a
-            className="text-blue-400 hover:underline"
             href="https://mistral.ai/terms/#privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
@@ -907,7 +842,6 @@ export default function PrivacyPolicyPage() {
         retention statement for its Muse speech-to-text API, so we do not
         claim one for Meta. Our{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://hyperwhisper.com/docs/data-privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -920,7 +854,6 @@ export default function PrivacyPolicyPage() {
         HyperWhisper is fully open source under Apache-2.0 — including the Cloud
         backend. You can read the full source code for the{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud"
           target="_blank"
           rel="noopener noreferrer"
@@ -929,7 +862,6 @@ export default function PrivacyPolicyPage() {
         </a>{" "}
         and the{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://github.com/ray-amjad/hyperwhisper-app"
           target="_blank"
           rel="noopener noreferrer"
@@ -947,7 +879,6 @@ export default function PrivacyPolicyPage() {
         AssemblyAI processes it on HyperWhisper Cloud&apos;s own AssemblyAI
         account, under{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.assemblyai.com/legal/privacy-policy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1011,12 +942,11 @@ export default function PrivacyPolicyPage() {
         off, none of this is sent to a post-processing provider.
       </p>
 
-      <h2>Payments and Licensing</h2>
+      <h2 id="payments-and-licensing">Payments and Licensing</h2>
       <ul>
         <li>
           <strong>Payments</strong>: All payments are handled by{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://stripe.com"
             target="_blank"
             rel="noopener noreferrer"
@@ -1026,7 +956,6 @@ export default function PrivacyPolicyPage() {
           . We receive the minimum order metadata required to fulfill your
           purchase and provide support. Please review the{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://stripe.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -1039,7 +968,6 @@ export default function PrivacyPolicyPage() {
           <strong>Past payments (before December 2025)</strong>: Payments made
           before December 2025 were processed by{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://polar.sh"
             target="_blank"
             rel="noopener noreferrer"
@@ -1049,7 +977,6 @@ export default function PrivacyPolicyPage() {
           and their processors (e.g., Stripe). If you purchased through Polar,
           your order data may still be retained by them. See the{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://polar.sh/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
@@ -1065,7 +992,7 @@ export default function PrivacyPolicyPage() {
         </li>
       </ul>
 
-      <h2>Cookies and Analytics</h2>
+      <h2 id="cookies-and-analytics">Cookies and Analytics</h2>
       <p>
         The app does not set tracking cookies. Our website uses strictly
         necessary cookies for authentication (when you log in to your account to
@@ -1075,7 +1002,6 @@ export default function PrivacyPolicyPage() {
       <p>
         We use{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://posthog.com/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1099,7 +1025,6 @@ export default function PrivacyPolicyPage() {
       <p>
         The demo video on our home page is hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://bunny.net/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1119,7 +1044,6 @@ export default function PrivacyPolicyPage() {
       <p>
         The desktop apps use{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://sentry.io/privacy/"
           target="_blank"
           rel="noopener noreferrer"
@@ -1134,7 +1058,6 @@ export default function PrivacyPolicyPage() {
       <p>
         Our website pages embed an AI support chat widget served by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.agentstack.build/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1153,7 +1076,6 @@ export default function PrivacyPolicyPage() {
       <p>
         Our documentation at hyperwhisper.com/docs is hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.mintlify.com/legal/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1170,7 +1092,6 @@ export default function PrivacyPolicyPage() {
         search box is sent to Mintlify to find matching pages. The search
         uses{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.hcaptcha.com/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1183,14 +1104,14 @@ export default function PrivacyPolicyPage() {
         transcripts, or the desktop app.
       </p>
 
-      <h2>Children&apos;s Privacy</h2>
+      <h2 id="children-s-privacy">Children&apos;s Privacy</h2>
       <p>
         HyperWhisper is not directed to children under 16. We do not knowingly
         collect personal information from children. If you believe a child has
         provided us information, contact us to delete it.
       </p>
 
-      <h2>Your Rights</h2>
+      <h2 id="your-rights">Your Rights</h2>
       <p>
         Because we do not store your audio or transcripts, requests to access or
         delete that data should be carried out on your device by you. The one
@@ -1211,18 +1132,17 @@ export default function PrivacyPolicyPage() {
         provider&apos;s terms.
       </p>
 
-      <h2>Hosting</h2>
+      <h2 id="hosting">Hosting</h2>
       <p>
         Our website, the account area, and our licensing service are hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
-          href="https://vercel.com/legal/privacy-notice"
+          href="https://www.cloudflare.com/privacypolicy/"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Vercel
+          Cloudflare
         </a>
-        . Vercel runs the code that handles each request to them, so it
+        . Cloudflare runs the code that handles each request to them, so it
         receives the request&apos;s IP address and browser or app details, and
         what the request carries: for example your Account Key and device
         details in a license activation or validation request, the email
@@ -1231,7 +1151,6 @@ export default function PrivacyPolicyPage() {
       <p>
         HyperWhisper Cloud runs on servers hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://fly.io/legal/privacy-policy/"
           target="_blank"
           rel="noopener noreferrer"
@@ -1249,7 +1168,6 @@ export default function PrivacyPolicyPage() {
       <p>
         Our database is hosted by{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://planetscale.com/legal/privacy"
           target="_blank"
           rel="noopener noreferrer"
@@ -1272,17 +1190,16 @@ export default function PrivacyPolicyPage() {
         remain after the link expires.
       </p>
 
-      <h2>International Transfers</h2>
+      <h2 id="international-transfers">International Transfers</h2>
       <p>
-        Our payment and licensing providers, Upstash, Resend, Vercel, and PlanetScale may process limited
+        Our payment and licensing providers, Upstash, Cloudflare, and PlanetScale may process limited
         personal information in multiple countries, including the United
         Kingdom, the European Economic Area, and the United States. Upstash
-        hosts our rate-limit store. It also holds a one-hour cache, keyed by
+        hosts HyperWhisper Cloud&apos;s rate-limit store. It also holds a one-hour cache, keyed by
         your Account Key, of whether the key is valid and its remaining credit
         balance. HyperWhisper Cloud checks request IP addresses against a block
         list held there. See the{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://upstash.com/trust/privacy.pdf"
           target="_blank"
           rel="noopener noreferrer"
@@ -1304,17 +1221,16 @@ export default function PrivacyPolicyPage() {
         service&apos;s logs in the United States.
       </p>
 
-      <h2>Changes to This Policy</h2>
+      <h2 id="changes-to-this-policy">Changes to This Policy</h2>
       <p>
         We may update this policy. If we make material changes, we will update
         the date above and, where appropriate, notify recent purchasers.
       </p>
 
-      <h2>Contact</h2>
+      <h2 id="contact">Contact</h2>
       <p>
         Data Controller: Ray Amjad LTD (
         <a
-          className="text-blue-400 hover:underline"
           href="https://find-and-update.company-information.service.gov.uk/company/14506459"
           target="_blank"
           rel="noopener noreferrer"
@@ -1323,12 +1239,11 @@ export default function PrivacyPolicyPage() {
         </a>
         , United Kingdom). Questions or requests:{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="mailto:hi@support.hyperwhisper.com"
         >
           hi@support.hyperwhisper.com
         </a>
       </p>
-    </div>
+    </LegalDocument>
   );
 }

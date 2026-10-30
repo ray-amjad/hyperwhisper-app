@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "기능",
+    "modes": "모드",
     "faq": "FAQ",
     "support": "지원",
     "download": "다운로드",
@@ -19,23 +20,32 @@
     "githubAria": "GitHub에서 HyperWhisper 보기"
   },
   "hero": {
-    "logoAlt": "HyperWhisper 로고",
-    "headline": "더 빠르게 쓰고, 만들고, 창작하세요",
-    "headlineAccent": "AI로 5배 더 빠르게",
-    "subheadline": "HyperWhisper는 놀라운 정확도로 음성을 전사합니다. 자연스럽게 말하기만 하면 텍스트가 즉시 나타납니다.",
-    "downloadCta": "지금 다운로드",
-    "demoCta": "데모 보기",
-    "availableOn": "지원 플랫폼",
+    "badge": "신규",
+    "headline": "말만 하세요.",
+    "headlineAccent": "입력은 저희가.",
+    "subheadline": "어떤 앱에서든 깔끔한 텍스트로.",
+    "downloadMac": "Mac용 다운로드",
+    "freeForever": "평생 무료",
+    "worksOffline": "오프라인 지원",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "스크롤",
+    "closing": {
+      "line1": "타이핑은 그만.",
+      "line2": "이제 말하세요.",
+      "meta": "무료 오픈 소스. 계정이 필요 없습니다."
+    }
   },
   "features": {
-    "title": "전문가를 위해 설계됨",
-    "subtitle": "모든 기능은 더 빠르고 효율적으로 일할 수 있도록 설계되었습니다",
+    "title": "하루 종일 글을 쓰는 사람들을 위해.",
     "customVocabulary": {
       "title": "사용자 지정 용어",
       "description": "이름, 약어, 전문 용어를 추가해 항상 높은 정확도를 유지하세요."
+    },
+    "realTime": {
+      "title": "실시간 스트리밍",
+      "description": "말하는 즉시 텍스트가 나타납니다. 업계 최고 수준의 정확도와 700ms 미만 지연 시간을 제공합니다."
     },
     "languages": {
       "title": "100개 이상 언어 지원",
@@ -45,25 +55,9 @@
       "title": "오프라인 지원",
       "description": "완전 오프라인으로 동작합니다. 데이터는 절대 기기를 벗어나지 않습니다."
     },
-    "privacy": {
-      "title": "개인정보 보호 중심",
-      "description": "계정 필요 없음. 추적 없음. 음성 데이터는 Mac 또는 PC에만 남습니다."
-    },
-    "hybridProcessing": {
-      "title": "하이브리드 처리",
-      "description": "개인정보를 위한 로컬 모델 또는 속도를 위한 클라우드 API 중 선택하세요. 두 세계의 장점을 모두 제공합니다."
-    },
-    "customizable": {
-      "title": "높은 사용자화",
-      "description": "9개 이상의 API 제공업체와 30개 이상의 전사 모델 중에서 선택하세요."
-    },
-    "realTime": {
-      "title": "실시간 스트리밍",
-      "description": "말하는 즉시 텍스트가 나타납니다. 업계 최고 수준의 정확도와 700ms 미만 지연 시간을 제공합니다."
-    },
-    "fileImport": {
-      "title": "파일 가져오기",
-      "description": "오디오 또는 비디오 파일을 가져와 전사하세요. 자동 무음 감지와 함께 주요 형식을 지원합니다."
+    "openSource": {
+      "title": "오픈 소스",
+      "description": "Apache-2.0 라이선스. 모든 코드를 살펴보고, 포크하거나, 직접 호스팅할 수 있습니다. 블랙박스도, 종속도 없습니다."
     },
     "screenOcr": {
       "title": "화면 OCR",
@@ -73,28 +67,57 @@
       "title": "로컬 API 및 MCP 서버",
       "description": "내장된 MCP 서버로 Claude, Cursor 및 기타 AI 에이전트가 HyperWhisper를 제어할 수 있습니다. 스크립트와 자동화를 위한 로컬 전용 HTTP API."
     },
+    "fileImport": {
+      "title": "파일 가져오기",
+      "description": "오디오 또는 비디오 파일을 가져와 전사하세요. 자동 무음 감지와 함께 주요 형식을 지원합니다."
+    },
     "modes": {
-      "title": "모든 상황을 위한 모드",
-      "description": "회의, 노트, 이메일, 코딩 등 다양한 작업에 최적화된 전사 모드를 전환하세요. 각 모드는 사용자 지정 프롬프트를 사용해 텍스트를 정확히 포맷합니다.",
-      "meeting": "회의",
+      "heading": "하나의 목소리, 모든 형식.",
+      "lead": "각 모드가 말한 내용을 쓰임새에 맞게 다시 써 줍니다.",
       "email": "이메일",
       "note": "노트",
       "code": "코드",
+      "meeting": "회의",
       "legal": "법률",
       "medical": "의료",
-      "presetModes": "기본 모드",
-      "customModes": "사용자 지정 모드"
-    },
-    "openSource": {
-      "title": "오픈 소스",
-      "description": "Apache-2.0 라이선스. 모든 코드를 살펴보고, 포크하거나, 직접 호스팅할 수 있습니다. 블랙박스도, 종속도 없습니다."
+      "youSaid": "말한 내용",
+      "hyperWhisperWrote": "HyperWhisper가 쓴 글",
+      "sample": "음 그러니까 존한테 출시가 목요일로 밀린다고 전해 줘 linux QA가 아직 안 끝나서 그리고 어 기다려 줘서 고맙다고",
+      "output": {
+        "email": "존 님께,\n\nLinux QA를 마무리하는 동안 출시가 목요일로 연기됩니다. 기다려 주셔서 감사합니다.\n\n잘 부탁드립니다.",
+        "note": "• 출시 → 목요일\n• 블로커: Linux QA 미완료\n• 존에게 알리기",
+        "code": "// TODO(john): 출시 목요일로 연기, Linux QA 아직 진행 중",
+        "meeting": "결정: 출시를 목요일로 연기.\n사유: Linux QA 미완료.\n담당: 존에게 통보.",
+        "legal": "Linux 품질 보증 완료를 전제로, 출시일이 목요일로 변경되었음을 알려 드립니다.",
+        "medical": "계획: 출시를 목요일로 연기. 상태: Linux QA 대기 중. 후속 조치: 존에게 알림."
+      }
     }
   },
   "demo": {
+    "worksWherever": "글을 쓰는 곳이라면 어디서나",
+    "eyebrow": "작동 방식",
+    "titleLine1": "키를 누르고.",
+    "titleLine2": "말하면.",
+    "titleAccent": "끝.",
+    "lead": "말한 내용이 깔끔하게 정리되어 커서 위치에 입력됩니다.",
+    "step1": "단축키를 누르세요",
+    "step2Key": "말하기",
+    "step2": "평소처럼 말하세요",
+    "step3Key": "다시 누름",
+    "step3": "깔끔한 텍스트가 그 자리에 붙여넣어집니다",
+    "watchVideo": "전체 데모 보기",
+    "closeVideo": "동영상 닫기",
+    "exampleLabel": "애니메이션 예시: 음성으로 말한 답장이 Slack 메시지에 입력됩니다",
+    "message1": "목요일에 Linux 빌드 출시하는 거 아직 괜찮죠?",
+    "message2": "제 쪽에서는 QA 통과했어요 👍",
+    "composePlaceholder": "#launch에 메시지 보내기",
+    "typed": "네, 오늘 아침에 Linux QA 통과해서 목요일 괜찮습니다. 정오까지 릴리스 노트 올릴게요.",
+    "listening": "듣는 중",
+    "cleaningUp": "정리하는 중…",
     "fasterThanTyping": "타이핑보다 빠름",
     "accuracyRate": "정확도",
     "languagesSupported": "지원 언어",
-    "providersSupported": "지원 제공업체"
+    "modelsSupported": "전사 모델"
   },
   "faq": {
     "title": "자주 묻는 질문",
@@ -189,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper 지원 요청",
       "body": "안녕하세요,\n\n버전: \n[설정 > 정보에서 확인 가능]\n\n문제: \n[문제를 설명해 주세요]\n\n세부사항: \n[관련 세부사항과 충돌 직전에 무엇을 하고 있었는지 작성해 주세요]\n\n[메시지 내용]\n\n감사합니다,"
-    }
+    },
+    "helpCenterHint": "설정, 단축키, 모델.",
+    "chooseModelHint": "작업 방식에 맞게 모델 순위를 매겨 보세요.",
+    "accountHint": "계정 키로 로그인하세요.",
+    "chooseModelTitle": "모델 선택하기"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper 로고",
@@ -228,7 +255,12 @@
     "linuxInputGroupNote": "input 그룹에 가입한 후에는 로그아웃했다가 다시 로그인하세요. 그룹 가입은 선택 사항이지만, 전역 단축키와 자동 붙여넣기에는 필요합니다.",
     "aptTitle": "APT 저장소 직접 호스팅",
     "aptBody": "Linux 릴리스에는 정적 APT 저장소 아카이브도 포함되어 있습니다. HyperWhisper는 현재 공개 APT 엔드포인트를 운영하지 않습니다. 서명된 자체 호스팅 설정, 데스크톱 연동 구성 요소, 개인정보 세부 사항, 제거 방법은 Linux 설치 가이드를 참고하세요.",
-    "linuxGuideCta": "Linux 설치 가이드 읽기"
+    "linuxGuideCta": "Linux 설치 가이드 읽기",
+    "heroLead": "무료이며 오픈 소스입니다. 플랫폼을 선택하세요.",
+    "releaseNotes": "릴리스 노트",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon 및 Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 및 ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "이전 버전",
@@ -280,6 +312,7 @@
       "dataTraining": "데이터 개인정보 보호"
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
+    "madeBy": "Ray Amjad 제작",
     "linkedinAria": "LinkedIn",
     "xAria": "X(Twitter)에서 HyperWhisper 팔로우하기",
     "githubAria": "GitHub의 HyperWhisper"
@@ -412,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "이 로그인 링크는 만료되었거나 이미 사용되었습니다. 새 링크를 받으려면 이메일을 입력하세요.",
     "magicLinkFailed": "해당 링크로 로그인하지 못했습니다. 새 링크를 받으려면 이메일을 입력하세요."
+  },
+  "legal": {
+    "onThisPage": "이 페이지에서"
   }
 }

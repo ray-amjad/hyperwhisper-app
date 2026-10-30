@@ -13,6 +13,7 @@ import {
   textMessage,
 } from './ws-streaming-test-support';
 import { stubEnv } from '../test-support/env';
+import { neverFetch } from '../test-support/fetch-stubs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -55,12 +56,6 @@ let restoreApiKey: () => void;
 let restoreAltApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
-
-function neverFetch() {
-  return mock(async () => {
-    throw new Error('no license API call was expected here');
-  }) as unknown as typeof fetch;
-}
 
 // ---------------------------------------------------------------------------
 // The wire contract, held to the cross-platform conformance vectors
@@ -238,7 +233,7 @@ describe('preflight', () => {
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('no license API call was expected here');
   });
 
   afterEach(() => {

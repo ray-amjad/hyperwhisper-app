@@ -467,7 +467,9 @@ public partial class MainViewModel
                     if (failureWritten)
                     {
                         ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
-                        StatusText = Loc.S("status.failed", ex.Message);
+                        // The toast's words, not the raw exception text (#2807).
+                        StatusText = Loc.S("status.failed",
+                            ex is TranscriptionException userEx ? userEx.GetUserMessage() : ex.Message);
                     }
                 }
             }

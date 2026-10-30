@@ -50,7 +50,7 @@ export default function GlobalError({
           {/* A plain button: the HeroUI provider lives in the layout that threw.
               retry re-fetches the failed server render; reset would replay it */}
           <button
-            className="rounded-lg bg-purple-600 px-4 py-2 font-medium text-white cursor-pointer transition-[background-color,transform] duration-150 hover:bg-purple-500 active:scale-[0.96]"
+            className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 font-semibold text-white cursor-pointer transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.96]"
             type="button"
             onClick={() => retry()}
           >
