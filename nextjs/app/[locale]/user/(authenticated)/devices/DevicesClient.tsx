@@ -7,6 +7,27 @@ import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  ALERT_ERROR,
+  BTN_SECONDARY,
+  BTN_SECONDARY_XS,
+  CARD,
+  CHIP,
+  CHIP_LAV,
+  CODE_BOX,
+  FOCUS_RING,
+  INPUT,
+  PAGE_SUB,
+  PAGE_TITLE,
+  SEG,
+  SEG_ITEM,
+  SEG_OFF,
+  SEG_ON,
+  SKEL,
+  TBODY,
+  TH,
+  TR_HOVER,
+} from "@/components/user/panel-styles";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -81,10 +102,10 @@ export default function DevicesClient() {
           never push the page wider than the viewport (#1764, as #1330). */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-white">
+          <h1 className={PAGE_TITLE}>
             Device Activations
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className={PAGE_SUB}>
             Unique devices per Account Key (active in last {shownDays} days)
           </p>
         </div>
@@ -93,7 +114,7 @@ export default function DevicesClient() {
           <div
             role="group"
             aria-label="Time range"
-            className="flex bg-white/5 rounded-lg border border-white/10 overflow-hidden"
+            className={SEG}
           >
             {TIME_RANGES.map((range) => (
               <button
@@ -101,10 +122,8 @@ export default function DevicesClient() {
                 type="button"
                 aria-pressed={days === range.value}
                 onClick={() => setDays(range.value)}
-                className={`px-3 py-2 text-sm transition-colors ${
-                  days === range.value
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                className={`${SEG_ITEM} ${
+                  days === range.value ? SEG_ON : SEG_OFF
                 }`}
               >
                 {range.label}
@@ -114,7 +133,7 @@ export default function DevicesClient() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+            className={BTN_SECONDARY}
           >
             {isFetching ? (
               <Spinner className="w-4 h-4" />
@@ -142,8 +161,8 @@ export default function DevicesClient() {
           in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
       <ErrorReveal gap="pb-6">
         {error && (
-          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-            <p className="text-red-300">{error}</p>
+          <div className={`p-4 ${ALERT_ERROR}`} role="alert">
+            <p className="text-rose-300">{error}</p>
           </div>
         )}
       </ErrorReveal>
@@ -151,21 +170,21 @@ export default function DevicesClient() {
       {/* Devices Table */}
       <div
         aria-busy={loading || isTransitioning}
-        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+        className={`${CARD} overflow-hidden transition-opacity ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[36rem]">
             <thead>
-              <tr className="border-b border-white/10">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
+                <th className={TH}>
                   Email
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Account Key
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Devices
                 </th>
               </tr>
@@ -173,24 +192,24 @@ export default function DevicesClient() {
             {/* First load only: skeleton rows, then the real rows fade in.
                 A range switch keeps the previous rows mounted (above). */}
             {loading && (
-              <tbody aria-hidden className="divide-y divide-white/5">
+              <tbody aria-hidden className={TBODY}>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
+                      <div className={`h-4 w-48 ${SKEL}`} />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
+                      <div className={`h-4 w-28 ${SKEL}`} />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
+                      <div className={`h-4 w-12 ${SKEL}`} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             )}
             <tbody
-              className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+              className={`t-skel-content ${TBODY} transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
               }`}
             >
@@ -198,7 +217,7 @@ export default function DevicesClient() {
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-6 py-12 text-center text-gray-400"
+                    className="px-6 py-14 text-center text-[var(--dusk-mute)]"
                   >
                     No device activations found in the last {shownDays} days.
                   </td>
@@ -228,7 +247,7 @@ export default function DevicesClient() {
 
       {/* Row Count */}
       {!loading && devices.length > 0 && (
-        <p className="text-gray-400 text-sm">
+        <p className="text-[var(--dusk-mute)] text-sm tabular-nums">
           Showing {formatCount(devices.length)} Account Key
           {devices.length !== 1 ? "s" : ""} with active devices
         </p>
@@ -309,7 +328,7 @@ export function DeviceRow({
     <>
       <tr
         onClick={onToggle}
-        className="hover:bg-white/5 transition-colors cursor-pointer"
+        className={`${TR_HOVER} cursor-pointer`}
       >
         <td className="px-6 py-4">
           {/* A real button, so the disclosure is in the Tab order, opens on
@@ -318,31 +337,31 @@ export function DeviceRow({
           <button
             aria-controls={expanded ? panelId : undefined}
             aria-expanded={expanded}
-            className="flex items-center gap-3 text-left rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            className={`flex items-center gap-3 text-left rounded-lg ${FOCUS_RING}`}
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onToggle();
             }}
           >
-            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm font-medium">
+            <span className="w-8 h-8 shrink-0 rounded-full bg-[linear-gradient(135deg,#c4b5fd,#f0abfc_50%,#fdba8c)] flex items-center justify-center text-[#0b0b14] text-sm font-semibold">
               {row.email[0].toUpperCase()}
             </span>
-            <span className="text-gray-300">{row.email}</span>
+            <span className="text-[var(--dusk-ink)] [overflow-wrap:anywhere]">{row.email}</span>
           </button>
         </td>
         <td className="px-6 py-4">
-          <code className="text-gray-400 text-sm bg-white/5 px-2 py-1 rounded">
+          <code className={`font-mono text-[var(--dusk-mute)] text-xs ${CODE_BOX} px-2 py-1 rounded-lg whitespace-nowrap`}>
             {truncateKey(row.licenseKey)}
           </code>
         </td>
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium">
+            <span className={`${CHIP} ${CHIP_LAV} tabular-nums`}>
               {formatCount(row.deviceCount)}
             </span>
             <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${
+              className={`w-4 h-4 text-[var(--dusk-dim)] transition-transform duration-200 ease-[cubic-bezier(.2,0,0,1)] motion-reduce:transition-none ${
                 expanded ? "rotate-180" : ""
               }`}
               fill="none"
@@ -366,14 +385,14 @@ export function DeviceRow({
               (#702), as the #914 inline editor does: a table row cannot tween
               its own height. The padding moved inside the clip, or it would
               arrive in one frame. */}
-          <td colSpan={3} className="p-0 bg-white/[0.02]">
+          <td colSpan={3} className="p-0 bg-[rgba(5,6,13,.35)]">
             <div className="t-cell-reveal">
               <div>
                 <div className="px-6 py-4">
                   <div className="mb-3">
                     <input
                       aria-label="Search this key's devices by name or id"
-                      className="w-full max-w-sm px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                      className={`w-full max-w-sm px-3.5 py-2 text-sm ${INPUT}`}
                       placeholder="Search devices by name or id..."
                       type="search"
                       value={search}
@@ -385,12 +404,12 @@ export function DeviceRow({
                       {Array.from({ length: 2 }).map((_, i) => (
                         <div
                           key={i}
-                          className="h-4 bg-white/10 rounded w-64 animate-pulse"
+                          className={`h-4 w-64 ${SKEL}`}
                         />
                       ))}
                     </div>
                   ) : loadedDevices.length === 0 ? (
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-[var(--dusk-mute)] text-sm">
                       {debouncedSearch
                         ? "No devices match that search."
                         : "No devices found."}
@@ -405,11 +424,11 @@ export function DeviceRow({
                       {loadedDevices.map((device) => (
                         <div
                           key={device.deviceId}
-                          className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
+                          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 px-3.5 rounded-xl border border-[var(--dusk-line)] bg-white/[.03]"
                         >
                           <div className="flex items-center gap-3">
                             <svg
-                              className="w-4 h-4 text-gray-400"
+                              className="w-4 h-4 shrink-0 text-[var(--dusk-dim)]"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -430,13 +449,13 @@ export function DeviceRow({
                                 {device.deviceName || device.deviceId}
                               </bdi>
                               {device.deviceName && (
-                                <bdi className="text-gray-400 text-xs">
+                                <bdi className="text-[var(--dusk-dim)] text-xs font-mono">
                                   {device.deviceId}
                                 </bdi>
                               )}
                             </div>
                           </div>
-                          <div className="text-right text-xs text-gray-400">
+                          <div className="text-right text-xs text-[var(--dusk-mute)] tabular-nums">
                             <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
                             <div>
                               Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
@@ -445,13 +464,13 @@ export function DeviceRow({
                         </div>
                       ))}
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <p className="text-gray-400 text-xs">
+                        <p className="text-[var(--dusk-mute)] text-xs tabular-nums">
                           Showing {formatCount(loadedDevices.length)} of{" "}
                           {formatCount(total)} device{total !== 1 ? "s" : ""}
                         </p>
                         {hasNextPage && (
                           <button
-                            className="px-3 py-1.5 text-sm text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                            className={BTN_SECONDARY_XS}
                             disabled={isFetchingNextPage}
                             type="button"
                             onClick={() => fetchNextPage()}

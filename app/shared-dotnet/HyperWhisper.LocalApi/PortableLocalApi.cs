@@ -111,23 +111,22 @@ public static class PortableLocalApi
         app.MapGet("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetModeAsync(id, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/modes", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
-            var body = await ReadJsonObject(context, ct);
-            return body is null ? Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.") : Results.Ok(new { ok = true, mode = await b.CreateModeAsync(body.Value, ct) });
+            var (body, error) = await ReadJsonObject(context, ct);
+            return error ?? Results.Ok(new { ok = true, mode = await b.CreateModeAsync(body, ct) });
         });
         app.MapPatch("/modes/{id}", async (string id, HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
-            var body = await ReadJsonObject(context, ct);
-            if (body is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.");
-            return await b.PatchModeAsync(id, body.Value, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
+            var (body, error) = await ReadJsonObject(context, ct);
+            if (error is not null) return error;
+            return await b.PatchModeAsync(id, body, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
         });
         app.MapDelete("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.DeleteModeAsync(id, ct) ? Results.Ok(new { ok = true }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/recording/toggle", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.ToggleRecordingAsync(ct) }));
         app.MapPost("/recording/cancel", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.CancelRecordingAsync(ct) }));
         app.MapPost("/post-process", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
-            PostProcessRequest? request;
-            try { request = await context.Request.ReadFromJsonAsync<PostProcessRequest>(cancellationToken: ct); }
-            catch (JsonException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."); }
+            var (request, error) = await ReadJsonBody<PostProcessRequest>(context, ct);
+            if (error is not null) return error;
             if (request is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is required.");
             if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > options.MaxTextCharacters)
                 return Failure(400, LocalApiErrorCodes.InvalidRequest, "Post-processing text is empty or exceeds the configured limit.");
@@ -197,9 +196,8 @@ public static class PortableLocalApi
                 || !context.Request.ContentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
                 return Failure(400, LocalApiErrorCodes.InvalidRequest,
                     "application/json with 'file' or 'audio_base64' is required.");
-            TranscribeJsonRequest? request;
-            try { request = await context.Request.ReadFromJsonAsync<TranscribeJsonRequest>(cancellationToken: ct); }
-            catch (JsonException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."); }
+            var (request, error) = await ReadJsonBody<TranscribeJsonRequest>(context, ct);
+            if (error is not null) return error;
             if (request is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is required.");
             if (string.IsNullOrWhiteSpace(request.ModeId)
                 && string.IsNullOrWhiteSpace(request.Engine)
@@ -258,14 +256,30 @@ public static class PortableLocalApi
         }
     }
 
-    private static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)
+    // Every JSON body is read here. `ReadFromJsonAsync` throws
+    // `InvalidOperationException` when the Content-Type is not JSON or names an
+    // unknown charset, and the error envelope maps that type to
+    // ENGINE_UNAVAILABLE. Both are a malformed request: INVALID_REQUEST (issue #2014).
+    private static async Task<(T? Value, IResult? Error)> ReadJsonBody<T>(HttpContext context, CancellationToken ct)
     {
-        try
+        if (!context.Request.HasJsonContentType())
+            return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body must be application/json."));
+        try { return (await context.Request.ReadFromJsonAsync<T>(cancellationToken: ct), null); }
+        catch (JsonException) { return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.")); }
+        // Only the unknown-charset throw wraps an ArgumentException from
+        // Encoding.GetEncoding; any other InvalidOperationException is ours.
+        catch (InvalidOperationException ex) when (ex.InnerException is ArgumentException)
         {
-            var body = await context.Request.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-            return body.ValueKind == JsonValueKind.Object ? body : null;
+            return (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body's charset is not supported."));
         }
-        catch (JsonException) { return null; }
+    }
+
+    private static async Task<(JsonElement Value, IResult? Error)> ReadJsonObject(HttpContext context, CancellationToken ct)
+    {
+        var (body, error) = await ReadJsonBody<JsonElement>(context, ct);
+        if (error is not null) return (default, error);
+        return body.ValueKind == JsonValueKind.Object ? (body, null)
+            : (default, Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."));
     }
 
     private static IResult TranscriptionSuccess(TranscriptionResult result)

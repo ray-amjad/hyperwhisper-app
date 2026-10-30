@@ -69,6 +69,22 @@ if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
 {
     Environment.Exit(RadioButtonLightThemeRenderTests.RunProbe());
 }
+if (args is [HomeLiveStateRenderTests.ProbeArgument])
+{
+    Environment.Exit(HomeLiveStateRenderTests.RunProbe());
+}
+if (args is [StatusHintRenderTests.ProbeArgument])
+{
+    Environment.Exit(StatusHintRenderTests.RunProbe());
+}
+if (args is [OverlayMeterRenderTests.ProbeArgument])
+{
+    Environment.Exit(OverlayMeterRenderTests.RunProbe());
+}
+if (args is [AccountLinkToastRenderTests.ProbeArgument])
+{
+    Environment.Exit(AccountLinkToastRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -112,6 +128,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
+    ("tray mode selection is validated before it reaches the window", TrayModeSelectionIsValidated),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("the storage maintenance loop starts once and survives a failed tick", StorageMaintenanceLoopStartsOnce),
     ("a later window Opened retries only what has not yet succeeded", WindowStartupGateRetriesOnlyWhatFailed),
@@ -150,6 +167,19 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
     ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
     ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
+    ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
+    ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the overlay's macOS-style waveform keeps its 25 2 px bars inside the pill, peaks in the middle, grows with the level and animates only while shown (#2711)", OverlayMeterRenderTests.RunAsync),
+    ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
+    ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
+    ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
+    ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
+    ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
+    ("a held live stream's stop keeps the record hint off while it finishes, and brings it back after (#2599)", RecordingStatusAfterStopTests.HeldStreamStopKeepsTheHintOffWhileFinishing),
+    ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
+    ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
+    ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
+    ("post-processing stores and emits the provider id (openai, local_llm), and the History badge maps it to a label (#1158)", PostProcessProviderIdTests.RunAsync),
 };
 
 foreach (var test in tests)
@@ -744,8 +774,8 @@ static async Task TypedTrayActionsRouteSafely()
         "microphone changed during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.TranscribeFile)).Error?.Code == "tray.unsafe_state",
         "file import started during recording");
-    Assert((await handler.HandleAsync(StatusNotifierAction.CycleMode)).IsSuccess,
-        "future mode could not be cycled during recording");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode could not be selected during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.StopRecording)).IsSuccess,
         "active recording could not be stopped");
 
@@ -755,6 +785,7 @@ static async Task TypedTrayActionsRouteSafely()
         StatusNotifierAction.SelectPreviousMicrophone,
         StatusNotifierAction.SelectNextMicrophone,
         StatusNotifierAction.TranscribeFile,
+        StatusNotifierAction.OpenModes,
         StatusNotifierAction.OpenHistory,
         StatusNotifierAction.OpenSettings,
         StatusNotifierAction.OpenHelp,
@@ -768,7 +799,7 @@ static async Task TypedTrayActionsRouteSafely()
         Assert((await handler.HandleAsync(action)).IsSuccess, $"{action} did not route");
 
     Assert(target.Events.SequenceEqual([
-        "start", "mode", "stop", "mic-default", "mic-previous", "mic-next", "file", "history",
+        "start", "mode:" + FakeTrayTarget.KnownMode, "stop", "mic-default", "mic-previous", "mic-next", "file", "modes", "history",
         "settings", "help", "support", "feedback", "show", "hide", "quit"]),
         "typed tray action mapping changed");
 
@@ -794,6 +825,44 @@ static async Task TypedTrayActionsRouteSafely()
     handler.Dispose();
     Assert((await handler.HandleAsync(StatusNotifierAction.Show)).Error?.Code == "tray.disposed",
         "disposed handler accepted an action");
+}
+
+// A Select Mode click reaches the handler with an id the tray service resolved from its own
+// snapshot. The handler still refuses a missing id, an empty id, a pick during onboarding,
+// and a mode that was deleted after the publish, and it never takes the operation lock.
+static async Task TrayModeSelectionIsValidated()
+{
+    var target = new FakeTrayTarget();
+    using var handler = target.CreateHandler();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode))).Error?.Code
+        == "tray.action_unknown", "a mode click without an id was accepted");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.Empty))).Error?.Code
+        == "tray.action_unknown", "an empty mode id was accepted");
+    Assert((await handler.HandleAsync(StatusNotifierAction.SelectMode)).Error?.Code == "tray.action_unknown",
+        "the bare SelectMode action routed without an id");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.NewGuid()))).Error?.Code
+        == "tray.unsafe_state", "a deleted mode was reported as selected");
+    target.OnboardingOpen = true;
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.unsafe_state", "a mode was selected while onboarding was open");
+    target.OnboardingOpen = false;
+    Assert(target.Events.Count == 0, "a refused mode click reached the window");
+
+    var blocked = new FakeTrayTarget { StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+    using var blockedHandler = blocked.CreateHandler();
+    var pendingStart = blockedHandler.HandleAsync(StatusNotifierAction.StartRecording);
+    Assert((await blockedHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode pick waited on a long-running recording start");
+    blocked.StartGate.SetResult();
+    await pendingStart;
+
+    var throwing = new FakeTrayTarget { ThrowOnSelect = true };
+    using var throwingHandler = throwing.CreateHandler();
+    Assert((await throwingHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.action_failed", "a throwing mode pick escaped the handler");
+    handler.Dispose();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.disposed", "a disposed handler selected a mode");
 }
 
 static Task TrayMicrophoneSelectionIsDeterministic()
@@ -2665,6 +2734,9 @@ sealed class FakeTrayTarget
     public bool Active { get; private set; }
     public bool Importing { get; set; }
     public TaskCompletionSource? StartGate { get; init; }
+    public bool OnboardingOpen { get; set; }
+    public bool ThrowOnSelect { get; init; }
+    public static readonly Guid KnownMode = Guid.Parse("6f1c1f0e-2a8f-4d0b-9a65-3b0f2a1c7d11");
 
     public LinuxTrayActionHandler CreateHandler() => new(
         () => Active,
@@ -2680,7 +2752,15 @@ sealed class FakeTrayTarget
         () => Events.Add("mic-default"),
         () => Events.Add("mic-previous"),
         () => Events.Add("mic-next"),
-        () => Events.Add("mode"),
+        id =>
+        {
+            if (ThrowOnSelect) throw new InvalidOperationException("select");
+            if (id != KnownMode) return false;
+            Events.Add("mode:" + id);
+            return true;
+        },
+        () => OnboardingOpen,
+        () => Events.Add("modes"),
         () => Events.Add("history"),
         () => Events.Add("settings"),
         () => Events.Add("help"),

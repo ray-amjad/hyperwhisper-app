@@ -27064,6 +27064,7 @@ internal static class Program
             ScriptGuardPorts.RunAll(Run);
             OutputMuteOwnershipChecks.RunAll(Run);
             CloudCreditsWarningChecks.RunAll(Run);
+            InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal

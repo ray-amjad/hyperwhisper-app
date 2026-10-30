@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Iespējas",
+    "modes": "Režīmi",
     "faq": "BUJ",
     "support": "Atbalsts",
     "download": "Lejupielādēt",
@@ -16,26 +17,36 @@
       "switchTo": "Mainīt valodu"
     },
     "cloud": "Cloud",
-    "githubAria": "Skatīt HyperWhisper vietnē GitHub"
+    "githubAria": "Skatīt HyperWhisper vietnē GitHub",
+    "skipToContent": "Pāriet uz saturu"
   },
   "hero": {
-    "logoAlt": "HyperWhisper logotips",
-    "headline": "Raksti, veido un radi",
-    "headlineAccent": "5x ātrāk ar AI",
-    "subheadline": "HyperWhisper transkribē jūsu balsi ar neticamu precizitāti. Vienkārši runājiet dabiski un skatieties, kā vārdi parādās uzreiz.",
-    "downloadCta": "Lejupielādēt tagad",
-    "demoCta": "Skatīties demo",
-    "availableOn": "Pieejams",
+    "badge": "Jaunums",
+    "headline": "Vienkārši runājiet.",
+    "headlineAccent": "Mēs rakstīsim.",
+    "subheadline": "Noslīpēts teksts jebkurā lietotnē.",
+    "downloadMac": "Lejupielādēt Mac datoram",
+    "freeForever": "Bez maksas uz visiem laikiem",
+    "worksOffline": "Darbojas bezsaistē",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Ritiniet",
+    "closing": {
+      "line1": "Beidziet rakstīt.",
+      "line2": "Sāciet runāt.",
+      "meta": "Bezmaksas un atvērtais kods. Konts nav nepieciešams."
+    }
   },
   "features": {
-    "title": "Radīts profesionāļiem",
-    "subtitle": "Katra funkcija ir izstrādāta, lai palīdzētu strādāt ātrāk un efektīvāk",
+    "title": "Radīts cilvēkiem, kuri raksta visu dienu.",
     "customVocabulary": {
       "title": "Pielāgots vārdu krājums",
       "description": "Pievienojiet vārdus, saīsinājumus un īpašus terminus, lai katru reizi iegūtu perfektu precizitāti."
+    },
+    "realTime": {
+      "title": "Straumēšana reāllaikā",
+      "description": "Skatiet, kā jūsu vārdi parādās uzreiz runāšanas laikā. Nozares līmeņa precizitāte ar latentumu zem 700ms."
     },
     "languages": {
       "title": "100+ valodas",
@@ -45,25 +56,9 @@
       "title": "Atbalsts bezsaistē",
       "description": "Darbojas pilnībā bezsaistē. Jūsu dati nekad neatstāj jūsu ierīci."
     },
-    "privacy": {
-      "title": "Privātums pirmajā vietā",
-      "description": "Nav nepieciešams konts. Nav izsekošanas. Jūsu balss dati paliek jūsu Mac vai PC."
-    },
-    "hybridProcessing": {
-      "title": "Hibrīda apstrāde",
-      "description": "Izvēlieties lokālos modeļus privātumam vai mākoņa API ātrumam. Labākais no abām pasaulēm."
-    },
-    "customizable": {
-      "title": "Ļoti pielāgojams",
-      "description": "Izvēlieties no 9+ API pakalpojumu sniedzējiem un 30+ transkripcijas modeļiem."
-    },
-    "realTime": {
-      "title": "Straumēšana reāllaikā",
-      "description": "Skatiet, kā jūsu vārdi parādās uzreiz runāšanas laikā. Nozares līmeņa precizitāte ar latentumu zem 700ms."
-    },
-    "fileImport": {
-      "title": "Failu imports",
-      "description": "Importējiet audio vai video failus transkripcijai. Atbalstīti visi populārie formāti ar automātisku klusuma noteikšanu."
+    "openSource": {
+      "title": "Atvērtais kods",
+      "description": "Licencēts saskaņā ar Apache-2.0. Pārbaudiet katru rindu, dakšojiet to vai mitiniet pats. Nekādu melno kastu, nekādas piesaistes."
     },
     "screenOcr": {
       "title": "Ekrāna OCR",
@@ -73,28 +68,57 @@
       "title": "Vietējais API un MCP serveris",
       "description": "Iebūvētais MCP serveris ļauj Claude, Cursor un citiem AI aģentiem vadīt HyperWhisper. Tikai vietējais HTTP API skriptiem un automatizācijai."
     },
+    "fileImport": {
+      "title": "Failu imports",
+      "description": "Importējiet audio vai video failus transkripcijai. Atbalstīti visi populārie formāti ar automātisku klusuma noteikšanu."
+    },
     "modes": {
-      "title": "Režīmi jebkurai situācijai",
-      "description": "Pārslēdzieties starp dažādiem transkripcijas režīmiem, kas optimizēti sapulcēm, piezīmēm, e-pastiem, programmēšanai un citam. Katrs režīms izmanto pielāgotus promptus, lai perfekti formatētu tekstu.",
-      "meeting": "Sapulce",
+      "heading": "Viena balss. Jebkurš formāts.",
+      "lead": "Katrs režīms pārraksta jūsu teikto atbilstoši tam, kurp tas dodas.",
       "email": "E-pasts",
       "note": "Piezīme",
       "code": "Kods",
+      "meeting": "Sapulce",
       "legal": "Juridiskais",
       "medical": "Medicīniskais",
-      "presetModes": "Iepriekš iestatīti režīmi",
-      "customModes": "Pielāgoti režīmi"
-    },
-    "openSource": {
-      "title": "Atvērtais kods",
-      "description": "Licencēts saskaņā ar Apache-2.0. Pārbaudiet katru rindu, dakšojiet to vai mitiniet pats. Nekādu melno kastu, nekādas piesaistes."
+      "youSaid": "Jūs teicāt",
+      "hyperWhisperWrote": "HyperWhisper uzrakstīja",
+      "sample": "ēm nu pasaki johnam ka laidiens pārceļas uz ceturtdienu jo linux QA vēl nav pabeigta un ē paldies par pacietību",
+      "output": {
+        "email": "Sveiks, John!\n\nLaidiens tiek pārcelts uz ceturtdienu, kamēr pabeidzam Linux QA. Paldies par pacietību.\n\nAr cieņu,",
+        "note": "• Laidiens → ceturtdiena\n• Šķērslis: Linux QA nav pabeigta\n• Pateikt Johnam",
+        "code": "// TODO(john): laidiens pārcelts uz ceturtdienu, Linux QA vēl notiek",
+        "meeting": "Lēmums: laidiens pārceļas uz ceturtdienu.\nIemesls: Linux QA nav pabeigta.\nAtbildīgais: informēt Johnu.",
+        "legal": "Informējam, ka laidiena datums ir pārcelts uz ceturtdienu līdz Linux kvalitātes nodrošināšanas pabeigšanai.",
+        "medical": "Plāns: atlikt laidienu līdz ceturtdienai. Statuss: Linux QA gaida. Turpmākā rīcība: informēt Johnu."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Darbojas visur, kur rakstāt",
+    "eyebrow": "Kā tas darbojas",
+    "titleLine1": "Nospiediet taustiņu.",
+    "titleLine2": "Pasakiet.",
+    "titleAccent": "Gatavs.",
+    "lead": "Jūsu vārdi nonāk sakārtoti tur, kur atrodas kursors.",
+    "step1": "Nospiediet savu īsinājumtaustiņu",
+    "step2Key": "Runājiet",
+    "step2": "Runājiet kā parasti",
+    "step3Key": "Vēlreiz",
+    "step3": "Tīrs teksts, ielīmēts vietā",
+    "watchVideo": "Skatīties pilnu demo",
+    "closeVideo": "Aizvērt video",
+    "exampleLabel": "Animēts piemērs: runāta atbilde tiek ierakstīta Slack ziņā",
+    "message1": "Vai joprojām varam izlaist Linux versiju ceturtdien?",
+    "message2": "No manas puses QA izturēta 👍",
+    "composePlaceholder": "Ziņa #launch",
+    "typed": "Jā, Linux QA šorīt tika izturēta, tāpēc ceturtdiena ir spēkā. Laidiena piezīmes publicēšu līdz pusdienlaikam.",
+    "listening": "Klausos",
+    "cleaningUp": "Sakārtoju…",
     "fasterThanTyping": "Ātrāk nekā rakstīt",
     "accuracyRate": "Precizitātes līmenis",
     "languagesSupported": "Atbalstītās valodas",
-    "providersSupported": "Atbalstītie pakalpojumu sniedzēji"
+    "modelsSupported": "Transkripcijas modeļi"
   },
   "faq": {
     "title": "Biežāk uzdotie jautājumi",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Kādi bezsaistes modeļi ir pieejami?",
-        "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 3 modeļa izmērus (izstrādājis Google)."
+        "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 4 modeļa izmērus (izstrādājis Google)."
       },
       "compatibility": {
         "question": "Vai tas darbojas ar visām manām lietotnēm?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper atbalsta pieprasījums",
       "body": "Sveiki,\n\nVersija: \n[varat pārbaudīt sadaļā Iestatījumi > Par]\n\nProblēma: \n[Aprakstiet savu problēmu]\n\nDetaļas: \n[Norādiet svarīgas detaļas, ko darījāt pirms avārijas]\n\n[Jūsu ziņa šeit]\n\nAr cieņu,"
-    }
+    },
+    "helpCenterHint": "Iestatīšana, īsinājumtaustiņi un modeļi.",
+    "chooseModelHint": "Sakārtojiet modeļus atbilstoši savam darba stilam.",
+    "accountHint": "Pierakstieties ar savu konta atslēgu.",
+    "chooseModelTitle": "Izvēlieties modeli"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotips",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
     "aptTitle": "Mitiniet savu APT repozitoriju",
     "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
-    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu"
+    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu",
+    "heroLead": "Bezmaksas un atvērtā koda. Izvēlieties savu platformu.",
+    "releaseNotes": "Laidiena piezīmes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon un Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 un ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vecākas versijas",
@@ -280,6 +313,7 @@
       "dataTraining": "Datu privātums"
     },
     "copyright": "© 2026 HyperWhisper. Visas tiesības aizsargātas.",
+    "madeBy": "Izveidoja Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Sekojiet HyperWhisper platformā X (Twitter)",
     "githubAria": "HyperWhisper platformā GitHub"
@@ -412,5 +446,8 @@
   "signIn": {
     "magicLinkExpired": "Šīs pierakstīšanās saites derīguma termiņš ir beidzies vai tā jau ir izmantota. Ievadiet savu e-pastu, lai saņemtu jaunu.",
     "magicLinkFailed": "Ar šo saiti mēs nevarējām jūs pierakstīt. Ievadiet savu e-pastu, lai saņemtu jaunu."
+  },
+  "legal": {
+    "onThisPage": "Šajā lapā"
   }
 }
