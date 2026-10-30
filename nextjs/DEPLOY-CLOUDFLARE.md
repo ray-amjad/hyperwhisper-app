@@ -1,6 +1,6 @@
 # Deploying the website on Cloudflare Workers
 
-The site (`nextjs/`) runs as the Cloudflare Worker **`hyperwhisper-web`**, built
+The site (`nextjs/`) runs as the Cloudflare Worker **`hyperwhisper-web-prod`**, built
 with [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). GitHub
 Actions (`.github/workflows/nextjs-deploy.yml`) builds, migrates and deploys it
 on every push to `main`. There are no per-PR previews; `nextjs-ci` (typecheck, tests and an
@@ -85,7 +85,7 @@ this Worker is about 4.5 MiB gzipped).
    | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | `postgres://unused:unused@127.0.0.1:5432/unused` (deploy step only; not a secret, see below) |
 
    `cf:build` sets `SKIP_ENV_VALIDATION=1` and fake values for the server
-   secrets some SDKs need at import time (Stripe, Resend, Upstash). The build
+   secrets some SDKs need at import time (Stripe, for one). The build
    step is given no real secret, so none can be inlined; the script also
    fails the build if a placeholder shows up in `.open-next/`.
 
@@ -96,7 +96,7 @@ this Worker is about 4.5 MiB gzipped).
    uses the real Hyperdrive config. The same applies to `pnpm run deploy` or
    `opennextjs-cloudflare populateCache` run from a laptop.
 4. **Runtime secrets** (Infisical -> Cloudflare Workers sync, Worker
-   `hyperwhisper-web`). Scope the sync to the website's names only; the
+   `hyperwhisper-web-prod`). Scope the sync to the website's names only; the
    Production environment also holds large signing blobs
    (`DEVELOPER_ID_P12_BASE64`, `PROVISIONING_PROFILE_BASE64`,
    `GOOGLE_SERVICE_ACCOUNT_JSON`, ...) that exceed the 5 KB per-secret limit.
@@ -189,8 +189,10 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
    **307 or 308, not 301**: clients POST to `/api/license/validate`.
 4. Enable HSTS for the zone (SSL/TLS -> Edge Certificates); Vercel sent
    `max-age=63072000`.
-5. Optional: a Cache Rule for `/models` and `/api/internal/models` so their
-   `s-maxage` is honoured (Worker responses are not edge-cached by default).
+5. No Cache Rule for `/models` and `/api/internal/models`: the Worker runs in
+   front of the edge cache, so a zone Cache Rule never caches its responses
+   (tried 2026-10-29, no `cf-cache-status`). Their in-memory cache bounds the
+   provider calls.
    Optional: the "Add visitor location headers" managed transform is not
    needed; `/api/geo/nearest-region` reads `request.cf`.
 6. Verify on the real domain:
@@ -201,8 +203,10 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
    - Cron: the next 04:17 / 04:37 UTC runs succeed in Workers Logs.
    - Sentry: an error reaches Sentry (if `SENTRY_DSN` is set). On workerd the
      SDK logs `[Sentry] Failed to register diagnostics-channel injection hooks`
-     at startup; the Worker keeps serving, but delivery from Workers has not
-     been verified, so trigger a test error and confirm it lands.
+     at startup; the Worker keeps serving and delivery works (2026-10-29: a
+     route that threw under `wrangler dev` reached Sentry). Next's own
+     request errors, such as `failed to decode param`, never reach
+     `onRequestError`, so they show only in Workers Logs.
 7. Update the privacy policy's sub-processor list (Vercel -> Cloudflare) in
    `app/[locale]/legal/privacy-policy/page.tsx`.
 8. Only then delete the Vercel project, and remove the Infisical -> Vercel sync.
@@ -210,8 +214,8 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
 ## 6. Logs and status
 
 ```bash
-npx wrangler deployments list --name hyperwhisper-web
-npx wrangler tail hyperwhisper-web --status error --format pretty   # streams; Ctrl-C to stop
+npx wrangler deployments list --name hyperwhisper-web-prod
+npx wrangler tail hyperwhisper-web-prod --status error --format pretty   # streams; Ctrl-C to stop
 ```
 
-Past logs: Workers & Pages -> `hyperwhisper-web` -> Logs (observability is on).
+Past logs: Workers & Pages -> `hyperwhisper-web-prod` -> Logs (observability is on).

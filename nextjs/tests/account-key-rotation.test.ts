@@ -323,6 +323,17 @@ async function sessionCount(userId: string): Promise<number> {
   return rows.length;
 }
 
+/** The `account_key.rotate` lines captured from index `from` on, parsed, with their level. */
+function rotateLogs(from = 0): Array<Record<string, unknown>> {
+  return logLines
+    .slice(from)
+    .filter((l) => l.includes('"event":"account_key.rotate"'))
+    .map((l) => {
+      const space = l.indexOf(" ");
+      return { level: l.slice(0, space), ...JSON.parse(l.slice(space + 1)) };
+    });
+}
+
 const KEY_FORMAT = /^HW-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
 // ---------------------------------------------------------------------------
@@ -421,8 +432,27 @@ describe("customer.rotateAccountKey, end to end", () => {
     }
     assert.ok(sentEmails[0].text.includes(newKey.substring(0, 7)));
 
-    // No log line carries either key.
-    assert.ok(logLines.some((l) => l.includes("Account Key rotated")));
+    // One structured line per call: the rotation, then the stale probe above
+    // (the swept session's call is refused before the procedure runs). No log
+    // line carries either key.
+    assert.deepEqual(rotateLogs(), [
+      {
+        level: "log",
+        event: "account_key.rotate",
+        outcome: "ok",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+        devicesCleared: 2,
+      },
+      {
+        level: "warn",
+        event: "account_key.rotate",
+        outcome: "rejected",
+        reason: "stale",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    ]);
     for (const line of logLines) {
       assert.ok(!line.includes(owner.key), `old key in log: ${line}`);
       assert.ok(!line.includes(newKey), `new key in log: ${line}`);
@@ -452,6 +482,79 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(after.code, "UNAUTHORIZED", "the leaker's session was swept");
     assert.equal(await sessionCount(owner.userId), 1);
     assert.deepEqual(await signInMethods(owner.userId), ["email"]);
+  });
+
+  test("every outcome writes one account_key.rotate line, with no key or email", async () => {
+    const owner = await seedOwner("logged");
+    const email = "logged@example.test";
+    const ownerSession = await signInByEmail(email);
+    const leaker = await signIn(owner.key);
+    assert.ok(leaker.cookie);
+    const unknownId = "00000000-0000-4000-8000-000000000000";
+
+    const cases: Array<{
+      cookie: string;
+      input: { id: string; currentKey: string };
+      status: number;
+      reason: string;
+      licenseId: string;
+    }> = [
+      {
+        cookie: leaker.cookie,
+        input: { id: owner.keyId, currentKey: owner.key },
+        status: 403,
+        reason: "needs_email_sign_in",
+        licenseId: owner.keyId,
+      },
+      {
+        cookie: ownerSession,
+        input: { id: owner.keyId, currentKey: `${owner.key}-stale` },
+        status: 409,
+        reason: "stale",
+        licenseId: owner.keyId,
+      },
+      {
+        cookie: ownerSession,
+        input: { id: unknownId, currentKey: owner.key },
+        status: 404,
+        reason: "not_found",
+        licenseId: unknownId,
+      },
+    ];
+    for (const c of cases) {
+      const from = logLines.length;
+      const reply = await rotate(c.cookie, c.input);
+      assert.equal(reply.status, c.status);
+      assert.deepEqual(rotateLogs(from), [
+        {
+          level: "warn",
+          event: "account_key.rotate",
+          outcome: "rejected",
+          reason: c.reason,
+          userId: owner.userId,
+          licenseId: c.licenseId,
+        },
+      ], `one rejected line for ${c.reason}`);
+    }
+
+    const from = logLines.length;
+    const rotated = await rotate(ownerSession, { id: owner.keyId, currentKey: owner.key });
+    assert.equal(rotated.status, 200);
+    await flushAfterResponse();
+    const ok = rotateLogs(from);
+    assert.equal(ok.length, 1);
+    assert.equal(ok[0].level, "log");
+    assert.equal(ok[0].outcome, "ok");
+    assert.equal(ok[0].licenseId, owner.keyId);
+
+    // Nothing logged in the whole case (sign-ins included) carries a key or
+    // the owner's email.
+    assert.equal(rotateLogs().length, 4);
+    for (const line of logLines) {
+      assert.ok(!line.includes(owner.key), `old key in log: ${line}`);
+      assert.ok(!line.includes(rotated.data!.key), `new key in log: ${line}`);
+      assert.ok(!line.includes(email), `email in log: ${line}`);
+    }
   });
 
   test("a non-owner cannot rotate someone else's key", async () => {
@@ -493,6 +596,14 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(limited.code, "TOO_MANY_REQUESTS");
     assert.equal(await storedKey(owner.keyId), current, "a limited call changes nothing");
     assert.deepEqual(Array.from(rotateCalls.keys()), [owner.userId], "keyed by user id");
+    assert.deepEqual(
+      rotateLogs().map((l) => [l.level, l.outcome, l.reason]),
+      [
+        ["log", "ok", undefined],
+        ["log", "ok", undefined],
+        ["warn", "rejected", "rate_limited"],
+      ],
+    );
   });
 
   test("a revoked key is refused", async () => {
@@ -504,6 +615,16 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(reply.status, 412);
     assert.equal(reply.code, "PRECONDITION_FAILED");
     assert.equal(await storedKey(owner.keyId), owner.key);
+    assert.deepEqual(rotateLogs(), [
+      {
+        level: "warn",
+        event: "account_key.rotate",
+        outcome: "rejected",
+        reason: "not_granted",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    ]);
   });
 
   test("two rotations at once: exactly one wins, the other is CONFLICT, no stale key", async () => {
