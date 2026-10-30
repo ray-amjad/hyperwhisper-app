@@ -179,6 +179,16 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
       isMenuOpen={isMenuOpen}
       maxWidth="full"
       position="static"
+      /*
+        No scroll lock while the menu is open. HeroUI's lock puts overflow:hidden
+        on <html>, so a browser with classic scrollbars (Safari with "always show
+        scroll bars", WebKit on Linux) loses its scrollbar and the fixed navbar
+        re-lays out wider on the next layout. HeroUI closes the menu on any
+        navbar width change, so the globe tap that opened the language list
+        shut the menu instead. The menu is a full-screen overlay that scrolls
+        itself (overscroll-contain below), so the page behind it stays put.
+      */
+      shouldBlockScroll={false}
       onMenuOpenChange={setIsMenuOpen}
     >
       {/*
@@ -287,7 +297,7 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
         the menu is a fixed, full-width `w-screen` overlay, and a margin would shift and overflow it.
       */}
       <NavbarMenu
-        className="bg-[rgba(5,6,13,.97)] backdrop-blur-[16px] px-10 pt-4"
+        className="bg-[rgba(5,6,13,.97)] backdrop-blur-[16px] px-10 pt-4 overscroll-contain"
         style={
           menuTop === null
             ? undefined

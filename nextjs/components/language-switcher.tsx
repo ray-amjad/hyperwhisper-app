@@ -9,7 +9,7 @@ import {
 import { Button } from "@heroui/button";
 import { Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRef, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
 import { usePathname, useRouter } from "@/src/i18n/navigation";
 import { localeLabels, locales } from "@/src/i18n/locales";
@@ -22,6 +22,7 @@ import { isEnglishOnlyRoute } from "@/src/i18n/english-only";
   the list itself has to be held to it.
 */
 const POPOVER_CHROME = 32;
+const LIST_CLASS = "language-switcher-list";
 
 export const LanguageSwitcher = () => {
   const locale = useLocale();
@@ -51,19 +52,24 @@ export const LanguageSwitcher = () => {
     only to 70vh ran past the bottom edge, so the last languages could not be
     reached (or tapped). Hold it to the larger of the two gaps around the
     trigger, the side React Aria opens it on.
-  */
-  const fitListToViewport = (isOpen: boolean) => {
-    const trigger = triggerRef.current;
 
-    if (!isOpen || !trigger) return;
+    The height goes on the open list itself, never on <html>: a style change on
+    the root made WebKit re-lay out the fixed navbar 8px wider while the phone
+    menu's scroll lock was on, and HeroUI closes the menu on any navbar width
+    change, so the globe tap shut the menu instead of opening the list.
+  */
+  const [isOpen, setIsOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const trigger = triggerRef.current;
+    const list = document.querySelector<HTMLElement>(`.${LIST_CLASS}`);
+
+    if (!isOpen || !trigger || !list) return;
     const { top, bottom } = trigger.getBoundingClientRect();
     const room = Math.max(top, window.innerHeight - bottom) - POPOVER_CHROME;
 
-    document.documentElement.style.setProperty(
-      "--language-list-max",
-      `${Math.max(room, 96)}px`,
-    );
-  };
+    list.style.maxHeight = `min(70vh, ${Math.max(room, 96)}px)`;
+  }, [isOpen]);
 
   return (
     <Dropdown
@@ -71,7 +77,8 @@ export const LanguageSwitcher = () => {
       classNames={{
         content: "bg-[#0a0c1d] border border-[var(--dusk-line)] min-w-[8rem]",
       }}
-      onOpenChange={fitListToViewport}
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
     >
       <DropdownTrigger>
         <Button
@@ -89,7 +96,7 @@ export const LanguageSwitcher = () => {
       <DropdownMenu
         aria-label={t("switchTo")}
         classNames={{
-          list: "max-h-[min(70vh,var(--language-list-max,70vh))] overflow-y-auto overscroll-contain",
+          list: `${LIST_CLASS} max-h-[70vh] overflow-y-auto overscroll-contain`,
         }}
         selectedKeys={[locale]}
         selectionMode="single"
