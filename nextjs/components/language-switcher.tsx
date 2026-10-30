@@ -25,29 +25,48 @@ const POPOVER_CHROME = 32;
 const LIST_CLASS = "language-switcher-list";
 
 /**
- * Where a pick of `newLocale` goes, as the href for next-intl's
- * `router.replace(href, { locale: newLocale })`, or null for no navigation.
- * `pathname` is next-intl's usePathname() (locale stripped), `hash` is
- * window.location.hash.
+ * What a pick of `newLocale` does. `pathname` is next-intl's usePathname()
+ * (locale stripped), `hash` is window.location.hash.
+ *
+ * - "client": next-intl's `router.replace(href, { locale: newLocale })`, a
+ *   soft navigation. next-intl's client writes NEXT_LOCALE itself, but only
+ *   when the locale changes.
+ * - "document": a full page load of `href`, already locale-prefixed.
+ * - null: no navigation.
  */
-export function languageSwitchHref(
+export type LanguageSwitch =
+  | { navigation: "client"; href: string }
+  | { navigation: "document"; href: string }
+  | null;
+
+export function languageSwitch(
   newLocale: string,
   currentLocale: string,
   pathname: string,
   hash: string,
-): string | null {
+): LanguageSwitch {
   // /latency, /choosing-a-model and /blog 404 in every locale but "en", so
   // a switch from one of them goes to the new locale's homepage instead.
-  // That includes English (#2939): useLocale() is always "en" there, but the
-  // visitor's saved NEXT_LOCALE may be "de" (the proxy never writes the cookie
-  // on these pages, #1135), and it still drives the navbar links and the bare
-  // "/" redirect. /en is an ordinary page whose middleware writes
-  // NEXT_LOCALE=en, so picking English there is how the visitor saves it.
-  if (isEnglishOnlyRoute(pathname)) return "/";
+  if (isEnglishOnlyRoute(pathname)) {
+    // #2939: useLocale() is always "en" on these pages, but the visitor's
+    // saved NEXT_LOCALE may be "de" (the proxy never writes it here, #1135),
+    // and it still drives the navbar links and the bare "/" redirect. Picking
+    // English must save it, and an en -> en soft navigation writes no cookie:
+    // next-intl's client skips an unchanged locale, and its middleware only
+    // syncs the cookie on a document request. So load /en as a document, and
+    // the proxy's next-intl middleware writes NEXT_LOCALE=en with its own
+    // attributes. The href is `/${locale}` because localePrefix is "always".
+    if (newLocale === currentLocale) {
+      return { navigation: "document", href: `/${newLocale}` };
+    }
+
+    return { navigation: "client", href: "/" };
+  }
+
   if (newLocale === currentLocale) return null;
 
   // Elsewhere the #section is kept: /en#cloud switches to /ja#cloud.
-  return `${pathname}${hash}`;
+  return { navigation: "client", href: `${pathname}${hash}` };
 }
 
 export const LanguageSwitcher = () => {
@@ -60,17 +79,23 @@ export const LanguageSwitcher = () => {
   const localeOptions = locales;
 
   const handleLanguageChange = (newLocale: string) => {
-    const href = languageSwitchHref(
+    const next = languageSwitch(
       newLocale,
       locale,
       pathname,
       window.location.hash,
     );
 
-    if (href === null) return;
+    if (next === null) return;
+
+    if (next.navigation === "document") {
+      window.location.assign(next.href);
+
+      return;
+    }
 
     startTransition(() => {
-      router.replace(href, { locale: newLocale });
+      router.replace(next.href, { locale: newLocale });
     });
   };
 
