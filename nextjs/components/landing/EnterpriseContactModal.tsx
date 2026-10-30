@@ -47,8 +47,8 @@ Use Case: [Brief description]
             <Building2 className="w-8 h-8 text-[var(--dusk-lav)]" />
           </div>
 
-          <h3 className="text-2xl font-bold text-white mb-2">Contact Sales</h3>
-          <p className="text-[var(--dusk-mute)] text-center max-w-md">
+          <h3 className="text-2xl font-semibold tracking-[-0.02em] text-white mb-2">Contact Sales</h3>
+          <p className="text-[15px] font-normal leading-[1.55] text-[var(--dusk-mute)] text-center max-w-md">
             Get in touch to learn more about enterprise pricing, volume
             discounts, and custom integrations.
           </p>
