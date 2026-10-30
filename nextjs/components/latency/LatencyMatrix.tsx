@@ -91,6 +91,16 @@ function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
  * noisier view of the same window, and the question most visitors arrive with is
  * about providers.
  */
+/**
+ * The sticky provider column sits over the heat cells when the table scrolls
+ * sideways, but `border-spacing-1.5` leaves 6px transparent gaps around each
+ * cell that the cells show through. A 6px night spread shadow (the same width
+ * as the spacing) fills them. The cell itself stays square so the shadow has
+ * no rounded corners to leak at; a pinned row's rounded highlight is a
+ * pseudo element behind the content instead.
+ */
+const STICKY_COVER = "shadow-[0_0_0_6px_#0b0c17]";
+
 export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [bucket, setBucket] = useState<DurationBucket>(defaultBucket);
   const [metric, setMetric] = useState<MetricKey>("p50");
@@ -403,8 +413,13 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
     "flex items-center gap-2 rounded-full border px-4 py-[9px] text-sm transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
   const metricUnit =
     METRICS.find((entry) => entry.key === metric)?.unit ?? "ms";
+  // One name per region for the "Showing …" chip and the podium, so they
+  // never disagree: the visitor's own region reads as the city the lookup
+  // returned, any other region as its Fly city.
+  const placeName = (region: string) =>
+    region === activeHomeRegion && homeCity ? homeCity : regionCity(region);
   const podiumWhere = podiumRegion
-    ? `in ${regionCity(podiumRegion)}`
+    ? `in ${placeName(podiumRegion)}`
     : "overall";
 
   return (
@@ -543,7 +558,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 <span className="text-[var(--dusk-mute)]">
                   Showing{" "}
                   <span className="font-semibold text-white">
-                    {homeCity ?? regionCity(activeHomeRegion)}
+                    {placeName(activeHomeRegion)}
                   </span>
                 </span>
               ) : (
@@ -653,7 +668,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             >
               <thead>
                 <tr>
-                  <th className="sticky start-0 z-20 bg-[#0b0c17] px-3 py-3 text-start text-[11.5px] font-normal uppercase tracking-[1.3px] text-[var(--dusk-dim)]">
+                  <th
+                    className={`sticky start-0 z-20 bg-[#0b0c17] ${STICKY_COVER} px-3 py-3 text-start text-[11.5px] font-normal uppercase tracking-[1.3px] text-[var(--dusk-dim)]`}
+                  >
                     {byModel ? "Provider / model" : "Provider"}
                   </th>
                   {regions.map((region) => (
@@ -706,12 +723,14 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                       }
                     >
                       <th
-                        className={`sticky start-0 z-10 whitespace-nowrap rounded-[9px] px-3 py-2 text-start ${
+                        className={`sticky start-0 z-10 whitespace-nowrap bg-[#0b0c17] ${STICKY_COVER} px-3 py-2 text-start ${
                           row.isModel ? "font-normal" : "font-medium"
                         } ${
                           pinned
-                            ? "bg-[#1a1830] text-white"
-                            : `bg-[#0b0c17] ${row.isModel ? "text-[var(--dusk-mute)]" : "text-white"}`
+                            ? "text-white before:absolute before:inset-0 before:-z-10 before:rounded-[9px] before:bg-[#1a1830]"
+                            : row.isModel
+                              ? "text-[var(--dusk-mute)]"
+                              : "text-white"
                         }`}
                         scope="row"
                       >

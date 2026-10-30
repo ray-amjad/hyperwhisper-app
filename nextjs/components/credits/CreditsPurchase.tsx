@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -19,7 +19,7 @@ import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import { createBuyCreditsHandler } from "@/src/lib/buy-credits";
 import { reportClientError } from "@/lib/shared/report-client-error";
 import { ErrorReveal } from "@/components/ErrorReveal";
-import { PageHero } from "@/components/landing/DuskPage";
+import { PageHero, delay } from "@/components/landing/DuskPage";
 import { WRAP } from "@/components/landing/dusk";
 import {
   GLASS,
@@ -29,9 +29,6 @@ import {
 } from "@/components/landing/dusk-pages";
 
 const PRESETS = [5, 10] as const;
-
-/** `--d` is the entrance delay that `.dusk-enter` in globals.css reads. */
-const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
 /** Both fields: a dark well with a hairline edge that turns lavender on focus. */
 const INPUT_CLASS_NAMES = {

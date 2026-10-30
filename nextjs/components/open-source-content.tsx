@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { BTN_WHITE, WRAP } from "@/components/landing/dusk";
 import { GLASS, SECTION } from "@/components/landing/dusk-pages";
-import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import Reveal from "@/components/landing/Reveal";
 
 // The /open-source page body (#1059). It reads the `openSource` namespace with
@@ -64,8 +64,11 @@ export default function OpenSourceContent() {
       <section className={SECTION}>
         <div className={WRAP}>
           {/* The repository bar, lifted onto the bottom of the sky band. */}
-          <Reveal
-            className={`${GLASS} relative z-[3] -mt-[30px] flex flex-col gap-5 p-6 backdrop-blur-[14px] md:flex-row md:items-center md:justify-between md:px-7`}
+          {/* Above the fold, so a CSS entrance (it plays from the server
+              HTML), not a scroll Reveal that waits for hydration. */}
+          <div
+            className={`dusk-enter ${GLASS} relative z-[3] -mt-[30px] flex flex-col gap-5 p-6 backdrop-blur-[14px] md:flex-row md:items-center md:justify-between md:px-7`}
+            style={delay(320)}
           >
             <div className="flex min-w-0 items-center gap-4">
               <span
@@ -97,17 +100,17 @@ export default function OpenSourceContent() {
                 {t("cta")}
               </a>
             </div>
-          </Reveal>
+          </div>
 
-          <Reveal
-            as="p"
-            className={`mx-auto mt-14 max-w-3xl text-center text-base leading-[1.7] text-[var(--dusk-mute)] md:text-lg ${PROSE_LINKS}`}
+          <p
+            className={`dusk-enter mx-auto mt-14 max-w-3xl text-center text-base leading-[1.7] text-[var(--dusk-mute)] md:text-lg ${PROSE_LINKS}`}
+            style={delay(400)}
           >
             {t.rich("intro", {
               github: externalLink(GITHUB_URL),
               license: externalLink(LICENSE_URL),
             })}
-          </Reveal>
+          </p>
 
           <h2 className="mt-16 text-center text-2xl font-semibold tracking-[-0.02em] text-white md:text-[32px]">
             {t("whyHeading")}

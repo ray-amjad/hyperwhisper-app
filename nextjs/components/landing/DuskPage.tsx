@@ -4,7 +4,7 @@ import { WRAP } from "./dusk";
 import { PAGE_H1 } from "./dusk-pages";
 
 /** `--d` is the entrance delay that `.dusk-enter` in globals.css reads. */
-const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
+export const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
 const SKIES = {
   dusk: {

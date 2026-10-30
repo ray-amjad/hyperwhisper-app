@@ -391,8 +391,10 @@ export default function ModelPicker({ measured, regions }: Props) {
   return (
     <div className="grid grid-cols-1 items-start gap-[22px] lg:grid-cols-[340px_minmax(0,1fr)]">
       {/* ---------------- Controls ---------------- */}
-      {/* Sticks under the sticky site header, whose height LayoutWrapper publishes. */}
-      <div className="lg:sticky lg:top-[var(--site-header-offset,7.5rem)] lg:self-start">
+      {/* Sticks under the sticky site header, whose height LayoutWrapper publishes.
+          Capped at the viewport below that header (less a 1rem gap) and
+          scrollable, so the lower controls stay reachable on a short window. */}
+      <div className="lg:sticky lg:top-[var(--site-header-offset,7.5rem)] lg:max-h-[calc(100vh-var(--site-header-offset,7.5rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         <div className={`${GLASS} p-6 md:p-[26px]`}>
           <div className="flex items-baseline justify-between gap-3">
             <h2 className={LABEL}>Your 100 points</h2>

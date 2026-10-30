@@ -8,11 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, m } from "framer-motion";
 import { Download, Copy, Check, CheckCircle } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { DuskPage, PageHero } from "@/components/landing/DuskPage";
 import { BTN_LG, BTN_WHITE, WRAP } from "@/components/landing/dusk";
@@ -24,6 +23,7 @@ import {
 } from "@/components/landing/dusk-pages";
 import Reveal from "@/components/landing/Reveal";
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { Link } from "@/src/i18n/navigation";
 import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
@@ -183,7 +183,6 @@ export default function DownloadPage() {
   const t = useTranslations("downloadPage");
   const tNav = useTranslations("navbar");
   const tFooter = useTranslations("footer");
-  const locale = useLocale();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
     Record<Platform, { countdown: number; started: boolean }>
@@ -687,7 +686,7 @@ export default function DownloadPage() {
           </div>
 
           <Reveal className="mt-[34px] flex flex-wrap items-center justify-center gap-x-3.5 gap-y-2 text-[var(--dusk-dim)]">
-            <Link className={LINK_LAV} href={`/${locale}/older-versions`}>
+            <Link className={LINK_LAV} href="/older-versions">
               {tFooter("links.olderVersions")}
             </Link>
             <span aria-hidden="true">·</span>

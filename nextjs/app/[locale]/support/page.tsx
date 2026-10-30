@@ -5,9 +5,8 @@ import { useTranslations } from "next-intl";
 
 import { BTN_GLASS, BTN_WHITE, WRAP } from "@/components/landing/dusk";
 import { GLASS, LABEL, SECTION } from "@/components/landing/dusk-pages";
-import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import { GmailIcon, OutlookIcon } from "@/components/landing/MailClientIcons";
-import Reveal from "@/components/landing/Reveal";
 import { Link } from "@/src/i18n/navigation";
 
 const BTN_SIZE = "px-5 py-3 text-[15px]";
@@ -45,8 +44,12 @@ export default function SupportPage() {
         <div
           className={`${WRAP} relative z-[3] -mt-[30px] grid gap-[18px] lg:grid-cols-[1.3fr_1fr]`}
         >
-          <Reveal
-            className={`${GLASS} p-6 text-start backdrop-blur-[14px] md:p-9`}
+          {/* The whole contact block is above the fold, so it enters with
+              CSS (played from the server HTML), not a scroll Reveal that
+              waits for hydration. */}
+          <div
+            className={`dusk-enter ${GLASS} p-6 text-start backdrop-blur-[14px] md:p-9`}
+            style={delay(320)}
           >
             <span
               aria-hidden="true"
@@ -103,18 +106,18 @@ export default function SupportPage() {
               />
               <p className="text-sm">{t("responseTime")}</p>
             </div>
-          </Reveal>
+          </div>
 
           <ul className="grid content-start gap-3">
-            <Reveal as="li" delay={100}>
+            <li className="dusk-enter" style={delay(420)}>
               <a className={SIDE_ITEM} href="https://hyperwhisper.com/docs">
                 <SideItemBody
                   hint={t("helpCenterHint")}
                   title={tFooter("links.helpCenter")}
                 />
               </a>
-            </Reveal>
-            <Reveal as="li" delay={200}>
+            </li>
+            <li className="dusk-enter" style={delay(520)}>
               {/*
                 English-only page: the absolute /en/... with a native <a> and the
                 same English label the navbar and footer use (#1170).
@@ -125,15 +128,15 @@ export default function SupportPage() {
                   title="Choose a model"
                 />
               </a>
-            </Reveal>
-            <Reveal as="li" delay={300}>
+            </li>
+            <li className="dusk-enter" style={delay(620)}>
               <Link className={SIDE_ITEM} href="/user/sign-in">
                 <SideItemBody
                   hint={t("accountHint")}
                   title={tFooter("links.customerPortal")}
                 />
               </Link>
-            </Reveal>
+            </li>
           </ul>
         </div>
       </section>

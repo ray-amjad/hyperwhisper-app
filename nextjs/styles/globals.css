@@ -650,3 +650,16 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
     filter: none !important;
   }
 }
+
+/*
+  With JavaScript off, framer never runs, so a scroll Reveal stays at its
+  server-rendered hidden start. Show every one of them, on every page. A media
+  query rather than a <noscript><style>, so no CSS text lands in the markup.
+*/
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
