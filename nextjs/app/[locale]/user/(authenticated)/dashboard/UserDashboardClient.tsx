@@ -11,6 +11,13 @@ import {
 import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import {
+  ALERT_ERROR,
+  BTN_PRIMARY,
+  CARD,
+  PAGE_SUB,
+  PAGE_TITLE,
+} from "@/components/user/panel-styles";
 
 interface UserDashboardClientProps {
   user: {
@@ -54,8 +61,8 @@ export default function UserDashboardClient({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">{user.email}</p>
+        <h1 className={PAGE_TITLE}>Dashboard</h1>
+        <p className={`${PAGE_SUB} [overflow-wrap:anywhere]`}>{user.email}</p>
       </div>
 
       {/* The load error reveals (#2286) instead of arriving at full height in
@@ -65,10 +72,10 @@ export default function UserDashboardClient({
       <ErrorReveal gap="pb-6">
         {isLoading ? null : error ? (
           <div
-            className="bg-white/5 rounded-xl border border-white/10 p-5"
+            className={`${ALERT_ERROR} p-5`}
             role="alert"
           >
-            <p className="text-red-400 text-sm">{error.message}</p>
+            <p className="text-rose-300 text-sm">{error.message}</p>
           </div>
         ) : null}
       </ErrorReveal>
@@ -161,11 +168,11 @@ export default function UserDashboardClient({
                 <CreditHistoryCard gap="pt-6" />
               </>
             ) : (
-              <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
-                <p className="text-gray-400">No Account Keys found</p>
+              <div className={`${CARD} px-6 py-10 text-center`}>
+                <p className="text-[var(--dusk-mute)]">No Account Keys found</p>
                 <a
                   href="/"
-                  className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm mt-2 inline-block"
+                  className={`${BTN_PRIMARY} mt-5`}
                 >
                   Get an Account Key →
                 </a>
@@ -179,9 +186,9 @@ export default function UserDashboardClient({
       <BillingCard />
 
       {/* Help */}
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-[var(--dusk-dim)]">
         Need help?{" "}
-        <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white transition-colors">
+        <a href="mailto:hi@support.hyperwhisper.com" className="text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50">
           hi@support.hyperwhisper.com
         </a>
       </p>

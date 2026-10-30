@@ -30,13 +30,13 @@ const mutations = {
     expect: "cloud-credits-card-view + cloud-credits-card-error-state",
     apply: (s) =>
       s.replace(
-        `          {error && (
-            <div className="mt-2">
-              <span className="text-red-300 text-sm" role="alert">
-                {error}
-              </span>
-            </div>
-          )}
+        `            {error && (
+              <div className="mt-2">
+                <span className="text-rose-300 text-sm" role="alert">
+                  {error}
+                </span>
+              </div>
+            )}
 `,
         "",
       ),
@@ -98,14 +98,17 @@ const mutations = {
   },
   g: {
     file: WRAPPER,
-    describe: "restore origin/main:nextjs/.../CloudCreditsCard.tsx",
+    describe: "restore the pre-#737 CloudCreditsCard.tsx",
     expect: "cloud-credits-card-wiring + cloud-credits-card-error-state",
+    // Pinned to the parent of the #737 fix (8badd1dd, #947). It used to read
+    // origin/main, which has carried the fixed wrapper since #947 merged, so
+    // this row stopped applying at all ("anchor moved").
     apply: () =>
       execFileSync(
         "git",
         [
           "show",
-          "origin/main:nextjs/components/customer/dashboard/CloudCreditsCard.tsx",
+          "3d5e3d9f0aa229d27991446978121e9e3fd3270f:nextjs/components/customer/dashboard/CloudCreditsCard.tsx",
         ],
         { encoding: "utf8" },
       ),
@@ -229,11 +232,11 @@ const mutations = {
     apply: (s) =>
       s.replace(
         `        {labels.minutesRemaining && (
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="mt-2 text-sm text-[var(--dusk-mute)]">
             {labels.minutesRemaining}
           </p>
         )}`,
-        `        <p className="text-sm text-gray-400 mt-0.5">
+        `        <p className="mt-2 text-sm text-[var(--dusk-mute)]">
           {labels.minutesRemaining}
         </p>`,
       ),
