@@ -181,4 +181,22 @@ export default defineConfig([globalIgnores([
                 next: ["const", "let", "var"],
             }],
     },
+}, {
+    // The Worker entry is excluded from tsconfig (it imports the generated
+    // `.open-next/worker.js`), so the project service has no types for it.
+    files: ["worker.ts"],
+
+    languageOptions: {
+        parserOptions: {
+            projectService: false,
+        },
+    },
+
+    rules: {
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+    },
 }]);
