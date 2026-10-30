@@ -21,37 +21,30 @@ const STATS = [
 ] as const;
 
 /**
- * Counts up from 0 over 1.2 s (ease-out cubic) the first time it is 60% in
- * view. The server HTML carries the real figure, so a crawler or a reader
- * without JavaScript sees it. Reduce motion, or a figure already on screen at
- * mount, shows the final value with no count.
+ * Counts up from 0 over 1.2 s (ease-out cubic) as it enters view (15%, the
+ * same point its Reveal fades in). Until then it shows the real figure, as the
+ * server HTML does, so a crawler, a reader without JavaScript, and a jump that
+ * skips past the row never see 0. Reduce motion, or a figure already on screen
+ * at mount, shows the final value with no count.
  */
 function CountUp({ value, suffix }: { value: number; suffix: string }) {
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { amount: 0.6, once: true });
+  const inView = useInView(ref, { amount: 0.15, once: true });
   const reduceMotion = useReducedMotion();
   const [shown, setShown] = useState(value);
   const armed = useRef(false);
 
-  // Arm once, at mount, while the figure is still below the fold (and still
-  // hidden by its Reveal): park it at 0 so the count can play.
+  // Arm once, at mount, only if the figure starts below the fold.
   useEffect(() => {
     const el = ref.current;
 
-    if (reduceMotion || !el) return;
-    if (el.getBoundingClientRect().top > window.innerHeight) {
+    if (el && el.getBoundingClientRect().top > window.innerHeight) {
       armed.current = true;
-      setShown(0);
     }
-  }, [reduceMotion]);
+  }, []);
 
   useEffect(() => {
-    if (!inView || !armed.current) return;
-    if (reduceMotion) {
-      setShown(value);
-
-      return;
-    }
+    if (!inView || !armed.current || reduceMotion) return;
     let frame = 0;
     const start = performance.now();
     const tick = (now: number) => {

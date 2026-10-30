@@ -62,6 +62,10 @@ function Tile({
         big ? "sm:col-span-2 lg:col-span-3 lg:min-h-[250px]" : "lg:col-span-2"
       }`}
       delay={delay}
+      // Each tile triggers 800px before it reaches the viewport (#877): after
+      // a /#features jump (a ~700 ms smooth scroll) the rows a reader lands on
+      // are already in, not waiting for their own 15% entry.
+      margin="0px 0px 800px 0px"
     >
       <div className="mb-[18px] grid size-[38px] place-items-center rounded-[11px] bg-[rgba(196,181,253,.12)] text-[var(--dusk-lav)]">
         <Icon aria-hidden="true" className="size-[19px]" />
