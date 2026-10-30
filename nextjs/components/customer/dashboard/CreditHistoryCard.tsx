@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
+import { CARD, FOCUS_RING, LABEL, LINK_ACCENT } from "@/components/user/panel-styles";
 
 /**
  * Credit History Card
@@ -48,28 +49,28 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
     <div className={revealOnArrival ? "t-cell-reveal" : undefined}>
       <div>
         <div className={gap}>
-          <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-            <p className="text-sm text-gray-400 mb-4">Credit Purchases</p>
+          <div className={`${CARD} p-5 sm:p-6`}>
+            <p className={`${LABEL} mb-2`}>Credit Purchases</p>
 
-            <div className="space-y-3">
+            <div className="divide-y divide-[var(--dusk-line)]">
               {shown.map((grant) => (
                 <div
                   key={grant.id}
-                  className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0"
+                  className="flex items-center justify-between gap-4 py-3 last:pb-0"
                 >
                   <div className="min-w-0">
                     {/* <bdi> keeps the English number-and-word order on an RTL page (#1659). */}
-                    <p className="text-white font-medium">
+                    <p className="text-[var(--dusk-ink)] font-medium tabular-nums">
                       <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-[var(--dusk-dim)] mt-0.5">
                       <bdi>
                         {formatDate(grant.createdAt)}
                         {grant.expiresAt && (
                           <>
                             {" · "}
                             {grant.expired ? (
-                              <span className="text-red-400">
+                              <span className="text-rose-300">
                                 expired {formatDate(grant.expiresAt)}
                               </span>
                             ) : (
@@ -81,7 +82,7 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm text-gray-300">
+                    <p className="text-sm text-[var(--dusk-mute)] tabular-nums">
                       <bdi>
                         {grant.expired ? 0 : grant.remainingAmount.toLocaleString()}{" "}
                         left
@@ -94,7 +95,7 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
             {hidden > 0 ? (
               <button
                 aria-expanded={showAll}
-                className="mt-3 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                className={`mt-3 rounded text-sm ${FOCUS_RING} ${LINK_ACCENT}`}
                 type="button"
                 onClick={() => setShowAll((prev) => !prev)}
               >
