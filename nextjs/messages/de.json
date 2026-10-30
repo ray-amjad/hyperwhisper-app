@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Welche Offline-Modelle gibt es?",
-        "answer": "Für die Offline-Transkription bieten wir verschiedene Größen des Whisper-Modells an (von OpenAI, mit Unterstützung für 99+ Sprachen). Außerdem bieten wir die Parakeet-Modelle von NVIDIA an (mit Unterstützung für 25+ Sprachen).\n \n Für die Offline-Nachbearbeitung bieten wir verschiedene Größen des Gemma-3-Modells (von Google) an."
+        "answer": "Für die Offline-Transkription bieten wir verschiedene Größen des Whisper-Modells an (von OpenAI, mit Unterstützung für 99+ Sprachen). Außerdem bieten wir die Parakeet-Modelle von NVIDIA an (mit Unterstützung für 25+ Sprachen).\n \n Für die Offline-Nachbearbeitung bieten wir verschiedene Größen des Gemma-4-Modells (von Google) an."
       },
       "compatibility": {
         "question": "Funktioniert es mit allen meinen Apps?",

@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Model luar talian apa yang tersedia?",
-        "answer": "Untuk transkripsi luar talian, kami menawarkan pelbagai saiz model Whisper (dibangunkan oleh OpenAI, menyokong 99+ bahasa). Kami juga menawarkan model Parakeet daripada NVidia (menyokong 25+ bahasa).\n      \n      Untuk pascapemprosesan luar talian, kami menawarkan pelbagai saiz model Gemma 3 (dibangunkan oleh Google)."
+        "answer": "Untuk transkripsi luar talian, kami menawarkan pelbagai saiz model Whisper (dibangunkan oleh OpenAI, menyokong 99+ bahasa). Kami juga menawarkan model Parakeet daripada NVidia (menyokong 25+ bahasa).\n      \n      Untuk pascapemprosesan luar talian, kami menawarkan pelbagai saiz model Gemma 4 (dibangunkan oleh Google)."
       },
       "compatibility": {
         "question": "Adakah ia berfungsi dengan semua aplikasi saya?",

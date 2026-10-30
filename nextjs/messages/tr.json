@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Hangi çevrimdışı modeller mevcut?",
-        "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 3 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
+        "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 4 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
       },
       "compatibility": {
         "question": "Tüm uygulamalarımda çalışıyor mu?",

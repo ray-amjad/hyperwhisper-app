@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Jakie modele offline są dostępne?",
-        "answer": "Do transkrypcji offline oferujemy kilka rozmiarów modelu Whisper (stworzonego przez OpenAI, obsługującego 99+ języków). Oferujemy też modele Parakeet firmy NVidia (obsługujące 25+ języków).\n      \n      Do post-processingu offline oferujemy kilka rozmiarów modelu Gemma 3 (stworzonego przez Google)."
+        "answer": "Do transkrypcji offline oferujemy kilka rozmiarów modelu Whisper (stworzonego przez OpenAI, obsługującego 99+ języków). Oferujemy też modele Parakeet firmy NVidia (obsługujące 25+ języków).\n      \n      Do post-processingu offline oferujemy kilka rozmiarów modelu Gemma 4 (stworzonego przez Google)."
       },
       "compatibility": {
         "question": "Czy działa ze wszystkimi moimi aplikacjami?",

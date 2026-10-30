@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Aké offline modely sú k dispozícii?",
-        "answer": "Pre offline prepis ponúkame viacero veľkostí modelu Whisper (od OpenAI, podpora 99+ jazykov). Ponúkame aj modely Parakeet od NVidia (podpora 25+ jazykov).\n      \n      Pre offline následné spracovanie ponúkame viacero veľkostí modelu Gemma 3 (od Google)."
+        "answer": "Pre offline prepis ponúkame viacero veľkostí modelu Whisper (od OpenAI, podpora 99+ jazykov). Ponúkame aj modely Parakeet od NVidia (podpora 25+ jazykov).\n      \n      Pre offline následné spracovanie ponúkame viacero veľkostí modelu Gemma 4 (od Google)."
       },
       "compatibility": {
         "question": "Funguje to so všetkými mojimi aplikáciami?",

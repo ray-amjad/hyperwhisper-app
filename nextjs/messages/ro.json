@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Ce modele offline sunt disponibile?",
-        "answer": "Pentru transcriere offline, oferim mai multe dimensiuni ale modelului Whisper (creat de OpenAI, cu suport pentru 99+ limbi). Oferim și modelele Parakeet de la NVidia (cu suport pentru 25+ limbi).\n      \n      Pentru post-procesare offline, oferim mai multe dimensiuni ale modelului Gemma 3 (creat de Google)."
+        "answer": "Pentru transcriere offline, oferim mai multe dimensiuni ale modelului Whisper (creat de OpenAI, cu suport pentru 99+ limbi). Oferim și modelele Parakeet de la NVidia (cu suport pentru 25+ limbi).\n      \n      Pentru post-procesare offline, oferim mai multe dimensiuni ale modelului Gemma 4 (creat de Google)."
       },
       "compatibility": {
         "question": "Funcționează cu toate aplicațiile mele?",

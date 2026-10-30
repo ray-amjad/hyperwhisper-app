@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Kokie modeliai neprisijungus yra prieinami?",
-        "answer": "Transkripcijai neprisijungus siūlome kelis Whisper modelio dydžius (sukurtas OpenAI, palaiko 99+ kalbų). Taip pat siūlome NVidia Parakeet modelius (palaiko 25+ kalbų).\n      \n      Papildomam apdorojimui neprisijungus siūlome kelis Gemma 3 modelio dydžius (sukurtas Google)."
+        "answer": "Transkripcijai neprisijungus siūlome kelis Whisper modelio dydžius (sukurtas OpenAI, palaiko 99+ kalbų). Taip pat siūlome NVidia Parakeet modelius (palaiko 25+ kalbų).\n      \n      Papildomam apdorojimui neprisijungus siūlome kelis Gemma 4 modelio dydžius (sukurtas Google)."
       },
       "compatibility": {
         "question": "Ar veikia su visomis mano programomis?",

@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "利用できるオフラインモデルは何ですか？",
-        "answer": "オフライン文字起こしには、OpenAI製のWhisperモデル（複数サイズ、99言語以上に対応）と、NVIDIA製のParakeetモデル（25言語以上に対応）を提供しています。\n      \n      オフライン後処理には、Google製のGemma 3モデル（複数サイズ）を提供しています。"
+        "answer": "オフライン文字起こしには、OpenAI製のWhisperモデル（複数サイズ、99言語以上に対応）と、NVIDIA製のParakeetモデル（25言語以上に対応）を提供しています。\n      \n      オフライン後処理には、Google製のGemma 4モデル（複数サイズ）を提供しています。"
       },
       "compatibility": {
         "question": "お使いのすべてのアプリで使えますか？",

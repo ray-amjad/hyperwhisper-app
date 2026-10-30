@@ -142,7 +142,7 @@
       },
       "offlineModels": {
         "question": "Kateri modeli brez povezave so na voljo?",
-        "answer": "Za prepisovanje brez povezave ponujamo več velikosti modela Whisper (od OpenAI, podpira 99+ jezikov). Ponujamo tudi modele Parakeet podjetja NVidia (podpirajo 25+ jezikov).\n      \n      Za naknadno obdelavo brez povezave ponujamo več velikosti modela Gemma 3 (od Google)."
+        "answer": "Za prepisovanje brez povezave ponujamo več velikosti modela Whisper (od OpenAI, podpira 99+ jezikov). Ponujamo tudi modele Parakeet podjetja NVidia (podpirajo 25+ jezikov).\n      \n      Za naknadno obdelavo brez povezave ponujamo več velikosti modela Gemma 4 (od Google)."
       },
       "compatibility": {
         "question": "Ali deluje z vsemi mojimi aplikacijami?",
