@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
+import { ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
   BUCKET_LABELS,
@@ -103,6 +103,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // rather than jumping 500 px in one frame.
   const matrixRegion = useRef<HTMLDivElement>(null);
   const matrixTable = useRef<HTMLTableElement>(null);
+  // The sticky Provider header (#1120): its width is the strip of the region a
+  // focused column header must not scroll under.
+  const stickyHeader = useRef<HTMLTableCellElement>(null);
   // The re-sort FLIP (#812): where each row stood just before a re-order, and
   // the slides in flight.
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -164,16 +167,23 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // starts from there. The first report only pins the height it already has.
   // The region is observed too: a horizontal scrollbar that comes or goes
   // changes its chrome (border + scrollbar) without changing the table.
+  // The same pass keeps the region's scroll-padding-left at the sticky
+  // Provider column's width (#1120), so a column header that takes focus on
+  // Shift+Tab scrolls into view beside that column, not under it. The column
+  // widens with "Break down by model", so it is measured, not a fixed class.
   useEffect(() => {
     const region = matrixRegion.current;
     const table = matrixTable.current;
-    if (!region || !table) return;
+    const sticky = stickyHeader.current;
+    if (!region || !table || !sticky) return;
     const observer = new ResizeObserver(() => {
       const chrome = region.offsetHeight - region.clientHeight;
       region.style.height = `${table.offsetHeight + chrome}px`;
+      region.style.scrollPaddingLeft = `${sticky.offsetWidth}px`;
     });
     observer.observe(table);
     observer.observe(region);
+    observer.observe(sticky);
 
     return () => observer.disconnect();
   }, [hasData]);
@@ -426,11 +436,15 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => setByModel((open) => !open)}
               >
-                {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-                )}
+                {/* One chevron that turns (#988), the way the FAQ and Devices
+                    disclosures do, not a second glyph swapped in. */}
+                <ChevronRight
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ease-[cubic-bezier(0.2,0,0,1)] ${
+                    byModel ? "rotate-90" : ""
+                  }`}
+                  strokeWidth={1.5}
+                />
                 Break down by model
               </button>
             </div>
@@ -543,7 +557,10 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             <table ref={matrixTable} className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
+                  <th
+                    ref={stickyHeader}
+                    className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400"
+                  >
                     {byModel ? "Provider / model" : "Provider"}
                   </th>
                   {regions.map((region) => (
@@ -556,8 +573,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                       } ${hover?.region === region ? "bg-gray-900" : ""}`}
                       scope="col"
                     >
+                      {/* scroll-ml-3 is the cell's own px-3: a focused
+                          header lands with its whole cell clear of the sticky
+                          column (#1120), focus ring included. */}
                       <button
-                        className="whitespace-nowrap transition hover:text-white"
+                        className="scroll-ml-3 whitespace-nowrap transition hover:text-white"
                         title={`Sort providers by ${regionCity(region)}`}
                         type="button"
                         onClick={() => {
@@ -626,7 +646,21 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                               )
                             }
                           >
-                            {pinned ? <Pin className="h-3 w-3" /> : null}
+                            {/* The pin keeps its 12px slot in both states and
+                                cross-fades in it (#931), so pinning never moves
+                                the name; the row's purple stays the main cue. */}
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                            >
+                              <Pin
+                                className={`h-3 w-3 transition-[opacity,filter,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+                                  pinned
+                                    ? "scale-100 opacity-100"
+                                    : "scale-[0.25] opacity-0 blur-[4px]"
+                                }`}
+                              />
+                            </span>
                             {row.label}
                           </button>
                         )}
