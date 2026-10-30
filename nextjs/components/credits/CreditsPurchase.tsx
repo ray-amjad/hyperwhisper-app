@@ -41,7 +41,7 @@ const INPUT_CLASS_NAMES = {
 };
 
 const AMOUNT_TILE =
-  "cursor-pointer rounded-2xl border p-3 text-start transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] sm:p-4 [overflow-wrap:anywhere]";
+  "cursor-pointer rounded-2xl border p-3 text-start transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] sm:p-4 hyphens-auto [overflow-wrap:break-word]";
 const AMOUNT_ON = "border-white bg-white/[.07]";
 const AMOUNT_OFF =
   "border-[var(--dusk-line)] bg-white/[.02] hover:border-white/25";
@@ -295,7 +295,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                       arrow-key roving focus. */}
                   <div
                     aria-labelledby={amountLabelId}
-                    className="mt-2.5 grid grid-cols-3 gap-2.5"
+                    className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3"
                     role="group"
                   >
                     {PRESETS.map((value) => {
@@ -322,7 +322,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                     })}
                     <button
                       aria-pressed={isCustom}
-                      className={`${AMOUNT_TILE} ${isCustom ? AMOUNT_ON : AMOUNT_OFF}`}
+                      className={`${AMOUNT_TILE} col-span-2 sm:col-span-1 ${isCustom ? AMOUNT_ON : AMOUNT_OFF}`}
                       type="button"
                       onClick={() => setIsCustom(true)}
                     >
