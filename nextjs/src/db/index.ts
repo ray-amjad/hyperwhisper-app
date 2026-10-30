@@ -97,7 +97,7 @@ function currentDb(): Db {
 export const db: Db = new Proxy({} as Db, {
   get(_target, property) {
     const instance = currentDb();
-    const value = Reflect.get(instance, property, instance);
+    const value: unknown = Reflect.get(instance, property, instance);
 
     return typeof value === "function" ? value.bind(instance) : value;
   },
