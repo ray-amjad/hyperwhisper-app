@@ -182,9 +182,10 @@ export default defineConfig([globalIgnores([
             }],
     },
 }, {
-    // The Worker entry is excluded from tsconfig (it imports the generated
-    // `.open-next/worker.js`), so the project service has no types for it.
-    files: ["worker.ts"],
+    // tsconfig excludes the Worker entry (it imports the generated
+    // `.open-next/worker.js`) and the `npm run cf-typegen` output, so the
+    // project service has no types for either.
+    files: ["worker.ts", "worker-configuration.d.ts"],
 
     languageOptions: {
         parserOptions: {
