@@ -97,3 +97,17 @@ export const accountKeyRotateRateLimiter = cloudflareLimiter(
   "RATE_LIMIT_ACCOUNT_KEY_ROTATE",
   60,
 );
+
+/**
+ * `customer.issueAccountKey` and `customer.deleteAccountKey`, per user: one
+ * budget for both. Keyed by the signed-in user id, like rotation.
+ *
+ * Each call writes a key row and sends an email (a delete also signs the
+ * user's other browsers out), so a loop is bounded; the live-key cap
+ * (`MAX_LIVE_ACCOUNT_KEYS`) bounds the rows themselves. 5 per user per minute:
+ * room to tidy up a few old keys in one sitting, not to script it.
+ */
+export const accountKeyManageRateLimiter = cloudflareLimiter(
+  "RATE_LIMIT_ACCOUNT_KEY_MANAGE",
+  60,
+);

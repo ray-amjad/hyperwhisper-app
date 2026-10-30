@@ -71,6 +71,7 @@ describe("wrangler.jsonc ratelimits", () => {
     ["RATE_LIMIT_LATENCY_INGEST", 6000],
     ["RATE_LIMIT_CHECKOUT", 10],
     ["RATE_LIMIT_ACCOUNT_KEY_ROTATE", 1],
+    ["RATE_LIMIT_ACCOUNT_KEY_MANAGE", 5],
   ];
 
   for (const [name, limit] of SITE_LIMITS) {
