@@ -425,7 +425,8 @@
     "issueErrorUnavailable": "Only an account with an active key can add another one.",
     "issueErrorGeneric": "Couldn't add a key. Please try again.",
     "manageErrorRateLimited": "Too many key changes. Please try again in a minute.",
-    "cloudPurgePending": "The old key may keep working in HyperWhisper Cloud for up to an hour."
+    "cloudPurgePending": "The old key may keep working in HyperWhisper Cloud for up to an hour.",
+    "deleteCloudPurgePending": "This key may keep working in HyperWhisper Cloud for up to an hour."
   },
   "notFound": {
     "title": "Page not found",

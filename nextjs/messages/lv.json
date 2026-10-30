@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Citu atslēgu var pievienot tikai konts ar aktīvu atslēgu.",
     "issueErrorGeneric": "Neizdevās pievienot atslēgu. Lūdzu, mēģiniet vēlreiz.",
     "manageErrorRateLimited": "Pārāk daudz atslēgu izmaiņu. Lūdzu, mēģiniet vēlreiz pēc minūtes.",
-    "cloudPurgePending": "Vecā atslēga HyperWhisper Cloud var darboties vēl līdz vienai stundai."
+    "cloudPurgePending": "Vecā atslēga HyperWhisper Cloud var darboties vēl līdz vienai stundai.",
+    "deleteCloudPurgePending": "Šī atslēga HyperWhisper Cloud var darboties vēl līdz vienai stundai."
   },
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",

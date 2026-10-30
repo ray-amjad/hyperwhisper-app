@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Hanya akaun yang mempunyai kunci aktif boleh menambah kunci lain.",
     "issueErrorGeneric": "Tidak dapat menambah kunci. Sila cuba lagi.",
     "manageErrorRateLimited": "Terlalu banyak perubahan kunci. Sila cuba lagi dalam seminit.",
-    "cloudPurgePending": "Kunci lama mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam."
+    "cloudPurgePending": "Kunci lama mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam.",
+    "deleteCloudPurgePending": "Kunci ini mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",

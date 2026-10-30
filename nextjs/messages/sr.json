@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Samo nalog sa aktivnim ključem može da doda još jedan.",
     "issueErrorGeneric": "Dodavanje ključa nije uspelo. Pokušajte ponovo.",
     "manageErrorRateLimited": "Previše promena ključeva. Pokušajte ponovo za minut.",
-    "cloudPurgePending": "Stari ključ može da radi u HyperWhisper Cloudu još do sat vremena."
+    "cloudPurgePending": "Stari ključ može da radi u HyperWhisper Cloudu još do sat vremena.",
+    "deleteCloudPurgePending": "Ovaj ključ može da radi u HyperWhisper Cloudu još do sat vremena."
   },
   "openSource": {
     "heading": "Otvoreni kod. Nema sta da se krije.",

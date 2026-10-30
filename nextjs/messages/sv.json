@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Endast ett konto med en aktiv nyckel kan lägga till ytterligare en.",
     "issueErrorGeneric": "Det gick inte att lägga till en nyckel. Försök igen.",
     "manageErrorRateLimited": "För många nyckeländringar. Försök igen om en minut.",
-    "cloudPurgePending": "Den gamla nyckeln kan fortsätta fungera i HyperWhisper Cloud i upp till en timme."
+    "cloudPurgePending": "Den gamla nyckeln kan fortsätta fungera i HyperWhisper Cloud i upp till en timme.",
+    "deleteCloudPurgePending": "Den här nyckeln kan fortsätta fungera i HyperWhisper Cloud i upp till en timme."
   },
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",

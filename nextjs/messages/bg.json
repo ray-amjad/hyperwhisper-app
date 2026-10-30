@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Само акаунт с активен ключ може да добави още един.",
     "issueErrorGeneric": "Ключът не можа да бъде добавен. Опитайте отново.",
     "manageErrorRateLimited": "Твърде много промени на ключове. Опитайте отново след минута.",
-    "cloudPurgePending": "Старият ключ може да продължи да работи в HyperWhisper Cloud до един час."
+    "cloudPurgePending": "Старият ключ може да продължи да работи в HyperWhisper Cloud до един час.",
+    "deleteCloudPurgePending": "Този ключ може да продължи да работи в HyperWhisper Cloud до един час."
   },
   "openSource": {
     "heading": "Отворен код. Нищо за криене.",

@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Uue võtme saab lisada ainult konto, millel on aktiivne võti.",
     "issueErrorGeneric": "Võtit ei õnnestunud lisada. Proovi uuesti.",
     "manageErrorRateLimited": "Liiga palju võtmemuudatusi. Proovi minuti pärast uuesti.",
-    "cloudPurgePending": "Vana võti võib HyperWhisper Cloudis veel kuni tund aega töötada."
+    "cloudPurgePending": "Vana võti võib HyperWhisper Cloudis veel kuni tund aega töötada.",
+    "deleteCloudPurgePending": "See võti võib HyperWhisper Cloudis veel kuni tund aega töötada."
   },
   "openSource": {
     "heading": "Avatud lähtekood. Midagi pole varjata.",

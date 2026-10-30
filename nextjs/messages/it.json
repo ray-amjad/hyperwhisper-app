@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Solo un account con una chiave attiva può aggiungerne un'altra.",
     "issueErrorGeneric": "Impossibile aggiungere la chiave. Riprova.",
     "manageErrorRateLimited": "Troppe modifiche alle chiavi. Riprova tra un minuto.",
-    "cloudPurgePending": "La vecchia chiave potrebbe continuare a funzionare in HyperWhisper Cloud fino a un'ora."
+    "cloudPurgePending": "La vecchia chiave potrebbe continuare a funzionare in HyperWhisper Cloud fino a un'ora.",
+    "deleteCloudPurgePending": "Questa chiave potrebbe continuare a funzionare in HyperWhisper Cloud fino a un'ora."
   },
   "openSource": {
     "heading": "Open source. Niente da nascondere.",

@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Kun en konto med en aktiv nøgle kan tilføje en ny.",
     "issueErrorGeneric": "Nøglen kunne ikke tilføjes. Prøv igen.",
     "manageErrorRateLimited": "For mange nøgleændringer. Prøv igen om et minut.",
-    "cloudPurgePending": "Den gamle nøgle kan blive ved med at virke i HyperWhisper Cloud i op til en time."
+    "cloudPurgePending": "Den gamle nøgle kan blive ved med at virke i HyperWhisper Cloud i op til en time.",
+    "deleteCloudPurgePending": "Denne nøgle kan blive ved med at virke i HyperWhisper Cloud i op til en time."
   },
   "openSource": {
     "heading": "Åben kildekode. Intet at skjule.",

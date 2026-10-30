@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "เฉพาะบัญชีที่มีคีย์ที่ใช้งานอยู่เท่านั้นที่เพิ่มคีย์อื่นได้",
     "issueErrorGeneric": "เพิ่มคีย์ไม่สำเร็จ โปรดลองอีกครั้ง",
     "manageErrorRateLimited": "เปลี่ยนแปลงคีย์บ่อยเกินไป โปรดลองอีกครั้งในอีกหนึ่งนาที",
-    "cloudPurgePending": "คีย์เดิมอาจยังใช้งานได้ใน HyperWhisper Cloud ได้นานสูงสุดหนึ่งชั่วโมง"
+    "cloudPurgePending": "คีย์เดิมอาจยังใช้งานได้ใน HyperWhisper Cloud ได้นานสูงสุดหนึ่งชั่วโมง",
+    "deleteCloudPurgePending": "คีย์นี้อาจยังใช้งานได้ใน HyperWhisper Cloud ได้นานสูงสุดหนึ่งชั่วโมง"
   },
   "openSource": {
     "heading": "โอเพนซอร์ส ไม่มีอะไรต้องปิดบัง",

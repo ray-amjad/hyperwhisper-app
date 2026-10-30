@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "只有拥有有效密钥的账户才能再添加密钥。",
     "issueErrorGeneric": "无法添加密钥，请重试。",
     "manageErrorRateLimited": "密钥变更次数过多，请一分钟后再试。",
-    "cloudPurgePending": "旧密钥在 HyperWhisper Cloud 中可能仍可使用最多一小时。"
+    "cloudPurgePending": "旧密钥在 HyperWhisper Cloud 中可能仍可使用最多一小时。",
+    "deleteCloudPurgePending": "此密钥在 HyperWhisper Cloud 中可能仍可使用最多一小时。"
   },
   "openSource": {
     "heading": "开源，无所隐藏。",

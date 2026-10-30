@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Chỉ tài khoản có khóa đang hoạt động mới có thể thêm khóa khác.",
     "issueErrorGeneric": "Không thể thêm khóa. Vui lòng thử lại.",
     "manageErrorRateLimited": "Bạn đã thay đổi khóa quá nhiều lần. Vui lòng thử lại sau một phút.",
-    "cloudPurgePending": "Khóa cũ có thể vẫn hoạt động trong HyperWhisper Cloud tối đa một giờ."
+    "cloudPurgePending": "Khóa cũ có thể vẫn hoạt động trong HyperWhisper Cloud tối đa một giờ.",
+    "deleteCloudPurgePending": "Khóa này có thể vẫn hoạt động trong HyperWhisper Cloud tối đa một giờ."
   },
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",

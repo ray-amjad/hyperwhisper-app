@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Μόνο ένας λογαριασμός με ενεργό κλειδί μπορεί να προσθέσει άλλο.",
     "issueErrorGeneric": "Δεν ήταν δυνατή η προσθήκη κλειδιού. Δοκιμάστε ξανά.",
     "manageErrorRateLimited": "Πάρα πολλές αλλαγές κλειδιών. Δοκιμάστε ξανά σε ένα λεπτό.",
-    "cloudPurgePending": "Το παλιό κλειδί μπορεί να συνεχίσει να λειτουργεί στο HyperWhisper Cloud για έως μία ώρα."
+    "cloudPurgePending": "Το παλιό κλειδί μπορεί να συνεχίσει να λειτουργεί στο HyperWhisper Cloud για έως μία ώρα.",
+    "deleteCloudPurgePending": "Αυτό το κλειδί μπορεί να συνεχίσει να λειτουργεί στο HyperWhisper Cloud για έως μία ώρα."
   },
   "openSource": {
     "heading": "Ανοιχτός κώδικας. Τίποτα να κρύψουμε.",

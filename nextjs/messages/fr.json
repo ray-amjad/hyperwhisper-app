@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Seul un compte disposant d'une clé active peut en ajouter une autre.",
     "issueErrorGeneric": "Impossible d'ajouter une clé. Veuillez réessayer.",
     "manageErrorRateLimited": "Trop de modifications de clés. Veuillez réessayer dans une minute.",
-    "cloudPurgePending": "L'ancienne clé peut continuer à fonctionner dans HyperWhisper Cloud pendant une heure au maximum."
+    "cloudPurgePending": "L'ancienne clé peut continuer à fonctionner dans HyperWhisper Cloud pendant une heure au maximum.",
+    "deleteCloudPurgePending": "Cette clé peut continuer à fonctionner dans HyperWhisper Cloud pendant une heure au maximum."
   },
   "openSource": {
     "heading": "Open source. Rien à cacher.",

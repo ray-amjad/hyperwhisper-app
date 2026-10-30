@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Doar un cont cu o cheie activă poate adăuga încă una.",
     "issueErrorGeneric": "Cheia nu a putut fi adăugată. Încearcă din nou.",
     "manageErrorRateLimited": "Prea multe modificări ale cheilor. Încearcă din nou peste un minut.",
-    "cloudPurgePending": "Cheia veche poate funcționa în continuare în HyperWhisper Cloud timp de până la o oră."
+    "cloudPurgePending": "Cheia veche poate funcționa în continuare în HyperWhisper Cloud timp de până la o oră.",
+    "deleteCloudPurgePending": "Această cheie poate funcționa în continuare în HyperWhisper Cloud timp de până la o oră."
   },
   "openSource": {
     "heading": "Sursă deschisă. Nimic de ascuns.",

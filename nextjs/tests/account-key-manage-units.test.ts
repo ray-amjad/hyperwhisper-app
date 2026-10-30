@@ -403,3 +403,34 @@ describe("the Account Keys card's one notice: only the latest line shows", () =>
     assert.deepEqual(onScreen(mod, postKeyCardNotice(added, NOTICE_AT.issue, null)), []);
   });
 });
+
+describe("the unconfirmed-purge line names the right key", () => {
+  test("every locale has a delete line apart from the rotation line, and the dashboard uses it", async () => {
+    const { readFileSync, readdirSync } = await import("node:fs");
+    const dir = new URL("../messages/", import.meta.url);
+
+    for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+      const card = JSON.parse(readFileSync(new URL(file, dir), "utf8")).licenseKeysCard as Record<
+        string,
+        string
+      >;
+
+      assert.ok(card.cloudPurgePending, `${file}: cloudPurgePending`);
+      assert.ok(card.deleteCloudPurgePending, `${file}: deleteCloudPurgePending`);
+      assert.notEqual(card.deleteCloudPurgePending, card.cloudPurgePending, file);
+    }
+
+    const en = JSON.parse(readFileSync(new URL("en.json", dir), "utf8")).licenseKeysCard;
+
+    assert.match(en.deleteCloudPurgePending, /^This key may keep working/);
+    assert.match(en.cloudPurgePending, /^The old key may keep working/);
+
+    const dashboard = readFileSync(
+      new URL("../app/[locale]/user/(authenticated)/dashboard/UserDashboardClient.tsx", import.meta.url),
+      "utf8",
+    );
+
+    assert.ok(dashboard.includes('t("deleteCloudPurgePending")'), "delete uses its own line");
+    assert.ok(!dashboard.includes('t("cloudPurgePending")'), "not the rotation line");
+  });
+});

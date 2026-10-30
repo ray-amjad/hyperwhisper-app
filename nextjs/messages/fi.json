@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Vain tili, jolla on aktiivinen avain, voi lisätä uuden.",
     "issueErrorGeneric": "Avaimen lisääminen epäonnistui. Yritä uudelleen.",
     "manageErrorRateLimited": "Liian monta avainmuutosta. Yritä uudelleen minuutin kuluttua.",
-    "cloudPurgePending": "Vanha avain voi toimia HyperWhisper Cloudissa vielä enintään tunnin."
+    "cloudPurgePending": "Vanha avain voi toimia HyperWhisper Cloudissa vielä enintään tunnin.",
+    "deleteCloudPurgePending": "Tämä avain voi toimia HyperWhisper Cloudissa vielä enintään tunnin."
   },
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",

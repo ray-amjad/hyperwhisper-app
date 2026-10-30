@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Добавить ещё один ключ может только аккаунт с активным ключом.",
     "issueErrorGeneric": "Не удалось добавить ключ. Повторите попытку.",
     "manageErrorRateLimited": "Слишком много изменений ключей. Повторите попытку через минуту.",
-    "cloudPurgePending": "Старый ключ может ещё до часа работать в HyperWhisper Cloud."
+    "cloudPurgePending": "Старый ключ может ещё до часа работать в HyperWhisper Cloud.",
+    "deleteCloudPurgePending": "Этот ключ может ещё до часа работать в HyperWhisper Cloud."
   },
   "openSource": {
     "heading": "Открытый код. Скрывать нечего.",

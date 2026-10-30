@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Samo račun z aktivnim ključem lahko doda še enega.",
     "issueErrorGeneric": "Ključa ni bilo mogoče dodati. Poskusite znova.",
     "manageErrorRateLimited": "Preveč sprememb ključev. Poskusite znova čez minuto.",
-    "cloudPurgePending": "Stari ključ lahko v HyperWhisper Cloud deluje še največ eno uro."
+    "cloudPurgePending": "Stari ključ lahko v HyperWhisper Cloud deluje še največ eno uro.",
+    "deleteCloudPurgePending": "Ta ključ lahko v HyperWhisper Cloud deluje še največ eno uro."
   },
   "openSource": {
     "heading": "Odprta koda. Nicesar za skrivati.",

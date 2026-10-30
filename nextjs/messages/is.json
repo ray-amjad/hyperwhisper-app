@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Aðeins aðgangur með virkan lykil getur bætt við öðrum.",
     "issueErrorGeneric": "Ekki tókst að bæta við lykli. Reyndu aftur.",
     "manageErrorRateLimited": "Of margar lyklabreytingar. Reyndu aftur eftir mínútu.",
-    "cloudPurgePending": "Gamli lykillinn gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund."
+    "cloudPurgePending": "Gamli lykillinn gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund.",
+    "deleteCloudPurgePending": "Þessi lykill gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund."
   },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",

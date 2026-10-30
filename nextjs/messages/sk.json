@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Ďalší kľúč môže pridať iba účet s aktívnym kľúčom.",
     "issueErrorGeneric": "Kľúč sa nepodarilo pridať. Skúste to znova.",
     "manageErrorRateLimited": "Príliš veľa zmien kľúčov. Skúste to znova o minútu.",
-    "cloudPurgePending": "Starý kľúč môže v HyperWhisper Cloud fungovať ešte až hodinu."
+    "cloudPurgePending": "Starý kľúč môže v HyperWhisper Cloud fungovať ešte až hodinu.",
+    "deleteCloudPurgePending": "Tento kľúč môže v HyperWhisper Cloud fungovať ešte až hodinu."
   },
   "openSource": {
     "heading": "Otvorený kód. Nič na skrývanie.",

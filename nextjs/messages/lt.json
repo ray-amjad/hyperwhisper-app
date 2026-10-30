@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Pridėti kitą raktą gali tik paskyra, turinti aktyvų raktą.",
     "issueErrorGeneric": "Nepavyko pridėti rakto. Bandykite dar kartą.",
     "manageErrorRateLimited": "Per daug raktų pakeitimų. Bandykite dar kartą po minutės.",
-    "cloudPurgePending": "Senas raktas HyperWhisper Cloud gali veikti dar iki valandos."
+    "cloudPurgePending": "Senas raktas HyperWhisper Cloud gali veikti dar iki valandos.",
+    "deleteCloudPurgePending": "Šis raktas HyperWhisper Cloud gali veikti dar iki valandos."
   },
   "openSource": {
     "heading": "Atvirasis kodas. Nėra ko slėpti.",

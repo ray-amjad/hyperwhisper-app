@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "只有擁有有效金鑰的帳戶才能再新增金鑰。",
     "issueErrorGeneric": "無法新增金鑰，請再試一次。",
     "manageErrorRateLimited": "金鑰變更次數過多，請一分鐘後再試。",
-    "cloudPurgePending": "舊金鑰在 HyperWhisper Cloud 中可能仍可使用最多一小時。"
+    "cloudPurgePending": "舊金鑰在 HyperWhisper Cloud 中可能仍可使用最多一小時。",
+    "deleteCloudPurgePending": "此金鑰在 HyperWhisper Cloud 中可能仍可使用最多一小時。"
   },
   "openSource": {
     "heading": "開放原始碼，無所隱藏。",

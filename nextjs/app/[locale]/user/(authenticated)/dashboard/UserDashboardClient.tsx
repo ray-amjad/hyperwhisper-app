@@ -208,7 +208,7 @@ export default function UserDashboardClient({
                                 NOTICE_AT.card,
                                 cloudCleared
                                   ? t("deleted")
-                                  : `${t("deleted")} ${t("cloudPurgePending")}`,
+                                  : `${t("deleted")} ${t("deleteCloudPurgePending")}`,
                               ),
                             )
                           }

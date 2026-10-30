@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Alleen een account met een actieve sleutel kan er nog een toevoegen.",
     "issueErrorGeneric": "Kan geen sleutel toevoegen. Probeer het opnieuw.",
     "manageErrorRateLimited": "Te veel sleutelwijzigingen. Probeer het over een minuut opnieuw.",
-    "cloudPurgePending": "De oude sleutel kan nog maximaal een uur werken in HyperWhisper Cloud."
+    "cloudPurgePending": "De oude sleutel kan nog maximaal een uur werken in HyperWhisper Cloud.",
+    "deleteCloudPurgePending": "Deze sleutel kan nog maximaal een uur werken in HyperWhisper Cloud."
   },
   "openSource": {
     "heading": "Open source. Niets te verbergen.",

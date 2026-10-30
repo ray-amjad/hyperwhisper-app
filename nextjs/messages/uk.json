@@ -398,7 +398,8 @@
     "issueErrorUnavailable": "Додати ще один ключ може лише обліковий запис з активним ключем.",
     "issueErrorGeneric": "Не вдалося додати ключ. Спробуйте ще раз.",
     "manageErrorRateLimited": "Забагато змін ключів. Спробуйте ще раз за хвилину.",
-    "cloudPurgePending": "Старий ключ може ще до години працювати в HyperWhisper Cloud."
+    "cloudPurgePending": "Старий ключ може ще до години працювати в HyperWhisper Cloud.",
+    "deleteCloudPurgePending": "Цей ключ може ще до години працювати в HyperWhisper Cloud."
   },
   "openSource": {
     "heading": "Відкритий код. Нічого приховувати.",
