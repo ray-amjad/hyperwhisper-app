@@ -85,7 +85,9 @@ async function findTopUpAccount(
  * it as before. With no live sibling (an admin revoked the rest), the deleted
  * row is returned and refused too.
  */
-async function liveSiblingIfDeleted(row: AccountKeyRow): Promise<AccountKeyRow> {
+async function liveSiblingIfDeleted(
+  row: AccountKeyRow,
+): Promise<AccountKeyRow> {
   if (row.status !== ACCOUNT_KEY_DELETED_STATUS) return row;
 
   const live = (await getAccountKeysByEmail(row.email)).find(

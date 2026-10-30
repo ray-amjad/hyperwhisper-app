@@ -121,7 +121,10 @@ async function gate(
   const userEmail = ctx.user.email?.toLowerCase();
 
   if (!userEmail) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "User email not found" });
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "User email not found",
+    });
   }
 
   if (!canRotateAccountKeys(ctx.signInMethod)) {
@@ -174,13 +177,19 @@ export async function issueKeyForCaller(
 
   switch (result.status) {
     case "no_live_key":
-      logManage(event, "rejected", { reason: "no_live_key", userId: ctx.user.id });
+      logManage(event, "rejected", {
+        reason: "no_live_key",
+        userId: ctx.user.id,
+      });
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message: MANAGE_KEY_ERRORS.noLiveKey,
       });
     case "cap_reached":
-      logManage(event, "rejected", { reason: "cap_reached", userId: ctx.user.id });
+      logManage(event, "rejected", {
+        reason: "cap_reached",
+        userId: ctx.user.id,
+      });
       throw new TRPCError({
         code: "CONFLICT",
         message: MANAGE_KEY_ERRORS.capReached,
@@ -261,7 +270,11 @@ export async function deleteKeyForCaller(
     code: TRPCError["code"],
     message: string,
   ): never => {
-    logManage(event, "rejected", { reason, userId: ctx.user.id, licenseId: input.id });
+    logManage(event, "rejected", {
+      reason,
+      userId: ctx.user.id,
+      licenseId: input.id,
+    });
     throw new TRPCError({ code, message });
   };
 
@@ -275,7 +288,11 @@ export async function deleteKeyForCaller(
     case "stale":
       return reject("stale", "CONFLICT", MANAGE_KEY_ERRORS.stale);
     case "last_key":
-      return reject("last_key", "PRECONDITION_FAILED", MANAGE_KEY_ERRORS.lastKey);
+      return reject(
+        "last_key",
+        "PRECONDITION_FAILED",
+        MANAGE_KEY_ERRORS.lastKey,
+      );
     case "deleted":
       break;
   }

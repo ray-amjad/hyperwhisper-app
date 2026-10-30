@@ -469,7 +469,8 @@ export async function deleteAccountKey(input: {
       return { status: "not_found" } as const;
     }
     if (row.status !== "granted") return { status: "not_granted" } as const;
-    if (row.key !== input.expectedKey.trim()) return { status: "stale" } as const;
+    if (row.key !== input.expectedKey.trim())
+      return { status: "stale" } as const;
 
     const live = await lockLiveKeys(tx, input.userId, email);
 
@@ -487,7 +488,10 @@ export async function deleteAccountKey(input: {
       .where(eq(deviceValidations.licenseKeyId, row.id))
       .returning({ id: deviceValidations.id });
 
-    await revokeWebAccess(row.userId, { tx, keepSessionId: input.keepSessionId });
+    await revokeWebAccess(row.userId, {
+      tx,
+      keepSessionId: input.keepSessionId,
+    });
 
     return {
       status: "deleted",
