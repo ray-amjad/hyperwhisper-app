@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import Reveal from "./Reveal";
+import { usePageVisible } from "./use-page-visible";
 
 const MODES = ["email", "note", "code", "meeting", "legal", "medical"] as const;
 
@@ -22,17 +23,18 @@ export default function ModesShowcase() {
   const reduceMotion = useReducedMotion();
   const boxRef = useRef<HTMLDivElement>(null);
   const inView = useInView(boxRef, { amount: 0.4 });
+  const pageVisible = usePageVisible();
   const [active, setActive] = useState<Mode>("email");
   const [picked, setPicked] = useState(false);
 
   useEffect(() => {
-    if (reduceMotion || picked || !inView) return;
+    if (reduceMotion || picked || !inView || !pageVisible) return;
     const id = window.setInterval(() => {
       setActive((m) => MODES[(MODES.indexOf(m) + 1) % MODES.length]);
     }, 3200);
 
     return () => window.clearInterval(id);
-  }, [reduceMotion, picked, inView]);
+  }, [reduceMotion, picked, inView, pageVisible]);
 
   return (
     <section className="pb-24 pt-10 md:pb-[140px]" id="modes">
@@ -81,7 +83,6 @@ export default function ModesShowcase() {
                 {t("sample")}
               </div>
               <div
-                aria-live={picked ? "polite" : "off"}
                 className="rounded-2xl border border-[rgba(196,181,253,.18)] bg-[#0f1228] px-5 py-[18px] text-[15px] leading-[1.55]"
                 id="modes-output"
               >
@@ -89,12 +90,12 @@ export default function ModesShowcase() {
                   {t("hyperWhisperWrote")}
                 </span>
                 {/* Every output sits in one grid cell, so the box is as tall
-                    as the longest from the start and never jumps. */}
-                <div className="grid">
+                    as the longest from the start and never jumps. They are
+                    visual only: a screen reader reads the one copy below. */}
+                <div aria-hidden="true" className="grid">
                   {MODES.map((mode) => (
                     <p
                       key={mode}
-                      aria-hidden={active !== mode}
                       className={`whitespace-pre-line break-words [grid-area:1/1] transition-[opacity,filter] duration-[250ms] ease-out ${
                         active === mode
                           ? "opacity-100 blur-0"
@@ -105,6 +106,12 @@ export default function ModesShowcase() {
                     </p>
                   ))}
                 </div>
+                {/* Only the active output, so a live region change is a text
+                    change and gets announced. Polite only once the reader has
+                    picked a mode, so the auto-rotation is not read out. */}
+                <p aria-live={picked ? "polite" : "off"} className="sr-only">
+                  {t(`output.${active}`)}
+                </p>
               </div>
             </div>
           </div>

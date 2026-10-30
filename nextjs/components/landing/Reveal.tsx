@@ -12,9 +12,22 @@ import { m, useReducedMotion, type HTMLMotionProps } from "framer-motion";
  * it, `animate` settles it at the shown state with no tween. `initial` is the
  * same either way, so the server render and hydration still match (#1180).
  * Only transform, opacity and filter move, so nothing around it shifts.
+ *
+ * With JavaScript off the block would stay hidden, so the homepage carries a
+ * <noscript> style that shows every reveal at once.
+ *
+ * Once it has entered, the filter is cleared to `none`: even `blur(0px)` makes
+ * the block a backdrop root, and a `backdrop-blur` button inside it (the glass
+ * buttons in Pricing and the closing section) would stop frosting. y settles
+ * at 0, which framer-motion already writes as `transform: none`.
  */
 const HIDDEN = { opacity: 0, y: 12, filter: "blur(4px)" };
-const SHOWN = { opacity: 1, y: 0, filter: "blur(0px)" };
+const SHOWN = {
+  opacity: 1,
+  y: 0,
+  filter: "blur(0px)",
+  transitionEnd: { filter: "none" },
+};
 
 type RevealTag = "div" | "li" | "p" | "span";
 
@@ -25,14 +38,21 @@ type RevealProps = Omit<
   as?: RevealTag;
   /** Milliseconds after the block comes into view. */
   delay?: number;
+  /**
+   * IntersectionObserver rootMargin for the trigger. A positive bottom margin
+   * reveals the block before it reaches the viewport.
+   */
+  margin?: string;
 };
 
 export default function Reveal({
   as = "div",
   delay = 0,
+  margin,
   ...rest
 }: RevealProps) {
   const reduceMotion = useReducedMotion();
+
   // One prop shape for every tag here; m.div's is the widest of them.
   const Tag = m[as] as typeof m.div;
 
@@ -46,7 +66,7 @@ export default function Reveal({
           ? { duration: 0 }
           : { duration: 0.4, ease: "easeOut", delay: delay / 1000 }
       }
-      viewport={{ once: true, amount: 0.15 }}
+      viewport={{ once: true, amount: 0.15, margin }}
       whileInView={SHOWN}
       {...rest}
     />

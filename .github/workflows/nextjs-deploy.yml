@@ -1,5 +1,5 @@
 # Builds the website, applies its Drizzle migrations, and deploys it to the
-# Cloudflare Worker `hyperwhisper-web` (nextjs/DEPLOY-CLOUDFLARE.md).
+# Cloudflare Worker `hyperwhisper-web-prod` (nextjs/DEPLOY-CLOUDFLARE.md).
 #
 # One job, in this order: build, migrate, deploy. A build that fails never
 # touches the database, and the Worker is only replaced after the migration

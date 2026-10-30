@@ -1,338 +1,214 @@
 /**
- * The Upstash rate limiters in `lib/rate-limit.ts`, run for real.
+ * The Cloudflare rate limiters in `lib/rate-limit.ts` and the Better Auth
+ * storage in `src/lib/auth-rate-limit-storage.ts`, against their bindings.
  *
- * The license and latency route tests replace this module with a stub, so
- * nothing else checks the numbers in it. They are the whole abuse budget of
- * the public endpoints: the license validate/activate pair is open to anyone
- * with a key to guess, and the download form sends an email per request. A
- * slipped limit, window or prefix fails silently — the routes still answer.
+ * The license and latency route tests replace `lib/rate-limit.ts` with a stub,
+ * so nothing else checks the numbers. They live in `wrangler.jsonc`, and they
+ * are the whole abuse budget of the public endpoints: the license
+ * validate/activate pair is open to anyone with a key to guess, and the
+ * download form sends an email per request. A slipped limit, period or
+ * binding name fails silently — the routes still answer.
  *
- * Nothing here is stubbed inside the site. The REAL `lib/clients/redis.ts`
- * builds the REAL `@upstash/redis` client, and the REAL `@upstash/ratelimit`
- * sends its REAL Lua scripts over the Upstash REST protocol. The far end is a
- * local HTTP server that speaks that protocol and runs each command on
- * `ioredis-mock`, which executes Lua in an embedded VM. So the counting, the
- * blocking and the key layout below are what production Redis would compute.
+ * The bindings themselves are Cloudflare's; here a binding is a counter that
+ * refuses past its limit, so what is checked is which binding each limiter
+ * asks, with which key, and what it does with the answer.
  */
 import assert from "node:assert/strict";
-import http from "node:http";
-import { after, afterEach, before, describe, mock, test } from "node:test";
+import { readFileSync } from "node:fs";
+import { describe, mock, test } from "node:test";
 
-import { listen, siteAuthHeaders, store, upstashRestServer } from "./fake-upstash-server";
+import * as limiters from "../lib/rate-limit";
+import {
+  cloudflareLimiter,
+  RateLimitBindingMissingError,
+  type RateLimitBinding,
+} from "../lib/cloudflare-rate-limit";
+import {
+  AUTH_RATE_LIMIT_BINDINGS,
+  createCloudflareAuthRateLimitStorage,
+} from "../src/lib/auth-rate-limit-storage";
+import { captureConsole } from "./module-mock";
 
-type RateLimitModule = typeof import("../lib/rate-limit");
-
-const SITE_TOKEN = "site-token-for-tests";
-const CLOUD_TOKEN = "cloud-token-for-tests";
-
-let cloudHits = 0;
-
-let site: http.Server;
-let cloud: http.Server;
-let limiters: RateLimitModule;
-
-/** Calls `limit` once and waits for the analytics write it leaves behind. */
-async function hit(
-  limiter: RateLimitModule[keyof RateLimitModule],
-  identifier: string,
-) {
-  const result = await limiter.limit(identifier);
-  await result.pending;
-  return result;
+interface RateLimitConfig {
+  name: string;
+  namespace_id: string;
+  simple: { limit: number; period: number };
 }
 
-/** The keys a limiter holds for one identifier, read back from Redis. */
-async function bucketKeys(prefix: string, identifier: string): Promise<string[]> {
-  return (await store.keys(`${prefix}:${identifier}:*`)).sort();
+/** wrangler.jsonc's `ratelimits`, with its full-line `//` comments removed. */
+function wranglerRateLimits(): RateLimitConfig[] {
+  const raw = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+  const json = raw
+    .split("\n")
+    .filter((line) => !/^\s*\/\//.test(line))
+    .join("\n");
+  return (JSON.parse(json) as { ratelimits?: RateLimitConfig[] }).ratelimits ?? [];
 }
 
-/**
- * Fixes `Date.now()` until the test ends; the limiter and the store both read it.
- * Node 22 reads `{ apis, now }`. The installed @types/node still types the
- * array form, so the options are cast, as in license-keys-card.test.ts.
- */
-function pinClock(now: number) {
-  mock.timers.enable({ apis: ["Date"], now } as unknown as Parameters<
-    typeof mock.timers.enable
-  >[0]);
+/** A binding that allows `limit` calls per key, recording every key it sees. */
+function countingBinding(limit: number) {
+  const counts = new Map<string, number>();
+  const keys: string[] = [];
+  const binding: RateLimitBinding = {
+    async limit({ key }) {
+      keys.push(key);
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return { success: count <= limit };
+    },
+  };
+  return { binding, keys };
 }
 
-/**
- * A fixed instant for tests that need several calls in one bucket. On the real
- * clock a loop can straddle a minute (or hour) boundary, and the call after it
- * lands in a fresh bucket and passes (#2123).
- */
-const PINNED_NOW = Date.UTC(2026, 9, 19, 12, 0, 30);
+describe("wrangler.jsonc ratelimits", () => {
+  const configs = wranglerRateLimits();
+  const byName = new Map(configs.map((c) => [c.name, c]));
 
-afterEach(() => mock.timers.reset());
+  const SITE_LIMITS: Array<[string, number]> = [
+    ["RATE_LIMIT_DOWNLOAD_EMAIL", 2],
+    ["RATE_LIMIT_LICENSE_VALIDATE", 30],
+    ["RATE_LIMIT_LICENSE_CREDITS", 300],
+    ["RATE_LIMIT_LATENCY_INGEST", 6000],
+    ["RATE_LIMIT_CHECKOUT", 10],
+    ["RATE_LIMIT_ACCOUNT_KEY_ROTATE", 1],
+  ];
 
-before(async () => {
-  site = upstashRestServer();
-  // A second server stands in for the transcription service's own Upstash
-  // database. The site client must never reach it.
-  cloud = http.createServer((req, res) => {
-    cloudHits += 1;
-    req.resume();
-    res.end(JSON.stringify({ result: null }));
-  });
-  process.env.UPSTASH_REDIS_SITE_URL = await listen(site);
-  process.env.UPSTASH_REDIS_SITE_TOKEN = SITE_TOKEN;
-  process.env.UPSTASH_REDIS_CLOUD_URL = await listen(cloud);
-  process.env.UPSTASH_REDIS_CLOUD_TOKEN = CLOUD_TOKEN;
-  // The Redis client reads the SITE pair through `src/env/server.mjs`, which
-  // snapshots process.env on this first import (#682). The other required
-  // secrets are absent here, so its format check is skipped.
-  process.env.SKIP_ENV_VALIDATION = "1";
-  limiters = await import("../lib/rate-limit");
-});
-
-after(() => {
-  for (const server of [site, cloud]) {
-    server.closeAllConnections();
-    server.close();
-  }
-  store.disconnect();
-});
-
-describe("downloadEmailRateLimiter", () => {
-  test("allows 10 requests from one IP in an hour and blocks the 11th", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "203.0.113.10";
-    const remaining: number[] = [];
-    for (let i = 0; i < 10; i++) {
-      const result = await hit(limiters.downloadEmailRateLimiter, ip);
-      assert.equal(result.success, true, `request ${i + 1} must pass`);
-      assert.equal(result.limit, 10);
-      remaining.push(result.remaining);
-    }
-    assert.deepEqual(remaining, [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
-
-    const blocked = await hit(limiters.downloadEmailRateLimiter, ip);
-    assert.equal(blocked.success, false);
-    assert.equal(blocked.remaining, 0);
-  });
-
-  test("counts in one-hour buckets under its own prefix", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "203.0.113.11";
-    const before = Date.now();
-    const result = await hit(limiters.downloadEmailRateLimiter, ip);
-    const hour = 60 * 60 * 1000;
-
-    const bucket = Math.floor(before / hour);
-    assert.deepEqual(await bucketKeys("ratelimit:download-email", ip), [
-      `ratelimit:download-email:${ip}:${bucket}`,
-    ]);
-    // A sliding window resets at the end of the current bucket.
-    assert.equal(result.reset, (bucket + 1) * hour);
-  });
-
-  test("keeps a separate budget per IP", async () => {
-    pinClock(PINNED_NOW);
-    for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, "203.0.113.12");
-    assert.equal((await hit(limiters.downloadEmailRateLimiter, "203.0.113.12")).success, false);
-
-    const other = await hit(limiters.downloadEmailRateLimiter, "203.0.113.13");
-    assert.equal(other.success, true);
-    assert.equal(other.remaining, 9);
-  });
-
-  test("records allowed and blocked requests for the Upstash dashboard", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "203.0.113.14";
-    for (let i = 0; i < 11; i++) await hit(limiters.downloadEmailRateLimiter, ip);
-
-    const counts = new Map<string, number>();
-    for (const key of await store.keys("ratelimit:download-email:events:*")) {
-      const flat = await store.zrange(key, 0, -1, "WITHSCORES");
-      for (let i = 0; i < flat.length; i += 2) {
-        const event = JSON.parse(flat[i]) as { identifier: string; success: boolean };
-        if (event.identifier !== ip) continue;
-        const outcome = event.success ? "allowed" : "blocked";
-        counts.set(outcome, (counts.get(outcome) ?? 0) + Number(flat[i + 1]));
-      }
-    }
-    assert.deepEqual(Object.fromEntries(counts), { allowed: 10, blocked: 1 });
-  });
-});
-
-describe("licenseValidateRateLimiter", () => {
-  test("allows 30 requests from one IP in a minute and blocks the 31st", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.20";
-    for (let i = 0; i < 30; i++) {
-      const result = await hit(limiters.licenseValidateRateLimiter, ip);
-      assert.equal(result.success, true, `request ${i + 1} must pass`);
-      assert.equal(result.limit, 30);
-      assert.equal(result.remaining, 29 - i);
-    }
-    const blocked = await hit(limiters.licenseValidateRateLimiter, ip);
-    assert.equal(blocked.success, false);
-  });
-
-  test("counts in one-minute buckets under its own prefix", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.21";
-    const before = Date.now();
-    const result = await hit(limiters.licenseValidateRateLimiter, ip);
-    const minute = 60 * 1000;
-
-    const bucket = Math.floor(before / minute);
-    assert.deepEqual(await bucketKeys("ratelimit:license-validate", ip), [
-      `ratelimit:license-validate:${ip}:${bucket}`,
-    ]);
-    assert.equal(result.reset, (bucket + 1) * minute);
-  });
-
-  test("an IP blocked on the download form still has its license budget", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.22";
-    for (let i = 0; i < 10; i++) await hit(limiters.downloadEmailRateLimiter, ip);
-    assert.equal((await hit(limiters.downloadEmailRateLimiter, ip)).success, false);
-
-    const license = await hit(limiters.licenseValidateRateLimiter, ip);
-    assert.equal(license.success, true);
-    assert.equal(license.remaining, 29);
-  });
-});
-
-describe("licenseCreditsRateLimiter (#2010)", () => {
-  test("allows 300 credit reads from one IP in a minute and blocks the 301st", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.40";
-    for (let i = 0; i < 300; i++) {
-      const result = await hit(limiters.licenseCreditsRateLimiter, ip);
-      assert.equal(result.success, true, `request ${i + 1} must pass`);
-      assert.equal(result.limit, 300);
-    }
-    const blocked = await hit(limiters.licenseCreditsRateLimiter, ip);
-    assert.equal(blocked.success, false);
-  });
-
-  test("has its own budget: an IP out of credit reads can still validate", async () => {
-    const ip = "198.51.100.41";
-    pinClock(PINNED_NOW);
-    const bucket = Math.floor(Date.now() / (60 * 1000));
-    for (let i = 0; i < 300; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
-    assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
-
-    assert.deepEqual(await bucketKeys("ratelimit:license-credits", ip), [
-      `ratelimit:license-credits:${ip}:${bucket}`,
-    ]);
-    const validate = await hit(limiters.licenseValidateRateLimiter, ip);
-    assert.equal(validate.success, true);
-    assert.equal(validate.remaining, 29);
-  });
-});
-
-describe("checkoutRateLimiter (#2010)", () => {
-  test("allows 10 checkouts from one IP in a minute and blocks the 11th", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.30";
-    for (let i = 0; i < 10; i++) {
-      const result = await hit(limiters.checkoutRateLimiter, ip);
-      assert.equal(result.success, true, `request ${i + 1} must pass`);
-      assert.equal(result.limit, 10);
-    }
-    const blocked = await hit(limiters.checkoutRateLimiter, ip);
-    assert.equal(blocked.success, false);
-  });
-
-  test("counts under its own prefix, apart from the licence budget", async () => {
-    pinClock(PINNED_NOW);
-    const ip = "198.51.100.31";
-    const before = Date.now();
-    await hit(limiters.checkoutRateLimiter, ip);
-    const bucket = Math.floor(before / (60 * 1000));
-
-    assert.deepEqual(await bucketKeys("ratelimit:checkout", ip), [
-      `ratelimit:checkout:${ip}:${bucket}`,
-    ]);
-    const license = await hit(limiters.licenseValidateRateLimiter, ip);
-    assert.equal(license.remaining, 29);
-  });
-});
-
-describe("latencyIngestRateLimiter", () => {
-  test("gives each Fly region 6000 batches a minute", async () => {
-    pinClock(PINNED_NOW);
-    const before = Date.now();
-    const result = await hit(limiters.latencyIngestRateLimiter, "fra");
-    const minute = 60 * 1000;
-
-    assert.equal(result.success, true);
-    assert.equal(result.limit, 6000);
-    assert.equal(result.remaining, 5999);
-    const bucket = Math.floor(before / minute);
-    assert.deepEqual(await bucketKeys("ratelimit:latency-ingest", "fra"), [
-      `ratelimit:latency-ingest:fra:${bucket}`,
-    ]);
-    assert.equal(result.reset, (bucket + 1) * minute);
-  });
-
-  test("blocks a region at its ceiling and leaves the other regions alone", async () => {
-    pinClock(PINNED_NOW);
-    await hit(limiters.latencyIngestRateLimiter, "iad");
-    const [key] = await bucketKeys("ratelimit:latency-ingest", "iad");
-    // 6000 real round trips take minutes, so the bucket is filled to one
-    // under the ceiling directly. The Lua script reads this counter as-is.
-    await store.set(key, "5999");
-
-    const last = await hit(limiters.latencyIngestRateLimiter, "iad");
-    assert.equal(last.success, true);
-    assert.equal(last.remaining, 0);
-
-    const blocked = await hit(limiters.latencyIngestRateLimiter, "iad");
-    assert.equal(blocked.success, false);
-
-    const otherRegion = await hit(limiters.latencyIngestRateLimiter, "sin");
-    assert.equal(otherRegion.success, true);
-    assert.equal(otherRegion.remaining, 5999);
-  });
-});
-
-describe("sliding windows", () => {
-  // A fixed window would hand a burst at 10:59 a fresh budget at 11:00. A
-  // sliding window weights the previous bucket by the share of it still
-  // inside the last window: one tenth of the way in, that is 90%.
-  const cases = [
-    { name: "downloadEmailRateLimiter", prefix: "ratelimit:download-email", limit: 10, window: 60 * 60 * 1000, id: "203.0.113.40" },
-    { name: "licenseValidateRateLimiter", prefix: "ratelimit:license-validate", limit: 30, window: 60 * 1000, id: "198.51.100.40" },
-    { name: "latencyIngestRateLimiter", prefix: "ratelimit:latency-ingest", limit: 6000, window: 60 * 1000, id: "lhr" },
-  ] as const;
-
-  for (const c of cases) {
-    test(`${c.name} carries 90% of a full previous window into the next`, async () => {
-      const bucket = Math.floor(Date.now() / c.window);
-      pinClock(bucket * c.window + c.window / 10);
-      await store.set(`${c.prefix}:${c.id}:${bucket - 1}`, String(c.limit));
-
-      const carried = Math.floor(0.9 * c.limit);
-      const first = await hit(limiters[c.name], c.id);
-      assert.equal(first.success, true);
-      assert.equal(first.remaining, c.limit - carried - 1);
+  for (const [name, limit] of SITE_LIMITS) {
+    test(`${name} allows ${limit} per minute`, () => {
+      assert.deepEqual(byName.get(name)?.simple, { limit, period: 60 });
     });
   }
 
-  test("a burst that fills the last hour is still blocked 6 minutes later", async () => {
-    const ip = "203.0.113.41";
-    const hour = 60 * 60 * 1000;
-    const bucket = Math.floor(Date.now() / hour);
-    pinClock(bucket * hour + 6 * 60 * 1000);
-    await store.set(`ratelimit:download-email:${ip}:${bucket - 1}`, "10");
+  test("every Better Auth rule has a binding with the rule's own numbers", () => {
+    for (const [ruleId, name] of Object.entries(AUTH_RATE_LIMIT_BINDINGS)) {
+      const [, window, max] = /^(\d+)s:(\d+)$/.exec(ruleId) ?? [];
+      assert.deepEqual(
+        byName.get(name)?.simple,
+        { limit: Number(max), period: Number(window) },
+        `${ruleId} -> ${name}`,
+      );
+    }
+  });
 
-    // floor(0.9 * 10) = 9 carried over, so one request fits and then none.
-    assert.equal((await hit(limiters.downloadEmailRateLimiter, ip)).success, true);
-    assert.equal((await hit(limiters.downloadEmailRateLimiter, ip)).success, false);
+  test("namespace ids are integers, unique, and outside the school's 1001-1003", () => {
+    const ids = configs.map((c) => c.namespace_id);
+    assert.equal(new Set(ids).size, ids.length, "each limiter counts on its own");
+    for (const id of ids) {
+      assert.match(id, /^\d+$/);
+      assert.ok(Number(id) > 1003, id);
+    }
+  });
+
+  test("periods are 10 or 60 seconds, the only ones Cloudflare takes", () => {
+    for (const c of configs) assert.ok([10, 60].includes(c.simple.period), c.name);
   });
 });
 
-describe("site Redis client", () => {
-  test("talks only to the site database, with the site token", async () => {
-    await hit(limiters.licenseValidateRateLimiter, "192.0.2.30");
+describe("cloudflareLimiter", () => {
+  test("counts the identifier against its own binding and refuses past the limit", async () => {
+    const { binding, keys } = countingBinding(2);
+    const asked: string[] = [];
+    const limiter = cloudflareLimiter("RATE_LIMIT_X", 60, (name) => {
+      asked.push(name);
+      return binding;
+    });
 
-    assert.ok(siteAuthHeaders.length > 0);
-    assert.ok(siteAuthHeaders.every((h) => h === `Bearer ${SITE_TOKEN}`));
-    assert.equal(cloudHits, 0);
+    assert.equal((await limiter.limit("203.0.113.1")).success, true);
+    assert.equal((await limiter.limit("203.0.113.1")).success, true);
+    assert.equal((await limiter.limit("203.0.113.1")).success, false);
+    assert.equal((await limiter.limit("203.0.113.2")).success, true);
+    assert.deepEqual(keys, ["203.0.113.1", "203.0.113.1", "203.0.113.1", "203.0.113.2"]);
+    assert.ok(asked.every((name) => name === "RATE_LIMIT_X"));
+  });
+
+  test("reset is one period from now", async () => {
+    mock.timers.enable({ apis: ["Date"], now: 1_000_000 } as unknown as Parameters<
+      typeof mock.timers.enable
+    >[0]);
+    try {
+      const { binding } = countingBinding(1);
+      const verdict = await cloudflareLimiter("RATE_LIMIT_X", 10, () => binding).limit("k");
+      assert.equal(verdict.reset, 1_000_000 + 10_000);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  test("no binding throws RateLimitBindingMissingError (countFailOpen lets it through)", async () => {
+    await assert.rejects(
+      cloudflareLimiter("RATE_LIMIT_X", 60, () => undefined).limit("k"),
+      RateLimitBindingMissingError,
+    );
+  });
+
+  test("off the Worker the site limiters have no binding", async () => {
+    await assert.rejects(
+      limiters.licenseValidateRateLimiter.limit("198.51.100.1"),
+      RateLimitBindingMissingError,
+    );
+  });
+});
+
+describe("Better Auth storage", () => {
+  test("a rule counts in the binding for that rule, keyed by Better Auth's key", async () => {
+    const { binding, keys } = countingBinding(5);
+    const asked: string[] = [];
+    const storage = createCloudflareAuthRateLimitStorage((name) => {
+      asked.push(name);
+      return binding;
+    });
+    const rule = { window: 60, max: 5 };
+    const key = "203.0.113.9|/sign-in/license-key";
+
+    for (let i = 0; i < 5; i++) {
+      assert.deepEqual(await storage.consume(key, rule), { allowed: true, retryAfter: null });
+    }
+    assert.deepEqual(await storage.consume(key, rule), { allowed: false, retryAfter: 60 });
+    assert.ok(asked.every((name) => name === "RATE_LIMIT_AUTH_60S_5"));
+    assert.ok(keys.every((k) => k === key));
+  });
+
+  test("a rule with no binding is allowed, and said once", async () => {
+    const storage = createCloudflareAuthRateLimitStorage(() => {
+      throw new Error("must not look up a binding");
+    });
+    const capture = captureConsole(["warn"]);
+    try {
+      for (let i = 0; i < 3; i++) {
+        assert.deepEqual(await storage.consume("k", { window: 30, max: 7 }), {
+          allowed: true,
+          retryAfter: null,
+        });
+      }
+    } finally {
+      capture.restore();
+    }
+    assert.equal(capture.lines.length, 1);
+    assert.match(capture.lines[0] ?? "", /no binding for rule 30s:7, failing open/);
+  });
+
+  test("a missing or throwing binding is allowed, with a warning", async () => {
+    for (const getBinding of [
+      () => undefined,
+      () => ({
+        limit: async () => {
+          throw new TypeError("binding failed");
+        },
+      }),
+    ]) {
+      const storage = createCloudflareAuthRateLimitStorage(getBinding);
+      const capture = captureConsole(["warn"]);
+      let verdict;
+      try {
+        verdict = await storage.consume("k", { window: 10, max: 3 });
+      } finally {
+        capture.restore();
+      }
+      assert.deepEqual(verdict, { allowed: true, retryAfter: null });
+      assert.ok(
+        capture.lines.some((line) => /Rate limit unavailable for Better Auth, failing open/.test(line)),
+        capture.lines.join("\n"),
+      );
+    }
   });
 });

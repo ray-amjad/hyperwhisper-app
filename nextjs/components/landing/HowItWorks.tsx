@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import Reveal from "./Reveal";
+import { usePageVisible } from "./use-page-visible";
 import VideoDemo from "./VideoDemo";
 
 /**
@@ -42,14 +43,24 @@ const WAVE = Array.from({ length: 14 }, (_, i) => ({
  * zh, th), so the reply still types in steps.
  */
 function chunks(text: string): string[] {
-  return text.includes(" ") ? text.split(/(?<= )/) : Array.from(text);
+  if (!text.includes(" ")) return Array.from(text);
+  // Split on the space and put it back, rather than a lookbehind regex:
+  // Safari before 16.4 cannot parse `(?<= )`, and the whole chunk would fail.
+  const words = text.split(" ");
+
+  return words
+    .map((word, i) => (i < words.length - 1 ? `${word} ` : word))
+    .filter((part) => part !== "");
 }
 
 export default function HowItWorks() {
   const t = useTranslations("demo");
   const reduceMotion = useReducedMotion();
   const appRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(appRef, { amount: 0.4, once: true });
+  // Not `once`: the loop stops when the window leaves the view, or the tab is
+  // hidden, and starts over when both are back.
+  const inView = useInView(appRef, { amount: 0.4 });
+  const pageVisible = usePageVisible();
   const [shortcut, setShortcut] = useState(MAC_SHORTCUT);
   const [phase, setPhase] = useState<Phase>("idle");
   const [typed, setTyped] = useState("");
@@ -59,13 +70,23 @@ export default function HowItWorks() {
   useEffect(() => setShortcut(detectShortcut()), []);
 
   // The loop: idle -> listening -> cleaning up -> the reply types in -> hold.
-  // It starts once the window is 40% in view. Reduce motion shows the end
-  // state and never advances.
+  // It runs while the window is 40% in view in a visible tab, from the top
+  // each time it comes back; a pause drops back to idle, so the Listening HUD
+  // never freezes on screen. Reduce motion shows the end state and never
+  // advances.
   useEffect(() => {
-    if (reduceMotion || !inView) return;
+    if (reduceMotion || !inView || !pageVisible) return;
     let cancelled = false;
+    const timers = new Set<number>();
     const wait = (ms: number) =>
-      new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+      new Promise<void>((resolve) => {
+        const id = window.setTimeout(() => {
+          timers.delete(id);
+          resolve();
+        }, ms);
+
+        timers.add(id);
+      });
 
     (async () => {
       const parts = chunks(reply);
@@ -97,14 +118,21 @@ export default function HowItWorks() {
 
     return () => {
       cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+      timers.clear();
+      setPhase("idle");
+      setTyped("");
     };
-  }, [reduceMotion, inView, reply]);
+  }, [reduceMotion, inView, pageVisible, reply]);
 
   const shownPhase: Phase = reduceMotion ? "typing" : phase;
   const shownText = reduceMotion ? reply : typed;
   const activeStep =
     shownPhase === "idle" ? 0 : shownPhase === "typing" ? 2 : 1;
   const hudOn = shownPhase === "listening" || shownPhase === "cleaning";
+  // The bars move only while the HUD shows and the loop runs, so a hidden HUD
+  // (scrolled away, background tab, reduced motion) costs no animation frames.
+  const waveOn = hudOn && !reduceMotion && inView && pageVisible;
 
   const steps = [
     { key: shortcut, label: t("step1") },
@@ -113,10 +141,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section
-      className="pb-24 pt-10 md:pb-[130px]"
-      id="demo"
-    >
+    <section className="pb-24 pt-10 md:pb-[130px]" id="demo">
       <div
         className={`${WRAP} grid items-center gap-12 lg:grid-cols-[.9fr_1.1fr] lg:gap-16`}
       >
@@ -242,7 +267,7 @@ export default function HowItWorks() {
                 {WAVE.map((style, i) => (
                   <i
                     key={i}
-                    className="dusk-wave-bar h-full w-[3px] rounded-sm bg-gradient-to-b from-[#c4b5fd] to-[#f0abfc]"
+                    className={`${waveOn ? "dusk-wave-bar " : ""}h-full w-[3px] rounded-sm bg-gradient-to-b from-[#c4b5fd] to-[#f0abfc]`}
                     style={style}
                   />
                 ))}
@@ -265,7 +290,7 @@ export default function HowItWorks() {
         size="5xl"
         onClose={() => setVideoOpen(false)}
       >
-        <ModalContent>
+        <ModalContent aria-label={t("watchVideo")}>
           {(onClose) => (
             <ModalBody className="p-3 pt-12 sm:p-4 sm:pt-12">
               <button
