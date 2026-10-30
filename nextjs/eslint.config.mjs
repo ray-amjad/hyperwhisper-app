@@ -5,6 +5,7 @@ import unusedImports from "eslint-plugin-unused-imports";
 import _import from "eslint-plugin-import";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import jsxA11Y from "eslint-plugin-jsx-a11y";
+import drizzle from "eslint-plugin-drizzle";
 import prettier from "eslint-plugin-prettier";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
@@ -60,6 +61,7 @@ export default defineConfig([globalIgnores([
         "@typescript-eslint": typescriptEslint,
         "jsx-a11y": fixupPluginRules(jsxA11Y),
         prettier: fixupPluginRules(prettier),
+        drizzle,
     },
 
     languageOptions: {
@@ -136,6 +138,15 @@ export default defineConfig([globalIgnores([
         "@typescript-eslint/no-unsafe-assignment": "error",
         "@typescript-eslint/no-unsafe-call": "error",
         "@typescript-eslint/no-floating-promises": "error",
+
+        // A Drizzle update or delete with no .where() rewrites or empties a
+        // whole table. Scoped to the Drizzle handle names (db, tx, and
+        // revokeWebAccess's `runner = options.tx ?? db` in db-layer.ts): the
+        // unscoped default also flags URLSearchParams.delete and Map.delete.
+        // A deliberate whole-table write takes an eslint-disable-next-line
+        // with a reason.
+        "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db", "tx", "runner"] }],
+        "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db", "tx", "runner"] }],
 
         "import/order": ["warn", {
             groups: [
