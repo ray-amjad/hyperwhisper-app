@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Kurulum, kısayollar ve modeller.",
     "chooseModelHint": "Modelleri çalışma şeklinize göre sıralayın.",
-    "accountHint": "Hesap Anahtarınızla giriş yapın."
+    "accountHint": "Hesap Anahtarınızla giriş yapın.",
+    "chooseModelTitle": "Bir model seçin"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logosu",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
     "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
+  },
+  "legal": {
+    "onThisPage": "Bu sayfada"
   }
 }

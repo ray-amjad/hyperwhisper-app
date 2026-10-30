@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Cài đặt, phím tắt và mô hình.",
     "chooseModelHint": "Xếp hạng các mô hình theo cách bạn làm việc.",
-    "accountHint": "Đăng nhập bằng khóa tài khoản của bạn."
+    "accountHint": "Đăng nhập bằng khóa tài khoản của bạn.",
+    "chooseModelTitle": "Chọn mô hình"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Liên kết đăng nhập này đã hết hạn hoặc đã được sử dụng. Nhập email của bạn để nhận liên kết mới.",
     "magicLinkFailed": "Chúng tôi không thể đăng nhập cho bạn bằng liên kết đó. Nhập email của bạn để nhận liên kết mới."
+  },
+  "legal": {
+    "onThisPage": "Trên trang này"
   }
 }

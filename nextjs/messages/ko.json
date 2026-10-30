@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "설정, 단축키, 모델.",
     "chooseModelHint": "작업 방식에 맞게 모델 순위를 매겨 보세요.",
-    "accountHint": "계정 키로 로그인하세요."
+    "accountHint": "계정 키로 로그인하세요.",
+    "chooseModelTitle": "모델 선택하기"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper 로고",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "이 로그인 링크는 만료되었거나 이미 사용되었습니다. 새 링크를 받으려면 이메일을 입력하세요.",
     "magicLinkFailed": "해당 링크로 로그인하지 못했습니다. 새 링크를 받으려면 이메일을 입력하세요."
+  },
+  "legal": {
+    "onThisPage": "이 페이지에서"
   }
 }

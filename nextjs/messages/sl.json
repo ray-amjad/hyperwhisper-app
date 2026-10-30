@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Nastavitev, bližnjice in modeli.",
     "chooseModelHint": "Razvrstite modele glede na to, kako delate.",
-    "accountHint": "Prijavite se s ključem računa."
+    "accountHint": "Prijavite se s ključem računa.",
+    "chooseModelTitle": "Izberite model"
   },
   "downloadModal": {
     "logoAlt": "Logotip HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ta povezava za prijavo je potekla ali je bila že uporabljena. Vnesite svoj e-poštni naslov, da prejmete novo.",
     "magicLinkFailed": "S to povezavo vas nismo mogli prijaviti. Vnesite svoj e-poštni naslov, da prejmete novo."
+  },
+  "legal": {
+    "onThisPage": "Na tej strani"
   }
 }

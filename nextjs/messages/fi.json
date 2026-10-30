@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Käyttöönotto, pikanäppäimet ja mallit.",
     "chooseModelHint": "Järjestä mallit oman työtapasi mukaan.",
-    "accountHint": "Kirjaudu sisään tiliavaimellasi."
+    "accountHint": "Kirjaudu sisään tiliavaimellasi.",
+    "chooseModelTitle": "Valitse malli"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
     "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
+  },
+  "legal": {
+    "onThisPage": "Tällä sivulla"
   }
 }

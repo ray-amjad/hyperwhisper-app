@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Installation, raccourcis et modèles.",
     "chooseModelHint": "Classez les modèles selon votre façon de travailler.",
-    "accountHint": "Connectez-vous avec votre clé de compte."
+    "accountHint": "Connectez-vous avec votre clé de compte.",
+    "chooseModelTitle": "Choisir un modèle"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ce lien de connexion a expiré ou a déjà été utilisé. Saisissez votre e-mail pour en recevoir un nouveau.",
     "magicLinkFailed": "Nous n'avons pas pu vous connecter avec ce lien. Saisissez votre e-mail pour en recevoir un nouveau."
+  },
+  "legal": {
+    "onThisPage": "Sur cette page"
   }
 }

@@ -7,7 +7,7 @@ import { formatLongUTCDate } from "@/lib/format-date";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
 import { WRAP } from "@/components/landing/dusk";
 import { GLASS, LABEL, SECTION } from "@/components/landing/dusk-pages";
-import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { DuskPage, PageHero, SKIES } from "@/components/landing/DuskPage";
 
 export const dynamic = "force-static";
 export const revalidate = 60;
@@ -23,13 +23,18 @@ type Post = Awaited<ReturnType<typeof getBlogPosts>>[number];
  * the homepage skies and four abstract renders, so no post ever borrows a
  * picture that could be read as its own.
  */
+const art = (name: string) => ({
+  src: `/landing/art-${name}-800.webp`,
+  srcSet: `/landing/art-${name}-480.webp 480w, /landing/art-${name}-800.webp 800w`,
+});
+
 const ART = [
-  "/landing/dusk-960.webp 960w, /landing/dusk-1672.webp 1672w",
-  "/landing/night-960.webp 960w, /landing/night-1672.webp 1672w",
-  "/landing/art-orb-480.webp 480w, /landing/art-orb-800.webp 800w",
-  "/landing/art-glass-480.webp 480w, /landing/art-glass-800.webp 800w",
-  "/landing/art-shield-480.webp 480w, /landing/art-shield-800.webp 800w",
-  "/landing/art-rocket-480.webp 480w, /landing/art-rocket-800.webp 800w",
+  SKIES.dusk,
+  SKIES.night,
+  art("orb"),
+  art("glass"),
+  art("shield"),
+  art("rocket"),
 ];
 
 const CARD =
@@ -55,7 +60,7 @@ function PostArt({
   if (post.frontMatter.image) {
     return (
       <img
-        alt=""
+        alt={post.frontMatter.imageAlt || post.frontMatter.title}
         className="h-full w-full object-cover"
         decoding="async"
         loading={loading}
@@ -63,7 +68,7 @@ function PostArt({
       />
     );
   }
-  const srcSet = ART[index % ART.length];
+  const { src, srcSet } = ART[index % ART.length];
 
   return (
     <img
@@ -73,7 +78,7 @@ function PostArt({
       decoding="async"
       loading={loading}
       sizes={sizes}
-      src={srcSet.split(" ")[0]}
+      src={src}
       srcSet={srcSet}
     />
   );

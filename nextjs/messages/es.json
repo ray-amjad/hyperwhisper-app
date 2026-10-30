@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Configuración, atajos y modelos.",
     "chooseModelHint": "Ordena los modelos según cómo trabajas.",
-    "accountHint": "Inicia sesión con tu clave de cuenta."
+    "accountHint": "Inicia sesión con tu clave de cuenta.",
+    "chooseModelTitle": "Elige un modelo"
   },
   "downloadModal": {
     "logoAlt": "Logo de HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Este enlace de inicio de sesión ha caducado o ya se ha usado. Introduce tu correo para recibir uno nuevo.",
     "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo."
+  },
+  "legal": {
+    "onThisPage": "En esta página"
   }
 }

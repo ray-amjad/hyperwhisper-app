@@ -242,7 +242,8 @@
     },
     "helpCenterHint": "Setup, shortcuts and models.",
     "chooseModelHint": "Rank the models for how you work.",
-    "accountHint": "Sign in with your Account Key."
+    "accountHint": "Sign in with your Account Key.",
+    "chooseModelTitle": "Choose a model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "This sign-in link has expired or was already used. Enter your email to get a new one.",
     "magicLinkFailed": "We could not sign you in with that link. Enter your email to get a new one."
+  },
+  "legal": {
+    "onThisPage": "On this page"
   }
 }

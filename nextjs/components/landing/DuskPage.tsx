@@ -6,7 +6,8 @@ import { PAGE_H1 } from "./dusk-pages";
 /** `--d` is the entrance delay that `.dusk-enter` in globals.css reads. */
 export const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
-const SKIES = {
+/** The two sky bands. Also the sign-in backdrop and the blog's card art. */
+export const SKIES = {
   dusk: {
     src: "/landing/dusk-1672.webp",
     srcSet: "/landing/dusk-960.webp 960w, /landing/dusk-1672.webp 1672w",

@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Podešavanje, prečice i modeli.",
     "chooseModelHint": "Rangirajte modele prema načinu na koji radite.",
-    "accountHint": "Prijavite se ključem naloga."
+    "accountHint": "Prijavite se ključem naloga.",
+    "chooseModelTitle": "Izaberite model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ovaj link za prijavu je istekao ili je već iskorišćen. Unesite svoju e-poštu da biste dobili novi.",
     "magicLinkFailed": "Nismo mogli da vas prijavimo tim linkom. Unesite svoju e-poštu da biste dobili novi."
+  },
+  "legal": {
+    "onThisPage": "Na ovoj stranici"
   }
 }

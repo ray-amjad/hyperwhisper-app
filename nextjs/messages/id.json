@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Penyiapan, pintasan, dan model.",
     "chooseModelHint": "Urutkan model sesuai cara Anda bekerja.",
-    "accountHint": "Masuk dengan kunci akun Anda."
+    "accountHint": "Masuk dengan kunci akun Anda.",
+    "chooseModelTitle": "Pilih model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Tautan masuk ini sudah kedaluwarsa atau sudah digunakan. Masukkan email Anda untuk mendapatkan tautan baru.",
     "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru."
+  },
+  "legal": {
+    "onThisPage": "Di halaman ini"
   }
 }

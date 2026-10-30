@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "セットアップ、ショートカット、モデル。",
     "chooseModelHint": "作業スタイルに合わせてモデルをランク付け。",
-    "accountHint": "アカウントキーでサインイン。"
+    "accountHint": "アカウントキーでサインイン。",
+    "chooseModelTitle": "モデルを選ぶ"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisperロゴ",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "このサインインリンクは有効期限が切れているか、すでに使用されています。新しいリンクを受け取るにはメールアドレスを入力してください。",
     "magicLinkFailed": "このリンクではサインインできませんでした。新しいリンクを受け取るにはメールアドレスを入力してください。"
+  },
+  "legal": {
+    "onThisPage": "このページの内容"
   }
 }

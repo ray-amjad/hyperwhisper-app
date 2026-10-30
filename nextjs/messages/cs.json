@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Nastavení, zkratky a modely.",
     "chooseModelHint": "Seřaďte modely podle toho, jak pracujete.",
-    "accountHint": "Přihlaste se klíčem k účtu."
+    "accountHint": "Přihlaste se klíčem k účtu.",
+    "chooseModelTitle": "Vyberte model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Platnost tohoto přihlašovacího odkazu vypršela nebo už byl použit. Zadejte svůj e-mail a získejte nový.",
     "magicLinkFailed": "S tímto odkazem jsme vás nemohli přihlásit. Zadejte svůj e-mail a získejte nový."
+  },
+  "legal": {
+    "onThisPage": "Na této stránce"
   }
 }

@@ -4,6 +4,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 
 import LegalToc, { type TocItem } from "./LegalToc";
 
@@ -67,9 +68,10 @@ const PROSE = [
 
 /**
  * A legal page: the sky band with the title and the "Last Updated" line, then
- * a sticky "On this page" list beside the document from lg up (a collapsed
+ * a sticky table of contents beside the document from lg up (a collapsed
  * list above it on smaller screens). Presentation only: every word of the
- * document is the page's own children.
+ * document is the page's own children. The chrome around it is translated:
+ * the eyebrow reuses the footer's "Legal" column heading.
  */
 export default function LegalDocument({
   title,
@@ -81,15 +83,17 @@ export default function LegalDocument({
   children: ReactNode;
 }) {
   const headings = collectHeadings(children);
+  const t = useTranslations("legal");
+  const tFooter = useTranslations("footer");
 
   return (
     <>
-      <PageHero eyebrow="Legal" lead={updated} title={title} />
+      <PageHero eyebrow={tFooter("legal")} lead={updated} title={title} />
       <section className={SECTION}>
         <div
           className={`${WRAP} lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start lg:gap-14`}
         >
-          <LegalToc items={headings} />
+          <LegalToc items={headings} label={t("onThisPage")} />
           <article className={`min-w-0 max-w-[720px] ${PROSE}`}>
             {children}
           </article>

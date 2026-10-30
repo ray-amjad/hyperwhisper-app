@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Opsætning, genveje og modeller.",
     "chooseModelHint": "Ranger modellerne efter, hvordan du arbejder.",
-    "accountHint": "Log ind med din kontonøgle."
+    "accountHint": "Log ind med din kontonøgle.",
+    "chooseModelTitle": "Vælg en model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Dette login-link er udløbet eller allerede brugt. Indtast din e-mail for at få et nyt.",
     "magicLinkFailed": "Vi kunne ikke logge dig ind med det link. Indtast din e-mail for at få et nyt."
+  },
+  "legal": {
+    "onThisPage": "På denne side"
   }
 }

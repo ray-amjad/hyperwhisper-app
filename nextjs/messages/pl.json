@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Konfiguracja, skróty i modele.",
     "chooseModelHint": "Uszereguj modele według swojego sposobu pracy.",
-    "accountHint": "Zaloguj się kluczem konta."
+    "accountHint": "Zaloguj się kluczem konta.",
+    "chooseModelTitle": "Wybierz model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ten link do logowania wygasł lub został już użyty. Wpisz swój e-mail, aby otrzymać nowy.",
     "magicLinkFailed": "Nie udało się zalogować Cię za pomocą tego linku. Wpisz swój e-mail, aby otrzymać nowy."
+  },
+  "legal": {
+    "onThisPage": "Na tej stronie"
   }
 }

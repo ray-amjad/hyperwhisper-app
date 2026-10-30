@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Einrichtung, Tastenkürzel und Modelle.",
     "chooseModelHint": "Ordnen Sie die Modelle nach Ihrer Arbeitsweise.",
-    "accountHint": "Melden Sie sich mit Ihrem Kontoschlüssel an."
+    "accountHint": "Melden Sie sich mit Ihrem Kontoschlüssel an.",
+    "chooseModelTitle": "Modell auswählen"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Dieser Anmeldelink ist abgelaufen oder wurde bereits verwendet. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
     "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten."
+  },
+  "legal": {
+    "onThisPage": "Auf dieser Seite"
   }
 }

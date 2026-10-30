@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Iestatīšana, īsinājumtaustiņi un modeļi.",
     "chooseModelHint": "Sakārtojiet modeļus atbilstoši savam darba stilam.",
-    "accountHint": "Pierakstieties ar savu konta atslēgu."
+    "accountHint": "Pierakstieties ar savu konta atslēgu.",
+    "chooseModelTitle": "Izvēlieties modeli"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotips",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Šīs pierakstīšanās saites derīguma termiņš ir beidzies vai tā jau ir izmantota. Ievadiet savu e-pastu, lai saņemtu jaunu.",
     "magicLinkFailed": "Ar šo saiti mēs nevarējām jūs pierakstīt. Ievadiet savu e-pastu, lai saņemtu jaunu."
+  },
+  "legal": {
+    "onThisPage": "Šajā lapā"
   }
 }

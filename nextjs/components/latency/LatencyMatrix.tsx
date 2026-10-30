@@ -101,6 +101,22 @@ function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
  */
 const STICKY_COVER = "shadow-[0_0_0_6px_#0b0c17]";
 
+/** The metric and bucket toggles, and the "Sorted by … — reset" chip. */
+const PILL =
+  "flex items-center gap-2 rounded-full border px-4 py-[9px] text-sm transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+
+/**
+ * A podium bar's width, against the podium's own best score (lower is
+ * better): #1 is always the full bar, and the others shrink in proportion, so
+ * a bar is half as long when its number is twice as high. Never under 10%, so
+ * a bar always shows; an all-zero error rate is a full bar for everyone.
+ */
+export function podiumBarWidth(score: number, best: number): number {
+  if (score <= best) return 100;
+
+  return Math.max(10, Math.round((best / score) * 100));
+}
+
 export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [bucket, setBucket] = useState<DurationBucket>(defaultBucket);
   const [metric, setMetric] = useState<MetricKey>("p50");
@@ -409,8 +425,6 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const format = (value: number) =>
     metric === "errorRate" ? `${value.toFixed(1)}%` : `${Math.round(value)}`;
 
-  const PILL =
-    "flex items-center gap-2 rounded-full border px-4 py-[9px] text-sm transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
   const metricUnit =
     METRICS.find((entry) => entry.key === metric)?.unit ?? "ms";
   // One name per region for the "Showing …" chip and the podium, so they
@@ -642,9 +656,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     <span
                       className="block h-full rounded-full bg-[image:var(--dusk-accent)]"
                       style={{
-                        // Lower is better, so the best number gets the
-                        // longest bar, as it gets the strongest cell.
-                        width: `${Math.round(10 + goodness(entry.score) * 90)}%`,
+                        width: `${podiumBarWidth(entry.score, podium[0].score)}%`,
                       }}
                     />
                   </div>

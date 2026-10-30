@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Installatie, sneltoetsen en modellen.",
     "chooseModelHint": "Rangschik de modellen naar hoe jij werkt.",
-    "accountHint": "Log in met je accountsleutel."
+    "accountHint": "Log in met je accountsleutel.",
+    "chooseModelTitle": "Kies een model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Deze inloglink is verlopen of al gebruikt. Vul je e-mailadres in om een nieuwe te krijgen.",
     "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen."
+  },
+  "legal": {
+    "onThisPage": "Op deze pagina"
   }
 }

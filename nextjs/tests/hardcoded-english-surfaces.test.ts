@@ -45,6 +45,9 @@ const EN = load("en");
 // The surfaces' English sentences the issue's scan found, plus the rest of the
 // /open-source copy and the Linux card.
 const ENGLISH = [
+  "On this page",
+  "Choose a model",
+  'eyebrow="Legal"',
   "HyperWhisper is now fully open source",
   "Now open source",
   "Learn more",
@@ -78,6 +81,9 @@ const SURFACES = [
   "app/[locale]/open-source/page.tsx",
   "app/[locale]/download/page.tsx",
   "app/[locale]/older-versions/page.tsx",
+  // The legal shell's "On this page" list, and the support page's side cards.
+  "components/legal/LegalDocument.tsx",
+  "app/[locale]/support/page.tsx",
 ];
 
 function text(html: string): string {
@@ -205,8 +211,19 @@ for (const surface of SURFACES) {
       const ns = load(locale)[namespace] ?? {};
 
       for (const key of keys) {
-        const value = ns[key];
-        const en = EN[namespace][key] as string;
+        // A dotted key ("emailTemplate.subject") is a nested message.
+        const at = (root: unknown) =>
+          key
+            .split(".")
+            .reduce<unknown>(
+              (node, part) =>
+                node && typeof node === "object"
+                  ? (node as Record<string, unknown>)[part]
+                  : undefined,
+              root,
+            );
+        const value = at(ns);
+        const en = at(EN[namespace]) as string;
 
         assert.equal(typeof value, "string", `${locale} ${namespace}.${key}`);
         assert.ok((value as string).trim(), `${locale} ${namespace}.${key} empty`);

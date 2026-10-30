@@ -119,13 +119,13 @@ export default function SupportPage() {
             </li>
             <li className="dusk-enter" style={delay(520)}>
               {/*
-                English-only page: the absolute /en/... with a native <a> and the
-                same English label the navbar and footer use (#1170).
+                English-only page: the absolute /en/... with a native <a>
+                (#1170). The card's title is translated, like its hint.
               */}
               <a className={SIDE_ITEM} href="/en/choosing-a-model">
                 <SideItemBody
                   hint={t("chooseModelHint")}
-                  title="Choose a model"
+                  title={t("chooseModelTitle")}
                 />
               </a>
             </li>

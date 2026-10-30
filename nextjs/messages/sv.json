@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Installation, kortkommandon och modeller.",
     "chooseModelHint": "Rangordna modellerna efter hur du arbetar.",
-    "accountHint": "Logga in med din kontonyckel."
+    "accountHint": "Logga in med din kontonyckel.",
+    "chooseModelTitle": "Välj en modell"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logotyp",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Den här inloggningslänken har gått ut eller redan använts. Ange din e-postadress för att få en ny.",
     "magicLinkFailed": "Vi kunde inte logga in dig med den länken. Ange din e-postadress för att få en ny."
+  },
+  "legal": {
+    "onThisPage": "På den här sidan"
   }
 }

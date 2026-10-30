@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Configuració, dreceres i models.",
     "chooseModelHint": "Ordena els models segons com treballes.",
-    "accountHint": "Inicia la sessió amb la clau del compte."
+    "accountHint": "Inicia la sessió amb la clau del compte.",
+    "chooseModelTitle": "Tria un model"
   },
   "downloadModal": {
     "logoAlt": "Logotip de HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Aquest enllaç d'inici de sessió ha caducat o ja s'ha fet servir. Introdueix el teu correu per rebre'n un de nou.",
     "magicLinkFailed": "No hem pogut iniciar la teva sessió amb aquest enllaç. Introdueix el teu correu per rebre'n un de nou."
+  },
+  "legal": {
+    "onThisPage": "En aquesta pàgina"
   }
 }

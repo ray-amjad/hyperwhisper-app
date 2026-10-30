@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Uppsetning, flýtilyklar og líkön.",
     "chooseModelHint": "Raðaðu líkönunum eftir því hvernig þú vinnur.",
-    "accountHint": "Skráðu þig inn með aðgangslyklinum þínum."
+    "accountHint": "Skráðu þig inn með aðgangslyklinum þínum.",
+    "chooseModelTitle": "Veldu líkan"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper merki",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Þessi innskráningartengill er útrunninn eða hefur þegar verið notaður. Sláðu inn netfangið þitt til að fá nýjan.",
     "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan."
+  },
+  "legal": {
+    "onThisPage": "Á þessari síðu"
   }
 }

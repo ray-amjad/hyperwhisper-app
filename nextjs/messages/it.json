@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Configurazione, scorciatoie e modelli.",
     "chooseModelHint": "Ordina i modelli in base a come lavori.",
-    "accountHint": "Accedi con la chiave dell'account."
+    "accountHint": "Accedi con la chiave dell'account.",
+    "chooseModelTitle": "Scegli un modello"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Questo link di accesso è scaduto o è già stato usato. Inserisci la tua email per riceverne uno nuovo.",
     "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo."
+  },
+  "legal": {
+    "onThisPage": "In questa pagina"
   }
 }

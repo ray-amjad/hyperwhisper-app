@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Sąranka, spartieji klavišai ir modeliai.",
     "chooseModelHint": "Surikiuokite modelius pagal tai, kaip dirbate.",
-    "accountHint": "Prisijunkite su paskyros raktu."
+    "accountHint": "Prisijunkite su paskyros raktu.",
+    "chooseModelTitle": "Pasirinkite modelį"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotipas",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ši prisijungimo nuoroda nebegalioja arba jau buvo panaudota. Įveskite savo el. paštą ir gausite naują.",
     "magicLinkFailed": "Šia nuoroda nepavyko jūsų prijungti. Įveskite savo el. paštą ir gausite naują."
+  },
+  "legal": {
+    "onThisPage": "Šiame puslapyje"
   }
 }

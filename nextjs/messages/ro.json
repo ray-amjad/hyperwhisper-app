@@ -215,7 +215,8 @@
     },
     "helpCenterHint": "Configurare, comenzi rapide și modele.",
     "chooseModelHint": "Ordonează modelele după felul în care lucrezi.",
-    "accountHint": "Conectează-te cu cheia de cont."
+    "accountHint": "Conectează-te cu cheia de cont.",
+    "chooseModelTitle": "Alege un model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -444,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Acest link de conectare a expirat sau a fost deja folosit. Introdu adresa de e-mail pentru a primi unul nou.",
     "magicLinkFailed": "Nu te-am putut conecta cu acest link. Introdu adresa de e-mail pentru a primi unul nou."
+  },
+  "legal": {
+    "onThisPage": "Pe această pagină"
   }
 }

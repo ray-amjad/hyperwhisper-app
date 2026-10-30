@@ -13,6 +13,7 @@ import { ErrorReveal, shake } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
 import { BTN_GLASS, BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
 import { INPUT, LABEL } from "@/components/landing/dusk-pages";
+import { SKIES } from "@/components/landing/DuskPage";
 
 type Tab = "license-key" | "email";
 
@@ -316,8 +317,8 @@ export default function SignInClient() {
           decoding="async"
           fetchPriority="high"
           sizes="100vw"
-          src="/landing/dusk-1672.webp"
-          srcSet="/landing/dusk-960.webp 960w, /landing/dusk-1672.webp 1672w"
+          src={SKIES.dusk.src}
+          srcSet={SKIES.dusk.srcSet}
         />
       </div>
       <div
