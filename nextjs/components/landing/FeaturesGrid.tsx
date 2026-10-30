@@ -29,12 +29,16 @@ const VOCAB = [
   { word: "Q3 roadmap", hl: false },
 ];
 
-/** Decorative bars on the streaming tile (fixed, so server and client match). */
-const BARS = Array.from(
-  { length: 24 },
-  (_, i) =>
-    30 + Math.round(60 * Math.abs(Math.sin(i * 0.7) * Math.cos(i * 0.23))),
-);
+/**
+ * Decorative bar heights (%) on the streaming tile. Literal numbers, not
+ * Math.sin/cos at render: those may round differently between the server's
+ * and a browser's JS engine, and a single differing height is a hydration
+ * mismatch.
+ */
+const BARS = [
+  30, 68, 83, 70, 42, 39, 40, 32, 40, 30, 56, 79, 78, 49, 52, 80, 80, 57, 31,
+  43, 37, 36, 36, 43,
+];
 
 function Tile({
   big,
@@ -58,6 +62,10 @@ function Tile({
         big ? "sm:col-span-2 lg:col-span-3 lg:min-h-[250px]" : "lg:col-span-2"
       }`}
       delay={delay}
+      // Each tile triggers 800px before it reaches the viewport (#877): after
+      // a /#features jump (a ~700 ms smooth scroll) the rows a reader lands on
+      // are already in, not waiting for their own 15% entry.
+      margin="0px 0px 800px 0px"
     >
       <div className="mb-[18px] grid size-[38px] place-items-center rounded-[11px] bg-[rgba(196,181,253,.12)] text-[var(--dusk-lav)]">
         <Icon aria-hidden="true" className="size-[19px]" />

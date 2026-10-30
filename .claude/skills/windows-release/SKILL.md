@@ -186,7 +186,7 @@ git pull --ff-only origin main    # the Action pushed the bump + appcast
 Publishing the release does **not** deliver it. The Windows app polls
 `https://www.hyperwhisper.com/appcast-windows.xml` (`UpdateService.cs`, `AppcastUrl`),
 which is a static file in `nextjs/public/` — it only reaches users when **`nextjs-deploy.yml`
-deploys the Next.js site** (Worker `hyperwhisper-web`, see
+deploys the Next.js site** (Worker `hyperwhisper-web-prod`, see
 `nextjs/DEPLOY-CLOUDFLARE.md`). The Action merges the appcast and starts that deploy (`gh workflow run`).
 A release can go green, with signed installers on GitHub and R2, while being delivered
 to nobody.
@@ -205,7 +205,7 @@ days) and `HEAD`s both installer URLs. If it times out, users are not getting th
 update. Diagnose the deploy side:
 
 ```bash
-cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1 | head -20
+cd nextjs && npx wrangler deployments list --name hyperwhisper-web-prod 2>&1 | head -20
 ```
 
 A last production deploy older than the release commit is the smoking gun

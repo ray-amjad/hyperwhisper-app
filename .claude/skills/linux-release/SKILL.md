@@ -265,7 +265,7 @@ cat nextjs/public/linux-latest.json
 <important>
 `linux-latest.json` is a static file in `nextjs/public/`, so the download page only
 shows the new version once **`nextjs-deploy.yml` deploys the Next.js site**
-(Worker `hyperwhisper-web`, see `nextjs/DEPLOY-CLOUDFLARE.md`). The Action merges the
+(Worker `hyperwhisper-web-prod`, see `nextjs/DEPLOY-CLOUDFLARE.md`). The Action merges the
 file and starts that deploy (`gh workflow run`). Same failure mode as the Windows appcast: the release can be
 green and complete while the download page still advertises the old version.
 </important>
@@ -275,7 +275,7 @@ promoting to production is outward-facing and the site may carry unrelated unshi
 work:
 
 ```bash
-cd nextjs && npx wrangler deployments list --name hyperwhisper-web 2>&1 | head -20
+cd nextjs && npx wrangler deployments list --name hyperwhisper-web-prod 2>&1 | head -20
 ```
 
 ### Step 9 — Report

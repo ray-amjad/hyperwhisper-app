@@ -56,7 +56,10 @@ function Tile({
         className="block size-full rounded-[9px]"
         decoding="async"
         height={46}
-        loading="lazy"
+        // Eager: a lazy image inside the moving, clipped track is only
+        // fetched once it nears the viewport, so tiles slid in blank. The 25
+        // logos are 96px WebP, about 108 KB in all.
+        loading="eager"
         src={`/landing/logos/${file}.webp`}
         width={46}
       />

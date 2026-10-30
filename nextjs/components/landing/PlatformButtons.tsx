@@ -48,6 +48,7 @@ export default function PlatformButtons({
   style?: CSSProperties;
 }) {
   const t = useTranslations("hero");
+  const tNav = useTranslations("navbar");
   const { openModalFor } = useDownloadModal();
   const open = (platform: DownloadPlatform) => () => openModalFor(platform);
 
@@ -64,13 +65,17 @@ export default function PlatformButtons({
         <AppleIcon />
         {t("downloadMac")}
       </button>
-      {/* OS names are never translated (see tests/locale-linux-platform-copy). */}
+      {/* OS names are never translated (see tests/locale-linux-platform-copy).
+          The hidden, translated "Download" makes each accessible name say
+          what the button does ("Download Windows"). The visible OS name stays
+          inside that accessible name (WCAG 2.5.3, label in name). */}
       <button
         className={`${BTN_GLASS} ${BTN_LG}`}
         type="button"
         onClick={open("windows")}
       >
         <WindowsIcon />
+        <span className="sr-only">{tNav("download")} </span>
         Windows
       </button>
       <button
@@ -79,6 +84,7 @@ export default function PlatformButtons({
         onClick={open("linux")}
       >
         <LinuxIcon />
+        <span className="sr-only">{tNav("download")} </span>
         Linux
       </button>
     </div>

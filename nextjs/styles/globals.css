@@ -483,7 +483,11 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
   --dusk-navy: #0a0f2a;
   --dusk-ink: #f5f5ff;
   --dusk-mute: #9aa0bf;
-  --dusk-dim: #6b7091;
+  /* Small print (11-14px): at least 4.5:1 (WCAG AA) on night (6.5:1), on
+     glass and the hovered feature tile (5.8:1), in the demo and modes panels
+     (5.9:1), and under the brightest point of the modes box's purple glow
+     (4.6:1). Same hue as --dusk-mute, one step darker. */
+  --dusk-dim: #8a90b3;
   --dusk-line: rgba(255, 255, 255, 0.09);
   --dusk-glass: rgba(255, 255, 255, 0.045);
   --dusk-lav: #c4b5fd;
@@ -501,8 +505,10 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
   color: transparent;
 }
 
-/* Above-the-fold entrance (hero, closing buttons): CSS, not JS, so it plays
-   from the server HTML on first paint instead of waiting for hydration. */
+/* The hero's entrance: CSS, not JS, so it plays from the server HTML on first
+   paint instead of waiting for hydration. (Everything below the hero,
+   including the closing section's buttons, enters through Reveal; see the
+   fallbacks after the keyframes.) */
 @keyframes dusk-enter {
   from {
     opacity: 0;
@@ -588,7 +594,13 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 }
 
 .dusk-marquee {
-  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
   mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
@@ -627,8 +639,11 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 }
 
 /* Scroll reveals (components/landing/Reveal.tsx) are server-rendered at their
-   hidden start. Under Reduce motion they are shown from first paint, before
-   hydration, and every loop above stops. */
+   hidden start (opacity 0, inline), and only framer-motion's JS reveals them.
+   With JavaScript off, app/[locale]/page.tsx carries a <noscript> style that
+   shows every [data-reveal] at once, and the `scripting: none` rule at the end
+   of this file does the same on every other page. Under Reduce motion they
+   are shown from first paint, before hydration, and every loop above stops. */
 @media (prefers-reduced-motion: reduce) {
   .dusk-enter,
   .dusk-drift,
@@ -649,12 +664,39 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
     transform: none !important;
     filter: none !important;
   }
+
+  /* A still marquee would show only the logos that fit the first screen
+     width. Show every logo once instead: one centred, wrapping set, with the
+     duplicate (aria-hidden) set and the edge fade dropped. */
+  .dusk-marquee {
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .dusk-marquee-track {
+    width: auto !important;
+    max-width: 1200px;
+    margin-inline: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 20px;
+    /* Each tile carries a 28px trailing margin; matching it at the start keeps
+       every row centred. */
+    padding-inline: 24px;
+    padding-inline-start: calc(24px + 28px);
+  }
+
+  .dusk-marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
 }
 
 /*
   With JavaScript off, framer never runs, so a scroll Reveal stays at its
-  server-rendered hidden start. Show every one of them, on every page. A media
-  query rather than a <noscript><style>, so no CSS text lands in the markup.
+  server-rendered hidden start. Show every one of them, on every page (the
+  homepage's <noscript> style sets the same declarations, so the two agree).
+  A media query rather than a <noscript><style>, so no CSS text lands in the
+  rendered markup of a sub-page.
 */
 @media (scripting: none) {
   [data-reveal] {

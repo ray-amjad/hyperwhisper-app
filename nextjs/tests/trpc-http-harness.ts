@@ -14,7 +14,7 @@
  * Auth (`src/lib/auth.ts`), the database layer (`src/lib/db-layer.ts`), the
  * Stripe clients (`lib/clients/stripe.ts`), the mailer
  * (`lib/services/email.ts`), the rate limiters (`lib/rate-limit.ts`, which
- * would otherwise open an Upstash client) and the validated server env
+ * would otherwise look for a Cloudflare binding) and the validated server env
  * (`src/env/server.mjs`, empty: the routers fall back to their defaults). No bypass and no test license key
  * reaches the source; who is signed in comes from the fake session alone, and
  * every identifier in the fixtures is a made-up string.

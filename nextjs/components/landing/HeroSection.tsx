@@ -1,10 +1,11 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
+import { useInView, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import PlatformButtons from "./PlatformButtons";
+import { usePageVisible } from "./use-page-visible";
 
 import { Link } from "@/src/i18n/navigation";
 
@@ -19,27 +20,37 @@ const delay = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
  * so it plays from the server HTML and never blanks the hero until hydration
  * (#758). The sky drifts and a sheen crosses it; Reduce motion stops both,
  * the entrance, and the app-name rotation.
+ *
+ * At least one screen tall, and taller when the content needs it (a landscape
+ * phone, 200% text): min-h, never a fixed height. The top padding clears the
+ * fixed 72px navbar; the larger bottom padding on md+ lifts the centred
+ * content 60px, as in the design.
  */
 export default function HeroSection() {
   const t = useTranslations("hero");
   const tBanner = useTranslations("openSourceBanner");
   const reduceMotion = useReducedMotion();
   const [app, setApp] = useState(0);
+  // The app names only rotate while the hero is on screen in a visible tab.
+  const heroRef = useRef<HTMLElement>(null);
+  const inView = useInView(heroRef);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || !inView || !pageVisible) return;
     const id = window.setInterval(
       () => setApp((i) => (i + 1) % APPS.length),
       2000,
     );
 
     return () => window.clearInterval(id);
-  }, [reduceMotion]);
+  }, [reduceMotion, inView, pageVisible]);
 
   return (
     <section
+      ref={heroRef}
       aria-labelledby="hero-title"
-      className="relative isolate flex h-[100svh] min-h-[620px] items-center justify-center overflow-hidden text-center md:min-h-[820px]"
+      className="relative isolate flex min-h-[max(100svh,620px)] items-center justify-center overflow-hidden py-28 text-center md:min-h-[max(100svh,820px)] md:pb-[232px]"
     >
       <div aria-hidden="true" className="dusk-drift absolute inset-[-4%] -z-10">
         <img
@@ -58,7 +69,7 @@ export default function HeroSection() {
         className="absolute inset-x-0 bottom-0 -z-10 h-[300px] bg-gradient-to-b from-transparent to-[var(--dusk-night)]"
       />
 
-      <div className="relative w-full max-w-[1000px] px-6 md:-mt-[120px]">
+      <div className="relative w-full max-w-[1000px] px-6">
         <Link
           className="dusk-enter inline-flex max-w-full items-center gap-2 rounded-full border border-white/[.18] bg-[rgba(10,10,30,.35)] py-[7px] ps-2 pe-[14px] text-[13px] text-white backdrop-blur-[10px] transition-colors hover:bg-[rgba(10,10,30,.5)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
           href="/open-source"

@@ -1,21 +1,22 @@
-import type { Redis } from "@upstash/redis";
 import type {
   BetterAuthRateLimitOptions,
   BetterAuthRateLimitStorage,
 } from "better-auth";
 
-import { Ratelimit } from "@upstash/ratelimit";
-import { countFailOpen } from "@/lib/rate-limit-gate";
-import { env } from "@/src/env/server.mjs";
+import {
+  cloudflareLimiter,
+  type RateLimitBinding,
+} from "@/lib/cloudflare-rate-limit";
+import { cloudflareBinding } from "@/lib/clients/cloudflare-binding";
+import { countFailOpen, type RequestLimiter } from "@/lib/rate-limit-gate";
 
 /**
  * SHARED STORAGE FOR BETTER AUTH'S RATE LIMITER (#2010)
  *
  * Better Auth's default rate-limit storage is an in-process `Map`. On
- * Cloudflare Workers (as on Vercel before) every isolate has its own, so the sign-in limits (3 / 10 s on
- * `/sign-in*`, 5 / 60 s on `/sign-in/license-key`) were per instance, not per
- * caller. This storage puts the counters in the site's Upstash database, so
- * every instance counts against one budget.
+ * Cloudflare Workers every isolate has its own, so the sign-in limits were per
+ * isolate, not per caller. This storage counts in Cloudflare Rate Limiting
+ * bindings instead, which every isolate in a location shares.
  *
  * Why `rateLimit.customStorage` and NOT top-level `secondaryStorage` (checked
  * against better-auth 1.7.7): setting `secondaryStorage` also moves SESSIONS
@@ -26,74 +27,61 @@ import { env } from "@/src/env/server.mjs";
  * alone (`api/rate-limiter/index.mjs`, `getRateLimitStorage`), and it overrides
  * `storage`.
  *
- * The limit numbers are Better Auth's own rules, unchanged: each rule arrives
- * here as `{ window, max }`, and each distinct rule gets its own Upstash
- * sliding window. The key Better Auth hands in is `<ip>|<path>`.
+ * The limit numbers are Better Auth's own rules, unchanged. A binding's limit
+ * is fixed in `wrangler.jsonc`, so each rule Better Auth can hand in
+ * (`{ window, max }`) has its own binding in `AUTH_RATE_LIMIT_BINDINGS`. The
+ * key Better Auth hands in is `<ip>|<path>`.
  *
- * FAILS OPEN: Upstash unconfigured (local dev, tests), throwing, or slower than
- * `AUTH_RATE_LIMIT_TIMEOUT_MS` lets the request through and logs a warning.
- * Sign-in must not depend on Upstash being up.
+ * FAILS OPEN: a rule with no binding, no binding on `env` (local dev, tests),
+ * or a binding that throws lets the request through and logs a warning.
  */
-
-/** How long one Upstash check may take before the request is served anyway. */
-export const AUTH_RATE_LIMIT_TIMEOUT_MS = 1_000;
-
-export type RedisSource = () => Promise<Redis | null>;
 
 /**
- * The site's Upstash client, or `null` when its env is not set. Imported
- * lazily so a process that never rate-limits (or has no Upstash) does not
- * build a client that can only fail.
+ * Better Auth 1.7's rules, by `${window}s:${max}`, and the binding counting
+ * each. tests/rate-limit.test.ts checks every one is in `wrangler.jsonc` with
+ * the same numbers.
+ * - 10 s / 100: the default for every other auth path.
+ * - 10 s / 3: `/sign-in*`, `/sign-up*`, `/change-password*`, `/change-email*`.
+ * - 60 s / 3: password reset and verification emails.
+ * - 60 s / 5: the magic-link plugin and `/sign-in/license-key`.
  */
-export const siteRedis: RedisSource = async () => {
-  if (
-    !env.UPSTASH_REDIS_SITE_URL ||
-    !env.UPSTASH_REDIS_SITE_TOKEN
-  ) {
-    return null;
-  }
-  const { default: redis } = await import("@/lib/clients/redis");
-
-  return redis;
+export const AUTH_RATE_LIMIT_BINDINGS: Readonly<Record<string, string>> = {
+  "10s:100": "RATE_LIMIT_AUTH_10S_100",
+  "10s:3": "RATE_LIMIT_AUTH_10S_3",
+  "60s:3": "RATE_LIMIT_AUTH_60S_3",
+  "60s:5": "RATE_LIMIT_AUTH_60S_5",
 };
 
 const ALLOW = { allowed: true, retryAfter: null } as const;
 
-export function createUpstashAuthRateLimitStorage(
-  getRedis: RedisSource,
-  timeoutMs: number = AUTH_RATE_LIMIT_TIMEOUT_MS,
+export function createCloudflareAuthRateLimitStorage(
+  getBinding: (name: string) => RateLimitBinding | undefined = cloudflareBinding,
 ): BetterAuthRateLimitStorage {
-  const limiters = new Map<string, Ratelimit>();
-  let notConfiguredLogged = false;
+  const limiters = new Map<string, RequestLimiter>();
+  const unmappedLogged = new Set<string>();
 
-  const limiterFor = async (rule: {
+  const limiterFor = (rule: {
     window: number;
     max: number;
-  }): Promise<Ratelimit | null> => {
+  }): RequestLimiter | null => {
     const ruleId = `${rule.window}s:${rule.max}`;
     const existing = limiters.get(ruleId);
 
     if (existing) return existing;
 
-    const redis = await getRedis();
+    const binding = AUTH_RATE_LIMIT_BINDINGS[ruleId];
 
-    if (!redis) {
-      if (!notConfiguredLogged) {
-        notConfiguredLogged = true;
+    if (!binding || (rule.window !== 10 && rule.window !== 60)) {
+      if (!unmappedLogged.has(ruleId)) {
+        unmappedLogged.add(ruleId);
         console.warn(
-          "Better Auth rate limit: Upstash is not configured, failing open",
+          `Better Auth rate limit: no binding for rule ${ruleId}, failing open`,
         );
       }
 
       return null;
     }
-    const limiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(rule.max, `${rule.window} s`),
-      prefix: `ratelimit:better-auth:${ruleId}`,
-      timeout: timeoutMs,
-      analytics: false,
-    });
+    const limiter = cloudflareLimiter(binding, rule.window, getBinding);
 
     limiters.set(ruleId, limiter);
 
@@ -102,11 +90,14 @@ export function createUpstashAuthRateLimitStorage(
 
   return {
     async consume(key, rule) {
-      const outcome = await countFailOpen(async () => {
-        const limiter = await limiterFor(rule);
+      const limiter = limiterFor(rule);
 
-        return limiter ? limiter.limit(key) : { success: true };
-      }, "Better Auth");
+      if (!limiter) return ALLOW;
+
+      const outcome = await countFailOpen(
+        () => limiter.limit(key),
+        "Better Auth",
+      );
 
       if (!outcome.limited) return ALLOW;
 
@@ -117,13 +108,11 @@ export function createUpstashAuthRateLimitStorage(
 
 /**
  * The `rateLimit` block `auth.ts` passes to `betterAuth()`. Enabled in every
- * environment (Better Auth's default is production only); without Upstash env
- * the storage lets everything through, so local dev is unaffected.
+ * environment (Better Auth's default is production only); without the
+ * bindings the storage lets everything through, so local dev is unaffected.
  */
 export function authRateLimitOptions(
-  storage: BetterAuthRateLimitStorage = createUpstashAuthRateLimitStorage(
-    siteRedis,
-  ),
+  storage: BetterAuthRateLimitStorage = createCloudflareAuthRateLimitStorage(),
 ): BetterAuthRateLimitOptions {
   return { enabled: true, customStorage: storage };
 }

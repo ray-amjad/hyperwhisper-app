@@ -920,10 +920,10 @@ describe("an unparseable request is logged without its contents (#719)", () => {
 describe("the licence routes fail open when the rate limiter is down (#2058)", () => {
   // `lib/rate-limit-gate.ts` is the one fail-open policy for every site
   // limiter. Before #2058 these two routes awaited `limit()` bare, so an
-  // Upstash outage escaped the handler and Next answered a bare 500 with no
+  // limiter outage escaped the handler and Next answered a bare 500 with no
   // JSON body and no `reason`.
-  const UPSTASH_DOWN = (): TypeError =>
-    // The message quotes the caller's address, as an Upstash error can; the
+  const LIMITER_DOWN = (): TypeError =>
+    // The message quotes the caller's address, as a limiter error can; the
     // warning must carry only the class name.
     new TypeError("fetch failed: EVALSHA rl:203.0.113.7");
 
@@ -936,7 +936,7 @@ describe("the licence routes fail open when the rate limiter is down (#2058)", (
 
   for (const { path, load } of routes) {
     test(`${path} still answers a granted key`, async () => {
-      behaviour.rateLimitError = UPSTASH_DOWN();
+      behaviour.rateLimitError = LIMITER_DOWN();
       storeRow(accountKeyRow({ key: GRANTED_KEY }));
       const { POST } = await load();
 
@@ -959,7 +959,7 @@ describe("the licence routes fail open when the rate limiter is down (#2058)", (
     });
 
     test(`${path} still gives an unknown key its reasoned verdict`, async () => {
-      behaviour.rateLimitError = UPSTASH_DOWN();
+      behaviour.rateLimitError = LIMITER_DOWN();
       const { POST } = await load();
 
       const response = await POST(

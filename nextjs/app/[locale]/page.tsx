@@ -7,7 +7,7 @@ import LogoMarquee from "@/components/landing/LogoMarquee";
 import ModesShowcase from "@/components/landing/ModesShowcase";
 import PricingSection from "@/components/landing/PricingSection";
 import StatsRow from "@/components/landing/StatsRow";
-import { fontMono } from "@/config/fonts";
+import { fontMono } from "@/config/fonts-mono";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -21,6 +21,15 @@ export default function Home() {
     <div
       className={`min-h-screen overflow-x-clip bg-[var(--dusk-night)] text-[var(--dusk-ink)] ${fontMono.variable}`}
     >
+      {/* JavaScript off: show every scroll reveal at once (they are
+          server-rendered at their hidden start; see globals.css). */}
+      <noscript>
+        <style>
+          {
+            "[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}"
+          }
+        </style>
+      </noscript>
       <HeroSection />
       <LogoMarquee />
       <HowItWorks />

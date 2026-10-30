@@ -3,18 +3,23 @@
         x:Class="HyperWhisper.Linux.ProviderApiKeyWindow"
         FontFamily="{StaticResource HwUiFont}"
         FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
-        Width="460" Height="360" CanResize="False"
+        Width="460" MinHeight="360" CanResize="False"
         WindowStartupLocation="CenterOwner"
         KeyDown="OnWindowKeyDown"
         Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
-  <!-- A port of app/windows/HyperWhisper/Views/Windows/ProviderApiKeyWindow.xaml: 460x360,
-       NoResize, CenterOwner, opened ShowDialog from the Model Library's Connect / Needs
+  <!-- A port of app/windows/HyperWhisper/Views/Windows/ProviderApiKeyWindow.xaml: 460 wide,
+       at least 360 tall, NoResize, CenterOwner, opened ShowDialog from the Model Library's Connect / Needs
        attention row action. Linux used to NAVIGATE to the credentials page instead, so the user
        lost the Model Library and had to find their way back through the sidebar.
 
        Four rows, exactly as Windows: title + subtitle, a card carrying the key glyph, the
        provider name, its current status and a "Get key" button, then the API key field with the
-       secure-storage footnote, then Clear | Cancel | Save. -->
+       secure-storage footnote, then Clear | Cancel | Save.
+
+       360 is a floor, not a fixed height: the Secret Service footnote is longer than the Windows
+       one and wraps to more lines, and at a fixed 360 its last line ran under the Clear button
+       (#2407). The code-behind sets SizeToContent to Height, so the dialog grows to fit it in
+       every locale. -->
   <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
     <StackPanel Margin="0,0,0,18">
       <TextBlock x:Name="ProviderKeyTitle" FontSize="14" FontWeight="SemiBold"

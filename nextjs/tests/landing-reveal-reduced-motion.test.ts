@@ -94,7 +94,12 @@ const messages = JSON.parse(
 ) as Record<string, unknown>;
 
 const HIDDEN = { opacity: 0, y: 12, filter: "blur(4px)" };
-const SHOWN = { opacity: 1, y: 0, filter: "blur(0px)" };
+const SHOWN = {
+  opacity: 1,
+  y: 0,
+  filter: "blur(0px)",
+  transitionEnd: { filter: "none" },
+};
 
 async function render(path: string, reduce: boolean | null): Promise<Props[]> {
   const { default: Section } = (await import(path)) as {
