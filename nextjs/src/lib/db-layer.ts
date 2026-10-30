@@ -6,6 +6,10 @@
 
 import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
+import {
+  ACCOUNT_KEY_DELETED_STATUS,
+  MAX_LIVE_ACCOUNT_KEYS,
+} from "@/lib/account-key-limits";
 import { db } from "@/src/db";
 import {
   accountKeys,
@@ -139,6 +143,7 @@ export interface RevokeWebAccessOptions {
  *   - `revokeAccountKey()`     — a license key was revoked
  *   - `updateCustomerEmail()`  — the account moved to a different address
  *   - `rotateAccountKey()`     — the owner replaced a key (keeps their own tab)
+ *   - `deleteAccountKey()`     — the owner deleted a key (keeps their own tab)
  *
  * Why session rows have to go at all: web sessions last 90 days and roll
  * forward on use, and a session minted by `/sign-in/license-key` outlives the
@@ -279,6 +284,214 @@ export async function rotateAccountKey(input: {
       status: "rotated",
       license: drizzleAccountKeyToRow(updated),
       previousKey: row.key,
+      devicesCleared: cleared.length,
+    } as const;
+  });
+}
+
+// First key of the two-int advisory lock that serialises one user's Account
+// Key issue and delete (the second is hashtext(user id)). Any constant works;
+// it only keeps these locks apart from GRANT_LICENSE_LOCK_CLASS and any other.
+const MANAGE_KEYS_LOCK_CLASS = 2634;
+
+/**
+ * Take the per-user lock that issue and delete share, inside `tx`. Released
+ * at COMMIT/ROLLBACK. Row locks alone are not enough: under READ COMMITTED a
+ * statement that waited on `FOR UPDATE` still does not see rows another
+ * transaction inserted meanwhile, so two concurrent issues would both count
+ * the same keys and pass the cap. After this lock, the next statement takes a
+ * fresh snapshot and sees what the previous holder committed.
+ */
+async function lockUserKeys(tx: DbExecutor, userId: string): Promise<void> {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(${MANAGE_KEYS_LOCK_CLASS}, hashtext(${userId}))`,
+  );
+}
+
+/**
+ * The caller's live (`granted`) keys, newest first, row-locked. "The caller's"
+ * is the same rule rotation applies: the row's user AND email are the
+ * caller's (the dashboard lists keys by email).
+ */
+async function lockLiveKeys(
+  tx: DbExecutor,
+  userId: string,
+  email: string,
+): Promise<Array<typeof accountKeys.$inferSelect>> {
+  return tx
+    .select()
+    .from(accountKeys)
+    .where(
+      and(
+        eq(accountKeys.userId, userId),
+        eq(accountKeys.email, email),
+        eq(accountKeys.status, "granted"),
+      ),
+    )
+    .orderBy(desc(accountKeys.createdAt), asc(accountKeys.id))
+    .for("update");
+}
+
+/** What `issueAccountKey()` did, or why it refused. */
+export type IssueAccountKeyResult =
+  | { status: "issued"; license: AccountKeyRow }
+  /**
+   * The caller holds no granted key. Issuing is for people who already have
+   * one; it must never be a way to get a first key (that is a purchase or
+   * the ACS claim).
+   */
+  | { status: "no_live_key" }
+  /** The caller already holds `MAX_LIVE_ACCOUNT_KEYS` granted keys. */
+  | { status: "cap_reached" };
+
+/**
+ * Give the caller one more Account Key on the same account.
+ *
+ * The new row belongs to the same user, so it shares everything that is kept
+ * per user: the credit pool (balances and grants are by `user_id`), the
+ * `credit_pool_id` the licence API derives from the user id, and the web
+ * account. Nothing is granted with it: no credits, no bundle.
+ *
+ * Copied from the caller's newest live key: `stripe_customer_id` (the licence
+ * API returns it, and top-up checkouts run under the key row's cached
+ * customer, so the account keeps one Stripe customer). NOT copied:
+ * `stripe_session_id` (unique, and it names the purchase that minted the
+ * original row; refunds and the admin refund find that row by it), and the
+ * Polar ids (`polar_license_key_id` is unique, and both name an imported
+ * Polar licence, which this row is not).
+ *
+ * In ONE transaction under the per-user lock: the caller must hold at least
+ * one granted key, and fewer than `MAX_LIVE_ACCOUNT_KEYS`.
+ *
+ * Never logs a key.
+ */
+export async function issueAccountKey(input: {
+  userId: string;
+  email: string;
+}): Promise<IssueAccountKeyResult> {
+  const email = input.email.toLowerCase().trim();
+
+  return db.transaction(async (tx) => {
+    await lockUserKeys(tx, input.userId);
+
+    const live = await lockLiveKeys(tx, input.userId, email);
+
+    if (live.length === 0) return { status: "no_live_key" } as const;
+    if (live.length >= MAX_LIVE_ACCOUNT_KEYS) {
+      return { status: "cap_reached" } as const;
+    }
+
+    const key = await generateUnusedAccountKey(tx);
+    const stripeCustomerId =
+      live.find((row) => row.stripeCustomerId)?.stripeCustomerId ?? null;
+
+    const license = await insertAccountKey(
+      {
+        key,
+        email,
+        userId: input.userId,
+        status: "granted",
+        stripeCustomerId,
+      },
+      tx,
+    );
+
+    if (!license) throw new Error("Failed to insert issued Account Key");
+
+    return { status: "issued", license } as const;
+  });
+}
+
+/** What `deleteAccountKey()` did, or why it refused. */
+export type DeleteAccountKeyResult =
+  | {
+      status: "deleted";
+      /** The row as it was before the delete (status `granted`). */
+      license: AccountKeyRow;
+      /** Device rows removed with the key. */
+      devicesCleared: number;
+    }
+  /** No such row, or it is not the caller's. The two are not told apart. */
+  | { status: "not_found" }
+  /** The row is already deleted, revoked or refunded: only a live key deletes. */
+  | { status: "not_granted" }
+  /** The row no longer holds the key the caller saw (rotated meanwhile). */
+  | { status: "stale" }
+  /** It is the caller's last live key. An account always keeps one. */
+  | { status: "last_key" };
+
+/**
+ * Delete one of the caller's Account Keys: it stops working everywhere, like
+ * the old key of a rotation, and leaves the dashboard.
+ *
+ * A status change (`ACCOUNT_KEY_DELETED_STATUS`), not a row delete: the row is
+ * what purchase history, the admin refund (by `stripe_session_id`), a top-up
+ * checkout opened on this key (by `account_key_id`) and credit grants
+ * (`source_id` = row id for the internal bundle) point at. Every licence
+ * reader already refuses a non-`granted` row, so the key is dead on
+ * `/api/license/*`, `/api/account/*` and the license-key sign-in on the next
+ * request; its string stays reserved by `idx_account_keys_key`, so it is
+ * never handed out again.
+ *
+ * In ONE transaction under the per-user lock, then the row lock:
+ *   1. ownership (user AND email), as rotation;
+ *   2. only a `granted` key;
+ *   3. `expectedKey`: the key the caller saw, so a key rotated in another tab
+ *      is not deleted unseen;
+ *   4. at least one OTHER granted key remains. The per-user lock makes this
+ *      race-safe: two tabs deleting the last two keys serialise, and the
+ *      second sees the first's delete and gets `last_key`;
+ *   5. the key's device rows are cleared, and every web session of the user
+ *      except `keepSessionId` is deleted (`revokeWebAccess`): a session minted
+ *      with this key must not outlive it.
+ *
+ * Never logs a key.
+ */
+export async function deleteAccountKey(input: {
+  id: string;
+  userId: string;
+  email: string;
+  expectedKey: string;
+  keepSessionId?: string;
+}): Promise<DeleteAccountKeyResult> {
+  const email = input.email.toLowerCase().trim();
+
+  return db.transaction(async (tx) => {
+    await lockUserKeys(tx, input.userId);
+
+    const [row] = await tx
+      .select()
+      .from(accountKeys)
+      .where(eq(accountKeys.id, input.id))
+      .for("update");
+
+    if (!row || row.userId !== input.userId || row.email !== email) {
+      return { status: "not_found" } as const;
+    }
+    if (row.status !== "granted") return { status: "not_granted" } as const;
+    if (row.key !== input.expectedKey.trim()) return { status: "stale" } as const;
+
+    const live = await lockLiveKeys(tx, input.userId, email);
+
+    if (!live.some((other) => other.id !== row.id)) {
+      return { status: "last_key" } as const;
+    }
+
+    await tx
+      .update(accountKeys)
+      .set({ status: ACCOUNT_KEY_DELETED_STATUS })
+      .where(eq(accountKeys.id, row.id));
+
+    const cleared = await tx
+      .delete(deviceValidations)
+      .where(eq(deviceValidations.licenseKeyId, row.id))
+      .returning({ id: deviceValidations.id });
+
+    await revokeWebAccess(row.userId, { tx, keepSessionId: input.keepSessionId });
+
+    return {
+      status: "deleted",
+      license: drizzleAccountKeyToRow(row),
       devicesCleared: cleared.length,
     } as const;
   });
