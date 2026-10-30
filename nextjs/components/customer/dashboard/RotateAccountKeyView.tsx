@@ -1,6 +1,6 @@
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
-import { BTN_SECONDARY_XS, BTN_WARN_XS } from "@/components/user/panel-styles";
+import { BTN_SECONDARY_XS, BTN_WARN_XS, FOCUS_RING } from "@/components/user/panel-styles";
 
 /** Every string the view shows, already translated by the container. */
 export interface RotateAccountKeyLabels {
@@ -155,7 +155,7 @@ export default function RotateAccountKeyView({
         <button
           aria-controls={panelId}
           aria-expanded={false}
-          className="rounded text-xs text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+          className={`rounded text-xs text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50 ${FOCUS_RING}`}
           type="button"
           onClick={onStart}
         >

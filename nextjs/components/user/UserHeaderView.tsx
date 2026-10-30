@@ -1,7 +1,7 @@
 "use client";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
-import { BTN_SECONDARY_XS, CHIP, CHIP_LAV } from "@/components/user/panel-styles";
+import { BTN_SECONDARY_XS, CHIP, CHIP_LAV, FOCUS_RING } from "@/components/user/panel-styles";
 
 export interface UserHeaderViewProps {
   user: { email?: string | null };
@@ -50,7 +50,7 @@ export default function UserHeaderView({
         {/* Left side - Logo (only shown when no sidebar, i.e., non-admin) */}
         {!isAdmin && (
           <LocaleLink
-            className="shrink-0 whitespace-nowrap flex items-center gap-2.5 rounded-lg text-[17px] font-semibold text-white transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+            className={`shrink-0 whitespace-nowrap flex items-center gap-2.5 rounded-lg text-[17px] font-semibold text-white transition-opacity hover:opacity-85 ${FOCUS_RING}`}
             href="/"
           >
             {/* Decorative: the link is named by the word beside it. */}
@@ -92,7 +92,7 @@ export default function UserHeaderView({
               the text mid-tween. */}
           {signOutError && (
             <span
-              className="text-red-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
+              className="text-rose-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
               role="alert"
             >
               {signOutError}

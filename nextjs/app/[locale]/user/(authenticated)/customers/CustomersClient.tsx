@@ -32,6 +32,8 @@ import {
   CHIP_MUTE,
   CHIP_PEACH,
   CHIP_ROSE,
+  CODE_BOX,
+  FOCUS_RING,
   ICON_BTN,
   INPUT,
   LABEL,
@@ -44,8 +46,7 @@ import {
 } from "@/components/user/panel-styles";
 
 /** A small inline row action (Refund, Add credits), as a pill chip. */
-const ROW_ACTION =
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-40 disabled:cursor-not-allowed";
+const ROW_ACTION = `${CHIP} ring-1 ring-inset transition-colors ${FOCUS_RING} disabled:opacity-40 disabled:cursor-not-allowed`;
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -804,7 +805,7 @@ export default function CustomersClient() {
                                   disabled={isTransitioning}
                                   title="Edit email"
                                   aria-label="Edit email"
-                                  className="ml-1.5 inline-flex align-[-2px] rounded text-[var(--dusk-dim)] hover:text-[var(--dusk-lav)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-[var(--dusk-dim)]"
+                                  className={`ml-1.5 inline-flex align-[-2px] rounded text-[var(--dusk-dim)] hover:text-[var(--dusk-lav)] transition-colors ${FOCUS_RING} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-[var(--dusk-dim)]`}
                                 >
                                   <svg
                                     className="h-3.5 w-3.5"
@@ -859,7 +860,7 @@ export default function CustomersClient() {
                                     ? "Account Key copied"
                                     : "Copy Account Key"
                                 }
-                                className="group relative inline-flex items-center gap-1.5 rounded-lg border border-[#2a2e4a] bg-[#090b18] px-2 py-1 font-mono text-xs text-[var(--dusk-ink)] transition-colors hover:border-[rgba(196,181,253,.45)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+                                className={`group relative inline-flex items-center gap-1.5 rounded-lg ${CODE_BOX} px-2 py-1 font-mono text-xs text-[var(--dusk-ink)] transition-colors hover:border-[rgba(196,181,253,.45)] hover:text-white ${FOCUS_RING}`}
                               >
                                 <code>{license.key.slice(0, 8)}...</code>
                                 <AnimatePresence
@@ -1067,7 +1068,7 @@ export default function CustomersClient() {
                     type="button"
                     onClick={() => setPage(entry)}
                     aria-current={entry === page ? "page" : undefined}
-                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] ${
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium tabular-nums transition-colors ${FOCUS_RING} ${
                       entry === page
                         ? "bg-white text-[#0b0b14]"
                         : "bg-white/[.04] hover:bg-white/[.09] text-[var(--dusk-mute)] hover:text-white border border-[var(--dusk-line)]"
@@ -1190,8 +1191,9 @@ export default function CustomersClient() {
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-white">Add Credits</h2>
               <button
                 aria-label="Close"
+                disabled={addCreditsMutation.isPending}
                 onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
-                className={`p-1 -m-1 ${ICON_BTN}`}
+                className={`p-1 -m-1 ${ICON_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1240,7 +1242,7 @@ export default function CustomersClient() {
                     key={amount}
                     type="button"
                     onClick={() => setCreditAmount(amount.toString())}
-                    className="flex-1 px-2 py-1.5 rounded-full border border-[var(--dusk-line)] bg-white/[.03] text-[var(--dusk-mute)] text-sm tabular-nums transition-colors hover:border-white/25 hover:bg-white/[.07] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+                    className={`flex-1 px-2 py-1.5 rounded-full border border-[var(--dusk-line)] bg-white/[.03] text-[var(--dusk-mute)] text-sm tabular-nums transition-colors hover:border-white/25 hover:bg-white/[.07] hover:text-white ${FOCUS_RING}`}
                   >
                     {amount.toLocaleString()}
                   </button>
@@ -1261,6 +1263,7 @@ export default function CustomersClient() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
+                  disabled={addCreditsMutation.isPending}
                   onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
                   className={`flex-1 ${BTN_SECONDARY}`}
                 >

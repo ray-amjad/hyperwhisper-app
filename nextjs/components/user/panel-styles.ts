@@ -12,6 +12,20 @@
 export const PANEL_BG =
   "bg-[var(--dusk-night)] bg-[radial-gradient(1100px_520px_at_50%_-8%,rgba(129,90,220,.16),transparent_62%),linear-gradient(180deg,var(--dusk-navy),var(--dusk-night)_420px)] text-[var(--dusk-ink)]";
 
+/**
+ * The keyboard focus ring every portal control uses: a lavender outline, 2px
+ * off the control.
+ */
+export const FOCUS_RING =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+
+/**
+ * The dark well behind a key or device id and inside an input (the mockups'
+ * `.inp` colours). Border and fill only: each use picks its own radius,
+ * padding and type.
+ */
+export const CODE_BOX = "border border-[#2a2e4a] bg-[#090b18]";
+
 /** A glass card: the mockups' `.glass`, with the portal's tighter radius. */
 export const CARD =
   "rounded-[20px] border border-[var(--dusk-line)] bg-[var(--dusk-glass)]";
@@ -33,7 +47,7 @@ export const PAGE_SUB = "mt-1.5 text-sm text-[var(--dusk-mute)]";
 
 /** A text input or number box, like the mockups' `.inp`. */
 export const INPUT =
-  "rounded-xl border border-[#2a2e4a] bg-[#090b18] text-[var(--dusk-ink)] placeholder:text-[var(--dusk-dim)] transition-[border-color,box-shadow] duration-150 ease-out focus:border-[rgba(196,181,253,.55)] focus:outline-none focus:ring-2 focus:ring-[rgba(196,181,253,.18)] motion-reduce:transition-none";
+  `rounded-xl ${CODE_BOX} text-[var(--dusk-ink)] placeholder:text-[var(--dusk-dim)] transition-[border-color,box-shadow] duration-150 ease-out focus:border-[rgba(196,181,253,.55)] focus:outline-none focus:ring-2 focus:ring-[rgba(196,181,253,.18)] motion-reduce:transition-none`;
 
 /*
  * The portal's pills. Same colours, radius, weight and press as the homepage's
@@ -47,7 +61,7 @@ export const INPUT =
  *   strings still hover on an <a> (the Polar link, "Get an Account Key").
  */
 const PILL =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[background-color,opacity,scale] duration-150 ease-out active:not-disabled:scale-[.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none [&_svg]:shrink-0";
+  `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[background-color,opacity,scale] duration-150 ease-out active:not-disabled:scale-[.96] ${FOCUS_RING} disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none [&_svg]:shrink-0`;
 const WHITE = "bg-white text-[#0b0b14] hover:not-disabled:bg-[#ececf5]";
 const GLASS =
   "border border-white/[.16] bg-[rgba(10,10,24,.5)] text-white backdrop-blur-[14px] hover:not-disabled:bg-[rgba(10,10,24,.7)]";
@@ -78,7 +92,7 @@ export const BTN_DANGER = `${PILL} ${SM} bg-rose-500/90 text-white hover:not-dis
 
 /** A small ghost icon button (show/hide, copy, close). */
 export const ICON_BTN =
-  "rounded-lg text-[var(--dusk-mute)] transition-colors hover:bg-white/[.07] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+  `rounded-lg text-[var(--dusk-mute)] transition-colors hover:bg-white/[.07] hover:text-white ${FOCUS_RING}`;
 
 /** An inline text action in the lavender accent ("Show all", "Get a key"). */
 export const LINK_ACCENT =
@@ -100,7 +114,7 @@ export const CHIP_ROSE =
 export const SEG =
   "inline-flex gap-1 rounded-full border border-[var(--dusk-line)] bg-white/[.05] p-1";
 export const SEG_ITEM =
-  "rounded-full px-3.5 py-1.5 text-sm transition-[background-color,color] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] motion-reduce:transition-none";
+  `rounded-full px-3.5 py-1.5 text-sm transition-[background-color,color] duration-150 ease-out ${FOCUS_RING} motion-reduce:transition-none`;
 export const SEG_ON = "bg-white text-[#0b0b14]";
 export const SEG_OFF = "text-[var(--dusk-mute)] hover:text-white";
 

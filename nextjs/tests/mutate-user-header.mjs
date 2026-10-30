@@ -29,7 +29,7 @@ const mutations = {
       s.replace(
         `          {signOutError && (
             <span
-              className="text-red-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
+              className="text-rose-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
               role="alert"
             >
               {signOutError}

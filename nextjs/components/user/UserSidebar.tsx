@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { useUser } from "./UserContext";
+import { FOCUS_RING } from "@/components/user/panel-styles";
 
 interface UserSidebarProps {
   locale: string;
@@ -124,7 +125,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
   const logo = (
     <Link
       href={`/${locale}/user/dashboard`}
-      className="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+      className={`flex items-center gap-3 rounded-lg ${FOCUS_RING}`}
       // A tap on the logo while already on the dashboard moves no path.
       onNavigate={() => setMenuOpenOn(null)}
     >
@@ -157,7 +158,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
               // click: a stalled navigation must not name a page not shown.
               aria-current={pathname === item.href ? "page" : undefined}
               href={item.href}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-[14.5px] transition-[background-color,color,border-color] duration-200 ease-[cubic-bezier(.2,0,0,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] motion-reduce:transition-none ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-[14.5px] transition-[background-color,color,border-color] duration-200 ease-[cubic-bezier(.2,0,0,1)] ${FOCUS_RING} motion-reduce:transition-none ${
                 isActive
                   ? "bg-[rgba(196,181,253,.1)] text-white border-[rgba(196,181,253,.24)] [&_svg]:text-[var(--dusk-lav)]"
                   : "border-transparent text-[var(--dusk-mute)] hover:bg-white/[.05] hover:text-white"
@@ -191,7 +192,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
             aria-expanded={menuOpen}
             aria-controls="user-sidebar-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="p-2 rounded-lg text-[var(--dusk-mute)] hover:bg-white/[.06] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+            className={`p-2 rounded-lg text-[var(--dusk-mute)] hover:bg-white/[.06] hover:text-white ${FOCUS_RING}`}
           >
             <svg
               className="w-6 h-6"

@@ -10,6 +10,7 @@ import {
   CHIP,
   CHIP_LAV,
   CHIP_MUTE,
+  CODE_BOX,
   ICON_BTN,
   LABEL,
 } from "@/components/user/panel-styles";
@@ -107,7 +108,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
                       dir="ltr": an RTL page must not reverse the segments (#1659). */}
                   <code
                     dir="ltr"
-                    className={`font-mono text-[var(--dusk-ink)] bg-[#090b18] border border-[#2a2e4a] px-3 py-1.5 rounded-lg text-sm tracking-[.02em] ${
+                    className={`font-mono text-[var(--dusk-ink)] ${CODE_BOX} px-3 py-1.5 rounded-lg text-sm tracking-[.02em] ${
                       isShown ? "break-all" : "truncate"
                     }`}
                   >

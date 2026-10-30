@@ -12,7 +12,10 @@ import {
   BTN_SECONDARY,
   BTN_SECONDARY_XS,
   CARD,
+  CHIP,
   CHIP_LAV,
+  CODE_BOX,
+  FOCUS_RING,
   INPUT,
   PAGE_SUB,
   PAGE_TITLE,
@@ -334,7 +337,7 @@ export function DeviceRow({
           <button
             aria-controls={expanded ? panelId : undefined}
             aria-expanded={expanded}
-            className="flex items-center gap-3 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:outline-offset-2"
+            className={`flex items-center gap-3 text-left rounded-lg ${FOCUS_RING}`}
             type="button"
             onClick={(event) => {
               event.stopPropagation();
@@ -348,13 +351,13 @@ export function DeviceRow({
           </button>
         </td>
         <td className="px-6 py-4">
-          <code className="font-mono text-[var(--dusk-mute)] text-xs bg-[#090b18] border border-[#2a2e4a] px-2 py-1 rounded-lg whitespace-nowrap">
+          <code className={`font-mono text-[var(--dusk-mute)] text-xs ${CODE_BOX} px-2 py-1 rounded-lg whitespace-nowrap`}>
             {truncateKey(row.licenseKey)}
           </code>
         </td>
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2.5 py-1 ${CHIP_LAV} tabular-nums rounded-full text-sm font-medium`}>
+            <span className={`${CHIP} ${CHIP_LAV} tabular-nums`}>
               {formatCount(row.deviceCount)}
             </span>
             <svg

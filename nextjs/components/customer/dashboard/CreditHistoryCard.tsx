@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
-import { CARD, LABEL, LINK_ACCENT } from "@/components/user/panel-styles";
+import { CARD, FOCUS_RING, LABEL, LINK_ACCENT } from "@/components/user/panel-styles";
 
 /**
  * Credit History Card
@@ -95,7 +95,7 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
             {hidden > 0 ? (
               <button
                 aria-expanded={showAll}
-                className={`mt-3 rounded text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] ${LINK_ACCENT}`}
+                className={`mt-3 rounded text-sm ${FOCUS_RING} ${LINK_ACCENT}`}
                 type="button"
                 onClick={() => setShowAll((prev) => !prev)}
               >

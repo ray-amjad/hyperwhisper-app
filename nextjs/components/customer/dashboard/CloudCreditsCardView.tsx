@@ -5,13 +5,14 @@ import { Spinner } from "@/components/ui/Spinner";
 import {
   BTN_PRIMARY,
   CARD_ACCENT,
+  FOCUS_RING,
   INPUT,
   LABEL,
 } from "@/components/user/panel-styles";
 
 /** One amount tile, like the /credits page's amount picker. */
 const TILE =
-  "flex flex-col items-center justify-center gap-0.5 px-3 py-3.5 rounded-2xl border text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-[background-color,border-color,scale] duration-150 ease-out active:not-disabled:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] motion-reduce:transition-none";
+  `flex flex-col items-center justify-center gap-0.5 px-3 py-3.5 rounded-2xl border text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-[background-color,border-color,scale] duration-150 ease-out active:not-disabled:scale-[.97] ${FOCUS_RING} motion-reduce:transition-none`;
 const TILE_OFF =
   "border-[var(--dusk-line)] bg-white/[.03] hover:not-disabled:border-white/25 hover:not-disabled:bg-white/[.06]";
 const TILE_ON = "border-white bg-white/[.08]";

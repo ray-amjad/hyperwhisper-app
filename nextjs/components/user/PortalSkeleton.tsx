@@ -1,3 +1,4 @@
+import DashboardCardsSkeleton from "@/components/customer/dashboard/DashboardCardsSkeleton";
 import { CARD, SKEL } from "@/components/user/panel-styles";
 
 /**
@@ -10,8 +11,8 @@ import { CARD, SKEL } from "@/components/user/panel-styles";
  * - `table`: the admin pages (Devices, Customers) — a heading block over the
  *   table card `DevicesClient.tsx` renders.
  * - `panel`: the Dashboard, which is also every regular user's landing page,
- *   so it never shows the admin table shape — a heading block over two plain
- *   cards.
+ *   so it never shows the admin table shape — a heading block over the
+ *   dashboard's own cards skeleton.
  */
 export default function PortalSkeleton({
   variant,
@@ -24,9 +25,15 @@ export default function PortalSkeleton({
   return (
     <div aria-busy="true" className="space-y-6" role="status">
       <span className="sr-only">Loading…</span>
+      {/* The heading block at PAGE_TITLE's and PAGE_SUB's real line boxes:
+          26px (30px from md) at leading 1.15, then mt-1.5 and one 20px line. */}
       <div>
-        <div className={`h-8 w-56 ${bar}`} />
-        <div className={`h-4 w-72 mt-2 ${bar}`} />
+        <div className="flex h-[1.15em] items-center text-[26px] md:text-[30px]">
+          <div className={`h-[0.9em] w-56 max-w-full ${bar}`} />
+        </div>
+        <div className="mt-1.5 flex h-5 items-center">
+          <div className={`h-4 w-72 max-w-full ${bar}`} />
+        </div>
       </div>
       {variant === "table" ? (
         <div className={`${card} overflow-hidden`}>
@@ -44,12 +51,10 @@ export default function PortalSkeleton({
           </div>
         </div>
       ) : (
-        Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className={`${card} p-6 space-y-3`}>
-            <div className={`h-5 w-40 ${bar}`} />
-            <div className={`h-4 w-64 ${bar}`} />
-          </div>
-        ))
+        // The dashboard's first paint is this heading over its own cards
+        // skeleton (the account query is still loading), so the panel shape
+        // is that skeleton and the swap from loading.tsx moves nothing.
+        <DashboardCardsSkeleton />
       )}
     </div>
   );
