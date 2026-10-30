@@ -101,6 +101,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a single dictation restores the user clipboard", InjectionSingleDictationRestoresUserClipboard),
     ("a transcript left with no restore is snapshotted by the next dictation", InjectionTranscriptLeftWithoutRestoreIsSnapshotted),
     ("a copy-only transcript with a restore keeps the user clipboard in a chain", InjectionCopyOnlyChainKeepsUserClipboard),
+    ("two dictations from an empty clipboard inside the restore delay leave the second", InjectionEmptyClipboardChainLeavesSecondTranscript),
+    ("three dictations from an empty clipboard leave the last", InjectionEmptyClipboardThreeChainLeavesLastTranscript),
+    ("after the restore delay an empty-clipboard transcript is the user's clipboard", InjectionEmptyClipboardTranscriptAfterDelayIsRestored),
+    ("a user copy after an empty-clipboard dictation is what comes back", InjectionEmptyClipboardUserCopyComesBack),
+    ("an empty-clipboard transcript left with no restore is snapshotted", InjectionEmptyClipboardRestoreOffIsSnapshotted),
+    ("a no-write dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardNoWriteSessionKeepsWindow),
+    ("a cancelled dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardCancelledSessionKeepsWindow),
+    ("a restore-off write inside the empty-clipboard window ends it", InjectionEmptyClipboardRestoreOffWriteEndsWindow),
     ("a cancelled chained dictation restores the user clipboard at once", InjectionCancelledChainedDictationRestoresAtOnce),
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
@@ -2160,6 +2168,148 @@ static async Task InjectionTranscriptLeftWithoutRestoreIsSnapshotted()
     service.ScheduleClipboardRestore(ShortRestoreDelay());
     await WaitForRestoreCallsAsync(clipboard, 1);
     Assert.Equal("transcript A", clipboard.Text);
+}
+
+// #2269: an empty clipboard, and a clock the test moves (the restore delay is 3 s on it).
+static (FakeClipboard Clipboard, LinuxTextInjectionService Service, Action<long> Advance) NewEmptyClipboardInjection()
+{
+    var clipboard = new FakeClipboard(new Dictionary<string, byte[]>(StringComparer.Ordinal));
+    var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    long now = 1_000_000;
+    service.TickCountMs = () => Volatile.Read(ref now);
+    return (clipboard, service, ms => Interlocked.Add(ref now, ms));
+}
+
+static TimeSpan EmptyClipboardRestoreDelay() => TimeSpan.FromSeconds(3);
+
+static async Task InjectionEmptyClipboardChainLeavesSecondTranscript()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(1_000);
+    await DictateAsync(service, "transcript B");
+    Assert.True(!service.HoldsSnapshot);
+    // With A snapshotted (main), this 20 ms restore would write A back; with none, nothing runs.
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    advance(10_000);
+    await Task.Delay(300);
+    Assert.Equal("transcript B", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
+}
+
+static async Task InjectionEmptyClipboardThreeChainLeavesLastTranscript()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    foreach (var text in new[] { "transcript A", "transcript B", "transcript C" })
+    {
+        await DictateAsync(service, text);
+        service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+        // Each window starts at its own schedule, so 7.5 s in all stays inside every 3 s delay.
+        advance(2_500);
+    }
+    Assert.True(!service.HoldsSnapshot);
+    await Task.Delay(100);
+    Assert.Equal("transcript C", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
+}
+
+static async Task InjectionEmptyClipboardTranscriptAfterDelayIsRestored()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    // The delay has ended: A is the clipboard's content now, and comes back after B, as before.
+    advance(3_000);
+    await DictateAsync(service, "transcript B");
+    Assert.True(service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("transcript A", clipboard.Text);
+}
+
+static async Task InjectionEmptyClipboardUserCopyComesBack()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    clipboard.UserCopy("user copy");
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionEmptyClipboardRestoreOffIsSnapshotted()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    // Restore after paste off: no restore is scheduled, so A stays on purpose and is the user's.
+    await DictateAsync(service, "transcript A");
+    advance(500);
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("transcript A", clipboard.Text);
+}
+
+static Task InjectionEmptyClipboardNoWriteSessionKeepsWindow() =>
+    EmptyClipboardSessionWithoutWriteKeepsWindow(async service =>
+    {
+        service.StartSession();
+        service.EndSession();
+        service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+        await Task.CompletedTask;
+    });
+
+static Task InjectionEmptyClipboardCancelledSessionKeepsWindow() =>
+    EmptyClipboardSessionWithoutWriteKeepsWindow(async service =>
+    {
+        service.StartSession();
+        service.EndSession();
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    });
+
+// Review round 2: a dictation inside A's window that writes the same text with restore off leaves
+// it on purpose, so the next one snapshots it and puts it back, as after any restore-off write.
+static async Task InjectionEmptyClipboardRestoreOffWriteEndsWindow()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "same text");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    await DictateAsync(service, "same text");
+    advance(500);
+    await DictateAsync(service, "transcript C");
+    Assert.True(service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("same text", clipboard.Text);
+}
+
+// A session inside A's window that writes nothing (silence, a cancel) keeps the mark, as the
+// non-empty chain does, so a third dictation still inside A's delay leaves its own transcript.
+static async Task EmptyClipboardSessionWithoutWriteKeepsWindow(Func<LinuxTextInjectionService, Task> secondSession)
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    await secondSession(service);
+    advance(500);
+    await DictateAsync(service, "transcript C");
+    Assert.True(!service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await Task.Delay(300);
+    Assert.Equal("transcript C", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
 }
 
 static async Task InjectionCopyOnlyChainKeepsUserClipboard()
@@ -5094,7 +5244,9 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         if (ThrowOnCapture) throw new InvalidOperationException("test");
         if (CaptureFailureCode is { } code)
             return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Failure(code, "test"));
-        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+        // An empty clipboard reads as no snapshot, as CommandClipboardBackend.CaptureAsync returns it (#2269).
+        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(
+            Formats.Count == 0 ? null : new ClipboardSnapshot(Clone(Formats))));
     }
     /// <summary>When set, a restore waits for it and ignores cancellation, as a helper already writing does.</summary>
     public TaskCompletionSource? RestoreGate { get; set; }
