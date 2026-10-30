@@ -5,6 +5,15 @@ import { AnimatePresence, m } from "framer-motion";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import {
+  CARD,
+  CHIP,
+  CHIP_LAV,
+  CHIP_MUTE,
+  CODE_BOX,
+  ICON_BTN,
+  LABEL,
+} from "@/components/user/panel-styles";
 
 interface License {
   id: string;
@@ -28,6 +37,8 @@ interface LicenseKeysCardProps {
  * License Keys Card
  *
  * Displays all license keys in a single card with show/hide and copy functionality.
+ * Active keys come first, so an inactive one never sits between two live ones
+ * (#1664).
  */
 export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -71,11 +82,16 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
     setShowKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // A stable sort: each group keeps the order the server sent.
+  const ordered = [...licenses].sort(
+    (a, b) => Number(b.status === "granted") - Number(a.status === "granted"),
+  );
+
   return (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <p className="text-sm text-gray-400 mb-3">Account Keys</p>
+    <div className={`${CARD} p-5 sm:p-6`}>
+      <p className={`${LABEL} mb-3.5`}>Account Keys</p>
       <div className="space-y-3">
-        {licenses.map((license) => {
+        {ordered.map((license) => {
           const isActive = license.status === "granted";
           const isShown = showKeys[license.id];
           const isCopied = copiedKey === license.key;
@@ -83,13 +99,16 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
 
           return (
             <div key={license.id}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* Both rows wrap, so on a phone the buttons and the badge drop
+                  under the key instead of squeezing it to a prefix every key
+                  shares, or pushing the page wider than the screen (#1664). */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
                   {/* Shown: wrap so a phone sees every character (#1325). Masked: one line.
                       dir="ltr": an RTL page must not reverse the segments (#1659). */}
                   <code
                     dir="ltr"
-                    className={`font-mono text-white bg-white/10 px-3 py-1.5 rounded text-sm ${
+                    className={`font-mono text-[var(--dusk-ink)] ${CODE_BOX} px-3 py-1.5 rounded-lg text-sm tracking-[.02em] ${
                       isShown ? "break-all" : "truncate"
                     }`}
                   >
@@ -97,7 +116,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
                   </code>
                   <button
                     onClick={() => toggleShowKey(license.id)}
-                    className="relative p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
+                    className={`relative p-1.5 shrink-0 ${ICON_BTN}`}
                     title={isShown ? "Hide Account Key" : "Show Account Key"}
                   >
                     <AnimatePresence initial={false} mode="popLayout">
@@ -123,7 +142,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
                     onClick={() => {
                       void copyToClipboard(license.key);
                     }}
-                    className="relative p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
+                    className={`relative p-1.5 shrink-0 ${ICON_BTN}`}
                     title="Copy to clipboard"
                   >
                     <AnimatePresence initial={false} mode="popLayout">
@@ -133,7 +152,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
                         {...ICON_SWAP}
                       >
                         {isCopied ? (
-                          <svg className="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 text-[var(--dusk-lav)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
@@ -146,11 +165,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
                   </button>
                 </div>
                 <span
-                  className={`px-2 py-1 text-xs font-medium rounded shrink-0 ${
-                    isActive
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-gray-500/20 text-gray-400"
-                  }`}
+                  className={`${CHIP} shrink-0 ${isActive ? CHIP_LAV : CHIP_MUTE}`}
                 >
                   {isActive ? "Active" : "Inactive"}
                 </span>
@@ -162,7 +177,7 @@ export default function LicenseKeysCard({ licenses, renderActions }: LicenseKeys
               <ErrorReveal className="" open={copyFailed}>
                 <p
                   aria-live="polite"
-                  className="pt-1.5 text-xs text-red-400 empty:hidden"
+                  className="pt-1.5 text-xs text-rose-300 empty:hidden"
                   role="status"
                 >
                   {copyFailed

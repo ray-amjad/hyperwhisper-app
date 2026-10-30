@@ -29,7 +29,7 @@ You can also click the HyperWhisper icon and select a mode from the list.
   macOS, Windows, and Linux. The mode's default status fixes the name. A default
   restored from a backup under another name is still the one you cannot rename.
   On macOS and Windows, the editor refuses a name that another mode already uses. It shows
-  **A mode with that name already exists.** under the field, and you cannot
+  "A mode with that name already exists." under the field, and you cannot
   save the mode until you change the name.
 
   Exactly one mode is the default, always. Delete the default mode and the next mode in the list takes its place. Restore a backup that carries two default modes, or none, and the app repairs it when it starts.
@@ -240,6 +240,8 @@ You set this value for each mode, and HyperWhisper sends it to the cloud backend
   </Step>
   <Step title="Configure post-processing">
     Select Off, Cloud, or Local. For Cloud, you can also select a post-processing engine and model. To give more instructions, add a system prompt.
+
+    On macOS, Local needs a downloaded local model. Until you have one, the editor shows "Local post-processing requires a downloaded model." and you cannot save the mode.
   </Step>
   <Step title="Adjust formatting options">
     Set punctuation, capitalization, profanity filter, remove trailing period, and the English spelling variant.

@@ -47,9 +47,14 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event;
 
-  // Verify webhook signature
+  // Verify webhook signature. The async form: on Cloudflare Workers Stripe may
+  // resolve its Web Crypto provider, which cannot verify synchronously.
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      webhookSecret,
+    );
   } catch (err) {
     console.error(
       "Stripe webhook signature verification failed:",
