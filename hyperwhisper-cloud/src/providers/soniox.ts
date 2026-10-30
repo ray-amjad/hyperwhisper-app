@@ -206,10 +206,21 @@ export async function transcribeWithSoniox(
       await sleep(POLL_INTERVAL_MS);
       polls += 1;
 
-      const jobResp = await fetchWithTimeout(provider, jobUrl, {
-        method: 'GET',
-        headers: authHeader(apiKey),
-      }, context);
+      let jobResp: Response;
+      try {
+        jobResp = await fetchWithTimeout(provider, jobUrl, {
+          method: 'GET',
+          headers: authHeader(apiKey),
+        }, context);
+      } catch (error) {
+        // A network error or per-request timeout on ONE poll is a transient
+        // blip like a 5xx poll: abandoning a still-processing job leaks it
+        // (Soniox refuses to DELETE it, 409), so keep polling until the
+        // deadline (#2923). fetchWithTimeout already logged the transport_error.
+        if (!(error instanceof ProviderUnavailableError)) throw error;
+        logProviderEvent(provider, 'poll_transport_error', { kind: error.kind, polls }, context);
+        continue;
+      }
 
       if (!jobResp.ok) {
         if (jobResp.status === 401 || jobResp.status === 403) {
