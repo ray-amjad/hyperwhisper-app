@@ -23,6 +23,12 @@ interface RotateAccountKeyControlProps {
   email: string;
   /** Called after a rotation lands, so the card can show the new key. */
   onRotated: () => void;
+  /**
+   * The card's one success line, if this control posted it (see
+   * `key-card-notice.ts`), and how to post or clear it.
+   */
+  notice: string | null;
+  onNotice: (text: string | null) => void;
 }
 
 /**
@@ -41,11 +47,12 @@ export default function RotateAccountKeyControl({
   emailProven,
   email,
   onRotated,
+  notice,
+  onNotice,
 }: RotateAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
   const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const rotate = api.customer.rotateAccountKey.useMutation({
@@ -64,7 +71,7 @@ export default function RotateAccountKeyControl({
       setPhase("idle");
       // Not every cloud app confirmed the purge: the old key may still
       // transcribe there until its cached verdict expires.
-      setNotice(
+      onNotice(
         data.cloudCleared
           ? t("rotated")
           : `${t("rotated")} ${t("cloudPurgePending")}`,
@@ -97,7 +104,7 @@ export default function RotateAccountKeyControl({
     }
 
     setPhase("idle");
-    setNotice(t("linkSent"));
+    onNotice(t("linkSent"));
   }
 
   return (
@@ -134,7 +141,7 @@ export default function RotateAccountKeyControl({
         void sendLink();
       }}
       onStart={() => {
-        setNotice(null);
+        onNotice(null);
         setError(null);
         setPhase(emailProven ? "confirming" : "verify");
       }}

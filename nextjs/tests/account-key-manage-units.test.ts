@@ -339,3 +339,67 @@ describe("cloudPurgeConfirmed: when the owner is told the key may linger", () =>
     assert.equal(cloudPurgeConfirmed({ purged: 0, failed: 0, skipped: true }), false);
   });
 });
+
+describe("the Account Keys card's one notice: only the latest line shows", () => {
+  async function loadNotice() {
+    return import("../components/customer/dashboard/key-card-notice");
+  }
+
+  /** Every place a line can render on a card with keys a and b. */
+  function onScreen(
+    mod: Awaited<ReturnType<typeof loadNotice>>,
+    state: ReturnType<typeof mod.postKeyCardNotice>,
+  ): string[] {
+    const { NOTICE_AT, keyCardNoticeAt } = mod;
+    const places = [
+      NOTICE_AT.card,
+      NOTICE_AT.issue,
+      ...["a", "b"].flatMap((id) => [NOTICE_AT.rotate(id), NOTICE_AT.deleteKey(id)]),
+    ];
+
+    return places.flatMap((at) => keyCardNoticeAt(state, at) ?? []);
+  }
+
+  test("add then delete: the delete line replaces the add line (the verify defect)", async () => {
+    const mod = await loadNotice();
+    const { NOTICE_AT, postKeyCardNotice } = mod;
+    let state = postKeyCardNotice(null, NOTICE_AT.issue, "New key added.");
+
+    state = postKeyCardNotice(state, NOTICE_AT.card, "Key deleted.");
+    assert.deepEqual(onScreen(mod, state), ["Key deleted."]);
+  });
+
+  test("any sequence of add, delete, rotate and sent links leaves exactly the latest line", async () => {
+    const mod = await loadNotice();
+    const { NOTICE_AT, postKeyCardNotice } = mod;
+    const steps: Array<[string, string]> = [
+      [NOTICE_AT.card, "Key deleted."],
+      [NOTICE_AT.issue, "New key added."],
+      [NOTICE_AT.rotate("a"), "Key rotated."],
+      [NOTICE_AT.issue, "New key added."],
+      [NOTICE_AT.deleteKey("b"), "Sign-in link sent."],
+      [NOTICE_AT.card, "Key deleted."],
+      [NOTICE_AT.rotate("b"), "Key rotated."],
+    ];
+    let state = null as ReturnType<typeof postKeyCardNotice>;
+
+    for (const [at, text] of steps) {
+      state = postKeyCardNotice(state, at, text);
+      assert.deepEqual(onScreen(mod, state), [text], `after "${text}" at ${at}`);
+    }
+  });
+
+  test("a control starting over clears only its own line", async () => {
+    const mod = await loadNotice();
+    const { NOTICE_AT, postKeyCardNotice } = mod;
+    const added = postKeyCardNotice(null, NOTICE_AT.issue, "New key added.");
+
+    // Opening Rotate on a key does not wipe the add line...
+    assert.deepEqual(
+      onScreen(mod, postKeyCardNotice(added, NOTICE_AT.rotate("a"), null)),
+      ["New key added."],
+    );
+    // ...but opening Add again does.
+    assert.deepEqual(onScreen(mod, postKeyCardNotice(added, NOTICE_AT.issue, null)), []);
+  });
+});

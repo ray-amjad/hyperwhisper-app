@@ -29,6 +29,12 @@ interface DeleteAccountKeyControlProps {
   /** Called after the delete lands (the row is already gone from the list). */
   /** `cloudCleared` false: every cloud app did not confirm the purge. */
   onDeleted: (result: { cloudCleared: boolean }) => void;
+  /**
+   * The card's one success line, if this control posted it (see
+   * `key-card-notice.ts`), and how to post or clear it.
+   */
+  notice: string | null;
+  onNotice: (text: string | null) => void;
 }
 
 /**
@@ -49,11 +55,12 @@ export default function DeleteAccountKeyControl({
   email,
   isLastLiveKey,
   onDeleted,
+  notice,
+  onNotice,
 }: DeleteAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
   const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const remove = api.customer.deleteAccountKey.useMutation({
@@ -92,7 +99,7 @@ export default function DeleteAccountKeyControl({
     }
 
     setPhase("idle");
-    setNotice(t("deleteLinkSent"));
+    onNotice(t("deleteLinkSent"));
   }
 
   const disabledReason = isLastLiveKey ? t("deleteLastKey") : null;
@@ -137,7 +144,7 @@ export default function DeleteAccountKeyControl({
         void sendLink();
       }}
       onStart={() => {
-        setNotice(null);
+        onNotice(null);
         setError(null);
         setPhase(emailProven ? "confirming" : "verify");
       }}

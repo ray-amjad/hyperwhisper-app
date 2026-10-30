@@ -27,8 +27,12 @@ interface IssueAccountKeyControlProps {
    * disabled with the reason.
    */
   liveKeyCount: number;
-  /** Called after a key was added (the dashboard clears its own notice). */
-  onIssued?: () => void;
+  /**
+   * The card's one success line, if this control posted it (see
+   * `key-card-notice.ts`), and how to post or clear it.
+   */
+  notice: string | null;
+  onNotice: (text: string | null) => void;
 }
 
 /**
@@ -46,12 +50,12 @@ export default function IssueAccountKeyControl({
   emailProven,
   email,
   liveKeyCount,
-  onIssued,
+  notice,
+  onNotice,
 }: IssueAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
   const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const issue = api.customer.issueAccountKey.useMutation({
@@ -76,8 +80,7 @@ export default function IssueAccountKeyControl({
       });
       void utils.customer.licensesWithCredits.invalidate();
       setPhase("idle");
-      setNotice(t("issued"));
-      onIssued?.();
+      onNotice(t("issued"));
     },
     onError: (err) => {
       const refusal = issueRefusal(err.data?.code);
@@ -108,7 +111,7 @@ export default function IssueAccountKeyControl({
     }
 
     setPhase("idle");
-    setNotice(t("issueLinkSent"));
+    onNotice(t("issueLinkSent"));
   }
 
   const disabledReason =
@@ -151,7 +154,7 @@ export default function IssueAccountKeyControl({
         void sendLink();
       }}
       onStart={() => {
-        setNotice(null);
+        onNotice(null);
         setError(null);
         setPhase(emailProven ? "confirming" : "verify");
       }}

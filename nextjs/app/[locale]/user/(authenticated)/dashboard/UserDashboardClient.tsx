@@ -12,6 +12,12 @@ import {
 import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
 import DeleteAccountKeyControl from "@/components/customer/dashboard/DeleteAccountKeyControl";
 import IssueAccountKeyControl from "@/components/customer/dashboard/IssueAccountKeyControl";
+import {
+  NOTICE_AT,
+  keyCardNoticeAt,
+  postKeyCardNotice,
+  type KeyCardNoticeState,
+} from "@/components/customer/dashboard/key-card-notice";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
 
@@ -60,8 +66,14 @@ export default function UserDashboardClient({
   const liveKeyCount =
     data?.licenses?.filter((l) => l.status === "granted").length ?? 0;
   const t = useTranslations("licenseKeysCard");
-  // The line a delete leaves: its control unmounts with the deleted row.
-  const [keyNotice, setKeyNotice] = useState<string | null>(null);
+  // The Account Keys card's ONE success line: the latest add, delete, rotate
+  // or sent link replaces any earlier one (`key-card-notice.ts`).
+  const [keyNotice, setKeyNotice] = useState<KeyCardNoticeState>(null);
+  const noticeProps = (at: string) => ({
+    notice: keyCardNoticeAt(keyNotice, at),
+    onNotice: (text: string | null) =>
+      setKeyNotice((prev) => postKeyCardNotice(prev, at, text)),
+  });
 
   return (
     <div className="space-y-6">
@@ -157,14 +169,14 @@ export default function UserDashboardClient({
                           className="pt-2 text-xs text-emerald-300 empty:hidden"
                           role="status"
                         >
-                          {keyNotice}
+                          {/* After a delete: its row and control are gone. */}
+                          {keyCardNoticeAt(keyNotice, NOTICE_AT.card)}
                         </p>
                         <IssueAccountKeyControl
                           email={user.email}
                           emailProven={canRotateKeys}
                           liveKeyCount={liveKeyCount}
-                          // A new key makes an earlier "key deleted" line stale.
-                          onIssued={() => setKeyNotice(null)}
+                          {...noticeProps(NOTICE_AT.issue)}
                         />
                       </>
                     ) : null
@@ -181,10 +193,8 @@ export default function UserDashboardClient({
                           email={user.email}
                           emailProven={canRotateKeys}
                           license={license}
-                          onRotated={() => {
-                            setKeyNotice(null);
-                            reveal();
-                          }}
+                          onRotated={reveal}
+                          {...noticeProps(NOTICE_AT.rotate(license.id))}
                         />
                         <DeleteAccountKeyControl
                           email={user.email}
@@ -192,12 +202,17 @@ export default function UserDashboardClient({
                           isLastLiveKey={liveKeyCount <= 1}
                           license={license}
                           onDeleted={({ cloudCleared }) =>
-                            setKeyNotice(
-                              cloudCleared
-                                ? t("deleted")
-                                : `${t("deleted")} ${t("cloudPurgePending")}`,
+                            setKeyNotice((prev) =>
+                              postKeyCardNotice(
+                                prev,
+                                NOTICE_AT.card,
+                                cloudCleared
+                                  ? t("deleted")
+                                  : `${t("deleted")} ${t("cloudPurgePending")}`,
+                              ),
                             )
                           }
+                          {...noticeProps(NOTICE_AT.deleteKey(license.id))}
                         />
                       </div>
                     ) : null
