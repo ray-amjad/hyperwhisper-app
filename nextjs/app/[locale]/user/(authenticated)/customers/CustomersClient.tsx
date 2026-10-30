@@ -1100,8 +1100,10 @@ export default function CustomersClient() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-white">Refund Account Key</h2>
               <button
+                aria-label="Close"
+                disabled={refundMutation.isPending}
                 onClick={() => { setRefundTarget(null); refundMutation.reset(); }}
-                className={`p-1 -m-1 ${ICON_BTN}`}
+                className={`p-1 -m-1 ${ICON_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1187,6 +1189,7 @@ export default function CustomersClient() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-white">Add Credits</h2>
               <button
+                aria-label="Close"
                 onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
                 className={`p-1 -m-1 ${ICON_BTN}`}
               >

@@ -215,7 +215,7 @@ test("a long email truncates and never wraps the logo or Sign Out (#1658)", asyn
   assert.match(markup, /<div class="flex min-w-0 items-center gap-4">/);
   // The logo and the button keep their natural width on one line.
   // The Dusk logo link carries the app icon (decorative, alt="") before the word.
-  assert.match(markup, /<a class="shrink-0 whitespace-nowrap [^"]*"[^>]*>(?:<img alt=""[^>]*\/?>)?HyperWhisper<\/a>/);
+  assert.match(markup, /<a class="shrink-0 whitespace-nowrap [^"]*"[^>]*><img alt=""[^>]*\/?>HyperWhisper<\/a>/);
   assert.match(markup, /<button class="shrink-0 whitespace-nowrap [^"]*"[^>]*>Sign Out<\/button>/);
 });
 

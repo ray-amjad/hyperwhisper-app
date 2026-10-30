@@ -28,7 +28,10 @@ const mutations = {
     apply: (s) =>
       s.replace(
         `          {signOutError && (
-            <span className="text-red-300 text-sm" role="alert">
+            <span
+              className="text-red-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
+              role="alert"
+            >
               {signOutError}
             </span>
           )}
@@ -45,11 +48,16 @@ const mutations = {
   },
   e: {
     file: WRAPPER,
-    describe: "restore origin/main:nextjs/components/user/UserHeader.tsx",
+    // The wrapper as it was before the #881 fix (7953460a). origin/main has
+    // held the fix since it merged, so reading main restored nothing.
+    describe: "restore the pre-#881 nextjs/components/user/UserHeader.tsx",
     apply: () =>
       execFileSync(
         "git",
-        ["show", "origin/main:nextjs/components/user/UserHeader.tsx"],
+        [
+          "show",
+          "0766c77e9c0e9f2a9a6354902a087ee4c136d131:nextjs/components/user/UserHeader.tsx",
+        ],
         { encoding: "utf8" },
       ),
   },

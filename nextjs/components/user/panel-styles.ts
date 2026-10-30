@@ -67,6 +67,12 @@ export const BTN_SECONDARY = `${PILL} ${GLASS} ${SM}`;
 export const BTN_PRIMARY_XS = `${PILL} ${WHITE} ${XS}`;
 export const BTN_SECONDARY_XS = `${PILL} ${GLASS} ${XS}`;
 
+/**
+ * A caution action at row size (the confirm in "rotate account key"): the
+ * amber it had before the restyle, as a pill.
+ */
+export const BTN_WARN_XS = `${PILL} ${XS} bg-amber-600 text-white hover:not-disabled:bg-amber-500`;
+
 /** A destructive action (refund): solid rose, pill-shaped like the rest. */
 export const BTN_DANGER = `${PILL} ${SM} bg-rose-500/90 text-white hover:not-disabled:bg-rose-500`;
 

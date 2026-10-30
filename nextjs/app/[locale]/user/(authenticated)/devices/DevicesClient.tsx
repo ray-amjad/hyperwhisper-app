@@ -12,6 +12,7 @@ import {
   BTN_SECONDARY,
   BTN_SECONDARY_XS,
   CARD,
+  CHIP_LAV,
   INPUT,
   PAGE_SUB,
   PAGE_TITLE,
@@ -353,7 +354,7 @@ export function DeviceRow({
         </td>
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-2.5 py-1 bg-[rgba(196,181,253,.13)] text-[var(--dusk-lav)] ring-1 ring-inset ring-[rgba(196,181,253,.22)] tabular-nums rounded-full text-sm font-medium">
+            <span className={`inline-flex items-center px-2.5 py-1 ${CHIP_LAV} tabular-nums rounded-full text-sm font-medium`}>
               {formatCount(row.deviceCount)}
             </span>
             <svg

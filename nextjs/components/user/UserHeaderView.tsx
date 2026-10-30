@@ -1,7 +1,7 @@
 "use client";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
-import { CHIP, CHIP_LAV } from "@/components/user/panel-styles";
+import { BTN_SECONDARY_XS, CHIP, CHIP_LAV } from "@/components/user/panel-styles";
 
 export interface UserHeaderViewProps {
   user: { email?: string | null };
@@ -100,7 +100,7 @@ export default function UserHeaderView({
           )}
 
           <button
-            className="shrink-0 whitespace-nowrap rounded-full border border-white/[.14] bg-white/[.04] px-3.5 py-1.5 text-sm font-medium text-[var(--dusk-ink)] transition-[background-color,opacity] duration-150 ease-out hover:bg-white/[.09] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none"
+            className={`shrink-0 whitespace-nowrap ${BTN_SECONDARY_XS}`}
             disabled={signingOut}
             onClick={onSignOut}
           >

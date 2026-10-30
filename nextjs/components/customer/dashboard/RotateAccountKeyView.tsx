@@ -1,6 +1,6 @@
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
-import { BTN_PRIMARY_XS, BTN_SECONDARY_XS } from "@/components/user/panel-styles";
+import { BTN_SECONDARY_XS, BTN_WARN_XS } from "@/components/user/panel-styles";
 
 /** Every string the view shows, already translated by the container. */
 export interface RotateAccountKeyLabels {
@@ -129,7 +129,7 @@ export default function RotateAccountKeyView({
       <p className="mt-1 text-[13px] leading-[1.5] text-[var(--dusk-mute)]">{body}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          className={BTN_PRIMARY_XS}
+          className={BTN_WARN_XS}
           disabled={busy}
           type="button"
           onClick={onAction}
