@@ -397,7 +397,8 @@
     "issueLinkSent": "サインインリンクを送信しました。受信トレイからリンクを開き、キーを追加してください。",
     "issueErrorUnavailable": "キーを追加できるのは、有効なキーを持つアカウントのみです。",
     "issueErrorGeneric": "キーを追加できませんでした。もう一度お試しください。",
-    "manageErrorRateLimited": "キーの変更回数が多すぎます。1分ほどしてからもう一度お試しください。"
+    "manageErrorRateLimited": "キーの変更回数が多すぎます。1分ほどしてからもう一度お試しください。",
+    "cloudPurgePending": "古いキーは、最長 1 時間 HyperWhisper Cloud で引き続き使える場合があります。"
   },
   "openSource": {
     "heading": "オープンソース。隠すものは何もありません。",

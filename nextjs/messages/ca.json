@@ -397,7 +397,8 @@
     "issueLinkSent": "S'ha enviat l'enllaç d'inici de sessió. Obre'l des de la safata d'entrada i després afegeix la clau.",
     "issueErrorUnavailable": "Només un compte amb una clau activa pot afegir-ne una altra.",
     "issueErrorGeneric": "No s'ha pogut afegir la clau. Torna-ho a provar.",
-    "manageErrorRateLimited": "Massa canvis de claus. Torna-ho a provar d'aquí a un minut."
+    "manageErrorRateLimited": "Massa canvis de claus. Torna-ho a provar d'aquí a un minut.",
+    "cloudPurgePending": "És possible que la clau antiga continuï funcionant a HyperWhisper Cloud fins a una hora."
   },
   "openSource": {
     "heading": "Codi obert. Res a amagar.",

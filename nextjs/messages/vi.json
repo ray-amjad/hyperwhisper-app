@@ -397,7 +397,8 @@
     "issueLinkSent": "Đã gửi liên kết đăng nhập. Hãy mở liên kết từ hộp thư đến, rồi thêm khóa.",
     "issueErrorUnavailable": "Chỉ tài khoản có khóa đang hoạt động mới có thể thêm khóa khác.",
     "issueErrorGeneric": "Không thể thêm khóa. Vui lòng thử lại.",
-    "manageErrorRateLimited": "Bạn đã thay đổi khóa quá nhiều lần. Vui lòng thử lại sau một phút."
+    "manageErrorRateLimited": "Bạn đã thay đổi khóa quá nhiều lần. Vui lòng thử lại sau một phút.",
+    "cloudPurgePending": "Khóa cũ có thể vẫn hoạt động trong HyperWhisper Cloud tối đa một giờ."
   },
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",

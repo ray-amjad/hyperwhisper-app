@@ -62,7 +62,13 @@ export default function RotateAccountKeyControl({
       );
       void utils.customer.licensesWithCredits.invalidate();
       setPhase("idle");
-      setNotice(t("rotated"));
+      // Not every cloud app confirmed the purge: the old key may still
+      // transcribe there until its cached verdict expires.
+      setNotice(
+        data.cloudCleared
+          ? t("rotated")
+          : `${t("rotated")} ${t("cloudPurgePending")}`,
+      );
       onRotated();
     },
     onError: (err) => {

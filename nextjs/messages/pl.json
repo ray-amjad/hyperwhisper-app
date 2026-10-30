@@ -397,7 +397,8 @@
     "issueLinkSent": "Link do logowania został wysłany. Otwórz go ze skrzynki odbiorczej, a następnie dodaj klucz.",
     "issueErrorUnavailable": "Kolejny klucz może dodać tylko konto z aktywnym kluczem.",
     "issueErrorGeneric": "Nie udało się dodać klucza. Spróbuj ponownie.",
-    "manageErrorRateLimited": "Zbyt wiele zmian kluczy. Spróbuj ponownie za minutę."
+    "manageErrorRateLimited": "Zbyt wiele zmian kluczy. Spróbuj ponownie za minutę.",
+    "cloudPurgePending": "Stary klucz może jeszcze działać w HyperWhisper Cloud przez maksymalnie godzinę."
   },
   "openSource": {
     "heading": "Otwarty kod. Nie mamy nic do ukrycia.",

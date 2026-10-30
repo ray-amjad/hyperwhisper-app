@@ -397,7 +397,8 @@
     "issueLinkSent": "Prihlasovací odkaz bol odoslaný. Otvorte ho vo svojej doručenej pošte a potom kľúč pridajte.",
     "issueErrorUnavailable": "Ďalší kľúč môže pridať iba účet s aktívnym kľúčom.",
     "issueErrorGeneric": "Kľúč sa nepodarilo pridať. Skúste to znova.",
-    "manageErrorRateLimited": "Príliš veľa zmien kľúčov. Skúste to znova o minútu."
+    "manageErrorRateLimited": "Príliš veľa zmien kľúčov. Skúste to znova o minútu.",
+    "cloudPurgePending": "Starý kľúč môže v HyperWhisper Cloud fungovať ešte až hodinu."
   },
   "openSource": {
     "heading": "Otvorený kód. Nič na skrývanie.",

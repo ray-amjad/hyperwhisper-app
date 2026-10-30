@@ -27,7 +27,8 @@ interface DeleteAccountKeyControlProps {
    */
   isLastLiveKey: boolean;
   /** Called after the delete lands (the row is already gone from the list). */
-  onDeleted: () => void;
+  /** `cloudCleared` false: every cloud app did not confirm the purge. */
+  onDeleted: (result: { cloudCleared: boolean }) => void;
 }
 
 /**
@@ -64,7 +65,7 @@ export default function DeleteAccountKeyControl({
       );
       void utils.customer.licensesWithCredits.invalidate();
       setPhase("idle");
-      onDeleted();
+      onDeleted({ cloudCleared: data.cloudCleared });
     },
     onError: (err) => {
       const refusal = deleteRefusal(err.data?.code);
@@ -99,8 +100,10 @@ export default function DeleteAccountKeyControl({
   return (
     <RotateAccountKeyView
       disabledReason={disabledReason}
-      // The reason already says it once the list is refetched.
-      error={disabledReason && phase === "idle" ? null : error}
+      // The view drops the error only when it repeats the reason (a refused
+      // last key, once the list is refetched); a CONFLICT or a rate limit
+      // still shows beside it.
+      error={error}
       idPrefix="delete-key"
       labels={{
         rotate: t("delete"),

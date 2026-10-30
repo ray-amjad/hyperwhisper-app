@@ -397,7 +397,8 @@
     "issueLinkSent": "Link de acesso enviado. Abra-o na sua caixa de entrada e, em seguida, adicione a chave.",
     "issueErrorUnavailable": "Somente uma conta com uma chave ativa pode adicionar outra.",
     "issueErrorGeneric": "Não foi possível adicionar a chave. Tente novamente.",
-    "manageErrorRateLimited": "Muitas alterações de chaves. Tente novamente em um minuto."
+    "manageErrorRateLimited": "Muitas alterações de chaves. Tente novamente em um minuto.",
+    "cloudPurgePending": "A chave antiga pode continuar funcionando no HyperWhisper Cloud por até uma hora."
   },
   "openSource": {
     "heading": "Código aberto. Nada a esconder.",

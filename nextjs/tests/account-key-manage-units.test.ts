@@ -206,6 +206,32 @@ describe("RotateAccountKeyView for delete and issue", () => {
     assert.deepEqual(clicks, []);
   });
 
+  test("a refusal that says something else shows beside the reason (CONFLICT, rate limit)", async () => {
+    const { default: View } = await load();
+    const html = renderToStaticMarkup(
+      View(
+        props({
+          disabledReason: "Your only key can't be deleted.",
+          error: "This key has changed since the page loaded.",
+        }),
+      ),
+    );
+
+    assert.match(html, /role="alert"[^>]*>This key has changed/);
+    assert.ok(html.includes("Your only key can&#x27;t be deleted."));
+  });
+
+  test("a refusal that repeats the reason word for word is shown once", async () => {
+    const { default: View } = await load();
+    const reason = "Your only key can't be deleted.";
+    const html = renderToStaticMarkup(
+      View(props({ disabledReason: reason, error: reason })),
+    );
+
+    assert.equal(html.split("Your only key can&#x27;t be deleted.").length - 1, 1);
+    assert.ok(!/role="alert"[^>]*>Your only key/.test(html));
+  });
+
   test("without a reason the button is live and starts the confirmation", async () => {
     const { default: View } = await load();
     const clicks: string[] = [];
@@ -299,5 +325,17 @@ describe("key-issued and key-deleted emails", () => {
 
     assertPrefixOnly(html, textPart);
     assert.match(textPart, /no longer works on any device/);
+  });
+});
+
+describe("cloudPurgeConfirmed: when the owner is told the key may linger", () => {
+  test("only every cloud app confirming counts; a failure or a skipped purge does not", async () => {
+    const { cloudPurgeConfirmed } = await import(
+      "../lib/services/cloud-license-cache"
+    );
+
+    assert.equal(cloudPurgeConfirmed({ purged: 2, failed: 0, skipped: false }), true);
+    assert.equal(cloudPurgeConfirmed({ purged: 1, failed: 1, skipped: false }), false);
+    assert.equal(cloudPurgeConfirmed({ purged: 0, failed: 0, skipped: true }), false);
   });
 });

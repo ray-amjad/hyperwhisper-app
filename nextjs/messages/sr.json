@@ -397,7 +397,8 @@
     "issueLinkSent": "Link za prijavu je poslat. Otvorite ga iz prijemnog sandučeta, a zatim dodajte ključ.",
     "issueErrorUnavailable": "Samo nalog sa aktivnim ključem može da doda još jedan.",
     "issueErrorGeneric": "Dodavanje ključa nije uspelo. Pokušajte ponovo.",
-    "manageErrorRateLimited": "Previše promena ključeva. Pokušajte ponovo za minut."
+    "manageErrorRateLimited": "Previše promena ključeva. Pokušajte ponovo za minut.",
+    "cloudPurgePending": "Stari ključ može da radi u HyperWhisper Cloudu još do sat vremena."
   },
   "openSource": {
     "heading": "Otvoreni kod. Nema sta da se krije.",

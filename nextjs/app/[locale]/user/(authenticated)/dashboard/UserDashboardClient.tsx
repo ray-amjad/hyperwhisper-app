@@ -163,6 +163,8 @@ export default function UserDashboardClient({
                           email={user.email}
                           emailProven={canRotateKeys}
                           liveKeyCount={liveKeyCount}
+                          // A new key makes an earlier "key deleted" line stale.
+                          onIssued={() => setKeyNotice(null)}
                         />
                       </>
                     ) : null
@@ -189,7 +191,13 @@ export default function UserDashboardClient({
                           emailProven={canRotateKeys}
                           isLastLiveKey={liveKeyCount <= 1}
                           license={license}
-                          onDeleted={() => setKeyNotice(t("deleted"))}
+                          onDeleted={({ cloudCleared }) =>
+                            setKeyNotice(
+                              cloudCleared
+                                ? t("deleted")
+                                : `${t("deleted")} ${t("cloudPurgePending")}`,
+                            )
+                          }
                         />
                       </div>
                     ) : null

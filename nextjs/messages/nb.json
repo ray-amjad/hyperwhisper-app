@@ -397,7 +397,8 @@
     "issueLinkSent": "Innloggingslenken er sendt. Åpne den fra innboksen din, og legg deretter til nøkkelen.",
     "issueErrorUnavailable": "Bare en konto med en aktiv nøkkel kan legge til en ny.",
     "issueErrorGeneric": "Kunne ikke legge til nøkkelen. Prøv igjen.",
-    "manageErrorRateLimited": "For mange nøkkelendringer. Prøv igjen om et minutt."
+    "manageErrorRateLimited": "For mange nøkkelendringer. Prøv igjen om et minutt.",
+    "cloudPurgePending": "Den gamle nøkkelen kan fortsette å virke i HyperWhisper Cloud i opptil en time."
   },
   "openSource": {
     "heading": "Åpen kildekode. Ingenting å skjule.",

@@ -397,7 +397,8 @@
     "issueLinkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd adja hozzá a kulcsot.",
     "issueErrorUnavailable": "Csak aktív kulccsal rendelkező fiók adhat hozzá újabb kulcsot.",
     "issueErrorGeneric": "Nem sikerült hozzáadni a kulcsot. Kérjük, próbálja újra.",
-    "manageErrorRateLimited": "Túl sok kulcsmódosítás. Kérjük, próbálja újra egy perc múlva."
+    "manageErrorRateLimited": "Túl sok kulcsmódosítás. Kérjük, próbálja újra egy perc múlva.",
+    "cloudPurgePending": "A régi kulcs még legfeljebb egy óráig működhet a HyperWhisper Cloudban."
   },
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",

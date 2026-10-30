@@ -128,6 +128,7 @@ const AUTH_ROUTE = "../app/api/auth/[...all]/route.ts";
 const TRPC_ROUTE = "../app/api/trpc/[trpc]/route.ts";
 const VALIDATE_ROUTE = "../app/api/license/validate/route.ts";
 const ACCOUNT_VALIDATE_ROUTE = "../app/api/account/validate/route.ts";
+const PROFILE_ROUTE = "../app/api/customer/profile/route.ts";
 
 before(async () => {
   L = await loadDbLayer();
@@ -279,7 +280,7 @@ const issue = (cookie: string | null) =>
   );
 
 const remove = (cookie: string | null, input: { id: string; currentKey: string }) =>
-  mutate<{ id: string }>("customer.deleteAccountKey", cookie, input);
+  mutate<{ id: string; cloudCleared: boolean }>("customer.deleteAccountKey", cookie, input);
 
 /** The dashboard's list, through the real query. */
 async function dashboardKeys(cookie: string): Promise<Array<{ id: string; status: string }>> {
@@ -350,6 +351,29 @@ function manageLogs(event: "issue" | "delete", from = 0): Array<Record<string, u
       const space = l.indexOf(" ");
       return { level: l.slice(0, space), ...JSON.parse(l.slice(space + 1)) };
     });
+}
+
+/** The `account_key.cloud_purge` lines, parsed, with their level. */
+function purgeLogs(): Array<Record<string, unknown>> {
+  return logLines
+    .filter((l) => l.includes('"event":"account_key.cloud_purge"'))
+    .map((l) => {
+      const space = l.indexOf(" ");
+      return { level: l.slice(0, space), ...JSON.parse(l.slice(space + 1)) };
+    });
+}
+
+/** `/api/customer/profile` for this session: the ids it lists. */
+async function profileKeyIds(cookie: string): Promise<string[]> {
+  const { GET } = (await import(PROFILE_ROUTE)) as {
+    GET: (request: Request) => Promise<Response>;
+  };
+  const response = await GET(
+    new Request(`${ORIGIN}/api/customer/profile`, { headers: { cookie } }),
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { licenses: Array<{ id: string }> };
+  return body.licenses.map((l) => l.id);
 }
 
 function assertNoKeyInLogs(keys: string[]): void {
@@ -430,6 +454,7 @@ describe("customer.issueAccountKey and customer.deleteAccountKey, end to end", (
 
     const deleted = await remove(here, { id: owner.keyId, currentKey: owner.key });
     assert.equal(deleted.status, 200, `delete answered ${deleted.code}`);
+    assert.deepEqual(deleted.data, { id: owner.keyId, cloudCleared: true });
     assert.equal(sentEmails.length, 0, "no email before the response");
     await flushAfterResponse();
 
@@ -502,6 +527,19 @@ describe("customer.issueAccountKey and customer.deleteAccountKey, end to end", (
         userId: owner.userId,
         licenseId: owner.keyId,
         devicesCleared: 2,
+      },
+    ]);
+    assert.deepEqual(purgeLogs(), [
+      {
+        level: "log",
+        event: "account_key.cloud_purge",
+        trigger: "delete",
+        outcome: "confirmed",
+        purged: 1,
+        failed: 0,
+        skipped: false,
+        userId: owner.userId,
+        licenseId: owner.keyId,
       },
     ]);
     assertNoKeyInLogs([owner.key, newKey]);
@@ -744,11 +782,82 @@ describe("customer.issueAccountKey and customer.deleteAccountKey, end to end", (
     try {
       const reply = await remove(here, { id: owner.keyId, currentKey: owner.key });
       assert.equal(reply.status, 200);
+      // Not a clean success: the owner is told the key may still work in the
+      // cloud for up to an hour.
+      assert.deepEqual(reply.data, { id: owner.keyId, cloudCleared: false });
       assert.equal((await validate(owner.key)).status, 400);
     } finally {
       globalThis.fetch = prev;
     }
     assert.ok(logLines.some((l) => l.includes("Cloud licence cache purge failed")));
+    assert.deepEqual(purgeLogs(), [
+      {
+        level: "warn",
+        event: "account_key.cloud_purge",
+        trigger: "delete",
+        outcome: "unconfirmed",
+        purged: 0,
+        failed: 1,
+        skipped: false,
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    ]);
     assertNoKeyInLogs([owner.key, spare.data!.key]);
+  });
+
+  test("an admin revoke after the owner's delete keeps it deleted and hidden", async () => {
+    const owner = await seedOwner("refunded");
+    const here = await signInByEmail(owner.email);
+    const spare = await issue(here);
+    assert.equal(spare.status, 200);
+    assert.equal((await remove(here, { id: owner.keyId, currentKey: owner.key })).status, 200);
+
+    // The admin Refund & Revoke path's write (the refund itself is Stripe's).
+    const result = await L.revokeAccountKey(owner.keyId, owner.userId, {
+      actingUserId: "admin",
+    });
+    assert.deepEqual(result, { revoked: false });
+    assert.equal((await keyRow(owner.keyId)).status, "deleted", "not relabelled revoked");
+
+    // Still off the dashboard and the profile API; this session not swept.
+    assert.deepEqual((await dashboardKeys(here)).map((l) => l.id), [spare.data!.id]);
+    assert.deepEqual(await profileKeyIds(here), [spare.data!.id]);
+
+    // A live key is still revoked by it.
+    assert.deepEqual(
+      await L.revokeAccountKey(spare.data!.id, owner.userId, { actingUserId: "admin" }),
+      { revoked: true },
+    );
+    assert.equal((await keyRow(spare.data!.id)).status, "revoked");
+  });
+
+  test("issue-then-delete cycles stop at the daily bound on new rows", async () => {
+    const { MAX_ACCOUNT_KEYS_ISSUED_PER_DAY } = await import("../lib/account-key-limits");
+    manageMax = 100; // the per-minute limiter is not what this tests
+    const owner = await seedOwner("cycler");
+    const here = await signInByEmail(owner.email);
+
+    // The seeded row counts: it was created today.
+    for (let n = 1; n < MAX_ACCOUNT_KEYS_ISSUED_PER_DAY; n++) {
+      const issued = await issue(here);
+      assert.equal(issued.status, 200, `issue ${n} answered ${issued.code}`);
+      assert.equal(
+        (await remove(here, { id: issued.data!.id, currentKey: issued.data!.key })).status,
+        200,
+      );
+    }
+
+    const refused = await issue(here);
+    assert.equal(refused.status, 429);
+    assert.equal(refused.code, "TOO_MANY_REQUESTS");
+    assert.equal(await liveKeyCount(owner.userId), 1);
+    assert.equal(manageLogs("issue").at(-1)?.reason, "daily_limit");
+
+    // Rows older than a day do not count.
+    await db.execute(
+      sql`UPDATE account_keys SET created_at = now() - interval '25 hours' WHERE user_id = ${owner.userId}`,
+    );
+    assert.equal((await issue(here)).status, 200);
   });
 });

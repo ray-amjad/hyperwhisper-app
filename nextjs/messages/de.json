@@ -397,7 +397,8 @@
     "issueLinkSent": "Anmeldelink gesendet. Öffnen Sie ihn in Ihrem Posteingang und fügen Sie dann den Schlüssel hinzu.",
     "issueErrorUnavailable": "Nur ein Konto mit einem aktiven Schlüssel kann einen weiteren hinzufügen.",
     "issueErrorGeneric": "Der Schlüssel konnte nicht hinzugefügt werden. Bitte versuchen Sie es erneut.",
-    "manageErrorRateLimited": "Zu viele Schlüsseländerungen. Bitte versuchen Sie es in einer Minute erneut."
+    "manageErrorRateLimited": "Zu viele Schlüsseländerungen. Bitte versuchen Sie es in einer Minute erneut.",
+    "cloudPurgePending": "Der alte Schlüssel kann in HyperWhisper Cloud noch bis zu einer Stunde funktionieren."
   },
   "openSource": {
     "heading": "Open Source. Nichts zu verbergen.",

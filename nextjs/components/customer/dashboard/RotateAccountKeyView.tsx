@@ -178,7 +178,11 @@ export interface RotateAccountKeyViewProps {
   labels: RotateAccountKeyLabels;
   /** The success line after a rotation or a sent link, or null. */
   notice: string | null;
-  /** The refusal line, or null. */
+  /**
+   * The refusal line, or null. Shown beside `disabledReason` too (a CONFLICT
+   * or a rate limit says something the reason does not), except when it is
+   * the same words, so the reason is not printed twice.
+   */
   error: string | null;
   onStart: () => void;
   onConfirm: () => void;
@@ -226,6 +230,8 @@ export default function RotateAccountKeyView({
   tone = "warning",
 }: RotateAccountKeyViewProps) {
   const panelId = `${idPrefix}-${licenseId}`;
+  const shownError =
+    error && phase === "idle" && error === disabledReason ? null : error;
   const panelTone =
     tone === "danger"
       ? "border-red-500/30 bg-red-500/10"
@@ -334,9 +340,9 @@ export default function RotateAccountKeyView({
       >
         {notice}
       </p>
-      <ErrorReveal className="" open={Boolean(error)}>
+      <ErrorReveal className="" open={Boolean(shownError)}>
         <p className="pt-1.5 text-xs text-red-400 empty:hidden" role="alert">
-          {error}
+          {shownError}
         </p>
       </ErrorReveal>
     </div>

@@ -397,7 +397,8 @@
     "issueLinkSent": "Poveznica za prijavu je poslana. Otvorite je iz ulazne pošte, a zatim dodajte ključ.",
     "issueErrorUnavailable": "Samo račun s aktivnim ključem može dodati još jedan.",
     "issueErrorGeneric": "Dodavanje ključa nije uspjelo. Pokušajte ponovno.",
-    "manageErrorRateLimited": "Previše promjena ključeva. Pokušajte ponovno za minutu."
+    "manageErrorRateLimited": "Previše promjena ključeva. Pokušajte ponovno za minutu.",
+    "cloudPurgePending": "Stari ključ može još do sat vremena raditi u HyperWhisper Cloudu."
   },
   "openSource": {
     "heading": "Otvoreni kod. Nista za skrivati.",

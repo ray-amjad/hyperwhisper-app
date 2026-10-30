@@ -424,7 +424,8 @@
     "issueLinkSent": "Sign-in link sent. Open it from your inbox, then add the key.",
     "issueErrorUnavailable": "Only an account with an active key can add another one.",
     "issueErrorGeneric": "Couldn't add a key. Please try again.",
-    "manageErrorRateLimited": "Too many key changes. Please try again in a minute."
+    "manageErrorRateLimited": "Too many key changes. Please try again in a minute.",
+    "cloudPurgePending": "The old key may keep working in HyperWhisper Cloud for up to an hour."
   },
   "notFound": {
     "title": "Page not found",

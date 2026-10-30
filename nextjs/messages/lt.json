@@ -397,7 +397,8 @@
     "issueLinkSent": "Prisijungimo nuoroda išsiųsta. Atidarykite ją iš gautųjų laiškų aplanko, tada pridėkite raktą.",
     "issueErrorUnavailable": "Pridėti kitą raktą gali tik paskyra, turinti aktyvų raktą.",
     "issueErrorGeneric": "Nepavyko pridėti rakto. Bandykite dar kartą.",
-    "manageErrorRateLimited": "Per daug raktų pakeitimų. Bandykite dar kartą po minutės."
+    "manageErrorRateLimited": "Per daug raktų pakeitimų. Bandykite dar kartą po minutės.",
+    "cloudPurgePending": "Senas raktas HyperWhisper Cloud gali veikti dar iki valandos."
   },
   "openSource": {
     "heading": "Atvirasis kodas. Nėra ko slėpti.",

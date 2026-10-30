@@ -397,7 +397,8 @@
     "issueLinkSent": "קישור הכניסה נשלח. פתחו אותו מתיבת הדואר הנכנס, ואז הוסיפו את המפתח.",
     "issueErrorUnavailable": "רק חשבון עם מפתח פעיל יכול להוסיף מפתח נוסף.",
     "issueErrorGeneric": "לא ניתן היה להוסיף מפתח. נסו שוב.",
-    "manageErrorRateLimited": "יותר מדי שינויים במפתחות. נסו שוב בעוד דקה."
+    "manageErrorRateLimited": "יותר מדי שינויים במפתחות. נסו שוב בעוד דקה.",
+    "cloudPurgePending": "ייתכן שהמפתח הישן ימשיך לעבוד ב-HyperWhisper Cloud עד שעה."
   },
   "openSource": {
     "heading": "קוד פתוח. אין מה להסתיר.",

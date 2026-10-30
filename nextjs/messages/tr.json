@@ -397,7 +397,8 @@
     "issueLinkSent": "Giriş bağlantısı gönderildi. Gelen kutunuzdan açın, ardından anahtarı ekleyin.",
     "issueErrorUnavailable": "Yalnızca etkin bir anahtarı olan hesap başka bir anahtar ekleyebilir.",
     "issueErrorGeneric": "Anahtar eklenemedi. Lütfen tekrar deneyin.",
-    "manageErrorRateLimited": "Çok fazla anahtar değişikliği yapıldı. Lütfen bir dakika sonra tekrar deneyin."
+    "manageErrorRateLimited": "Çok fazla anahtar değişikliği yapıldı. Lütfen bir dakika sonra tekrar deneyin.",
+    "cloudPurgePending": "Eski anahtar HyperWhisper Cloud'da bir saate kadar çalışmaya devam edebilir."
   },
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",

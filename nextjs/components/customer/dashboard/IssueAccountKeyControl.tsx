@@ -27,6 +27,8 @@ interface IssueAccountKeyControlProps {
    * disabled with the reason.
    */
   liveKeyCount: number;
+  /** Called after a key was added (the dashboard clears its own notice). */
+  onIssued?: () => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export default function IssueAccountKeyControl({
   emailProven,
   email,
   liveKeyCount,
+  onIssued,
 }: IssueAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
@@ -74,6 +77,7 @@ export default function IssueAccountKeyControl({
       void utils.customer.licensesWithCredits.invalidate();
       setPhase("idle");
       setNotice(t("issued"));
+      onIssued?.();
     },
     onError: (err) => {
       const refusal = issueRefusal(err.data?.code);

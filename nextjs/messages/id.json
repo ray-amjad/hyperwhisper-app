@@ -397,7 +397,8 @@
     "issueLinkSent": "Tautan masuk terkirim. Buka dari kotak masuk Anda, lalu tambahkan kunci.",
     "issueErrorUnavailable": "Hanya akun dengan kunci aktif yang dapat menambahkan kunci lain.",
     "issueErrorGeneric": "Tidak dapat menambahkan kunci. Silakan coba lagi.",
-    "manageErrorRateLimited": "Terlalu sering mengubah kunci. Silakan coba lagi dalam satu menit."
+    "manageErrorRateLimited": "Terlalu sering mengubah kunci. Silakan coba lagi dalam satu menit.",
+    "cloudPurgePending": "Kunci lama mungkin masih berfungsi di HyperWhisper Cloud hingga satu jam."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tidak ada yang disembunyikan.",

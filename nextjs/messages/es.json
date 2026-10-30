@@ -397,7 +397,8 @@
     "issueLinkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego añade la clave.",
     "issueErrorUnavailable": "Solo una cuenta con una clave activa puede añadir otra.",
     "issueErrorGeneric": "No se pudo añadir la clave. Inténtalo de nuevo.",
-    "manageErrorRateLimited": "Demasiados cambios de claves. Inténtalo de nuevo en un minuto."
+    "manageErrorRateLimited": "Demasiados cambios de claves. Inténtalo de nuevo en un minuto.",
+    "cloudPurgePending": "Es posible que la clave antigua siga funcionando en HyperWhisper Cloud durante una hora como máximo."
   },
   "openSource": {
     "heading": "Código abierto. Nada que ocultar.",

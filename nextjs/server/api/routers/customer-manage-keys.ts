@@ -17,7 +17,8 @@
  *      per-user lock, owner checked, only `granted` keys, the cap on issue and
  *      the last-key rule on delete;
  *   3. after commit, best effort: on delete, purge the key from the cloud's
- *      licence cache (awaited, bounded by its 3 s timeout); for both, email the
+ *      licence cache (awaited, bounded by its 3 s timeout; the reply says
+ *      whether every cloud app confirmed); for both, email the
  *      owner a notice after the response is sent, naming only a 7-character
  *      prefix.
  *
@@ -33,7 +34,11 @@ import { accountKeyManageRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { emailService } from "@/lib/services/email";
 import { afterResponse } from "@/lib/shared/after-response";
-import { purgeCloudLicenseCache } from "@/lib/services/cloud-license-cache";
+import {
+  cloudPurgeConfirmed,
+  logCloudPurge,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
 import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 
 const SUPPORT_EMAIL = "hi@support.hyperwhisper.com";
@@ -266,7 +271,7 @@ export interface DeleteKeyInput {
 export async function deleteKeyForCaller(
   ctx: ManageKeysCaller,
   input: DeleteKeyInput,
-): Promise<{ id: string }> {
+): Promise<{ id: string; cloudCleared: boolean }> {
   const event = "account_key.delete";
   const email = await gate(event, ctx, input.id);
 
@@ -344,7 +349,14 @@ export async function deleteKeyForCaller(
 
   // In the request, as for rotation: it is what makes the cloud stop
   // accepting the key before its cached verdict expires. Bounded, never throws.
-  await purgeCloudLicenseCache(license.key);
+  // When not every cloud app confirmed, the owner is told the key may keep
+  // working in HyperWhisper Cloud for up to an hour (`cloudCleared: false`).
+  const purge = await purgeCloudLicenseCache(license.key);
 
-  return { id: license.id };
+  logCloudPurge("delete", purge, {
+    userId: ctx.user.id,
+    licenseId: license.id,
+  });
+
+  return { id: license.id, cloudCleared: cloudPurgeConfirmed(purge) };
 }

@@ -397,7 +397,8 @@
     "issueLinkSent": "Pierakstīšanās saite nosūtīta. Atveriet to no iesūtnes un pēc tam pievienojiet atslēgu.",
     "issueErrorUnavailable": "Citu atslēgu var pievienot tikai konts ar aktīvu atslēgu.",
     "issueErrorGeneric": "Neizdevās pievienot atslēgu. Lūdzu, mēģiniet vēlreiz.",
-    "manageErrorRateLimited": "Pārāk daudz atslēgu izmaiņu. Lūdzu, mēģiniet vēlreiz pēc minūtes."
+    "manageErrorRateLimited": "Pārāk daudz atslēgu izmaiņu. Lūdzu, mēģiniet vēlreiz pēc minūtes.",
+    "cloudPurgePending": "Vecā atslēga HyperWhisper Cloud var darboties vēl līdz vienai stundai."
   },
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",

@@ -397,7 +397,8 @@
     "issueLinkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og bættu svo lyklinum við.",
     "issueErrorUnavailable": "Aðeins aðgangur með virkan lykil getur bætt við öðrum.",
     "issueErrorGeneric": "Ekki tókst að bæta við lykli. Reyndu aftur.",
-    "manageErrorRateLimited": "Of margar lyklabreytingar. Reyndu aftur eftir mínútu."
+    "manageErrorRateLimited": "Of margar lyklabreytingar. Reyndu aftur eftir mínútu.",
+    "cloudPurgePending": "Gamli lykillinn gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund."
   },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",

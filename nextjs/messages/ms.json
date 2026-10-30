@@ -397,7 +397,8 @@
     "issueLinkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian tambah kunci.",
     "issueErrorUnavailable": "Hanya akaun yang mempunyai kunci aktif boleh menambah kunci lain.",
     "issueErrorGeneric": "Tidak dapat menambah kunci. Sila cuba lagi.",
-    "manageErrorRateLimited": "Terlalu banyak perubahan kunci. Sila cuba lagi dalam seminit."
+    "manageErrorRateLimited": "Terlalu banyak perubahan kunci. Sila cuba lagi dalam seminit.",
+    "cloudPurgePending": "Kunci lama mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",

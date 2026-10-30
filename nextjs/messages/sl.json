@@ -397,7 +397,8 @@
     "issueLinkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato dodajte ključ.",
     "issueErrorUnavailable": "Samo račun z aktivnim ključem lahko doda še enega.",
     "issueErrorGeneric": "Ključa ni bilo mogoče dodati. Poskusite znova.",
-    "manageErrorRateLimited": "Preveč sprememb ključev. Poskusite znova čez minuto."
+    "manageErrorRateLimited": "Preveč sprememb ključev. Poskusite znova čez minuto.",
+    "cloudPurgePending": "Stari ključ lahko v HyperWhisper Cloud deluje še največ eno uro."
   },
   "openSource": {
     "heading": "Odprta koda. Nicesar za skrivati.",

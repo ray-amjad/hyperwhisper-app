@@ -31,7 +31,11 @@ import { accountKeyRotateRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { emailService } from "@/lib/services/email";
 import { afterResponse } from "@/lib/shared/after-response";
-import { purgeCloudLicenseCache } from "@/lib/services/cloud-license-cache";
+import {
+  cloudPurgeConfirmed,
+  logCloudPurge,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
 import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 
 /** The copy for each refusal. Owner-facing; never echoes the key. */
@@ -105,7 +109,7 @@ export interface RotateKeyInput {
 export async function rotateKeyForCaller(
   ctx: RotateKeyCaller,
   input: RotateKeyInput,
-): Promise<{ id: string; key: string }> {
+): Promise<{ id: string; key: string; cloudCleared: boolean }> {
   const userEmail = ctx.user.email?.toLowerCase();
 
   if (!userEmail) {
@@ -231,7 +235,18 @@ export async function rotateKeyForCaller(
   // The purge stays in the request: it is what makes the cloud stop
   // accepting the old key before it expires from the cache, so "rotated"
   // is shown once it was tried. It is bounded (3 s) and never throws.
-  await purgeCloudLicenseCache(previousKey);
+  // When not every cloud app confirmed, the owner is told the old key may
+  // keep working in HyperWhisper Cloud for up to an hour.
+  const purge = await purgeCloudLicenseCache(previousKey);
 
-  return { id: license.id, key: license.key };
+  logCloudPurge("rotate", purge, {
+    userId: ctx.user.id,
+    licenseId: license.id,
+  });
+
+  return {
+    id: license.id,
+    key: license.key,
+    cloudCleared: cloudPurgeConfirmed(purge),
+  };
 }
