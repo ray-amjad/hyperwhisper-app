@@ -106,7 +106,8 @@ function PopCredits({ text }: { text: string }) {
   );
 }
 
-// #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
+// #1663: account_keys.status is "granted", "revoked", or "deleted" (the owner
+// deleted it from the dashboard); show a word, not the enum.
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
   if (status === "revoked") return "Revoked";
@@ -880,7 +881,9 @@ export default function CustomersClient() {
                                 className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
                                   license.status === "revoked"
                                     ? "bg-red-500/20 text-red-300"
-                                    : "bg-emerald-500/20 text-emerald-300"
+                                    : license.status === "granted"
+                                      ? "bg-emerald-500/20 text-emerald-300"
+                                      : "bg-gray-500/20 text-gray-300"
                                 }`}
                               >
                                 {licenseStatusLabel(license.status)}
