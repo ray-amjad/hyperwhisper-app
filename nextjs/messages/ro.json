@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Cerere de suport HyperWhisper",
       "body": "Salut,\n\nVersiune: \n[poți verifica în Setări > Despre]\n\nProblemă: \n[Descrie problema]\n\nDetalii: \n[Oferă detalii relevante, ce făceai înainte de crash]\n\n[Mesajul tău aici]\n\nCu stimă,"
-    }
+    },
+    "helpCenterHint": "Configurare, comenzi rapide și modele.",
+    "chooseModelHint": "Ordonează modelele după felul în care lucrezi.",
+    "accountHint": "Conectează-te cu cheia de cont.",
+    "chooseModelTitle": "Alege un model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Deconectează-te și reconectează-te după ce te alături grupului input. Calitatea de membru este opțională, dar scurtăturile globale și lipirea automată au nevoie de ea.",
     "aptTitle": "Găzduiește singur un repository APT",
     "aptBody": "Versiunile Linux includ și o arhivă statică de repository APT. În prezent, HyperWhisper nu operează un endpoint APT public; consultă ghidul de instalare Linux pentru configurarea semnată și auto-găzduită, componentele desktop complementare, detaliile de confidențialitate și dezinstalare.",
-    "linuxGuideCta": "Citește ghidul de instalare Linux"
+    "linuxGuideCta": "Citește ghidul de instalare Linux",
+    "heroLead": "Gratuit și open source. Alegeți platforma.",
+    "releaseNotes": "Note de lansare",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon și Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 și ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versiuni mai vechi",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Acest link de conectare a expirat sau a fost deja folosit. Introdu adresa de e-mail pentru a primi unul nou.",
     "magicLinkFailed": "Nu te-am putut conecta cu acest link. Introdu adresa de e-mail pentru a primi unul nou."
+  },
+  "legal": {
+    "onThisPage": "Pe această pagină"
   }
 }

@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Sol·licitud de suport de HyperWhisper",
       "body": "Hola,\n\nVersió: \n[la pots comprovar a Configuració > Quant a]\n\nProblema: \n[Descriu el problema]\n\nDetalls: \n[Aporta detalls rellevants, què feies abans del bloqueig]\n\n[El teu missatge aquí]\n\nSalutacions,"
-    }
+    },
+    "helpCenterHint": "Configuració, dreceres i models.",
+    "chooseModelHint": "Ordena els models segons com treballes.",
+    "accountHint": "Inicia la sessió amb la clau del compte.",
+    "chooseModelTitle": "Tria un model"
   },
   "downloadModal": {
     "logoAlt": "Logotip de HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Tanca la sessió i torna a iniciar-la després d'unir-te al grup input. Ser-ne membre és opcional, però les dreceres globals i l'enganxament automàtic ho necessiten.",
     "aptTitle": "Allotja el teu propi repositori APT",
     "aptBody": "Les versions de Linux també inclouen un arxiu estàtic de repositori APT. Actualment HyperWhisper no ofereix cap endpoint APT públic; consulta la guia d'instal·lació de Linux per a la configuració signada i autoallotjada, els complements d'escriptori, els detalls de privadesa i la desinstal·lació.",
-    "linuxGuideCta": "Llegeix la guia d'instal·lació de Linux"
+    "linuxGuideCta": "Llegeix la guia d'instal·lació de Linux",
+    "heroLead": "Gratuït i de codi obert. Tria la teva plataforma.",
+    "releaseNotes": "Notes de la versió",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon i Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 i ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versions antigues",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Aquest enllaç d'inici de sessió ha caducat o ja s'ha fet servir. Introdueix el teu correu per rebre'n un de nou.",
     "magicLinkFailed": "No hem pogut iniciar la teva sessió amb aquest enllaç. Introdueix el teu correu per rebre'n un de nou."
+  },
+  "legal": {
+    "onThisPage": "En aquesta pàgina"
   }
 }

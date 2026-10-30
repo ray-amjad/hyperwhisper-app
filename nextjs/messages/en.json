@@ -239,7 +239,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Support Request",
       "body": "Hi,\n\nVersion: \n[you can check in Settings > About]\n\nIssue: \n[Describe your issue]\n\nDetails: \n[Provide any relevant details, what were you doing before the crash]\n\n[Your message here]\n\nBest,"
-    }
+    },
+    "helpCenterHint": "Setup, shortcuts and models.",
+    "chooseModelHint": "Rank the models for how you work.",
+    "accountHint": "Sign in with your Account Key.",
+    "chooseModelTitle": "Choose a model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -278,7 +282,12 @@
     "linuxInputGroupNote": "Log out and back in after joining the input group. Membership is optional, but global shortcuts and automatic paste need it.",
     "aptTitle": "Self-host an APT repository",
     "aptBody": "Linux releases also include a static APT repository archive. HyperWhisper does not currently operate a public APT endpoint; see the Linux installation guide for signed, self-hosted setup, desktop companions, privacy details, and removal.",
-    "linuxGuideCta": "Read the Linux installation guide"
+    "linuxGuideCta": "Read the Linux installation guide",
+    "heroLead": "Free and open source. Pick your platform.",
+    "releaseNotes": "Release notes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Older Versions",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "This sign-in link has expired or was already used. Enter your email to get a new one.",
     "magicLinkFailed": "We could not sign you in with that link. Enter your email to get a new one."
+  },
+  "legal": {
+    "onThisPage": "On this page"
   }
 }

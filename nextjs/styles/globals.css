@@ -641,8 +641,9 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 /* Scroll reveals (components/landing/Reveal.tsx) are server-rendered at their
    hidden start (opacity 0, inline), and only framer-motion's JS reveals them.
    With JavaScript off, app/[locale]/page.tsx carries a <noscript> style that
-   shows every [data-reveal] at once. Under Reduce motion they are shown from
-   first paint, before hydration, and every loop above stops. */
+   shows every [data-reveal] at once, and the `scripting: none` rule at the end
+   of this file does the same on every other page. Under Reduce motion they
+   are shown from first paint, before hydration, and every loop above stops. */
 @media (prefers-reduced-motion: reduce) {
   .dusk-enter,
   .dusk-drift,
@@ -687,5 +688,20 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 
   .dusk-marquee-track > [aria-hidden="true"] {
     display: none;
+  }
+}
+
+/*
+  With JavaScript off, framer never runs, so a scroll Reveal stays at its
+  server-rendered hidden start. Show every one of them, on every page (the
+  homepage's <noscript> style sets the same declarations, so the two agree).
+  A media query rather than a <noscript><style>, so no CSS text lands in the
+  rendered markup of a sub-page.
+*/
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
   }
 }

@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper tukipyyntö",
       "body": "Hei,\n\nVersio: \n[voit tarkistaa sen kohdasta Asetukset > Tietoja]\n\nOngelma: \n[Kuvaile ongelmasi]\n\nYksityiskohdat: \n[Anna olennaiset tiedot, mitä olit tekemässä ennen kaatumista]\n\n[Viestisi tähän]\n\nYstävällisin terveisin,"
-    }
+    },
+    "helpCenterHint": "Käyttöönotto, pikanäppäimet ja mallit.",
+    "chooseModelHint": "Järjestä mallit oman työtapasi mukaan.",
+    "accountHint": "Kirjaudu sisään tiliavaimellasi.",
+    "chooseModelTitle": "Valitse malli"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Kirjaudu ulos ja takaisin sisään, kun olet liittynyt input-ryhmään. Jäsenyys on valinnainen, mutta yleiset pikanäppäimet ja automaattinen liittäminen edellyttävät sitä.",
     "aptTitle": "Isännöi omaa APT-repositoriota",
     "aptBody": "Linux-julkaisuihin sisältyy myös staattinen APT-repositorioarkisto. HyperWhisper ei tällä hetkellä ylläpidä julkista APT-päätepistettä; katso Linux-asennusoppaasta ohjeet allekirjoitettuun, itse isännöityyn käyttöönottoon, työpöytäintegraatioon, tietosuojaan ja poistamiseen.",
-    "linuxGuideCta": "Lue Linux-asennusopas"
+    "linuxGuideCta": "Lue Linux-asennusopas",
+    "heroLead": "Ilmainen ja avointa lähdekoodia. Valitse alustasi.",
+    "releaseNotes": "Julkaisutiedot",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ja Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ja ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vanhemmat versiot",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
     "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
+  },
+  "legal": {
+    "onThisPage": "Tällä sivulla"
   }
 }

@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Supportverzoek",
       "body": "Hoi,\n\nVersie: \n[je kunt dit controleren in Instellingen > Over]\n\nProbleem: \n[Beschrijf je probleem]\n\nDetails: \n[Geef relevante details, wat deed je vóór de crash]\n\n[Jouw bericht hier]\n\nMet vriendelijke groet,"
-    }
+    },
+    "helpCenterHint": "Installatie, sneltoetsen en modellen.",
+    "chooseModelHint": "Rangschik de modellen naar hoe jij werkt.",
+    "accountHint": "Log in met je accountsleutel.",
+    "chooseModelTitle": "Kies een model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Log uit en weer in nadat je lid bent geworden van de groep input. Lidmaatschap is optioneel, maar is nodig voor globale sneltoetsen en automatisch plakken.",
     "aptTitle": "Host zelf een APT-repository",
     "aptBody": "Linux-releases bevatten ook een statisch APT-repositoryarchief. HyperWhisper beheert momenteel geen openbaar APT-endpoint; zie de Linux-installatiehandleiding voor een ondertekende, zelf gehoste installatie, desktopcomponenten, privacydetails en verwijdering.",
-    "linuxGuideCta": "Lees de Linux-installatiehandleiding"
+    "linuxGuideCta": "Lees de Linux-installatiehandleiding",
+    "heroLead": "Gratis en open source. Kies je platform.",
+    "releaseNotes": "Release notes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Oudere versies",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Deze inloglink is verlopen of al gebruikt. Vul je e-mailadres in om een nieuwe te krijgen.",
     "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen."
+  },
+  "legal": {
+    "onThisPage": "Op deze pagina"
   }
 }

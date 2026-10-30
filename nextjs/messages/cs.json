@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Požadavek na podporu HyperWhisper",
       "body": "Ahoj,\n\nVerze: \n[zjistíte v Nastavení > O aplikaci]\n\nProblém: \n[Popište svůj problém]\n\nDetaily: \n[Uveďte relevantní detaily, co jste dělali před pádem]\n\n[Vaše zpráva zde]\n\nS pozdravem,"
-    }
+    },
+    "helpCenterHint": "Nastavení, zkratky a modely.",
+    "chooseModelHint": "Seřaďte modely podle toho, jak pracujete.",
+    "accountHint": "Přihlaste se klíčem k účtu.",
+    "chooseModelTitle": "Vyberte model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Po přidání do skupiny input se odhlaste a znovu přihlaste. Členství je volitelné, ale globální zkratky a automatické vkládání ho vyžadují.",
     "aptTitle": "Vlastní repozitář APT",
     "aptBody": "Vydání pro Linux obsahují také archiv statického repozitáře APT. HyperWhisper v současnosti neprovozuje veřejný server APT; nastavení podepsaného vlastního repozitáře, desktopové doplňky, informace o soukromí a odinstalaci najdete v průvodci instalací pro Linux.",
-    "linuxGuideCta": "Přečíst průvodce instalací pro Linux"
+    "linuxGuideCta": "Přečíst průvodce instalací pro Linux",
+    "heroLead": "Zdarma a open source. Vyberte svou platformu.",
+    "releaseNotes": "Poznámky k vydání",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon a Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 a ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starší verze",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Platnost tohoto přihlašovacího odkazu vypršela nebo už byl použit. Zadejte svůj e-mail a získejte nový.",
     "magicLinkFailed": "S tímto odkazem jsme vás nemohli přihlásit. Zadejte svůj e-mail a získejte nový."
+  },
+  "legal": {
+    "onThisPage": "Na této stránce"
   }
 }

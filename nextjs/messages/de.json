@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Supportanfrage",
       "body": "Hallo,\n\nVersion:\n[Sie finden sie unter Einstellungen > Über]\n\nProblem:\n[Beschreiben Sie Ihr Problem]\n\nDetails:\n[Bitte geben Sie alle relevanten Details an, z. B. was Sie vor dem Absturz gemacht haben]\n\n[Ihre Nachricht hier]\n\nViele Grüße,"
-    }
+    },
+    "helpCenterHint": "Einrichtung, Tastenkürzel und Modelle.",
+    "chooseModelHint": "Ordnen Sie die Modelle nach Ihrer Arbeitsweise.",
+    "accountHint": "Melden Sie sich mit Ihrem Kontoschlüssel an.",
+    "chooseModelTitle": "Modell auswählen"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Melden Sie sich nach dem Beitritt zur Gruppe input ab und wieder an. Die Mitgliedschaft ist optional, wird aber für globale Tastenkürzel und automatisches Einfügen benötigt.",
     "aptTitle": "Ein APT-Repository selbst hosten",
     "aptBody": "Linux-Releases enthalten außerdem ein statisches APT-Repository-Archiv. HyperWhisper betreibt derzeit keinen öffentlichen APT-Endpunkt; in der Linux-Installationsanleitung finden Sie Informationen zur signierten, selbst gehosteten Einrichtung, zu Desktop-Begleitkomponenten, zum Datenschutz und zur Deinstallation.",
-    "linuxGuideCta": "Linux-Installationsanleitung lesen"
+    "linuxGuideCta": "Linux-Installationsanleitung lesen",
+    "heroLead": "Kostenlos und Open Source. Wählen Sie Ihre Plattform.",
+    "releaseNotes": "Versionshinweise",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Ältere Versionen",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Dieser Anmeldelink ist abgelaufen oder wurde bereits verwendet. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
     "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten."
+  },
+  "legal": {
+    "onThisPage": "Auf dieser Seite"
   }
 }

@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Permintaan Dukungan HyperWhisper",
       "body": "Hai,\n\nVersi: \n[bisa dicek di Settings > About]\n\nMasalah: \n[Jelaskan masalah Anda]\n\nDetail: \n[Berikan detail relevan, apa yang Anda lakukan sebelum crash]\n\n[Pesan Anda di sini]\n\nSalam,"
-    }
+    },
+    "helpCenterHint": "Penyiapan, pintasan, dan model.",
+    "chooseModelHint": "Urutkan model sesuai cara Anda bekerja.",
+    "accountHint": "Masuk dengan kunci akun Anda.",
+    "chooseModelTitle": "Pilih model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Keluar lalu masuk kembali setelah bergabung dengan grup input. Keanggotaan bersifat opsional, tetapi pintasan global dan tempel otomatis memerlukannya.",
     "aptTitle": "Host sendiri repositori APT",
     "aptBody": "Rilis Linux juga menyertakan arsip repositori APT statis. HyperWhisper saat ini tidak mengoperasikan endpoint APT publik; lihat panduan instalasi Linux untuk penyiapan host sendiri yang ditandatangani, pendamping desktop, detail privasi, dan cara menghapus instalasi.",
-    "linuxGuideCta": "Baca panduan instalasi Linux"
+    "linuxGuideCta": "Baca panduan instalasi Linux",
+    "heroLead": "Gratis dan open source. Pilih platform Anda.",
+    "releaseNotes": "Catatan rilis",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versi Lama",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Tautan masuk ini sudah kedaluwarsa atau sudah digunakan. Masukkan email Anda untuk mendapatkan tautan baru.",
     "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru."
+  },
+  "legal": {
+    "onThisPage": "Di halaman ini"
   }
 }

@@ -13,8 +13,9 @@
  * a variable) fails instead of being skipped.
  *
  * The walk covers every `.tsx` file under `app/` and `components/`, so a new
- * colour-only Card fails here. ONE known site is excluded: the
- * /older-versions error card (`border-red-800`), which #925 owns.
+ * colour-only Card fails here. No site is excluded: the one exclusion, the
+ * /older-versions error card (#925), went away when the Dusk /older-versions
+ * replaced its HeroUI Cards with plain bordered <div>s.
  *
  * No DOM is needed, the same way `tests/card-body-rtl-alignment.test.ts`
  * renders `<CardBody>`.
@@ -31,9 +32,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-const EXCLUDED = [
-  { file: "app/[locale]/older-versions/page.tsx", colour: "border-red-800" }, // #925
-];
+// #925's /older-versions error card was the one exclusion. The Dusk
+// /older-versions draws its cards as plain bordered <div>s (pinned below), so
+// it has no HeroUI Card left to exclude.
+const EXCLUDED: { file: string; colour: string }[] = [];
 
 // A border colour, after any variant prefix: `border-gray-800`,
 // `border-orange-700/50`, `border-white`, `border-transparent`, ...
@@ -108,7 +110,21 @@ test("the scan finds the Cards #1384 fixed outside the homepage", () => {
   const at = (f: string) => sites.filter((s) => s.where.startsWith(`${f}:`)).length;
   // At least these; a later bordered Card in the same file is fine.
   assert.ok(at("components/credits/CreditsPurchase.tsx") >= 1);
-  assert.ok(at("app/[locale]/older-versions/page.tsx") >= 2);
+});
+
+// /older-versions was the other #1384 site. Its version cards are plain <div>s
+// now, so the edge is pinned on their shared class string: a border width
+// plus the hairline colour.
+test("/older-versions version cards set a border width", () => {
+  const source = readFileSync(
+    join(root, "app/[locale]/older-versions/page.tsx"),
+    "utf8",
+  );
+  const card = source.match(/const CARD =\s*"([^"]*)"/);
+
+  assert.ok(card, "no CARD constant in app/[locale]/older-versions/page.tsx");
+  assert.ok(card[1].split(/\s+/).some((c) => BORDER_WIDTH.test(base(c))));
+  assert.match(source, /const CARD_PLAIN =\s*"[^"]*border-\[var\(--dusk-line\)\]/);
 });
 
 for (const { where, classes, colours, unparsed } of sites) {

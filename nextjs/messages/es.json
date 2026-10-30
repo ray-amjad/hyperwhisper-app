@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Solicitud de soporte de HyperWhisper",
       "body": "Hola,\n\nVersión: \n[puedes verificarla en Configuración > Acerca de]\n\nProblema: \n[Describe tu problema]\n\nDetalles: \n[Proporciona los detalles relevantes, qué estabas haciendo antes del fallo]\n\n[Tu mensaje aquí]\n\nSaludos,"
-    }
+    },
+    "helpCenterHint": "Configuración, atajos y modelos.",
+    "chooseModelHint": "Ordena los modelos según cómo trabajas.",
+    "accountHint": "Inicia sesión con tu clave de cuenta.",
+    "chooseModelTitle": "Elige un modelo"
   },
   "downloadModal": {
     "logoAlt": "Logo de HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Cierra sesión y vuelve a iniciarla después de unirte al grupo input. Ser miembro es opcional, pero los atajos globales y el pegado automático lo necesitan.",
     "aptTitle": "Aloja tu propio repositorio APT",
     "aptBody": "Las versiones de Linux también incluyen un archivo de repositorio APT estático. Actualmente HyperWhisper no ofrece un endpoint APT público; consulta la guía de instalación de Linux para la configuración firmada y autoalojada, los complementos de escritorio, los detalles de privacidad y la desinstalación.",
-    "linuxGuideCta": "Leer la guía de instalación de Linux"
+    "linuxGuideCta": "Leer la guía de instalación de Linux",
+    "heroLead": "Gratis y de código abierto. Elige tu plataforma.",
+    "releaseNotes": "Notas de la versión",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon e Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 e ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versiones anteriores",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Este enlace de inicio de sesión ha caducado o ya se ha usado. Introduce tu correo para recibir uno nuevo.",
     "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo."
+  },
+  "legal": {
+    "onThisPage": "En esta página"
   }
 }

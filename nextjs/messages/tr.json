@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Destek Talebi",
       "body": "Merhaba,\n\nSürüm: \n[Ayarlar > Hakkında bölümünden kontrol edebilirsiniz]\n\nSorun: \n[Sorununuzu açıklayın]\n\nDetaylar: \n[İlgili detayları paylaşın, çökmeden önce ne yapıyordunuz]\n\n[Mesajınız buraya]\n\nSaygılarımla,"
-    }
+    },
+    "helpCenterHint": "Kurulum, kısayollar ve modeller.",
+    "chooseModelHint": "Modelleri çalışma şeklinize göre sıralayın.",
+    "accountHint": "Hesap Anahtarınızla giriş yapın.",
+    "chooseModelTitle": "Bir model seçin"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logosu",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
     "aptTitle": "Kendi APT deponuzu barındırın",
     "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
-    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun"
+    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun",
+    "heroLead": "Ücretsiz ve açık kaynak. Platformunuzu seçin.",
+    "releaseNotes": "Sürüm notları",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ve Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ve ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eski Sürümler",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
     "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
+  },
+  "legal": {
+    "onThisPage": "Bu sayfada"
   }
 }

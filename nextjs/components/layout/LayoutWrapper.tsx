@@ -137,7 +137,14 @@ export default function LayoutWrapper({
       </div>
       <main
         className={
-          isHome ? "flex-grow" : "container mx-auto max-w-7xl px-6 flex-grow"
+          isHome
+            ? "flex-grow"
+            : // A Dusk sub-page (components/landing/DuskPage.tsx) lays its own
+              // full-bleed sky band and centres its sections itself, so the
+              // container lets go of its width and gutter while one is inside.
+              // Keyed on the page's own mark, not the path, so a 404 or an
+              // error page under the same prefix keeps the gutter.
+              "container mx-auto max-w-7xl px-6 flex-grow has-[[data-dusk-page]]:max-w-none has-[[data-dusk-page]]:px-0"
         }
       >
         {children}

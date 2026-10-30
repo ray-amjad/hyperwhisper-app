@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper támogatási kérés",
       "body": "Szia,\n\nVerzió: \n[ezt a Beállítások > Névjegy menüben ellenőrizheted]\n\nHiba: \n[Írd le a problémát]\n\nRészletek: \n[Adj meg minden releváns részletet, mit csináltál a leállás előtt]\n\n[Ide írd az üzeneted]\n\nÜdv,"
-    }
+    },
+    "helpCenterHint": "Beállítás, billentyűparancsok és modellek.",
+    "chooseModelHint": "Rangsorolja a modelleket a munkamódja szerint.",
+    "accountHint": "Jelentkezzen be a fiókkulcsával.",
+    "chooseModelTitle": "Modell kiválasztása"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logó",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
     "aptTitle": "Saját APT-tároló üzemeltetése",
     "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
-    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót"
+    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót",
+    "heroLead": "Ingyenes és nyílt forráskódú. Válassza ki a platformját.",
+    "releaseNotes": "Kiadási megjegyzések",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon és Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 és ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Korábbi verziók",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Ez a bejelentkezési hivatkozás lejárt, vagy már felhasználták. Adja meg e-mail-címét, és küldünk egy újat.",
     "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat."
+  },
+  "legal": {
+    "onThisPage": "Ezen az oldalon"
   }
 }

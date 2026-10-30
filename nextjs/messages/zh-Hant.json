@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper 支援請求",
       "body": "你好，\n\n版本：\n[可在 設定 > 關於 中查看]\n\n問題：\n[描述你的問題]\n\n詳情：\n[提供相關細節，當機前你在做什麼]\n\n[你的訊息]\n\n此致,"
-    }
+    },
+    "helpCenterHint": "設定、快捷鍵與模型。",
+    "chooseModelHint": "依你的工作方式為模型排序。",
+    "accountHint": "使用帳戶金鑰登入。",
+    "chooseModelTitle": "選擇模型"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper 標誌",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "加入 input 群組後，請登出再重新登入。加入群組並非必要，但全域快捷鍵與自動貼上需要它。",
     "aptTitle": "自行架設 APT 套件庫",
     "aptBody": "Linux 版本也附帶一個靜態 APT 套件庫封存檔。HyperWhisper 目前並未營運公開的 APT 端點；關於簽署的自行架設設定、桌面配套元件、隱私細節與移除方式，請參閱 Linux 安裝指南。",
-    "linuxGuideCta": "閱讀 Linux 安裝指南"
+    "linuxGuideCta": "閱讀 Linux 安裝指南",
+    "heroLead": "免費且開源。選擇你的平台。",
+    "releaseNotes": "版本說明",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon 與 Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 與 ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "舊版本",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "此登入連結已過期或已被使用。請輸入你的電子郵件以取得新的連結。",
     "magicLinkFailed": "無法使用該連結為你登入。請輸入你的電子郵件以取得新的連結。"
+  },
+  "legal": {
+    "onThisPage": "本頁內容"
   }
 }

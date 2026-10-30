@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper サポートリクエスト",
       "body": "お世話になっております。\n\n【バージョン】\n[設定 > アプリについて でご確認ください]\n\n【問題内容】\n[問題の内容を記載してください]\n\n【詳細】\n[クラッシュ前に何をしていたかなど、関連する詳細情報を記載してください]\n\n[ご質問やご要望をご記入ください]\n\nよろしくお願いいたします。"
-    }
+    },
+    "helpCenterHint": "セットアップ、ショートカット、モデル。",
+    "chooseModelHint": "作業スタイルに合わせてモデルをランク付け。",
+    "accountHint": "アカウントキーでサインイン。",
+    "chooseModelTitle": "モデルを選ぶ"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisperロゴ",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "inputグループに参加した後は、一度ログアウトして再度ログインしてください。参加は任意ですが、グローバルショートカットと自動貼り付けには必要です。",
     "aptTitle": "APTリポジトリをセルフホスト",
     "aptBody": "Linuxのリリースには、静的なAPTリポジトリのアーカイブも含まれています。HyperWhisperは現在、公開APTエンドポイントを運用していません。署名付きのセルフホスト設定、デスクトップ連携機能、プライバシーの詳細、アンインストール方法については、Linuxインストールガイドをご覧ください。",
-    "linuxGuideCta": "Linuxインストールガイドを読む"
+    "linuxGuideCta": "Linuxインストールガイドを読む",
+    "heroLead": "無料でオープンソース。お使いのプラットフォームを選んでください。",
+    "releaseNotes": "リリースノート",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon・Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64・ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "過去のバージョン",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "このサインインリンクは有効期限が切れているか、すでに使用されています。新しいリンクを受け取るにはメールアドレスを入力してください。",
     "magicLinkFailed": "このリンクではサインインできませんでした。新しいリンクを受け取るにはメールアドレスを入力してください。"
+  },
+  "legal": {
+    "onThisPage": "このページの内容"
   }
 }

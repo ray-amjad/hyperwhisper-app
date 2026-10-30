@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "בקשת תמיכה של HyperWhisper",
       "body": "היי,\n\nגרסה: \n[אפשר לבדוק בהגדרות > אודות]\n\nבעיה: \n[תארו את הבעיה]\n\nפרטים: \n[הוסיפו פרטים רלוונטיים, מה עשיתם לפני הקריסה]\n\n[ההודעה שלכם כאן]\n\nבברכה,"
-    }
+    },
+    "helpCenterHint": "הגדרה, קיצורי מקשים ומודלים.",
+    "chooseModelHint": "דרגו את המודלים לפי הדרך שבה אתם עובדים.",
+    "accountHint": "התחברו עם מפתח החשבון שלכם.",
+    "chooseModelTitle": "בחרו מודל"
   },
   "downloadModal": {
     "logoAlt": "הלוגו של HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "אחרי ההצטרפות לקבוצה input, התנתקו והתחברו מחדש. החברות בקבוצה אינה חובה, אבל קיצורי מקלדת גלובליים והדבקה אוטומטית דורשים אותה.",
     "aptTitle": "אירוח עצמי של מאגר APT",
     "aptBody": "גרסאות Linux כוללות גם ארכיון של מאגר APT סטטי. HyperWhisper לא מפעיל כרגע נקודת קצה ציבורית של APT; עיינו במדריך ההתקנה של Linux להגדרה חתומה באירוח עצמי, לרכיבים נלווים לשולחן העבודה, לפרטי פרטיות ולהסרה.",
-    "linuxGuideCta": "קראו את מדריך ההתקנה של Linux"
+    "linuxGuideCta": "קראו את מדריך ההתקנה של Linux",
+    "heroLead": "חינמי וקוד פתוח. בחרו את הפלטפורמה שלכם.",
+    "releaseNotes": "הערות גרסה",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ו-Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ו-ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "גרסאות ישנות",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "תוקף קישור הכניסה הזה פג או שכבר נעשה בו שימוש. הזינו את כתובת האימייל שלכם כדי לקבל קישור חדש.",
     "magicLinkFailed": "לא הצלחנו להכניס אתכם עם הקישור הזה. הזינו את כתובת האימייל שלכם כדי לקבל קישור חדש."
+  },
+  "legal": {
+    "onThisPage": "בדף זה"
   }
 }

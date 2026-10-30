@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Solicitação de suporte HyperWhisper",
       "body": "Olá,\n\nVersão: \n[você pode verificar em Configurações > Sobre]\n\nProblema: \n[Descreva seu problema]\n\nDetalhes: \n[Forneça detalhes relevantes, o que você estava fazendo antes da falha]\n\n[Sua mensagem aqui]\n\nAtenciosamente,"
-    }
+    },
+    "helpCenterHint": "Configuração, atalhos e modelos.",
+    "chooseModelHint": "Classifique os modelos de acordo com o seu jeito de trabalhar.",
+    "accountHint": "Entre com a chave da sua conta.",
+    "chooseModelTitle": "Escolha um modelo"
   },
   "downloadModal": {
     "logoAlt": "Logo do HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Saia e entre novamente na sessão depois de entrar no grupo input. A participação é opcional, mas os atalhos globais e a colagem automática precisam dela.",
     "aptTitle": "Hospede seu próprio repositório APT",
     "aptBody": "As versões para Linux também incluem um arquivo estático de repositório APT. No momento, o HyperWhisper não mantém um endpoint APT público; consulte o guia de instalação do Linux para configuração assinada e auto-hospedada, componentes complementares de desktop, detalhes de privacidade e remoção.",
-    "linuxGuideCta": "Ler o guia de instalação do Linux"
+    "linuxGuideCta": "Ler o guia de instalação do Linux",
+    "heroLead": "Gratuito e de código aberto. Escolha a sua plataforma.",
+    "releaseNotes": "Notas da versão",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon e Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 e ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versões antigas",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Este link de acesso expirou ou já foi usado. Digite seu e-mail para receber um novo.",
     "magicLinkFailed": "Não foi possível fazer seu login com esse link. Digite seu e-mail para receber um novo."
+  },
+  "legal": {
+    "onThisPage": "Nesta página"
   }
 }

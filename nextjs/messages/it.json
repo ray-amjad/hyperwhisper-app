@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "Richiesta di supporto HyperWhisper",
       "body": "Ciao,\n\nVersione: \n[puoi verificarla in Impostazioni > Informazioni]\n\nProblema: \n[Descrivi il tuo problema]\n\nDettagli: \n[Fornisci eventuali dettagli rilevanti, cosa stavi facendo prima del crash]\n\n[Il tuo messaggio qui]\n\nCordiali saluti,"
-    }
+    },
+    "helpCenterHint": "Configurazione, scorciatoie e modelli.",
+    "chooseModelHint": "Ordina i modelli in base a come lavori.",
+    "accountHint": "Accedi con la chiave dell'account.",
+    "chooseModelTitle": "Scegli un modello"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Dopo esserti aggiunto al gruppo input, esci e accedi di nuovo. L'appartenenza è facoltativa, ma serve per le scorciatoie globali e l'incolla automatico.",
     "aptTitle": "Ospita da te un repository APT",
     "aptBody": "Le release per Linux includono anche un archivio statico del repository APT. Al momento HyperWhisper non gestisce un endpoint APT pubblico; consulta la guida all'installazione per Linux per la configurazione firmata e self-hosted, i componenti desktop complementari, i dettagli sulla privacy e la rimozione.",
-    "linuxGuideCta": "Leggi la guida all'installazione per Linux"
+    "linuxGuideCta": "Leggi la guida all'installazione per Linux",
+    "heroLead": "Gratis e open source. Scegli la tua piattaforma.",
+    "releaseNotes": "Note di rilascio",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon e Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 e ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versioni precedenti",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Questo link di accesso è scaduto o è già stato usato. Inserisci la tua email per riceverne uno nuovo.",
     "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo."
+  },
+  "legal": {
+    "onThisPage": "In questa pagina"
   }
 }

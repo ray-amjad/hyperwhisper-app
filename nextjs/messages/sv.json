@@ -212,7 +212,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper supportförfrågan",
       "body": "Hej,\n\nVersion: \n[du kan kontrollera i Inställningar > Om]\n\nProblem: \n[Beskriv ditt problem]\n\nDetaljer: \n[Ange relevanta detaljer, vad du gjorde innan kraschen]\n\n[Ditt meddelande här]\n\nVänliga hälsningar,"
-    }
+    },
+    "helpCenterHint": "Installation, kortkommandon och modeller.",
+    "chooseModelHint": "Rangordna modellerna efter hur du arbetar.",
+    "accountHint": "Logga in med din kontonyckel.",
+    "chooseModelTitle": "Välj en modell"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logotyp",
@@ -251,7 +255,12 @@
     "linuxInputGroupNote": "Logga ut och in igen när du har gått med i gruppen input. Medlemskap är valfritt, men globala kortkommandon och automatisk inklistring kräver det.",
     "aptTitle": "Kör ett eget APT-förråd",
     "aptBody": "Linux-versionerna innehåller också ett statiskt APT-förrådsarkiv. HyperWhisper driver för närvarande ingen offentlig APT-slutpunkt; se installationsguiden för Linux för signerad installation i egen regi, kompletterande skrivbordsfiler, integritetsinformation och avinstallation.",
-    "linuxGuideCta": "Läs installationsguiden för Linux"
+    "linuxGuideCta": "Läs installationsguiden för Linux",
+    "heroLead": "Gratis och öppen källkod. Välj din plattform.",
+    "releaseNotes": "Versionsinformation",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon och Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 och ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Äldre versioner",
@@ -436,5 +445,8 @@
   "signIn": {
     "magicLinkExpired": "Den här inloggningslänken har gått ut eller redan använts. Ange din e-postadress för att få en ny.",
     "magicLinkFailed": "Vi kunde inte logga in dig med den länken. Ange din e-postadress för att få en ny."
+  },
+  "legal": {
+    "onThisPage": "På den här sidan"
   }
 }
