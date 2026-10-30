@@ -17,7 +17,8 @@
       "switchTo": "Dili değiştir"
     },
     "cloud": "Bulut",
-    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
+    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin",
+    "skipToContent": "İçeriğe atla"
   },
   "hero": {
     "badge": "Yeni",

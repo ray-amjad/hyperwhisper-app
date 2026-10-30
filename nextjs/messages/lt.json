@@ -17,7 +17,8 @@
       "switchTo": "Pakeisti kalbą"
     },
     "cloud": "Cloud",
-    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub"
+    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub",
+    "skipToContent": "Pereiti prie turinio"
   },
   "hero": {
     "badge": "Nauja",

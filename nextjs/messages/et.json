@@ -17,7 +17,8 @@
       "switchTo": "Vaheta keelt"
     },
     "cloud": "Cloud",
-    "githubAria": "Vaata HyperWhisperit GitHubis"
+    "githubAria": "Vaata HyperWhisperit GitHubis",
+    "skipToContent": "Liigu sisu juurde"
   },
   "hero": {
     "badge": "Uus",

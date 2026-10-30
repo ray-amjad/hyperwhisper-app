@@ -69,7 +69,15 @@ export function PageHero({
   const image = SKIES[sky];
 
   return (
-    <header className="relative isolate overflow-hidden pb-20 pt-16 text-center md:pb-[90px] md:pt-[100px]">
+    /*
+      `data-dusk-hero` is the page declaring a sky band: LayoutWrapper then lays
+      the site header over it (transparent at the top), so the band starts at
+      the very top of the page and pads its text down by the header's height.
+    */
+    <header
+      className="relative isolate overflow-hidden pb-20 pt-[calc(var(--site-header-h)+4rem)] text-center md:pb-[90px] md:pt-[calc(var(--site-header-h)+100px)]"
+      data-dusk-hero=""
+    >
       <div aria-hidden="true" className="absolute inset-[-10%_-4%] -z-20">
         <img
           alt=""

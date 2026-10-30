@@ -17,7 +17,8 @@
       "switchTo": "Zamenjaj jezik"
     },
     "cloud": "Cloud",
-    "githubAria": "Oglejte si HyperWhisper na GitHubu"
+    "githubAria": "Oglejte si HyperWhisper na GitHubu",
+    "skipToContent": "Skoči na vsebino"
   },
   "hero": {
     "badge": "Novo",

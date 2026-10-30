@@ -17,7 +17,8 @@
       "switchTo": "切换语言"
     },
     "cloud": "云端",
-    "githubAria": "在 GitHub 上查看 HyperWhisper"
+    "githubAria": "在 GitHub 上查看 HyperWhisper",
+    "skipToContent": "跳到主要内容"
   },
   "hero": {
     "badge": "新",

@@ -17,7 +17,8 @@
       "switchTo": "Đổi ngôn ngữ"
     },
     "cloud": "Cloud",
-    "githubAria": "Xem HyperWhisper trên GitHub"
+    "githubAria": "Xem HyperWhisper trên GitHub",
+    "skipToContent": "Chuyển đến nội dung"
   },
   "hero": {
     "badge": "Mới",

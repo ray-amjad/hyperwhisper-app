@@ -17,7 +17,8 @@
       "switchTo": "Смяна на езика"
     },
     "cloud": "Облак",
-    "githubAria": "Вижте HyperWhisper в GitHub"
+    "githubAria": "Вижте HyperWhisper в GitHub",
+    "skipToContent": "Към съдържанието"
   },
   "hero": {
     "badge": "Ново",

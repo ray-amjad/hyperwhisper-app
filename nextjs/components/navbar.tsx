@@ -26,6 +26,12 @@ import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useSiteHref } from "@/src/i18n/use-site-href";
 
+const SOLID_BAR =
+  "border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]";
+const CLEAR_BAR = "border-transparent bg-transparent";
+const SKY_TOP =
+  "group-has-[[data-dusk-hero]]/site:border-transparent group-has-[[data-dusk-hero]]/site:bg-transparent group-has-[[data-dusk-hero]]/site:backdrop-blur-none";
+
 const NAV_LINK =
   "rounded text-[14.5px] text-white/[.78] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
 
@@ -33,6 +39,12 @@ const NAV_LINK =
  * The site navbar. `overlay` (the homepage) lays it over the hero sky:
  * transparent until the page scrolls 40px or the menu opens, then the same
  * solid dusk bar every other page shows from the start.
+ *
+ * A sub-page that opens on a Dusk sky band (PageHero's `data-dusk-hero`) gets
+ * the same behaviour without a prop: while the bar is at the top, SKY_TOP's
+ * `:has()` variant on LayoutWrapper's `group/site` clears the solid bar. It is
+ * CSS, so the server HTML is already transparent over the sky, and a page
+ * with no sky band keeps the solid bar.
  */
 export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
   const { openModal } = useDownloadModal();
@@ -54,19 +66,42 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
 
-  const [scrolled, setScrolled] = useState(false);
+  /*
+    Escape closes the open menu, as it does any overlay, and hands focus back
+    to the toggle that opened it so a keyboard user is not left on a control
+    that just disappeared. HeroUI's menu has no Escape handling of its own.
+  */
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!overlay) return;
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMenuOpen(false);
+      navRef.current
+        ?.querySelector<HTMLButtonElement>("button[data-hw-menu-toggle]")
+        ?.focus();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
+
+  const [scrolled, setScrolled] = useState(false);
+
+  // Every page listens: whether a sub-page has a sky band to clear the bar
+  // over is decided in CSS (SKY_TOP), so the navbar cannot know it here.
+  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
 
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => window.removeEventListener("scroll", onScroll);
-  }, [overlay]);
+  }, []);
 
-  const solid = !overlay || scrolled || isMenuOpen;
+  const atTop = !scrolled && !isMenuOpen;
 
   /*
     HeroUI pins the open menu at `top: var(--navbar-height)` (64px) and sizes it
@@ -78,7 +113,6 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     bottom edge. It is re-measured when the navbar or the header around it
     resizes: a dismissed banner shrinks the header and moves the navbar up.
   */
-  const navRef = useRef<HTMLElement>(null);
   const [menuTop, setMenuTop] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -156,9 +190,8 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
       ref={navRef}
       className={clsx(
         "border-b transition-[background-color,border-color] duration-300 ease-out",
-        solid
-          ? "border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]"
-          : "border-transparent bg-transparent",
+        overlay && atTop ? CLEAR_BAR : SOLID_BAR,
+        !overlay && atTop && SKY_TOP,
       )}
       /*
         HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
@@ -275,7 +308,10 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
       */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarItem>
-          <NavbarMenuToggle className="text-white/80 size-12 -mr-3" />
+          <NavbarMenuToggle
+            className="text-white/80 size-12 -mr-3"
+            data-hw-menu-toggle=""
+          />
         </NavbarItem>
       </NavbarContent>
 

@@ -50,6 +50,7 @@ const ENGLISH = [
   'eyebrow="Legal"',
   "HyperWhisper is now fully open source",
   "Now open source",
+  "Skip to content",
   "Learn more",
   "Dismiss announcement",
   "Nothing to hide",
@@ -77,6 +78,7 @@ const ENGLISH = [
 
 const SURFACES = [
   "components/open-source-banner.tsx",
+  "components/layout/LayoutWrapper.tsx",
   "components/open-source-content.tsx",
   "app/[locale]/open-source/page.tsx",
   "app/[locale]/download/page.tsx",
