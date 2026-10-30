@@ -85,20 +85,36 @@ const STOP_GRACE_MS = 5_000;
 // completion) can still be in flight as the stop goes out. Closing on it threw
 // the stop's own final away: the user's last sentence was lost.
 //
-// So a post-stop completion only arms a settle wait. The session closes once
-// BOTH hold:
-// - STOP_SETTLE_QUIET_MS with no further transcript or completion — a later
-//   final re-arms it, so a frame that is still coming keeps the socket open;
-// - STOP_SETTLE_MIN_AFTER_STOP_MS since `audio_stream_end` went out. An
-//   in-flight earlier turn lands within one network hop of the stop, but
-//   Google's answer takes ~0.5 s (verified live, above), and with no interim in
-//   between the quiet window alone would close in that gap. The floor covers
-//   the measured answer latency with margin.
-// The usual stop (answer at ~0.5 s) now ends at ~0.8 s instead of ~0.5 s: about
-// 0.3 s added to `session_complete`, against the 5 s STOP_GRACE_MS backstop it
-// used to wait before the final-and-complete fix — which still caps all of this.
+// The flag cannot tell them apart either: the Rust core and the vectors treat
+// `turnComplete` as the same boundary under Google's other spelling, and a stop
+// answered with `turnComplete` alone is a case the vectors pin. What CAN tell
+// them apart is timing. A frame Google sent before it read `audio_stream_end`
+// lands within one round trip of the stop (tens of ms, Fly to Google), while
+// the answer needs Google to flush the tail audio first (~0.5 s, verified live,
+// above). So a post-stop completion is classed by when it lands:
+// - inside STOP_SETTLE_IN_FLIGHT_WINDOW_MS (250 ms, several round trips of
+//   margin): an earlier turn, in flight. The session is held until
+//   STOP_SETTLE_IN_FLIGHT_HOLD_MS after the stop for the real answer;
+// - after it: the stop's answer. The session closes STOP_SETTLE_QUIET_MS after
+//   the last transcript or completion (each re-arms it), so a frame right
+//   behind it still lands.
+//
+// THE TRADE-OFF, explicit. Closing too early loses the user's last sentence;
+// waiting delays `session_complete` (the clients wait up to 10 s for it, so
+// any wait under the 5 s STOP_GRACE_MS is safe for them, just slower).
+// - The usual stop (answer at ~0.5 s): closes at ~0.8 s, +0.3 s over closing on
+//   the spot, against the 5 s it waited before the final-and-complete fix.
+// - An earlier turn in flight (#2920): the answer is waited for up to 2.5 s
+//   after the stop, 5x the observed latency; past that it is lost, as before.
+// - A genuine answer faster than 250 ms is mistaken for an in-flight turn and
+//   the session ends at 2.5 s instead of ~0.55 s. Slower, nothing lost.
+// - Residual: an earlier turn's completion landing AFTER 250 ms (a very slow
+//   path to Google) with the answer more than 300 ms behind it still closes
+//   early. No signal on this API removes that; the margins above are the call.
+// STOP_GRACE_MS still caps all of it.
 const STOP_SETTLE_QUIET_MS = 300;
-const STOP_SETTLE_MIN_AFTER_STOP_MS = 800;
+const STOP_SETTLE_IN_FLIGHT_WINDOW_MS = 250;
+const STOP_SETTLE_IN_FLIGHT_HOLD_MS = 2_500;
 
 export function buildLiveWsUrl(apiKey: string): string {
   return `${LIVE_WS_ROOT}?key=${encodeURIComponent(apiKey)}`;
@@ -306,7 +322,11 @@ export const GEMINI_TRANSCRIBE_VENDOR: StreamingVendor = {
   parseUpstreamClose: parseGeminiLiveClose,
   stopFrames: () => [buildAudioStreamEndFrame()],
   stopGraceMs: STOP_GRACE_MS,
-  stopSettle: { quietMs: STOP_SETTLE_QUIET_MS, minAfterStopMs: STOP_SETTLE_MIN_AFTER_STOP_MS },
+  stopSettle: {
+    quietMs: STOP_SETTLE_QUIET_MS,
+    inFlightWindowMs: STOP_SETTLE_IN_FLIGHT_WINDOW_MS,
+    inFlightHoldMs: STOP_SETTLE_IN_FLIGHT_HOLD_MS,
+  },
   costForSeconds: (seconds: number, transcriptChars?: number) =>
     computeGeminiTranscribeLiveCost(seconds, transcriptChars),
 };

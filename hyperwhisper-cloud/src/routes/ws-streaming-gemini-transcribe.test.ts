@@ -749,17 +749,41 @@ describe('gemini live socket lifecycle', () => {
         .toBe(computeGeminiTranscribeLiveCost(2, 'First sentence. Second sentence.'.length));
     });
 
-    test('the earlier turn\'s early completion waits out the floor, not just the quiet window (#2920)', async () => {
+    test('an in-flight completion holds the session for a stop answer that is slow to come (#2920)', async () => {
+      // Codex review, round 1: the earlier turn's completion lands 40 ms after
+      // the stop and Google's answer takes 900 ms. A fixed 800 ms floor closed
+      // at 800 ms and threw the answer away.
+      globalThis.WebSocket = ClosingDiscardsUpstreamSocket as unknown as typeof WebSocket;
       const clock = new FakeStreamingTimers();
       const harness = openSession({ timers: clock });
       harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
 
       clock.nowMs += 40;
       harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'First sentence.' }, turnComplete: true } });
+      // Inside the in-flight window: held to 2.5 s after the stop, not 300 ms.
+      expect(liveSettleTimer(clock).ms).toBe(2_460);
 
-      // 40 ms after the stop: the wait runs to 800 ms after it, past Google's
-      // ~0.5 s answer, even though no interim arrives in between to re-arm it.
-      expect(liveSettleTimer(clock).ms).toBe(760);
+      clock.nowMs += 860;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: ' Second sentence.' }, generationComplete: true } });
+
+      expect(finalsOf(harness.client)).toEqual(['First sentence.', ' Second sentence.']);
+      // That one is the answer: only the quiet window is left.
+      expect(liveSettleTimer(clock).ms).toBe(300);
+      liveSettleTimer(clock).fire();
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      await harness.endSession();
+    });
+
+    test('the usual stop answer, ~0.5 s after the stop, closes after the quiet window alone', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+
+      clock.nowMs += 500;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'Hello world.' }, generationComplete: true } });
+
+      // ~0.8 s after the stop, not the 2.5 s in-flight hold or the 5 s grace.
+      expect(liveSettleTimer(clock).ms).toBe(300);
       await harness.endSession();
     });
 
@@ -770,6 +794,8 @@ describe('gemini live socket lifecycle', () => {
       harness.events.onMessage(binaryMessage(audioFrame(1)));
       const stoppedAt = performance.now();
       harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+      // Google answers audio_stream_end ~0.5 s later (verified live).
+      await Bun.sleep(500);
       harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'Hello world.' }, generationComplete: true } });
 
       while (harness.upstream.closes.length === 0 && performance.now() - stoppedAt < 5_000) {
