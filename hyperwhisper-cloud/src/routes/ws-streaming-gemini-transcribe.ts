@@ -77,6 +77,29 @@ const MAX_UPSTREAM_BUFFERED_JSON_BYTES = Math.ceil(MAX_UPSTREAM_BUFFERED_BYTES *
 // (it did not close for 54 s), so this backstop is what ends the session.
 const STOP_GRACE_MS = 5_000;
 
+// WHICH COMPLETION ENDS THE SESSION (#2920). Every turn boundary arrives as a
+// completion (`turnComplete` or `generationComplete`, OR'd — see the
+// `a-false-generation-complete-does-not-mask-a-true-turn-complete` vector), and
+// nothing on the wire says which one answers `audio_stream_end`. So when the user
+// stops right after a short pause, the PREVIOUS turn's closing frame (final +
+// completion) can still be in flight as the stop goes out. Closing on it threw
+// the stop's own final away: the user's last sentence was lost.
+//
+// So a post-stop completion only arms a settle wait. The session closes once
+// BOTH hold:
+// - STOP_SETTLE_QUIET_MS with no further transcript or completion — a later
+//   final re-arms it, so a frame that is still coming keeps the socket open;
+// - STOP_SETTLE_MIN_AFTER_STOP_MS since `audio_stream_end` went out. An
+//   in-flight earlier turn lands within one network hop of the stop, but
+//   Google's answer takes ~0.5 s (verified live, above), and with no interim in
+//   between the quiet window alone would close in that gap. The floor covers
+//   the measured answer latency with margin.
+// The usual stop (answer at ~0.5 s) now ends at ~0.8 s instead of ~0.5 s: about
+// 0.3 s added to `session_complete`, against the 5 s STOP_GRACE_MS backstop it
+// used to wait before the final-and-complete fix — which still caps all of this.
+const STOP_SETTLE_QUIET_MS = 300;
+const STOP_SETTLE_MIN_AFTER_STOP_MS = 800;
+
 export function buildLiveWsUrl(apiKey: string): string {
   return `${LIVE_WS_ROOT}?key=${encodeURIComponent(apiKey)}`;
 }
@@ -183,7 +206,9 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // report reached the client ~5 s late on every cloud-Gemini dictation. Both
   // halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
   // already gated on `stopRequested`, so a mid-dictation turn boundary is a
-  // no-op there and only the post-stop frame ends the session. This matches
+  // no-op there, and a post-stop one starts the short settle wait above
+  // (STOP_SETTLE_*) rather than the 5 s backstop — it cannot close on the spot,
+  // because an earlier turn's completion looks the same (#2920). This matches
   // `gemini_transcribe/live.rs`' `LiveServerMessage::FinalTranscriptAndComplete`
   // and the `finalTranscriptAndComplete` conformance vector.
   const final = readText(content, 'inputTranscription');
@@ -281,6 +306,7 @@ export const GEMINI_TRANSCRIBE_VENDOR: StreamingVendor = {
   parseUpstreamClose: parseGeminiLiveClose,
   stopFrames: () => [buildAudioStreamEndFrame()],
   stopGraceMs: STOP_GRACE_MS,
+  stopSettle: { quietMs: STOP_SETTLE_QUIET_MS, minAfterStopMs: STOP_SETTLE_MIN_AFTER_STOP_MS },
   costForSeconds: (seconds: number, transcriptChars?: number) =>
     computeGeminiTranscribeLiveCost(seconds, transcriptChars),
 };
