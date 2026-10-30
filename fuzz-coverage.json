@@ -1048,6 +1048,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed. Codex 1 defect (streaming status-bar Model vs live engine) = by design, status bar binds Modes.Selected. Real find from cross-head layout read: Linux Fast formatting row outside UsesDeepgram panel (#2956). Modes dup-name ('  hyper  ') rejected; updates clean."
+    },
+    {
+      "at": "2026-10-30T16:50:52Z",
+      "platform": "win",
+      "commit": "dc3b4860",
+      "routes": [
+        "local-api",
+        "streaming",
+        "onboarding"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). core DLL from e8164c2f (empty shared-core-rs diff). onboarding: choice switch BYOK->Cloud re-routes next step correctly, clean. local-api: port is ephemeral/advisory by design (LocalApiServer.cs:133), no port field is not a defect. streaming: provider/model/language persist; Ctrl+Alt+S vs Ctrl+Alt record chord handled by ModifierChordGate; hotkeys untestable in secondary instance. All 3 routes now mined on win."
     }
   ]
 }
