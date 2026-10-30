@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Recursos",
+    "modes": "Modos",
     "faq": "FAQ",
     "support": "Suporte",
     "download": "Download",
@@ -19,23 +20,32 @@
     "githubAria": "Ver o HyperWhisper no GitHub"
   },
   "hero": {
-    "logoAlt": "Logo do HyperWhisper",
-    "headline": "Escreva, componha e crie",
-    "headlineAccent": "5x mais rápido com IA",
-    "subheadline": "O HyperWhisper transcreve sua voz com precisão incrível. Basta falar naturalmente e ver suas palavras aparecerem na hora.",
-    "downloadCta": "Baixar agora",
-    "demoCta": "Ver demonstração",
-    "availableOn": "Disponível em",
+    "badge": "Novo",
+    "headline": "É só falar.",
+    "headlineAccent": "A gente digita.",
+    "subheadline": "Texto caprichado em qualquer app.",
+    "downloadMac": "Baixar para Mac",
+    "freeForever": "Grátis para sempre",
+    "worksOffline": "Funciona offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Role",
+    "closing": {
+      "line1": "Pare de digitar.",
+      "line2": "Comece a falar.",
+      "meta": "Grátis e de código aberto. Sem precisar de conta."
+    }
   },
   "features": {
-    "title": "Feito para profissionais",
-    "subtitle": "Cada recurso foi projetado para ajudar você a trabalhar com mais velocidade e eficiência",
+    "title": "Feito para quem escreve o dia todo.",
     "customVocabulary": {
       "title": "Vocabulário personalizado",
       "description": "Adicione nomes, siglas e termos especiais para obter máxima precisão sempre."
+    },
+    "realTime": {
+      "title": "Streaming em tempo real",
+      "description": "Veja suas palavras aparecerem instantaneamente enquanto você fala. Precisão líder do setor com latência abaixo de 700 ms."
     },
     "languages": {
       "title": "Mais de 100 idiomas",
@@ -45,25 +55,9 @@
       "title": "Suporte offline",
       "description": "Funciona totalmente offline. Seus dados nunca saem do seu dispositivo."
     },
-    "privacy": {
-      "title": "Foco em privacidade",
-      "description": "Sem conta obrigatória. Sem rastreamento. Seus dados de voz ficam no seu Mac ou PC."
-    },
-    "hybridProcessing": {
-      "title": "Processamento híbrido",
-      "description": "Escolha entre modelos locais para privacidade ou APIs em nuvem para velocidade. O melhor dos dois mundos."
-    },
-    "customizable": {
-      "title": "Altamente personalizável",
-      "description": "Escolha entre mais de 9 provedores de API e mais de 30 modelos de transcrição."
-    },
-    "realTime": {
-      "title": "Streaming em tempo real",
-      "description": "Veja suas palavras aparecerem instantaneamente enquanto você fala. Precisão líder do setor com latência abaixo de 700 ms."
-    },
-    "fileImport": {
-      "title": "Importação de arquivos",
-      "description": "Importe arquivos de áudio ou vídeo para transcrever. Suporta os principais formatos com detecção automática de silêncio."
+    "openSource": {
+      "title": "Código aberto",
+      "description": "Licenciado sob Apache-2.0. Inspecione cada linha, faça um fork ou hospede você mesmo. Sem caixas-pretas, sem dependência de fornecedor."
     },
     "screenOcr": {
       "title": "OCR de tela",
@@ -73,28 +67,57 @@
       "title": "API local e servidor MCP",
       "description": "O servidor MCP integrado permite que o Claude, o Cursor e outros agentes de IA controlem o HyperWhisper. API HTTP apenas local para scripts e automações."
     },
+    "fileImport": {
+      "title": "Importação de arquivos",
+      "description": "Importe arquivos de áudio ou vídeo para transcrever. Suporta os principais formatos com detecção automática de silêncio."
+    },
     "modes": {
-      "title": "Modos para qualquer situação",
-      "description": "Alterne entre diferentes modos de transcrição otimizados para reuniões, anotações, e-mails, programação e muito mais. Cada modo usa prompts personalizados para formatar seu texto perfeitamente.",
-      "meeting": "Reunião",
+      "heading": "Uma voz. Todos os formatos.",
+      "lead": "Cada modo reescreve o que você disse de acordo com o destino.",
       "email": "E-mail",
       "note": "Nota",
       "code": "Código",
+      "meeting": "Reunião",
       "legal": "Jurídico",
       "medical": "Médico",
-      "presetModes": "Modos predefinidos",
-      "customModes": "Modos personalizados"
-    },
-    "openSource": {
-      "title": "Código aberto",
-      "description": "Licenciado sob Apache-2.0. Inspecione cada linha, faça um fork ou hospede você mesmo. Sem caixas-pretas, sem dependência de fornecedor."
+      "youSaid": "Você disse",
+      "hyperWhisperWrote": "HyperWhisper escreveu",
+      "sample": "hum então avisa o john que o lançamento vai pra quinta porque o QA do linux ainda não terminou e é obrigado pela paciência",
+      "output": {
+        "email": "Oi, John,\n\nO lançamento vai passar para quinta enquanto terminamos o QA do Linux. Obrigado pela paciência.\n\nAbraços,",
+        "note": "• Lançamento → quinta\n• Impedimento: QA do Linux não concluído\n• Avisar o John",
+        "code": "// TODO(john): lançamento adiado para quinta, QA do Linux ainda em andamento",
+        "meeting": "Decisão: lançamento passa para quinta.\nMotivo: QA do Linux incompleto.\nResponsável: avisar o John.",
+        "legal": "Informamos que a data de lançamento foi remarcada para quinta-feira, condicionada à conclusão da garantia de qualidade do Linux.",
+        "medical": "Plano: adiar o lançamento para quinta. Status: QA do Linux pendente. Acompanhamento: informar o John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funciona onde quer que você escreva",
+    "eyebrow": "Como funciona",
+    "titleLine1": "Aperte uma tecla.",
+    "titleLine2": "Fale.",
+    "titleAccent": "Pronto.",
+    "lead": "Suas palavras chegam, já revisadas, onde o cursor estiver.",
+    "step1": "Aperte seu atalho",
+    "step2Key": "Fale",
+    "step2": "Fale como você falaria normalmente",
+    "step3Key": "Aperte de novo",
+    "step3": "Texto limpo, colado no lugar",
+    "watchVideo": "Assista à demo completa",
+    "closeVideo": "Fechar vídeo",
+    "exampleLabel": "Exemplo animado: uma resposta falada é digitada em uma mensagem do Slack",
+    "message1": "Ainda está tudo certo para lançar o build do Linux na quinta?",
+    "message2": "QA aprovado do meu lado 👍",
+    "composePlaceholder": "Mensagem em #launch",
+    "typed": "Sim, o QA do Linux passou hoje de manhã, então está tudo certo para quinta. Publico as notas da versão até o meio-dia.",
+    "listening": "Ouvindo",
+    "cleaningUp": "Revisando…",
     "fasterThanTyping": "Mais rápido que digitar",
     "accuracyRate": "Taxa de precisão",
     "languagesSupported": "Idiomas suportados",
-    "providersSupported": "Provedores suportados"
+    "modelsSupported": "Modelos de transcrição"
   },
   "faq": {
     "title": "Perguntas frequentes",
@@ -280,6 +303,7 @@
       "dataTraining": "Privacidade de dados"
     },
     "copyright": "© 2026 HyperWhisper. Todos os direitos reservados.",
+    "madeBy": "Criado por Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Siga a HyperWhisper no X (Twitter)",
     "githubAria": "HyperWhisper no GitHub"

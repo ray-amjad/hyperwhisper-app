@@ -101,10 +101,12 @@ const sites = ["app", "components"]
     });
   });
 
-test("the scan finds the six Cards #1384 fixed", () => {
+// The three homepage pricing cards were the other three. The Dusk homepage
+// draws them as plain bordered <div>s (`border` is in their class string), so
+// they are no longer HeroUI Cards and no longer in this scan.
+test("the scan finds the Cards #1384 fixed outside the homepage", () => {
   const at = (f: string) => sites.filter((s) => s.where.startsWith(`${f}:`)).length;
   // At least these; a later bordered Card in the same file is fine.
-  assert.ok(at("components/landing/PricingSection.tsx") >= 3);
   assert.ok(at("components/credits/CreditsPurchase.tsx") >= 1);
   assert.ok(at("app/[locale]/older-versions/page.tsx") >= 2);
 });
