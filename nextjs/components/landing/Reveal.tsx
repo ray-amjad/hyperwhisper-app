@@ -1,7 +1,6 @@
 "use client";
 
 import { m, useReducedMotion, type HTMLMotionProps } from "framer-motion";
-import { useEffect } from "react";
 
 /**
  * A block that enters once as it scrolls into view: 400 ms ease-out, up 12px
@@ -14,10 +13,8 @@ import { useEffect } from "react";
  * same either way, so the server render and hydration still match (#1180).
  * Only transform, opacity and filter move, so nothing around it shifts.
  *
- * Without framer-motion the block would stay hidden, so there are two
- * fallbacks: a <noscript> style on the homepage (JavaScript off), and a
- * globals.css rule that shows it after 3s until a Reveal has mounted (the page
- * never hydrated).
+ * With JavaScript off the block would stay hidden, so the homepage carries a
+ * <noscript> style that shows every reveal at once.
  */
 const HIDDEN = { opacity: 0, y: 12, filter: "blur(4px)" };
 const SHOWN = { opacity: 1, y: 0, filter: "blur(0px)" };
@@ -39,12 +36,6 @@ export default function Reveal({
   ...rest
 }: RevealProps) {
   const reduceMotion = useReducedMotion();
-
-  // The page hydrated, so framer-motion runs the entrances: switch off the
-  // "never hydrated" fallback in globals.css.
-  useEffect(() => {
-    document.documentElement.setAttribute("data-reveal-ready", "");
-  }, []);
 
   // One prop shape for every tag here; m.div's is the widest of them.
   const Tag = m[as] as typeof m.div;

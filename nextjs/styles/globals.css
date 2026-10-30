@@ -640,28 +640,9 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 
 /* Scroll reveals (components/landing/Reveal.tsx) are server-rendered at their
    hidden start (opacity 0, inline), and only framer-motion's JS reveals them.
-   Two fallbacks keep the page readable without it:
-   - JavaScript off: app/[locale]/page.tsx carries a <noscript> style that
-     shows every [data-reveal] at once.
-   - JavaScript on, but the page never hydrates (a chunk fails to load): this
-     rule shows them after 3s. The first Reveal to mount sets
-     data-reveal-ready on <html>, which switches it off, so a page that
-     hydrates keeps its scroll entrances. An animation, not a declaration,
-     because only an animation outranks the inline opacity. */
-@keyframes dusk-reveal-fallback {
-  to {
-    opacity: 1;
-    transform: none;
-    filter: none;
-  }
-}
-
-html:not([data-reveal-ready]) [data-reveal] {
-  animation: dusk-reveal-fallback 0s linear 3s forwards;
-}
-
-/* Under Reduce motion they are shown from first paint, before
-   hydration, and every loop above stops. */
+   With JavaScript off, app/[locale]/page.tsx carries a <noscript> style that
+   shows every [data-reveal] at once. Under Reduce motion they are shown from
+   first paint, before hydration, and every loop above stops. */
 @media (prefers-reduced-motion: reduce) {
   .dusk-enter,
   .dusk-drift,

@@ -29,12 +29,16 @@ const VOCAB = [
   { word: "Q3 roadmap", hl: false },
 ];
 
-/** Decorative bars on the streaming tile (fixed, so server and client match). */
-const BARS = Array.from(
-  { length: 24 },
-  (_, i) =>
-    30 + Math.round(60 * Math.abs(Math.sin(i * 0.7) * Math.cos(i * 0.23))),
-);
+/**
+ * Decorative bar heights (%) on the streaming tile. Literal numbers, not
+ * Math.sin/cos at render: those may round differently between the server's
+ * and a browser's JS engine, and a single differing height is a hydration
+ * mismatch.
+ */
+const BARS = [
+  30, 68, 83, 70, 42, 39, 40, 32, 40, 30, 56, 79, 78, 49, 52, 80, 80, 57, 31,
+  43, 37, 36, 36, 43,
+];
 
 function Tile({
   big,

@@ -130,6 +130,9 @@ export default function HowItWorks() {
   const activeStep =
     shownPhase === "idle" ? 0 : shownPhase === "typing" ? 2 : 1;
   const hudOn = shownPhase === "listening" || shownPhase === "cleaning";
+  // The bars move only while the HUD shows and the loop runs, so a hidden HUD
+  // (scrolled away, background tab, reduced motion) costs no animation frames.
+  const waveOn = hudOn && !reduceMotion && inView && pageVisible;
 
   const steps = [
     { key: shortcut, label: t("step1") },
@@ -264,7 +267,7 @@ export default function HowItWorks() {
                 {WAVE.map((style, i) => (
                   <i
                     key={i}
-                    className="dusk-wave-bar h-full w-[3px] rounded-sm bg-gradient-to-b from-[#c4b5fd] to-[#f0abfc]"
+                    className={`${waveOn ? "dusk-wave-bar " : ""}h-full w-[3px] rounded-sm bg-gradient-to-b from-[#c4b5fd] to-[#f0abfc]`}
                     style={style}
                   />
                 ))}
@@ -287,7 +290,7 @@ export default function HowItWorks() {
         size="5xl"
         onClose={() => setVideoOpen(false)}
       >
-        <ModalContent>
+        <ModalContent aria-label={t("watchVideo")}>
           {(onClose) => (
             <ModalBody className="p-3 pt-12 sm:p-4 sm:pt-12">
               <button
