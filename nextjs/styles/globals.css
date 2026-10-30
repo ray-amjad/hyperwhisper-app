@@ -38,9 +38,22 @@ html {
   scroll-behavior: smooth;
   /* Keeps focused controls and #anchor targets clear of the sticky header.
      LayoutWrapper sets --site-header-offset from the measured header height;
-     the rem fallback (120px at 100%: banner 48px + navbar 65px + 7px gap)
+     the rem fallback (128px at 100%: banner 48px + navbar 73px + 7px gap)
      covers the first paint and still scales with the text size. */
-  scroll-padding-top: var(--site-header-offset, 7.5rem);
+  --site-header-fallback: 8rem;
+  scroll-padding-top: var(--site-header-offset, var(--site-header-fallback));
+  /* The header's own height, without the 7px gap. A Dusk sky band (PageHero)
+     runs up behind the header and pads its text down by this much. */
+  --site-header-h: calc(
+    var(--site-header-offset, var(--site-header-fallback)) - 7px
+  );
+}
+
+/* A returning visitor whose banner is hidden from first paint (below): the
+   header is the navbar alone (73px + 7px gap), so the first paint matches the
+   measured offset and nothing shifts when LayoutWrapper publishes it. */
+html[data-os-banner="dismissed"] {
+  --site-header-fallback: 5rem;
 }
 
 /* Default dark theme */

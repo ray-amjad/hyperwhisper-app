@@ -73,7 +73,7 @@ export default function LayoutWrapper({
 
       return () => root.style.removeProperty("--site-header-offset");
     }
-    // +7px keeps a small gap under the header (113px + 7px = 120px at 100%).
+    // +7px keeps a small gap under the header (121px + 7px = 128px at 100%).
     const observer = new ResizeObserver(() => {
       root.style.setProperty(
         "--site-header-offset",
@@ -98,18 +98,24 @@ export default function LayoutWrapper({
 
   // Regular layout: with navbar and footer
   return (
-    <div className="relative flex flex-col min-h-screen">
+    <div className="group/site relative flex flex-col min-h-screen">
       {/*
         Sticky header holds the announcement banner + navbar. Using `sticky`
         (not `fixed`) keeps it in normal document flow, so the banner naturally
         pushes the navbar and page content down — no manual spacer / height math
         to keep in sync, which previously caused the header to be cut off.
-        The homepage is the one exception: its header is `fixed` over the
-        hero, which is full height on purpose, and has no banner.
+        The homepage is one exception: its header is `fixed` over the hero,
+        which is full height on purpose, and has no banner.
+        A page that opens on a Dusk sky band (PageHero marks itself
+        `data-dusk-hero`) is the other: the page declares it, and a CSS
+        `:has()` on the `group/site` wrapper lifts the header out of flow so
+        the sky runs up behind it. PageHero pads itself by the header's height
+        (`--site-header-h`, globals.css), so this is right in the server HTML,
+        with or without JS. A page without one (an error page) keeps `sticky`.
       */}
       <div
         ref={headerRef}
-        className={`${isHome ? "fixed inset-x-0" : "sticky"} top-0 z-50 w-full flex flex-col`}
+        className={`${isHome ? "fixed inset-x-0" : "sticky group-has-[[data-dusk-hero]]/site:fixed group-has-[[data-dusk-hero]]/site:inset-x-0"} top-0 z-50 w-full flex flex-col`}
       >
         {/*
           The dismiss collapses the banner's height over 300ms instead of

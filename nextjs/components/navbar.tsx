@@ -26,6 +26,12 @@ import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useSiteHref } from "@/src/i18n/use-site-href";
 
+const SOLID_BAR =
+  "border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]";
+const CLEAR_BAR = "border-transparent bg-transparent";
+const SKY_TOP =
+  "group-has-[[data-dusk-hero]]/site:border-transparent group-has-[[data-dusk-hero]]/site:bg-transparent group-has-[[data-dusk-hero]]/site:backdrop-blur-none";
+
 const NAV_LINK =
   "rounded text-[14.5px] text-white/[.78] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
 
@@ -33,6 +39,12 @@ const NAV_LINK =
  * The site navbar. `overlay` (the homepage) lays it over the hero sky:
  * transparent until the page scrolls 40px or the menu opens, then the same
  * solid dusk bar every other page shows from the start.
+ *
+ * A sub-page that opens on a Dusk sky band (PageHero's `data-dusk-hero`) gets
+ * the same behaviour without a prop: while the bar is at the top, SKY_TOP's
+ * `:has()` variant on LayoutWrapper's `group/site` clears the solid bar. It is
+ * CSS, so the server HTML is already transparent over the sky, and a page
+ * with no sky band keeps the solid bar.
  */
 export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
   const { openModal } = useDownloadModal();
@@ -56,17 +68,18 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
 
   const [scrolled, setScrolled] = useState(false);
 
+  // Every page listens: whether a sub-page has a sky band to clear the bar
+  // over is decided in CSS (SKY_TOP), so the navbar cannot know it here.
   useEffect(() => {
-    if (!overlay) return;
     const onScroll = () => setScrolled(window.scrollY > 40);
 
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => window.removeEventListener("scroll", onScroll);
-  }, [overlay]);
+  }, []);
 
-  const solid = !overlay || scrolled || isMenuOpen;
+  const atTop = !scrolled && !isMenuOpen;
 
   /*
     HeroUI pins the open menu at `top: var(--navbar-height)` (64px) and sizes it
@@ -156,9 +169,8 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
       ref={navRef}
       className={clsx(
         "border-b transition-[background-color,border-color] duration-300 ease-out",
-        solid
-          ? "border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]"
-          : "border-transparent bg-transparent",
+        overlay && atTop ? CLEAR_BAR : SOLID_BAR,
+        !overlay && atTop && SKY_TOP,
       )}
       /*
         HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
