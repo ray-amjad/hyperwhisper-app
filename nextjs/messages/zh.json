@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "功能",
+    "modes": "模式",
     "faq": "常见问题",
     "support": "支持",
     "download": "下载",
@@ -16,26 +17,36 @@
       "switchTo": "切换语言"
     },
     "cloud": "云端",
-    "githubAria": "在 GitHub 上查看 HyperWhisper"
+    "githubAria": "在 GitHub 上查看 HyperWhisper",
+    "skipToContent": "跳到主要内容"
   },
   "hero": {
-    "logoAlt": "HyperWhisper 标志",
-    "headline": "写作、构思、创作",
-    "headlineAccent": "AI 加持快 5 倍",
-    "subheadline": "HyperWhisper 以惊人的准确度转写你的语音。只需自然说话，文字立刻出现。",
-    "downloadCta": "立即下载",
-    "demoCta": "观看演示",
-    "availableOn": "适用于",
+    "badge": "新",
+    "headline": "你只管说。",
+    "headlineAccent": "我们来打字。",
+    "subheadline": "在任何应用中输出精炼文字。",
+    "downloadMac": "下载 Mac 版",
+    "freeForever": "永久免费",
+    "worksOffline": "支持离线",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "向下滚动",
+    "closing": {
+      "line1": "别再打字。",
+      "line2": "开口就行。",
+      "meta": "免费开源，无需注册账号。"
+    }
   },
   "features": {
-    "title": "为专业人士打造",
-    "subtitle": "每一项功能都为更快、更高效的工作而设计",
+    "title": "为整天都在写作的人打造。",
     "customVocabulary": {
       "title": "自定义词汇",
       "description": "添加人名、缩写和专业术语，始终保持高准确度。"
+    },
+    "realTime": {
+      "title": "实时流式转写",
+      "description": "开口即见字，行业领先准确度，延迟低于 700ms。"
     },
     "languages": {
       "title": "支持 100+ 语言",
@@ -45,25 +56,9 @@
       "title": "离线支持",
       "description": "完全离线运行，数据永不离开设备。"
     },
-    "privacy": {
-      "title": "隐私优先",
-      "description": "无需账号，无追踪，语音数据只留在你的 Mac 或 PC。"
-    },
-    "hybridProcessing": {
-      "title": "混合处理",
-      "description": "可选本地模型保障隐私，或云端 API 追求速度，兼得其美。"
-    },
-    "customizable": {
-      "title": "高度可定制",
-      "description": "可在 9+ API 提供商与 30+ 转写模型中自由选择。"
-    },
-    "realTime": {
-      "title": "实时流式转写",
-      "description": "开口即见字，行业领先准确度，延迟低于 700ms。"
-    },
-    "fileImport": {
-      "title": "文件导入",
-      "description": "导入音频或视频进行转写，支持主流格式并自动检测静音。"
+    "openSource": {
+      "title": "开源",
+      "description": "采用 Apache-2.0 许可。检查每一行代码、自行 fork，或自行托管。没有黑箱，没有锁定。"
     },
     "screenOcr": {
       "title": "屏幕 OCR",
@@ -73,28 +68,57 @@
       "title": "本地 API 与 MCP 服务器",
       "description": "内置 MCP 服务器，让 Claude、Cursor 等 AI 智能体可以驱动 HyperWhisper。仅本地的 HTTP API，适用于脚本与自动化。"
     },
+    "fileImport": {
+      "title": "文件导入",
+      "description": "导入音频或视频进行转写，支持主流格式并自动检测静音。"
+    },
     "modes": {
-      "title": "适合每种场景的模式",
-      "description": "在会议、笔记、邮件、编程等模式间切换。每个模式都使用自定义提示词，让文本格式恰到好处。",
-      "meeting": "会议",
+      "heading": "一种声音，百种格式。",
+      "lead": "每种模式都会根据用途改写你说的话。",
       "email": "邮件",
       "note": "笔记",
       "code": "代码",
+      "meeting": "会议",
       "legal": "法律",
       "medical": "医疗",
-      "presetModes": "预设模式",
-      "customModes": "自定义模式"
-    },
-    "openSource": {
-      "title": "开源",
-      "description": "采用 Apache-2.0 许可。检查每一行代码、自行 fork，或自行托管。没有黑箱，没有锁定。"
+      "youSaid": "你说的",
+      "hyperWhisperWrote": "HyperWhisper 写的",
+      "sample": "嗯那个跟约翰说一下发布改到周四了因为 linux 的 QA 还没做完然后呃谢谢他耐心等",
+      "output": {
+        "email": "约翰你好，\n\n由于 Linux QA 尚未完成，发布将推迟至周四。感谢你的耐心等待。\n\n祝好，",
+        "note": "• 发布 → 周四\n• 阻碍：Linux QA 未完成\n• 通知约翰",
+        "code": "// TODO(john): 发布推迟至周四，Linux QA 仍在进行中",
+        "meeting": "决定：发布改至周四。\n原因：Linux QA 未完成。\n负责人：通知约翰。",
+        "legal": "特此通知：发布日期已改期至周四，具体以 Linux 质量保证工作完成为准。",
+        "medical": "计划：发布推迟至周四。状态：Linux QA 待完成。随访：告知约翰。"
+      }
     }
   },
   "demo": {
+    "worksWherever": "凡是能写字的地方都能用",
+    "eyebrow": "使用方法",
+    "titleLine1": "按下按键。",
+    "titleLine2": "说出来。",
+    "titleAccent": "搞定。",
+    "lead": "你说的话经过整理，直接出现在光标所在位置。",
+    "step1": "按下你的快捷键",
+    "step2Key": "说话",
+    "step2": "像平常一样说话",
+    "step3Key": "再按一次",
+    "step3": "整洁的文字，原位粘贴",
+    "watchVideo": "观看完整演示",
+    "closeVideo": "关闭视频",
+    "exampleLabel": "动画示例：一条语音回复被输入到 Slack 消息中",
+    "message1": "周四发布 Linux 版本还没问题吧？",
+    "message2": "我这边 QA 已经通过了 👍",
+    "composePlaceholder": "发消息到 #launch",
+    "typed": "没问题，Linux QA 今天上午已经通过，周四可以发布。我中午前会发布更新说明。",
+    "listening": "正在聆听",
+    "cleaningUp": "正在整理…",
     "fasterThanTyping": "比打字更快",
     "accuracyRate": "准确率",
     "languagesSupported": "支持语言",
-    "providersSupported": "支持提供商"
+    "modelsSupported": "转写模型"
   },
   "faq": {
     "title": "常见问题",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "有哪些离线模型可用？",
-        "answer": "离线转写提供多种大小的 Whisper 模型（OpenAI 出品，支持 99+ 语言），也提供 NVIDIA 的 Parakeet 模型（支持 25+ 语言）。\n      \n      离线后处理提供多种大小的 Gemma 3 模型（Google 出品）。"
+        "answer": "离线转写提供多种大小的 Whisper 模型（OpenAI 出品，支持 99+ 语言），也提供 NVIDIA 的 Parakeet 模型（支持 25+ 语言）。\n      \n      离线后处理提供多种大小的 Gemma 4 模型（Google 出品）。"
       },
       "compatibility": {
         "question": "能在我所有的应用中使用吗？",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper 支持请求",
       "body": "你好，\n\n版本：\n[可在 设置 > 关于 中查看]\n\n问题：\n[描述你的问题]\n\n详情：\n[提供相关细节，崩溃前你在做什么]\n\n[你的消息]\n\n此致,"
-    }
+    },
+    "helpCenterHint": "设置、快捷键与模型。",
+    "chooseModelHint": "按你的工作方式为模型排序。",
+    "accountHint": "使用账户密钥登录。",
+    "chooseModelTitle": "选择模型"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper 标志",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "加入 input 组后，请注销并重新登录。加入该组是可选的，但全局快捷键和自动粘贴需要它。",
     "aptTitle": "自行托管 APT 仓库",
     "aptBody": "Linux 版本还附带一个静态 APT 仓库归档。HyperWhisper 目前不运营公共 APT 端点；有关签名的自托管设置、桌面配套组件、隐私详情和卸载方法，请参阅 Linux 安装指南。",
-    "linuxGuideCta": "阅读 Linux 安装指南"
+    "linuxGuideCta": "阅读 Linux 安装指南",
+    "heroLead": "免费且开源。选择你的平台。",
+    "releaseNotes": "版本说明",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon 与 Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 与 ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "旧版本",
@@ -280,6 +313,7 @@
       "dataTraining": "数据隐私"
     },
     "copyright": "© 2026 HyperWhisper. 保留所有权利。",
+    "madeBy": "由 Ray Amjad 打造",
     "linkedinAria": "LinkedIn",
     "xAria": "在 X（Twitter）上关注 HyperWhisper",
     "githubAria": "HyperWhisper 的 GitHub"
@@ -412,5 +446,8 @@
   "signIn": {
     "magicLinkExpired": "此登录链接已过期或已被使用。请输入你的邮箱以获取新的链接。",
     "magicLinkFailed": "无法使用该链接为你登录。请输入你的邮箱以获取新的链接。"
+  },
+  "legal": {
+    "onThisPage": "本页内容"
   }
 }

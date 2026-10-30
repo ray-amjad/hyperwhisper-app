@@ -2,8 +2,7 @@
  * Tell HyperWhisper Cloud that an Account Key string is dead.
  *
  * The cloud caches each key's licence verdict for an hour (`license:<key>` in
- * ITS OWN Upstash database — `lib/clients/redis.ts` explains why the site's
- * database is a different one). After a rotation the site already refuses the
+ * ITS OWN Upstash database; the site has none). After a rotation the site already refuses the
  * old string, but the cloud would keep admitting it until that hour ran out.
  * `POST /internal/license-cache/invalidate` on each cloud app overwrites the
  * entry with a stamped refusal (`hyperwhisper-cloud/src/routes/
@@ -22,8 +21,8 @@ import { env } from "@/src/env/server.mjs";
  * listed with production because it calls the production licence API too, so
  * it caches production keys.
  *
- * They are the default ONLY on the production deployment (`VERCEL_ENV` =
- * `production`). A preview or local site holds its own keys, and must never
+ * They are the default ONLY on the production deployment (`DEPLOY_ENV` =
+ * `production`, a plain var in wrangler.jsonc). A preview or local site holds its own keys, and must never
  * tell the production cloud to refuse a string. Anywhere else nothing is
  * purged unless `HYPERWHISPER_CLOUD_URLS` (comma-separated base URLs) names
  * the cloud apps; an empty value turns the purge off everywhere.
@@ -40,10 +39,10 @@ export const CLOUD_PURGE_TIMEOUT_MS = 3_000;
 
 export function cloudPurgeUrls(
   raw: string | undefined,
-  vercelEnv: string | undefined,
+  deployEnv: string | undefined,
 ): string[] {
   if (raw === undefined) {
-    return vercelEnv === "production" ? [...DEFAULT_CLOUD_URLS] : [];
+    return deployEnv === "production" ? [...DEFAULT_CLOUD_URLS] : [];
   }
 
   return raw
@@ -70,9 +69,9 @@ export interface CloudPurgeOutcome {
 const defaultDeps = (): CloudPurgeDeps => ({
   fetch: (input, init) => fetch(input, init),
   secret: env.HYPERWHISPER_INTERNAL_SECRET,
-  // A Vercel system variable, not part of the validated env (the Sentry
-  // config reads it the same way).
-  urls: cloudPurgeUrls(env.HYPERWHISPER_CLOUD_URLS, process.env.VERCEL_ENV),
+  // A plain Worker var (wrangler.jsonc `vars`), not part of the validated env
+  // (the Sentry config reads it the same way).
+  urls: cloudPurgeUrls(env.HYPERWHISPER_CLOUD_URLS, process.env.DEPLOY_ENV),
 });
 
 function hostOf(url: string): string {

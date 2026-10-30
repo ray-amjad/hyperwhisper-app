@@ -74,6 +74,8 @@ try
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
     await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
+    await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
+    await RunModeDeleteStaleCardTestsAsync(Path.Combine(root, "mode-delete-stale-card"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -82,6 +84,7 @@ try
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunShellCloudBalanceOnLaunchTestsAsync(Path.Combine(root, "shell-cloud-balance"));
+    await RunCloudLowCreditTestsAsync();
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
     await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
@@ -270,7 +273,20 @@ try
     reloadedSettings.Set("selectedModeId", Guid.NewGuid().ToString("D"));
     Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
     var modeSelection = new ModesViewModel(modes, reloadedSettings);
+    // The Linux tray skips publishing while IsRefreshing, so every list change a reload makes
+    // (the Clear and each Add) must happen with it raised, and its drop must be announced.
+    var refreshingAtEachChange = new List<bool>();
+    var refreshingNotices = new List<bool>();
+    modeSelection.Items.CollectionChanged += (_, _) => refreshingAtEachChange.Add(modeSelection.IsRefreshing);
+    modeSelection.PropertyChanged += (_, e) =>
+    {
+        if (e.PropertyName == nameof(ModesViewModel.IsRefreshing)) refreshingNotices.Add(modeSelection.IsRefreshing);
+    };
     await modeSelection.RefreshAsync();
+    Assert(refreshingAtEachChange.Count > 1 && refreshingAtEachChange.All(value => value),
+        "a mode reload changed the list while IsRefreshing was false");
+    Assert(refreshingNotices.SequenceEqual(new[] { true, false }) && !modeSelection.IsRefreshing,
+        "a mode reload did not announce IsRefreshing rising and then dropping");
     Assert(modeSelection.CloudProviders.Contains("meta", StringComparer.Ordinal),
         "the portable mode editor does not offer the enabled Meta BYOK provider");
     Assert(modeSelection.Selected?.Id == mode.Id,
@@ -1985,6 +2001,46 @@ static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
     }
 }
 
+// Issue #2656: the server floors minutes_remaining (credits / 1.67), so a balance under one minute
+// arrives as 0 minutes with credits still above 0. IsCreditsLow wanted minutes > 0 and
+// IsCreditsExhausted wants credits <= 0, so neither banner showed in the most urgent case. The rule
+// is now the one macOS and Windows use since #2618: under 10 minutes while any credit is left.
+static async Task RunCloudLowCreditTestsAsync()
+{
+    var store = new MemoryCredentialStore();
+    var http = new CloudAccountHttpHandler();
+    using var service = new PortableCloudAccountService(
+        store,
+        new PortableLicenseStateStore(store, new MemoryPrivateFileService(), "/low-credit-license-state.json"),
+        new HttpClient(http) { Timeout = Timeout.InfiniteTimeSpan });
+    var account = new CloudAccountViewModel(service, new StaticDeviceIdentity(), "Ray Linux",
+        _ => PlatformResult.Success()) { AccountKey = "HW-0000-0000-2656" };
+    await account.ActivateAsync();
+    Assert(account.IsActiveAccount, "the test account did not activate");
+    var notified = new List<string?>();
+    account.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+    foreach (var (credits, minutes, low, exhausted) in new[]
+    {
+        ("1.5", 0, true, false),    // under a minute: the case the old rule missed
+        ("0", 0, false, true),      // nothing left: the exhausted banner, not the low one
+        ("18.4", 11, false, false), // eleven minutes: neither
+        ("11.7", 7, true, false),   // a few minutes: low, as before
+    })
+    {
+        http.UsageBody = $"{{\"credits_remaining\":{credits},\"minutes_remaining\":{minutes},\"credits_per_minute\":1.67,\"is_licensed\":true,\"is_anonymous\":false}}";
+        notified.Clear();
+        await account.RefreshCreditsAsync();
+        Assert(account.MinutesRemaining == minutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            $"{credits} credits / {minutes} minutes: the balance did not refresh ({account.Status.Message})");
+        Assert(account.IsCreditsLow == low && account.IsCreditsExhausted == exhausted,
+            $"{credits} credits / {minutes} minutes: IsCreditsLow {account.IsCreditsLow} (expected {low}), " +
+            $"IsCreditsExhausted {account.IsCreditsExhausted} (expected {exhausted})");
+        Assert(notified.Contains(nameof(CloudAccountViewModel.IsCreditsLow)),
+            $"{credits} credits / {minutes} minutes: a refresh did not notify IsCreditsLow, so the banner binding never re-reads it");
+    }
+}
+
 // #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
 // it on the UI thread froze the window that had just opened. The first database context is held
 // until a callback posted to the UI thread runs; that only happens if the UI thread is free.
@@ -2285,6 +2341,118 @@ static async Task RunModeDeleteFailureCodeTestsAsync(string root)
     await editor.DeleteAsync();
     Assert(!editor.Status.HasError && (await repository.ListAsync()).All(item => item.Id != other.Id),
         $"deleting a mode with another left failed: {editor.Status.ErrorCode}");
+}
+
+// Issue #2663: DeleteSafelyAsync read the rows, checked "last mode" and deleted with nothing around
+// the read and the write. Two overlapping deletes of different modes each saw two rows, both passed
+// the check, and the table could end with no modes. The interceptor holds the first delete after its read
+// until the second delete has read too, so the overlap happens every run, not by luck. The hold is
+// bounded: once the fix makes the second delete wait for the first, the first goes on alone.
+static async Task RunModeDeleteRaceTestsAsync(string root)
+{
+    // Two stores. In a healthy one the delete of the default also writes the other row (the flag
+    // moves to it), so on the old code the overlap ended either in an empty table or in a
+    // DbUpdateConcurrencyException, depending on which save landed first. A store restored with
+    // both rows flagged default moves nothing, and there the old code always deleted both modes.
+    foreach (var (store, secondIsDefault) in new[] { ("one-default", false), ("two-defaults", true) })
+    {
+        var directory = Path.Combine(root, store);
+        Directory.CreateDirectory(directory);
+        var overlap = new ModeReadOverlapInterceptor(TimeSpan.FromSeconds(2));
+        var options = new DbContextOptionsBuilder<HyperWhisper.Data.HyperWhisperDbContext>()
+            .UseSqlite($"Data Source={Path.Combine(directory, "hyperwhisper.db")}")
+            .AddInterceptors(overlap)
+            .Options;
+        var database = new ApplicationDb(() => new HyperWhisper.Data.HyperWhisperDbContext(options));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var first = new Mode { Name = "A", IsDefault = true, SortOrder = 0 };
+        var second = new Mode { Name = "B", IsDefault = secondIsDefault, SortOrder = 1 };
+        await repository.UpsertAsync(first);
+        await repository.UpsertAsync(second);
+
+        overlap.Armed = true;
+        var outcomes = await Task.WhenAll(new[] { first.Id, second.Id }.Select(id => Task.Run(async () =>
+        {
+            try { return await repository.DeleteSafelyAsync(id) ? "deleted" : "not found"; }
+            catch (ModeRuleViolationException rule) { return rule.Code; }
+            catch (Exception exception) { return exception.GetType().Name; }
+        }))).WaitAsync(TimeSpan.FromSeconds(60));
+        overlap.Armed = false;
+
+        var left = await repository.ListAsync();
+        Assert(overlap.Reads == 2, $"{store}: expected each delete to read the modes once, saw {overlap.Reads} reads");
+        Assert(outcomes.Count(item => item == "deleted") == 1 && outcomes.Count(item => item == "modes.last_mode") == 1,
+            $"{store}: two overlapping deletes answered [{string.Join(", ", outcomes)}] and left {left.Count} modes; " +
+            "expected one delete and one modes.last_mode refusal");
+        Assert(left.Count == 1 && left.Single().IsDefault,
+            $"{store}: two overlapping deletes left {left.Count} modes, {left.Count(item => item.IsDefault)} of them default");
+    }
+}
+
+// Issue #2667: a delete refused because another writer had removed a mode only set Status, so the
+// Modes page kept a card for a row that was gone.
+static async Task RunModeDeleteStaleCardTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var outsideWriter = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    var other = new Mode { Name = "B", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 2, $"expected Hyper and B, got {editor.Items.Count} modes");
+
+    // The issue's steps: Hyper's editor is open with an edit not yet saved, B's row goes, and
+    // Delete Mode on Hyper is refused as the last mode.
+    var hyper = editor.Items.Single(item => item.IsDefault);
+    editor.Selected = hyper;
+    editor.CustomInstructions = "typed, not saved";
+    Assert(await outsideWriter.DeleteAsync(other.Id), "the outside writer could not delete B");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"the refused delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after the refused delete the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}], expected only Hyper");
+    // The selected mode keeps its instance, so the editor's Cancel (which restores Selected by
+    // reference) and the next save still find it in the list.
+    Assert(ReferenceEquals(editor.Selected, hyper) && editor.Items.Contains(hyper),
+        "the refused delete left Selected on an instance the list no longer holds");
+    Assert(editor.CustomInstructions == "typed, not saved", "the refused delete threw away the open editor's unsaved edit");
+    Assert((await repository.ListAsync()).Single().Id == hyper.Id, "the refused delete changed the stored modes");
+
+    // A delete of a mode that is already gone reloads the list the same way, and selects what is left.
+    var gone = new Mode { Name = "C", SortOrder = 2 };
+    await repository.UpsertAsync(gone);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == gone.Id);
+    Assert(await outsideWriter.DeleteAsync(gone.Id), "the outside writer could not delete C");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.not_found", $"deleting a mode already gone showed {editor.Status.ErrorCode}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after deleting a mode already gone the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}]");
+    Assert(editor.Selected is { } fallback && editor.Items.Contains(fallback) && fallback.Id == hyper.Id,
+        "deleting a mode already gone left Selected on it");
+
+    // The reload copies the stored values onto the selected mode, the default flag among them. When
+    // the outside writer removed the default, the repository moved the flag onto the selected mode,
+    // and the editor's name lock and default warning (IsDefaultModeSelected) must follow it.
+    var promoted = new Mode { Name = "D", SortOrder = 3 };
+    await repository.UpsertAsync(promoted);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == promoted.Id);
+    Assert(!editor.IsDefaultModeSelected, "D was the default before the outside delete");
+    Assert(await outsideWriter.DeleteSafelyAsync(hyper.Id), "the outside writer could not delete the default");
+    var raised = new List<string?>();
+    editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode", $"deleting the promoted last mode showed {editor.Status.ErrorCode}");
+    Assert(editor.Selected is { IsDefault: true } && editor.Selected.Id == promoted.Id,
+        "the refused delete did not bring the moved default flag onto the selected mode");
+    Assert(editor.IsDefaultModeSelected && raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)),
+        $"after the refused delete IsDefaultModeSelected was {editor.IsDefaultModeSelected} and " +
+        $"{(raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)) ? "was" : "was not")} notified, so the editor left the default's name unlocked");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
@@ -4734,6 +4902,37 @@ file sealed class SingleThreadUiContext : SynchronizationContext
     }
 }
 
+/// <summary>
+/// Issue #2663: holds the first armed read of the Modes table open until a second one has run, or
+/// until <paramref name="hold"/> passes. Only reads count: the deletes and default-flag updates
+/// SaveChanges sends go through untouched.
+/// </summary>
+file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+{
+    private readonly TaskCompletionSource _secondRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _reads;
+    public volatile bool Armed;
+    public int Reads => Volatile.Read(ref _reads);
+
+    // Disposing runs after the reader is closed, so the held read keeps no SQLite lock of its own:
+    // whatever the second delete waits on is the code under test, not this hook.
+    public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult DataReaderDisposing(
+        System.Data.Common.DbCommand command,
+        Microsoft.EntityFrameworkCore.Diagnostics.DataReaderDisposingEventData eventData,
+        Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result)
+    {
+        var text = command.CommandText.TrimStart();
+        if (Armed && text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) && text.Contains("FROM \"Modes\"", StringComparison.Ordinal))
+        {
+            if (Interlocked.Increment(ref _reads) == 1)
+                _secondRead.Task.Wait(hold);
+            else
+                _secondRead.TrySetResult();
+        }
+        return result;
+    }
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -4907,6 +5106,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
     public string? ValidateLicenseKey { get; private set; }
     public int ValidateCalls { get; private set; }
     public int UsageCalls { get; private set; }
+    public string UsageBody { get; set; } =
+        "{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}";
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -4924,7 +5125,7 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         if (path == "/usage")
         {
             UsageCalls++;
-            return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+            return Json(UsageBody);
         }
         if (path == "/api/license/deactivate")
             return Json("{\"success\":true}");

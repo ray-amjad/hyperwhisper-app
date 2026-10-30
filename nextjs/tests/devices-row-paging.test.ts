@@ -151,7 +151,8 @@ test("the first page shows 50 rows, a formatted badge and count, Show more and a
   const html = await renderRow();
 
   assert.equal(deviceCount(html), 50);
-  assert.match(html, /rounded-full text-sm font-medium">1,284<\/span>/);
+  // The count badge (a lavender CHIP) carries the formatted total.
+  assert.match(html, /<span class="[^"]*\brounded-full\b[^"]*\btabular-nums">1,284<\/span>/);
   assert.match(plain(html), /Showing 50 of 1,284 devices</);
   assert.match(html, /<button [^>]*type="button"[^>]*>Show 50 more<\/button>/);
   assert.match(

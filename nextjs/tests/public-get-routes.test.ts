@@ -2,8 +2,8 @@
  * Two small public GET routes with no auth in front of them.
  *
  * `GET /api/geo/nearest-region` tells the latency matrix and the model picker
- * which region column is closest to the visitor. It reads Vercel's edge
- * coordinate headers and a client-supplied list of region codes. The traps are
+ * which region column is closest to the visitor. It reads Cloudflare's
+ * visitor coordinates and a client-supplied list of region codes. The traps are
  * in the parsing: a blank header must not become 0 (a real coordinate off West
  * Africa), a hostile `regions` list must be filtered and capped, and the answer
  * must stay private to the visitor.
@@ -31,8 +31,8 @@ const BERLIN = { lat: "52.52", lon: "13.40" };
 function nearest(
   regions: string | null,
   headers: Record<string, string> = {
-    "x-vercel-ip-latitude": BERLIN.lat,
-    "x-vercel-ip-longitude": BERLIN.lon,
+    "cf-iplatitude": BERLIN.lat,
+    "cf-iplongitude": BERLIN.lon,
   },
 ): Promise<{ status: number; cache: string | null; body: unknown }> {
   const query = regions === null ? "" : `?regions=${encodeURIComponent(regions)}`;
@@ -66,14 +66,14 @@ describe("GET /api/geo/nearest-region", () => {
     // the equator, and the route would then highlight a real column.
     for (const blank of ["", "   "]) {
       const latBlank = await nearest("iad,fra,syd", {
-        "x-vercel-ip-latitude": blank,
-        "x-vercel-ip-longitude": BERLIN.lon,
+        "cf-iplatitude": blank,
+        "cf-iplongitude": BERLIN.lon,
       });
       assert.deepEqual(latBlank.body, NO_ANSWER, `latitude ${JSON.stringify(blank)}`);
 
       const lonBlank = await nearest("iad,fra,syd", {
-        "x-vercel-ip-latitude": BERLIN.lat,
-        "x-vercel-ip-longitude": blank,
+        "cf-iplatitude": BERLIN.lat,
+        "cf-iplongitude": blank,
       });
       assert.deepEqual(lonBlank.body, NO_ANSWER, `longitude ${JSON.stringify(blank)}`);
     }
@@ -81,11 +81,11 @@ describe("GET /api/geo/nearest-region", () => {
 
   test("answers null when a coordinate header is absent (local dev)", async () => {
     assert.deepEqual(
-      (await nearest("iad,fra", { "x-vercel-ip-longitude": BERLIN.lon })).body,
+      (await nearest("iad,fra", { "cf-iplongitude": BERLIN.lon })).body,
       NO_ANSWER,
     );
     assert.deepEqual(
-      (await nearest("iad,fra", { "x-vercel-ip-latitude": BERLIN.lat })).body,
+      (await nearest("iad,fra", { "cf-iplatitude": BERLIN.lat })).body,
       NO_ANSWER,
     );
     assert.deepEqual((await nearest("iad,fra", {})).body, NO_ANSWER);
@@ -94,8 +94,8 @@ describe("GET /api/geo/nearest-region", () => {
   test("answers null when a coordinate header is not a finite number", async () => {
     for (const bad of ["abc", "Infinity", "-Infinity", "NaN"]) {
       const result = await nearest("iad,fra", {
-        "x-vercel-ip-latitude": bad,
-        "x-vercel-ip-longitude": BERLIN.lon,
+        "cf-iplatitude": bad,
+        "cf-iplongitude": BERLIN.lon,
       });
       assert.deepEqual(result.body, NO_ANSWER, bad);
     }

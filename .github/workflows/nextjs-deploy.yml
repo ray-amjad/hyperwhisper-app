@@ -1,0 +1,96 @@
+# Builds the website, applies its Drizzle migrations, and deploys it to the
+# Cloudflare Worker `hyperwhisper-web-prod` (nextjs/DEPLOY-CLOUDFLARE.md).
+#
+# One job, in this order: build, migrate, deploy. A build that fails never
+# touches the database, and the Worker is only replaced after the migration
+# succeeded. This replaced Workers Builds plus a separate nextjs-migrate
+# workflow, whose deploy had to poll the GitHub API for the migration run and
+# hit the anonymous rate limit on Cloudflare's shared build IPs.
+#
+# Secrets come from the GitHub `Production` environment, synced from Infisical
+# (prod, path /). The environment only admits `main`. Each step gets only the
+# secrets it names: the build gets none (scripts/cf-build.mjs supplies
+# placeholders), so no real secret can be inlined into the bundle.
+name: nextjs-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nextjs/**'
+      - 'shared-types/**'
+      - '.github/workflows/nextjs-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys run one at a time, in push order; a queued deploy waits rather than
+# cancelling one mid-migration.
+concurrency:
+  group: nextjs-deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_dispatch accepts any ref; only main goes to production.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Production
+    defaults:
+      run:
+        working-directory: nextjs
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Same pnpm as nextjs/package.json `packageManager` and nextjs-ci.yml.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # nextjs/ commits no lockfile, as in nextjs-ci.yml.
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run validate-appcasts
+
+      # Public values only: NEXT_PUBLIC_* are inlined into the browser bundle
+      # (the PostHog key is a public project key). SENTRY_RELEASE tags errors
+      # with this commit (next.config.mjs).
+      - name: Build
+        env:
+          NEXT_PUBLIC_ENVIRONMENT: production
+          NEXT_PUBLIC_SITE_URL: https://www.hyperwhisper.com
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: pnpm run cf:build
+
+      - name: Check the deploy secrets
+        env:
+          PLANETSCALE_DATABASE_URL: ${{ secrets.PLANETSCALE_DATABASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=0
+          for name in PLANETSCALE_DATABASE_URL CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is missing from the GitHub Production environment. Add it in Infisical (prod, path /); the prod-github-sync copies it here."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Apply migrations
+        env:
+          PLANETSCALE_DATABASE_URL: ${{ secrets.PLANETSCALE_DATABASE_URL }}
+        run: pnpm run db:migrate
+
+      # opennextjs-cloudflare deploy, never plain wrangler deploy: it fills the
+      # R2 ISR cache before uploading the Worker. The dummy Hyperdrive string
+      # only satisfies wrangler's local binding proxy; nothing connects to it.
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgres://unused:unused@127.0.0.1:5432/unused
+        run: pnpm exec opennextjs-cloudflare deploy
