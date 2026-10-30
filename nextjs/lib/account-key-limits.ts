@@ -17,6 +17,15 @@
 export const MAX_LIVE_ACCOUNT_KEYS = 5;
 
 /**
+ * The most Account Key rows one user may gain in any 24 hours before the
+ * dashboard's "Add a new key" is refused. The live cap alone does not bound
+ * rows: a delete keeps its row (`deleted`), so issue-then-delete cycles could
+ * add rows (and two notice emails each) without end. Every row the user got
+ * in the window counts, purchases included, so the bound needs no new column.
+ */
+export const MAX_ACCOUNT_KEYS_ISSUED_PER_DAY = 10;
+
+/**
  * The `account_keys.status` a key the owner deleted from the dashboard gets.
  * Not `revoked`, which an admin or a refund sets: the admin pages tell the two
  * apart. Every licence reader refuses any status but `granted`.

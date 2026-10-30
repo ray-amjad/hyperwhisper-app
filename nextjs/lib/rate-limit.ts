@@ -102,10 +102,13 @@ export const accountKeyRotateRateLimiter = cloudflareLimiter(
  * `customer.issueAccountKey` and `customer.deleteAccountKey`, per user: one
  * budget for both. Keyed by the signed-in user id, like rotation.
  *
- * Each call writes a key row and sends an email (a delete also signs the
- * user's other browsers out), so a loop is bounded; the live-key cap
- * (`MAX_LIVE_ACCOUNT_KEYS`) bounds the rows themselves. 5 per user per minute:
- * room to tidy up a few old keys in one sitting, not to script it.
+ * Each call writes to a key row and sends an email (a delete also signs the
+ * user's other browsers out). 5 per user per minute: room to tidy up a few
+ * old keys in one sitting, not to script it. This bounds the rate only. The
+ * live-key cap (`MAX_LIVE_ACCOUNT_KEYS`) does NOT bound the rows: a delete
+ * keeps its row as `deleted`, so issue-then-delete cycles would add rows
+ * without end. The row bound is `MAX_ACCOUNT_KEYS_ISSUED_PER_DAY`, checked
+ * in `issueAccountKey` (Cloudflare windows stop at 60 seconds).
  */
 export const accountKeyManageRateLimiter = cloudflareLimiter(
   "RATE_LIMIT_ACCOUNT_KEY_MANAGE",

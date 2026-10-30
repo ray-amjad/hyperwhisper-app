@@ -45,6 +45,8 @@ export const MANAGE_KEY_ERRORS = {
     "Sign in with the email link to add or delete an Account Key. A session opened with a key cannot.",
   noLiveKey: "Only an account with an active Account Key can add another one",
   capReached: `An account can have at most ${MAX_LIVE_ACCOUNT_KEYS} active Account Keys. Delete one first.`,
+  dailyLimit:
+    "Too many Account Keys were added to this account today. Please try again tomorrow.",
   notFound: "Account Key not found",
   lastKey:
     "This is your only active Account Key, so it can't be deleted. Rotate it instead if it leaked.",
@@ -59,6 +61,7 @@ type ManageRejectReason =
   | "rate_limited"
   | "no_live_key"
   | "cap_reached"
+  | "daily_limit"
   | "not_found"
   | "not_granted"
   | "stale"
@@ -165,7 +168,8 @@ async function gate(
  * granted key, and at the cap.
  *
  * Refusals: FORBIDDEN (not an email session), TOO_MANY_REQUESTS,
- * PRECONDITION_FAILED (no live key), CONFLICT (cap reached).
+ * PRECONDITION_FAILED (no live key), CONFLICT (cap reached),
+ * TOO_MANY_REQUESTS also for the daily bound on new rows.
  */
 export async function issueKeyForCaller(
   ctx: ManageKeysCaller,
@@ -193,6 +197,15 @@ export async function issueKeyForCaller(
       throw new TRPCError({
         code: "CONFLICT",
         message: MANAGE_KEY_ERRORS.capReached,
+      });
+    case "daily_limit":
+      logManage(event, "rejected", {
+        reason: "daily_limit",
+        userId: ctx.user.id,
+      });
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: MANAGE_KEY_ERRORS.dailyLimit,
       });
     case "issued":
       break;

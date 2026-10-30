@@ -8,6 +8,7 @@ import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, il
 import { generateLicenseKey } from "@/lib/services/license-key";
 import {
   ACCOUNT_KEY_DELETED_STATUS,
+  MAX_ACCOUNT_KEYS_ISSUED_PER_DAY,
   MAX_LIVE_ACCOUNT_KEYS,
 } from "@/lib/account-key-limits";
 import { db } from "@/src/db";
@@ -342,7 +343,12 @@ export type IssueAccountKeyResult =
    */
   | { status: "no_live_key" }
   /** The caller already holds `MAX_LIVE_ACCOUNT_KEYS` granted keys. */
-  | { status: "cap_reached" };
+  | { status: "cap_reached" }
+  /**
+   * The user gained `MAX_ACCOUNT_KEYS_ISSUED_PER_DAY` key rows in the last 24
+   * hours (deleted rows count: they are kept).
+   */
+  | { status: "daily_limit" };
 
 /**
  * Give the caller one more Account Key on the same account.
@@ -361,7 +367,9 @@ export type IssueAccountKeyResult =
  * Polar licence, which this row is not).
  *
  * In ONE transaction under the per-user lock: the caller must hold at least
- * one granted key, and fewer than `MAX_LIVE_ACCOUNT_KEYS`.
+ * one granted key, fewer than `MAX_LIVE_ACCOUNT_KEYS`, and fewer than
+ * `MAX_ACCOUNT_KEYS_ISSUED_PER_DAY` rows created in the last 24 hours (the
+ * bound on rows that the live cap is not, since a delete keeps its row).
  *
  * Never logs a key.
  */
@@ -379,6 +387,20 @@ export async function issueAccountKey(input: {
     if (live.length === 0) return { status: "no_live_key" } as const;
     if (live.length >= MAX_LIVE_ACCOUNT_KEYS) {
       return { status: "cap_reached" } as const;
+    }
+
+    const [recent] = await tx
+      .select({ n: count() })
+      .from(accountKeys)
+      .where(
+        and(
+          eq(accountKeys.userId, input.userId),
+          gte(accountKeys.createdAt, sql`now() - interval '24 hours'`),
+        ),
+      );
+
+    if ((recent?.n ?? 0) >= MAX_ACCOUNT_KEYS_ISSUED_PER_DAY) {
+      return { status: "daily_limit" } as const;
     }
 
     const key = await generateUnusedAccountKey(tx);
