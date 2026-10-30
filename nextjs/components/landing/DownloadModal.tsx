@@ -110,7 +110,7 @@ export default function DownloadModal() {
                 base: "w-full",
                 inputWrapper:
                   "bg-[var(--dusk-night)] border-2 border-[#c4b5fd]/40 hover:border-[#c4b5fd]/70 focus-within:!border-[#c4b5fd]",
-                input: "text-white placeholder:text-gray-400",
+                input: "text-white placeholder:text-[var(--dusk-dim)]",
               }}
               placeholder={t("emailPlaceholder")}
               size="lg"
@@ -142,7 +142,7 @@ export default function DownloadModal() {
               ) : null}
             </ErrorReveal>
             {error ? null : (
-              <p className="text-sm text-gray-400" id={descriptionId}>
+              <p className="text-sm text-[var(--dusk-mute)]" id={descriptionId}>
                 {t("description")}
               </p>
             )}
@@ -162,7 +162,7 @@ export default function DownloadModal() {
           </Button>
           <Button
             fullWidth
-            className="rounded-full text-gray-300 hover:text-white transition-colors"
+            className="rounded-full text-[var(--dusk-mute)] hover:text-white transition-colors"
             isDisabled={recordDownload.isPending}
             size="lg"
             variant="light"

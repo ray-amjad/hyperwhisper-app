@@ -41,16 +41,20 @@ export default function GlobalError({
           layout sets it on a wrapper div this file replaces, so set it here. */}
       <body
         className={clsx(
-          "min-h-screen bg-black text-white font-sans antialiased",
+          "min-h-screen bg-[#05060d] text-[#f5f5ff] font-sans antialiased",
           fontSans.variable,
         )}
       >
-        <div className="flex flex-col items-center gap-4 py-24 text-center">
-          <h2 className="text-2xl font-semibold">Something went wrong.</h2>
+        {/* The Dusk look, with its colours written out: this file must not
+            depend on a component from the layout that threw. */}
+        <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[radial-gradient(900px_420px_at_50%_-10%,rgba(129,90,220,.2),transparent_65%),linear-gradient(180deg,#0a0f2a,#05060d_420px)] px-6 py-24 text-center">
+          <h2 className="text-3xl font-semibold tracking-[-0.03em] text-white [text-wrap:balance] md:text-4xl">
+            Something went wrong.
+          </h2>
           {/* A plain button: the HeroUI provider lives in the layout that threw.
               retry re-fetches the failed server render; reset would replay it */}
           <button
-            className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 font-semibold text-white cursor-pointer transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.96]"
+            className="inline-flex cursor-pointer items-center justify-center rounded-full bg-white px-[22px] py-[13px] text-[15px] font-semibold text-[#0b0b14] transition-[background-color,scale] duration-150 ease-out hover:bg-[#ececf5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd] active:scale-[.96] motion-reduce:transition-none"
             type="button"
             onClick={() => retry()}
           >

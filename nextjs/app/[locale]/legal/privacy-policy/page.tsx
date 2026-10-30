@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import LegalDocument from "@/components/legal/LegalDocument";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
@@ -39,7 +40,16 @@ const ERROR_LOG_EXCEPTION = (
   </>
 );
 
-export default function PrivacyPolicyPage() {
+// LegalDocument reads translations, so the page sets its locale itself or it renders
+// dynamically on every request (#843).
+export default async function PrivacyPolicyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  setRequestLocale((await params).locale);
+
+
   return (
     <LegalDocument title="Privacy Policy" updated="Last Updated: October 29, 2026">
 

@@ -33,13 +33,13 @@ export const LanguageSwitcher = () => {
     <Dropdown
       shouldBlockScroll={false}
       classNames={{
-        content: "bg-gray-900 border border-gray-800 min-w-[8rem]",
+        content: "bg-[#0a0c1d] border border-[var(--dusk-line)] min-w-[8rem]",
       }}
     >
       <DropdownTrigger>
         <Button
           isIconOnly
-          className="bg-transparent hover:bg-gray-800 text-gray-300 hover:text-white transition-colors"
+          className="bg-transparent hover:bg-white/[.07] text-[var(--dusk-mute)] hover:text-white transition-colors"
           isDisabled={isPending}
           size="sm"
           title={t("switchTo")}
@@ -65,8 +65,8 @@ export const LanguageSwitcher = () => {
             key={option}
             className={
               locale === option
-                ? "bg-gray-800 text-white"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                ? "bg-white/[.08] text-white"
+                : "text-[var(--dusk-mute)] hover:bg-white/[.06] hover:text-white"
             }
           >
             {localeLabels[option]}

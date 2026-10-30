@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import LegalDocument from "@/components/legal/LegalDocument";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
@@ -7,7 +8,16 @@ export const generateMetadata = localizedPageMetadata({
   description: "HyperWhisper Terms of Service and User Agreement",
 });
 
-export default function TermsOfServicePage() {
+// LegalDocument reads translations, so the page sets its locale itself or it renders
+// dynamically on every request (#843).
+export default async function TermsOfServicePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  setRequestLocale((await params).locale);
+
+
   return (
     <LegalDocument title="Terms of Service" updated="Last Updated: October 6, 2026">
 
