@@ -217,7 +217,9 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
         )}
       </div>
 
-      <aside className="hidden md:block w-64 shrink-0 bg-[rgba(5,6,13,.45)] border-r border-[var(--dusk-line)] min-h-screen">
+      {/* Sticky beside the sticky header (review round 1), so the logo row
+          and the header stay level on a long Customers list. */}
+      <aside className="hidden md:block md:sticky md:top-0 md:h-screen md:self-start overflow-y-auto w-64 shrink-0 bg-[rgba(5,6,13,.45)] border-r border-[var(--dusk-line)]">
         {/* Logo */}
         <div className="px-5 h-14 flex items-center border-b border-[var(--dusk-line)]">{logo}</div>
 

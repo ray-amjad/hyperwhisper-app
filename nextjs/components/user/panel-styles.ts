@@ -8,8 +8,6 @@
  *
  * Class strings only. Nothing here changes what a control does.
  */
-import { BTN_GLASS, BTN_WHITE } from "@/components/landing/dusk";
-
 /** The portal page background: night, with a faint violet glow at the top. */
 export const PANEL_BG =
   "bg-[var(--dusk-night)] bg-[radial-gradient(1100px_520px_at_50%_-8%,rgba(129,90,220,.16),transparent_62%),linear-gradient(180deg,var(--dusk-navy),var(--dusk-night)_420px)] text-[var(--dusk-ink)]";
@@ -37,24 +35,40 @@ export const PAGE_SUB = "mt-1.5 text-sm text-[var(--dusk-mute)]";
 export const INPUT =
   "rounded-xl border border-[#2a2e4a] bg-[#090b18] text-[var(--dusk-ink)] placeholder:text-[var(--dusk-dim)] transition-[border-color,box-shadow] duration-150 ease-out focus:border-[rgba(196,181,253,.55)] focus:outline-none focus:ring-2 focus:ring-[rgba(196,181,253,.18)] motion-reduce:transition-none";
 
+/*
+ * The portal's pills. Same colours, radius, weight and press as the homepage's
+ * BTN_WHITE / BTN_GLASS (components/landing/dusk.ts), built here rather than
+ * imported for two reasons (review round 1):
+ * - dusk.ts's base forces `[&_svg]:size-4` on every svg inside, which beats a
+ *   spinner's own `w-5 h-5` / `w-3.5 h-3.5`. Here an icon keeps the size its
+ *   own classes ask for (every icon in the portal sets one).
+ * - Hover and press are guarded with `not-disabled:`, so a disabled pill does
+ *   not brighten or shrink. `not-disabled:` (not `enabled:`) so the same
+ *   strings still hover on an <a> (the Polar link, "Get an Account Key").
+ */
+const PILL =
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[background-color,opacity,scale] duration-150 ease-out active:not-disabled:scale-[.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-50 disabled:cursor-not-allowed motion-reduce:transition-none [&_svg]:shrink-0";
+const WHITE = "bg-white text-[#0b0b14] hover:not-disabled:bg-[#ececf5]";
+const GLASS =
+  "border border-white/[.16] bg-[rgba(10,10,24,.5)] text-white backdrop-blur-[14px] hover:not-disabled:bg-[rgba(10,10,24,.7)]";
+
 /** The portal's button size: the homepage pills, one step smaller. */
 const SM = "px-4 py-2 text-sm";
 
-/** Primary action: the homepage's white pill. */
-export const BTN_PRIMARY = `${BTN_WHITE} ${SM} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`;
-
-/** Secondary action: the homepage's glass pill. */
-export const BTN_SECONDARY = `${BTN_GLASS} ${SM} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`;
-
-/** The same two pills at the size of an inline row action. */
+/** The same pills at the size of an inline row action. */
 const XS = "px-3.5 py-1.5 text-[13px]";
 
-export const BTN_PRIMARY_XS = `${BTN_WHITE} ${XS} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`;
-export const BTN_SECONDARY_XS = `${BTN_GLASS} ${XS} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`;
+/** Primary action: the homepage's white pill. */
+export const BTN_PRIMARY = `${PILL} ${WHITE} ${SM}`;
+
+/** Secondary action: the homepage's glass pill. */
+export const BTN_SECONDARY = `${PILL} ${GLASS} ${SM}`;
+
+export const BTN_PRIMARY_XS = `${PILL} ${WHITE} ${XS}`;
+export const BTN_SECONDARY_XS = `${PILL} ${GLASS} ${XS}`;
 
 /** A destructive action (refund): solid rose, pill-shaped like the rest. */
-export const BTN_DANGER =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity,scale] duration-150 ease-out hover:bg-rose-500 active:scale-[.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] disabled:opacity-50 disabled:active:scale-100 motion-reduce:transition-none";
+export const BTN_DANGER = `${PILL} ${SM} bg-rose-500/90 text-white hover:not-disabled:bg-rose-500`;
 
 /** A small ghost icon button (show/hide, copy, close). */
 export const ICON_BTN =
