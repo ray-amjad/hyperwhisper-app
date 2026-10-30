@@ -513,19 +513,38 @@ export async function deleteAccountKey(input: {
  * its own second half. The webhook route answered 200 at the time, so Stripe
  * never retried either, and the key ended up revoked with live 90-day
  * sessions and no path to clean up. Either both land or neither does.
+ *
+ * A key its owner deleted (`deleteAccountKey`) stays `deleted`: it is already
+ * dead everywhere and its sessions were swept when it was deleted, so a later
+ * admin Refund & Revoke on it changes nothing here (the refund itself still
+ * happens in the caller). Relabelling it `revoked` would lose the owner's
+ * delete from the audit trail and bring the row back onto the owner's
+ * dashboard, which hides only `deleted` rows. The status test is in the
+ * UPDATE, so a delete committing first is seen even under a race. Returns
+ * whether this call revoked the key.
  */
 export async function revokeAccountKey(
   id: string,
   userId: string,
   options: { actingUserId?: string } = {},
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
+): Promise<{ revoked: boolean }> {
+  return db.transaction(async (tx) => {
+    const updated = await tx
       .update(accountKeys)
       .set({ status: "revoked" })
-      .where(eq(accountKeys.id, id));
+      .where(
+        and(
+          eq(accountKeys.id, id),
+          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),
+        ),
+      )
+      .returning({ id: accountKeys.id });
+
+    if (updated.length === 0) return { revoked: false };
 
     await revokeWebAccess(userId, { ...options, tx });
+
+    return { revoked: true };
   });
 }
 
