@@ -17,7 +17,8 @@
       "switchTo": "言語を切り替え"
     },
     "cloud": "クラウド",
-    "githubAria": "HyperWhisperをGitHubで見る"
+    "githubAria": "HyperWhisperをGitHubで見る",
+    "skipToContent": "コンテンツへスキップ"
   },
   "hero": {
     "badge": "新機能",

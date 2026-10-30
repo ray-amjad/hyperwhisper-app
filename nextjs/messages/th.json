@@ -17,7 +17,8 @@
       "switchTo": "เปลี่ยนภาษา"
     },
     "cloud": "คลาวด์",
-    "githubAria": "ดู HyperWhisper บน GitHub"
+    "githubAria": "ดู HyperWhisper บน GitHub",
+    "skipToContent": "ข้ามไปยังเนื้อหา"
   },
   "hero": {
     "badge": "ใหม่",

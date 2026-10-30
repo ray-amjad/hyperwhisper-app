@@ -17,7 +17,8 @@
       "switchTo": "Taal wisselen"
     },
     "cloud": "Cloud",
-    "githubAria": "Bekijk HyperWhisper op GitHub"
+    "githubAria": "Bekijk HyperWhisper op GitHub",
+    "skipToContent": "Naar inhoud springen"
   },
   "hero": {
     "badge": "Nieuw",

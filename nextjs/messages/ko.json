@@ -17,7 +17,8 @@
       "switchTo": "언어 변경"
     },
     "cloud": "클라우드",
-    "githubAria": "GitHub에서 HyperWhisper 보기"
+    "githubAria": "GitHub에서 HyperWhisper 보기",
+    "skipToContent": "본문으로 건너뛰기"
   },
   "hero": {
     "badge": "신규",

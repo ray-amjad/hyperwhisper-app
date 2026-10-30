@@ -17,7 +17,8 @@
       "zh": "中文",
       "switchTo": "Switch language"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "skipToContent": "Skip to content"
   },
   "hero": {
     "badge": "New",

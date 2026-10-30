@@ -17,7 +17,8 @@
       "switchTo": "Nyelvváltás"
     },
     "cloud": "Cloud",
-    "githubAria": "A HyperWhisper megtekintese a GitHubon"
+    "githubAria": "A HyperWhisper megtekintese a GitHubon",
+    "skipToContent": "Ugrás a tartalomhoz"
   },
   "hero": {
     "badge": "Új",

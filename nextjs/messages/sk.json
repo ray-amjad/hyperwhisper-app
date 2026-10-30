@@ -17,7 +17,8 @@
       "switchTo": "Zmeniť jazyk"
     },
     "cloud": "Cloud",
-    "githubAria": "Zobraziť HyperWhisper na GitHub"
+    "githubAria": "Zobraziť HyperWhisper na GitHub",
+    "skipToContent": "Prejsť na obsah"
   },
   "hero": {
     "badge": "Novinka",

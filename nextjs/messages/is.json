@@ -17,7 +17,8 @@
       "switchTo": "Skipta um tungumál"
     },
     "cloud": "Cloud",
-    "githubAria": "Skoða HyperWhisper á GitHub"
+    "githubAria": "Skoða HyperWhisper á GitHub",
+    "skipToContent": "Fara beint í efni"
   },
   "hero": {
     "badge": "Nýtt",

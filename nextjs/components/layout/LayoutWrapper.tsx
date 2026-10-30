@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m, useReducedMotion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/landing/FooterSection";
@@ -32,6 +33,7 @@ export default function LayoutWrapper({
   // MotionConfig's reducedMotion="user" skips transforms only, not the height
   // collapse below, so Reduce Motion is read here (#701: one frame, no ease).
   const reduceMotion = useReducedMotion();
+  const t = useTranslations("navbar");
 
   // Open-source announcement banner: shown until the user dismisses it.
   // Defaults to visible so SSR and first client render match; hidden after
@@ -100,6 +102,18 @@ export default function LayoutWrapper({
   return (
     <div className="group/site relative flex flex-col min-h-screen">
       {/*
+        The first Tab stop: skips the banner and the navbar's dozen links. It
+        is visually hidden until focused, then shows as a dusk pill above the
+        header. It targets the main landmark, which takes focus (tabIndex -1), so the next
+        Tab continues from the page's content.
+      */}
+      <a
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:border focus:border-[var(--dusk-line)] focus:bg-[rgba(5,6,13,.92)] focus:px-5 focus:py-2.5 focus:text-sm focus:font-medium focus:text-white focus:shadow-[0_8px_30px_rgba(0,0,0,.45)] focus:backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+        href="#main-content"
+      >
+        {t("skipToContent")}
+      </a>
+      {/*
         Sticky header holds the announcement banner + navbar. Using `sticky`
         (not `fixed`) keeps it in normal document flow, so the banner naturally
         pushes the navbar and page content down — no manual spacer / height math
@@ -144,14 +158,16 @@ export default function LayoutWrapper({
       <main
         className={
           isHome
-            ? "flex-grow"
+            ? "flex-grow outline-none"
             : // A Dusk sub-page (components/landing/DuskPage.tsx) lays its own
               // full-bleed sky band and centres its sections itself, so the
               // container lets go of its width and gutter while one is inside.
               // Keyed on the page's own mark, not the path, so a 404 or an
               // error page under the same prefix keeps the gutter.
-              "container mx-auto max-w-7xl px-6 flex-grow has-[[data-dusk-page]]:max-w-none has-[[data-dusk-page]]:px-0"
+              "container mx-auto max-w-7xl px-6 flex-grow outline-none has-[[data-dusk-page]]:max-w-none has-[[data-dusk-page]]:px-0"
         }
+        id="main-content"
+        tabIndex={-1}
       >
         {children}
       </main>

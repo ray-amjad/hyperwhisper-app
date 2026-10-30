@@ -66,6 +66,28 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
 
+  /*
+    Escape closes the open menu, as it does any overlay, and hands focus back
+    to the toggle that opened it so a keyboard user is not left on a control
+    that just disappeared. HeroUI's menu has no Escape handling of its own.
+  */
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMenuOpen(false);
+      navRef.current
+        ?.querySelector<HTMLButtonElement>("button[data-hw-menu-toggle]")
+        ?.focus();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
+
   const [scrolled, setScrolled] = useState(false);
 
   // Every page listens: whether a sub-page has a sky band to clear the bar
@@ -91,7 +113,6 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     bottom edge. It is re-measured when the navbar or the header around it
     resizes: a dismissed banner shrinks the header and moves the navbar up.
   */
-  const navRef = useRef<HTMLElement>(null);
   const [menuTop, setMenuTop] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -287,7 +308,10 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
       */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarItem>
-          <NavbarMenuToggle className="text-white/80 size-12 -mr-3" />
+          <NavbarMenuToggle
+            className="text-white/80 size-12 -mr-3"
+            data-hw-menu-toggle=""
+          />
         </NavbarItem>
       </NavbarContent>
 

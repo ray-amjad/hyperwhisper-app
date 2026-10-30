@@ -17,7 +17,8 @@
       "switchTo": "Schimbă limba"
     },
     "cloud": "Cloud",
-    "githubAria": "Vezi HyperWhisper pe GitHub"
+    "githubAria": "Vezi HyperWhisper pe GitHub",
+    "skipToContent": "Salt la conținut"
   },
   "hero": {
     "badge": "Nou",

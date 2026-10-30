@@ -17,7 +17,8 @@
       "switchTo": "Ganti bahasa"
     },
     "cloud": "Cloud",
-    "githubAria": "Lihat HyperWhisper di GitHub"
+    "githubAria": "Lihat HyperWhisper di GitHub",
+    "skipToContent": "Langsung ke konten"
   },
   "hero": {
     "badge": "Baru",

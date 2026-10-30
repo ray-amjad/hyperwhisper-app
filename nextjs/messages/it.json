@@ -17,7 +17,8 @@
       "switchTo": "Cambia lingua"
     },
     "cloud": "Cloud",
-    "githubAria": "Visualizza HyperWhisper su GitHub"
+    "githubAria": "Visualizza HyperWhisper su GitHub",
+    "skipToContent": "Vai al contenuto"
   },
   "hero": {
     "badge": "Novità",
