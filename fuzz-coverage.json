@@ -1096,6 +1096,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 defects on all 3; provider-settings Codex stopped at step 13 (no JSON). My probes clean: vocab edit-to-duplicate rejected, case dup rejected; credential Trim keeps inner spaces, delete removes file; fake Cloud key -> 'License key not found'; unmasked account-key field is deliberate Windows parity (MainWindow.axaml:2350). These 3 routes look mined out on Linux."
+    },
+    {
+      "at": "2026-10-31T16:14:38Z",
+      "platform": "linux",
+      "commit": "5ab0b0ce",
+      "routes": [
+        "core-settings",
+        "licence",
+        "home-and-tray"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 defects on all 3. Own probes clean: settings.json + files written after toggles, Text Output restore-delay stepper clamps 1..60, file preflight messages (dir/no-ext -> 'format' by design of check order). Licence change #2977 (cached licence on undecodable 200) needs a licensed profile; no Linux Cloud URL override to fake it. These 3 routes look mined out on Linux."
     }
   ]
 }
