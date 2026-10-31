@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
@@ -31,7 +31,12 @@ export type BlogPostSummary = {
 };
 
 export type BlogPost = BlogPostSummary & {
-  content: string;
+  /**
+   * The source text of a code post. Never read from the database: the stored
+   * markdown is not rendered anywhere, and selecting it moved about 2 MB per
+   * query (#2989).
+   */
+  content?: string;
   html: string;
 };
 
@@ -39,7 +44,28 @@ function normalizeSlug(value: string) {
   return value.replace(/^\/+|\/+$/g, "");
 }
 
-function rowToPost(row: BlogPostRow): BlogPost {
+/**
+ * The columns a list, the sitemap or generateStaticParams needs. Neither body
+ * column is in it: together they are most of the table's bytes (#2989).
+ */
+const SUMMARY_COLUMNS = {
+  locale: blogPosts.locale,
+  slug: blogPosts.slug,
+  title: blogPosts.title,
+  description: blogPosts.description,
+  imageUrl: blogPosts.imageUrl,
+  imageAlt: blogPosts.imageAlt,
+  tags: blogPosts.tags,
+  publishedAt: blogPosts.publishedAt,
+};
+
+/** One post's page: the summary columns and the stored HTML, never the markdown. */
+const POST_COLUMNS = { ...SUMMARY_COLUMNS, contentHtml: blogPosts.contentHtml };
+
+type SummaryRow = Pick<BlogPostRow, keyof typeof SUMMARY_COLUMNS>;
+type PostRow = Pick<BlogPostRow, keyof typeof POST_COLUMNS>;
+
+function rowToSummary(row: SummaryRow): BlogPostSummary {
   const frontMatter: BlogPostFrontMatter = {
     title: row.title,
     description: row.description ?? "",
@@ -54,9 +80,11 @@ function rowToPost(row: BlogPostRow): BlogPost {
     locale: row.locale,
     slug: normalizeSlug(row.slug),
     frontMatter,
-    content: row.contentMarkdown,
-    html: row.contentHtml,
   };
+}
+
+function rowToPost(row: PostRow): BlogPost {
+  return { ...rowToSummary(row), html: row.contentHtml };
 }
 
 /**
@@ -80,18 +108,12 @@ function isBuildPrerender(): boolean {
  *    with "No posts yet.", 404 every post and drop them from the sitemap.
  *    Throwing keeps the last good page in the ISR cache.
  *
- * An empty TABLE is not a failure: it lists only the code posts on both.
+ * An empty TABLE is not a failure: it lists only the code posts on both. Both
+ * the list query and the single-post query go through here.
  */
-async function readAllPosts(): Promise<BlogPost[]> {
+async function readStoredRows<Row>(query: () => Promise<Row[]>): Promise<Row[]> {
   try {
-    const rows = await db
-      .select()
-      .from(blogPosts)
-      .orderBy(desc(blogPosts.publishedAt));
-
-    return withCodePosts(
-      rows.filter((row) => row.locale === BLOG_LOCALE).map(rowToPost),
-    );
+    return await query();
   } catch (err) {
     if (!isBuildPrerender()) throw err;
     console.error(
@@ -99,8 +121,21 @@ async function readAllPosts(): Promise<BlogPost[]> {
       err,
     );
 
-    return withCodePosts([]);
+    return [];
   }
+}
+
+/** Every stored English post, newest first, without either body column. */
+async function readPostSummaries(): Promise<BlogPostSummary[]> {
+  const rows = await readStoredRows(() =>
+    db
+      .select(SUMMARY_COLUMNS)
+      .from(blogPosts)
+      .where(eq(blogPosts.locale, BLOG_LOCALE))
+      .orderBy(desc(blogPosts.publishedAt)),
+  );
+
+  return withCodePosts(rows.map(rowToSummary));
 }
 
 /**
@@ -114,31 +149,45 @@ const CODE_POSTS: BlogPost[] = [
   hyperwhisperVsHandyVsFluidvoice,
 ];
 
-function withCodePosts(stored: BlogPost[]): BlogPost[] {
+function withCodePosts(stored: BlogPostSummary[]): BlogPostSummary[] {
   const slugs = new Set(stored.map((post) => post.slug));
 
   return [
     ...stored,
-    ...CODE_POSTS.filter((post) => !slugs.has(post.slug)),
+    ...CODE_POSTS.filter((post) => !slugs.has(post.slug)).map(
+      ({ locale, slug, frontMatter }) => ({ locale, slug, frontMatter }),
+    ),
   ].sort(
     (a, b) => Date.parse(b.frontMatter.date) - Date.parse(a.frontMatter.date),
   );
 }
 
 export async function getBlogPosts(): Promise<BlogPostSummary[]> {
-  const posts = await readAllPosts();
-
-  return posts.map((post) => ({
-    locale: post.locale,
-    slug: post.slug,
-    frontMatter: post.frontMatter,
-  }));
+  return readPostSummaries();
 }
 
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
-  const posts = await readAllPosts();
-  const stored = posts.find((item) => item.slug === normalizedSlug);
+  // One row, found through the blog_posts_locale_slug_unique index. Every
+  // stored slug comes from the webhook's slugify(), which leaves no "/" in
+  // it, so matching the normalised slug exactly finds the same row the old
+  // whole-table .find() over normalizeSlug(row.slug) did.
+  const [row] = await readStoredRows(() =>
+    db
+      .select(POST_COLUMNS)
+      .from(blogPosts)
+      .where(
+        and(
+          eq(blogPosts.locale, BLOG_LOCALE),
+          eq(blogPosts.slug, normalizedSlug),
+        ),
+      )
+      .limit(1),
+  );
+  // A stored row beats a code post with the same slug.
+  const stored = row
+    ? rowToPost(row)
+    : CODE_POSTS.find((item) => item.slug === normalizedSlug);
 
   if (!stored) return null;
   // Sanitise again on read, so a row stored before the webhook sanitised its
