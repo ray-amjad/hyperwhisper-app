@@ -1080,6 +1080,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (Debug=staging). provider-settings + updates clean (auto-update toggle wired to Sparkle; API-key add/edit/remove/re-add consistent). onboarding needed 3 drives: Codex took Set Up Later, then left mic TCC Denied; tccutil reset Microphone com.hyperwhisper.hyperwhisper + kill -9 relaunch fixes it. Goal must say NEVER Set Up Later and ALLOW the mic prompt. Filed #2968 (tryIt failure shows green Recorded pill)."
+    },
+    {
+      "at": "2026-10-31T04:23:55Z",
+      "platform": "linux",
+      "commit": "4dcbd893",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "onboarding"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 defects on all 3; provider-settings Codex stopped at step 13 (no JSON). My probes clean: vocab edit-to-duplicate rejected, case dup rejected; credential Trim keeps inner spaces, delete removes file; fake Cloud key -> 'License key not found'; unmasked account-key field is deliberate Windows parity (MainWindow.axaml:2350). These 3 routes look mined out on Linux."
     }
   ]
 }
