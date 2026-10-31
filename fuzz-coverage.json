@@ -1064,6 +1064,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). core DLL from e8164c2f (empty shared-core-rs diff). onboarding: choice switch BYOK->Cloud re-routes next step correctly, clean. local-api: port is ephemeral/advisory by design (LocalApiServer.cs:133), no port field is not a defect. streaming: provider/model/language persist; Ctrl+Alt+S vs Ctrl+Alt record chord handled by ModifierChordGate; hotkeys untestable in secondary instance. All 3 routes now mined on win."
+    },
+    {
+      "at": "2026-10-31T02:42:43Z",
+      "platform": "mac",
+      "commit": "906939c7",
+      "routes": [
+        "provider-settings",
+        "updates",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2968
+      ],
+      "licensed": false,
+      "note": "unlicensed (Debug=staging). provider-settings + updates clean (auto-update toggle wired to Sparkle; API-key add/edit/remove/re-add consistent). onboarding needed 3 drives: Codex took Set Up Later, then left mic TCC Denied; tccutil reset Microphone com.hyperwhisper.hyperwhisper + kill -9 relaunch fixes it. Goal must say NEVER Set Up Later and ALLOW the mic prompt. Filed #2968 (tryIt failure shows green Recorded pill)."
     }
   ]
 }
