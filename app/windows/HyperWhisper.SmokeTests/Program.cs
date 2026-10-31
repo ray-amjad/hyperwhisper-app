@@ -27064,6 +27064,7 @@ internal static class Program
             ScriptGuardPorts.RunAll(Run);
             OutputMuteOwnershipChecks.RunAll(Run);
             CloudCreditsWarningChecks.RunAll(Run);
+            InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
@@ -27130,6 +27131,19 @@ internal static class Program
                     "a probe stored the key it checked; only an activation may");
                 Assert(service.GetCachedStatus() == cachedBefore,
                     $"a probe wrote the validation cache ({cachedBefore} -> {service.GetCachedStatus()})");
+            });
+
+            RunAsync("probe: a 200 that is not the validate JSON reports unavailable, not an invalid key (#2916)", async () =>
+            {
+                foreach (var body in new[] { "<html><body>Please log in to Hotel WiFi</body></html>", "" })
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, body);
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                    Assert(handler.Bodies.Count == 1, $"'{body}': expected one request, sent {handler.Bodies.Count}");
+                    Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                        $"'{body}': a captive-portal 200 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+                }
             });
 
             RunAsync("probe: the request body carries probe_only and no device_id", async () =>
@@ -27205,6 +27219,35 @@ internal static class Program
                         $"a different key inherited the stored key's verdict: valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
                     Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
                         "an unverified replacement key must leave the stored key and its cache alone");
+                });
+
+                RunAsync("validate: a 200 that is not the validate JSON keeps the stored key's cached verdict (#2916)", async () =>
+                {
+                    foreach (var body in new[] { "<html><body>Please log in to Hotel WiFi</body></html>", "", "{}" })
+                    {
+                        var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, body);
+                        using var service = new LicenseNetworkService(new HttpClient(handler));
+                        var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                        Assert(handler.Bodies.Count == 1, $"'{body}': expected one request, sent {handler.Bodies.Count}");
+                        Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                            $"'{body}': a captive-portal 200 downgraded a paying user, got valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                        Assert(result.ErrorMessage == "Using cached license (offline)",
+                            $"'{body}': expected the cached-offline verdict, got '{result.ErrorMessage}'");
+                        Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                            $"'{body}': a non-verdict 200 must leave the stored key and its cache alone");
+                    }
+                });
+
+                // Last in the block: it overwrites the cached verdict with Invalid.
+                RunAsync("validate: a real 200 {\"valid\":false} for the stored key still caches Invalid (#2916 guard)", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, "{\"valid\":false}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                    Assert(!result.IsValid && result.Status == LicenseStatus.Invalid,
+                        $"a real rejection must read as Invalid, got valid={result.IsValid} status={result.Status}");
+                    Assert(service.GetCachedStatus() == LicenseStatus.Invalid,
+                        $"a real rejection of the stored key must be cached, got {service.GetCachedStatus()}");
                 });
             }
             finally

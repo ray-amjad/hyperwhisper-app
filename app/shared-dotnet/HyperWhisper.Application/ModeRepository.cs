@@ -41,7 +41,16 @@ public sealed class ModeRepository(ApplicationDb database)
     public async Task<bool> DeleteSafelyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var context = _database.CreateContext();
-        var modes = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
+        // The count check and the delete are one unit (issue #2663). Without the transaction two
+        // overlapping deletes of different modes each read two rows, both pass the check, and the
+        // table ends with none. A non-deferred SQLite transaction is BEGIN IMMEDIATE, which takes
+        // the write lock before the read, so a second delete waits here and then sees one row.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        // Same order as ListAsync, so the mode the default flag moves to is the one the Local API's
+        // delete moved it to before that path was routed through here.
+        var modes = await context.Modes
+            .OrderBy(item => item.SortOrder).ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
         var target = modes.SingleOrDefault(item => item.Id == id);
         if (target is null) return false;
         if (modes.Count == 1) throw new ModeRuleViolationException("modes.last_mode", "Cannot delete the last remaining mode.");
@@ -54,6 +63,7 @@ public sealed class ModeRepository(ApplicationDb database)
         foreach (var row in remaining.Where(row => moved.Contains(row.Id)))
             row.ModifiedDate = DateTime.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 

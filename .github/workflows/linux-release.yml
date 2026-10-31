@@ -39,6 +39,7 @@ on:
 permissions:
   contents: write
   pull-requests: write   # the website version file lands via an auto-merged PR
+  actions: write         # starts nextjs-deploy.yml after the merge (gh workflow run)
 
 concurrency:
   group: linux-release
@@ -819,6 +820,11 @@ jobs:
             echo "merge attempt $i failed, retrying..."
             sleep 5
           done
+
+          # A merge made with github.token triggers no other workflow, so start the
+          # website deploy (nextjs-deploy.yml) explicitly; workflow_dispatch is the
+          # exception GitHub allows for that token. It deploys only from main.
+          gh workflow run nextjs-deploy.yml --ref "$BASE"
 
           echo "The website now advertises Linux v${VERSION}."
 

@@ -19,6 +19,7 @@ import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
 import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
 import { saveEnv, stubEnv } from '../test-support/env';
+import { stubErrorResponse } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
 let restoreEnv: Array<() => void> = [];
@@ -63,7 +64,11 @@ interface Captured {
   body?: Record<string, any>;
 }
 
-function captureRequest(payload: unknown = sampleResponse()): Captured {
+/**
+ * The JSON-body sibling of `captureMultipartRequest` in `../test-support/fetch-stubs`:
+ * this endpoint takes a JSON request, so the body is parsed rather than read as a form.
+ */
+function captureJsonRequest(payload: unknown = sampleResponse()): Captured {
   const captured: Captured = {};
   globalThis.fetch = mock(async (url: string, init: RequestInit) => {
     captured.url = url;
@@ -72,10 +77,6 @@ function captureRequest(payload: unknown = sampleResponse()): Captured {
     return Response.json(payload);
   }) as unknown as typeof fetch;
   return captured;
-}
-
-function errorResponse(status: number, text = 'upstream said no') {
-  globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
 }
 
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {
@@ -161,7 +162,7 @@ describe('toVocabularyTerms', () => {
 
 describe('transcribeWithGeminiTranscribe — request shape', () => {
   test('posts to /v1beta/interactions with the pinned Api-Revision header', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3');
 
     expect(captured.url).toBe('https://generativelanguage.googleapis.com/v1beta/interactions');
@@ -173,7 +174,7 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
   });
 
   test('sends the audio inline as base64 with a resolved MIME type', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     const bytes = new Uint8Array([1, 2, 3, 4]);
     await transcribeWithGeminiTranscribe(bytes.buffer, 'audio/wav');
 
@@ -186,13 +187,13 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
   });
 
   test('omits generation_config entirely for an auto-detect request with no vocabulary', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3', 'auto');
     expect(captured.body).not.toHaveProperty('generation_config');
   });
 
   test('forwards the vocabulary as custom_vocabulary — the real upstream field', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3', 'en-US', 'HyperWhisper, Kalamazoo');
 
     expect(captured.body?.generation_config.transcription_config).toEqual({
@@ -202,7 +203,7 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
   });
 
   test('never sends diarization or timestamps — /transcribe is text-only', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3', 'en-US', 'HyperWhisper');
     const serialized = JSON.stringify(captured.body);
     expect(serialized).not.toContain('diarization_mode');
@@ -210,7 +211,7 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
   });
 
   test('honours an explicitly requested model', async () => {
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3', undefined, undefined, {
       model: 'gemini-3.5-transcribe',
     });
@@ -221,7 +222,7 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
 describe('transcribeWithGeminiTranscribe — timeout contract', () => {
   test('uses the 45-second cold-path budget instead of the shared provider timeout', async () => {
     process.env.STT_PROVIDER_TIMEOUT_MS = '1';
-    captureRequest();
+    captureJsonRequest();
 
     const requestStart = await captureProviderEvent(
       'provider.request_start',
@@ -271,7 +272,7 @@ describe('transcribeWithGeminiTranscribe — gates before the wire', () => {
   test('falls back to GOOGLE_GEMINI_API_KEY', async () => {
     delete process.env.GEMINI_API_KEY;
     process.env.GOOGLE_GEMINI_API_KEY = 'other-key';
-    const captured = captureRequest();
+    const captured = captureJsonRequest();
 
     await transcribeWithGeminiTranscribe(audio(), 'audio/mp3');
     expect(captured.headers?.['x-goog-api-key']).toBe('other-key');
@@ -293,7 +294,7 @@ describe('transcribeWithGeminiTranscribe — gates before the wire', () => {
 
 describe('transcribeWithGeminiTranscribe — response handling', () => {
   test('reads the transcript from steps[].content[].text and bills the reported tokens', async () => {
-    captureRequest();
+    captureJsonRequest();
     const result = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3', 'en-US');
 
     expect(result.text).toBe(SAMPLE_TRANSCRIPT);
@@ -322,7 +323,7 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
     // NOT the free no_speech the duration-billed adapters return. This endpoint
     // bills 25 input tokens/sec whether or not a word comes back, so a $0 answer
     // would make silent audio an unmetered channel to a paid upstream request.
-    captureRequest(sampleResponse('   '));
+    captureJsonRequest(sampleResponse('   '));
     const result = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3');
 
     expect(result.source).toBe('no_speech');
@@ -335,13 +336,13 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
   });
 
   test('the no_speech log event derives the upstream duration from audio tokens, never the byte estimate', async () => {
-    captureRequest(sampleResponse('   '));
+    captureJsonRequest(sampleResponse('   '));
     const reported = await captureNoSpeechEvent(() => transcribeWithGeminiTranscribe(audio(), 'audio/mp3'));
     expect(reported.upstreamDurationSeconds as number).toBeCloseTo(9.44, 2);
 
     // No usage at all: the BILLED `durationSeconds` falls back to a 10 s byte
     // estimate, which the telemetry must not present as Google's own number.
-    captureRequest({ steps: [{ content: [{ text: '' }] }] });
+    captureJsonRequest({ steps: [{ content: [{ text: '' }] }] });
     const estimated = await captureNoSpeechEvent(
       () => transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav'),
     );
@@ -351,7 +352,7 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
   });
 
   test('a silent clip with no usage object bills the duration estimate, not $0', async () => {
-    captureRequest({ steps: [{ content: [{ text: '' }] }] });
+    captureJsonRequest({ steps: [{ content: [{ text: '' }] }] });
     const result = await transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav');
 
     expect(result.source).toBe('no_speech');
@@ -365,7 +366,7 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
     // The shape production actually emits when `usage` is missing or loses a
     // modality: the transcript is present, so the estimated OUTPUT tokens are
     // non-zero and the old `tokenCost > 0` guard skipped the fallback entirely.
-    captureRequest({ steps: [{ content: [{ text: 'hello there' }] }] });
+    captureJsonRequest({ steps: [{ content: [{ text: 'hello there' }] }] });
     // 32,000 B/s for wav → 10 s of audio.
     const result = await transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav');
 
@@ -379,7 +380,7 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
   });
 
   test('a usage object that reports text tokens but no audio modality also fails closed', async () => {
-    captureRequest({
+    captureJsonRequest({
       steps: [{ content: [{ text: 'hello there' }] }],
       usage: {
         total_input_tokens: 1,
@@ -406,7 +407,7 @@ describe('transcribeWithGeminiTranscribe — error classification', () => {
   test('a 400 "API key not valid" is an auth failure, not an input rejection', async () => {
     // Verified live: Google answers a bad key on this endpoint with 400
     // INVALID_ARGUMENT / API_KEY_INVALID, never 401.
-    errorResponse(400, JSON.stringify({
+    stubErrorResponse(400, JSON.stringify({
       error: {
         code: 400,
         message: 'API key not valid. Please pass a valid API key.',
@@ -421,7 +422,7 @@ describe('transcribeWithGeminiTranscribe — error classification', () => {
   });
 
   test('any other 400 stays an input rejection', async () => {
-    errorResponse(400, JSON.stringify({
+    stubErrorResponse(400, JSON.stringify({
       error: { message: 'custom_vocabulary is incompatible with timestamps.', code: 'invalid_request' },
     }));
 
@@ -432,14 +433,14 @@ describe('transcribeWithGeminiTranscribe — error classification', () => {
 
   test('401/403 are auth failures; 429 and 5xx fail over', async () => {
     for (const status of [401, 403]) {
-      errorResponse(status);
+      stubErrorResponse(status);
       const thrown = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3').catch((e) => e);
       expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
       expect(thrown.message).toContain('invalid or unauthorized');
     }
 
     for (const status of [429, 500, 503]) {
-      errorResponse(status);
+      stubErrorResponse(status);
       const thrown = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3').catch((e) => e);
       expect(thrown).toBeInstanceOf(ProviderUnavailableError);
       expect(thrown.status).toBe(status);
@@ -447,7 +448,7 @@ describe('transcribeWithGeminiTranscribe — error classification', () => {
   });
 
   test('a 404 for an unknown model is an input rejection the caller can fix', async () => {
-    errorResponse(404, JSON.stringify({ error: { message: "Model 'x' not found.", code: 'not_found' } }));
+    stubErrorResponse(404, JSON.stringify({ error: { message: "Model 'x' not found.", code: 'not_found' } }));
     const thrown = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(404);

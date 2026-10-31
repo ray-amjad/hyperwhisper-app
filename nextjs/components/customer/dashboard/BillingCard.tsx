@@ -2,6 +2,7 @@
 
 import { api } from "@/lib/trpc/client";
 import { Spinner } from "@/components/ui/Spinner";
+import { BTN_SECONDARY, CARD, LABEL } from "@/components/user/panel-styles";
 
 export default function BillingCard() {
   const { data: billing } = api.customer.billingProviders.useQuery();
@@ -10,14 +11,14 @@ export default function BillingCard() {
   });
 
   return (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <p className="text-sm text-gray-400 mb-3">Billing & Invoices</p>
+    <div className={`${CARD} p-5 sm:p-6`}>
+      <p className={`${LABEL} mb-3.5`}>Billing & Invoices</p>
       <div className="flex flex-wrap gap-3">
         {billing?.hasStripe && (
           <button
             onClick={() => stripePortalMutation.mutate()}
             disabled={stripePortalMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            className={BTN_SECONDARY}
           >
             {stripePortalMutation.isPending && (
               <Spinner className="w-4 h-4" label="Opening" />
@@ -30,14 +31,14 @@ export default function BillingCard() {
             href="https://polar.sh/hyperwhisper/portal"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 text-sm text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+            className={BTN_SECONDARY}
           >
             Polar Portal
           </a>
         )}
       </div>
       {stripePortalMutation.error && (
-        <p className="text-sm text-red-400 mt-2" role="alert">
+        <p className="text-sm text-rose-300 mt-2.5" role="alert">
           {stripePortalMutation.error.message}
         </p>
       )}
