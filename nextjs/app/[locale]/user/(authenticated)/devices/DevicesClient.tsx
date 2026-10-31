@@ -121,8 +121,23 @@ export default function DevicesClient() {
   const [hasSkeleton, setHasSkeleton] = useState(loading);
 
   if (loading && !hasSkeleton) setHasSkeleton(true);
+
+  // #2789: revealed only turns false in an effect, a render after a load
+  // starts, so a Refresh after a failed first load would draw its first frame
+  // with the last load's settled layers (skeleton hidden, real header shown)
+  // and then fade the skeleton in over 400 ms. While loading, every layer
+  // shows its loading state, in the same commit the load starts.
+  const shown = revealed && !loading;
+  // The fade runs only once the load is over, so entering a load snaps (no
+  // skeleton fading in, no real header fading out over the skeleton's), as
+  // before #2770. The class lands with the render that ends the load, while
+  // the layers still sit at their loading opacity, so the cross-fade two
+  // frames later has its start value.
+  const fade = loading
+    ? ""
+    : " transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none";
   // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
-  const pulse = `${SKEL}${revealed ? " [animation-play-state:paused]" : ""}`;
+  const pulse = `${SKEL}${shown ? " [animation-play-state:paused]" : ""}`;
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -238,18 +253,16 @@ export default function DevicesClient() {
             <DevicesTableHead
               className={
                 hasSkeleton
-                  ? `transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                      revealed
-                        ? "opacity-100 blur-[0px]"
-                        : "opacity-0 blur-[2px]"
-                    }`
+                  ? `${
+                      shown ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
+                    }${fade}`
                   : undefined
               }
             />
             <tbody
-              className={`t-skel-content ${TBODY} transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
-              }`}
+              className={`t-skel-content ${TBODY} ${
+                shown ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
+              }${fade}`}
             >
               {loading ? null : devices.length === 0 ? (
                 <tr>
@@ -296,9 +309,9 @@ export default function DevicesClient() {
           {hasSkeleton && (
             <div
               aria-hidden
-              className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+              className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none ${
                 loading ? "" : "h-0 min-w-0 overflow-x-clip"
-              } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
+              } ${shown ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}${fade}`}
             >
               <table className="w-full min-w-[36rem]">
                 <DevicesTableHead />
