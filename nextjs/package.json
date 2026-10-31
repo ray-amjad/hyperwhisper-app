@@ -26,10 +26,8 @@
   "dependencies": {
     "@heroui/button": "2.2.32",
     "@heroui/card": "^2.2.28",
-    "@heroui/divider": "^2.2.24",
     "@heroui/dropdown": "^2.3.32",
     "@heroui/input": "^2.4.33",
-    "@heroui/link": "2.2.26",
     "@heroui/modal": "^2.2.29",
     "@heroui/navbar": "2.2.30",
     "@heroui/system": "^2.4.28",
@@ -86,7 +84,6 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
     "globals": "17.9.0",
-    "ioredis": "^5.11.1",
     "prettier": "3.5.3",
     "tailwindcss": "4.1.11",
     "tsx": "^4.21.0",
