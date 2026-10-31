@@ -187,7 +187,7 @@ describe("download recorder (#774)", () => {
 
   test("a sendWelcomeEmail that answers success: false still returns success", async () => {
     const { calls, record } = recorder({
-      sendWelcomeEmail: async () => ({ success: false, error: "resend refused" }),
+      sendWelcomeEmail: async () => ({ success: false, error: "provider refused" }),
     });
 
     const result = await record("visitor@example.org");
@@ -195,7 +195,7 @@ describe("download recorder (#774)", () => {
     assert.equal(result.success, true);
     assert.equal(result.downloadUrl, FIRST_DMG);
     assert.equal(calls.upserts.length, 1);
-    assert.ok(errors.includes("Welcome email failed to send: resend refused"), errors.join("\n"));
+    assert.ok(errors.includes("Welcome email failed to send: provider refused"), errors.join("\n"));
   });
 
   test("an appcast that 404s falls back to /api/download; a readable one gives the FIRST item's enclosure", async () => {

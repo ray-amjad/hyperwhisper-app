@@ -174,8 +174,10 @@ struct PendingRetrySupersessionTests {
         #expect(body.contains("toggleTakesOverSession("), "\(body)")
     }
 
-    /// A file transcription takes `recordingState` over too, and the pipeline
-    /// call that follows cancels the retry.
+    /// A file transcription takes `recordingState` over too (only from
+    /// `.idle`). Its pipeline call does NOT cancel the retry: it runs as a
+    /// file job and the retry as a dictation, and the pipeline cancels only
+    /// the same kind (#1425, #1394). The bump alone supersedes the retry.
     @Test func aFileTranscriptionBeginsASessionWhenItTakesTheState() throws {
         let code = try ProductionSource.code(of: Self.fileFlowPath)
         let takeOver = try #require(code.range(of: "appState?.recordingState = .transcribing"),

@@ -8,7 +8,7 @@ using HyperWhisper.PortableApplication.ViewModels;
 namespace HyperWhisper.Linux;
 
 /// <summary>
-/// The Linux port of Windows' ProviderApiKeyWindow (460x360, NoResize, CenterOwner). The Model
+/// The Linux port of Windows' ProviderApiKeyWindow (460 wide, NoResize, CenterOwner). The Model
 /// Library's "Connect" / "Needs attention" row action opens this modal over the library, instead
 /// of navigating the whole app to the credentials page and leaving the user to walk back.
 ///
@@ -21,7 +21,14 @@ public partial class ProviderApiKeyWindow : Window
     private readonly string _account = string.Empty;
     private readonly string _apiKeyUrl = string.Empty;
 
-    public ProviderApiKeyWindow() => AvaloniaXamlLoader.Load(this);
+    public ProviderApiKeyWindow()
+    {
+        AvaloniaXamlLoader.Load(this);
+        // Set here, not in the XAML: the localization test matches (Title|Text|Content|...)="…"
+        // lexically, so a literal SizeToContent="Height" reads to it as Content="Height". It grows
+        // the dialog past its 360 floor when the Secret Service footnote wraps (#2407).
+        SizeToContent = SizeToContent.Height;
+    }
 
     public ProviderApiKeyWindow(CredentialManagementViewModel credentials, string account,
         string displayName, string apiKeyUrl) : this()
