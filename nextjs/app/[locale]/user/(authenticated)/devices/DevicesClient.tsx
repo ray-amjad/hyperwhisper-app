@@ -30,6 +30,26 @@ import {
   TR_HOVER,
 } from "@/components/user/panel-styles";
 
+const COLUMNS = ["Email", "Account Key", "Devices"] as const;
+
+/**
+ * The table's header row. The first-load skeleton draws its own copy, laid
+ * out over the skeleton's columns (#1242).
+ */
+function DevicesTableHead({ className }: { className?: string }) {
+  return (
+    <thead className={className}>
+      <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
+        {COLUMNS.map((column) => (
+          <th key={column} className={TH}>
+            {column}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
   { label: "30 days", value: 30 },
@@ -88,6 +108,21 @@ export default function DevicesClient() {
 
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
+
+  // #1242: the skeleton layer is drawn from the first load on; a mount with
+  // the rows already cached shows none, as before. isLoading is true whenever
+  // a fetch starts with no rows on screen: the first load, and a Refresh
+  // after a failed first load (react-query v5 puts a query with no data back
+  // to "pending"). When keepPreviousData still has rows to show (a range
+  // switch, or a Refresh after a failed one), isLoading stays false and the
+  // dimmed rows stay instead, as on main. So any load draws it, set during
+  // render so it shows in the same commit, as the skeleton rows did before.
+  // Once drawn it stays mounted and fades.
+  const [hasSkeleton, setHasSkeleton] = useState(loading);
+
+  if (loading && !hasSkeleton) setHasSkeleton(true);
+  // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
+  const pulse = `${SKEL}${revealed ? " [animation-play-state:paused]" : ""}`;
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -188,44 +223,29 @@ export default function DevicesClient() {
         <div
           aria-busy={loading || isTransitioning}
           aria-label="Device activations table"
-          className="overflow-x-auto rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
+          className="t-skel grid overflow-x-auto overflow-y-hidden rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
           role="region"
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
           tabIndex={0}
         >
-          <table className="w-full min-w-[36rem]">
-            <thead>
-              <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
-                <th className={TH}>
-                  Email
-                </th>
-                <th className={TH}>
-                  Account Key
-                </th>
-                <th className={TH}>
-                  Devices
-                </th>
-              </tr>
-            </thead>
-            {/* First load only: skeleton rows, then the real rows fade in.
-                A range switch keeps the previous rows mounted (above). */}
-            {loading && (
-              <tbody aria-hidden className={TBODY}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-48 ${SKEL}`} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-28 ${SKEL}`} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-12 ${SKEL}`} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            )}
+          <table className="[grid-area:1/1] self-start w-full min-w-[36rem]">
+            {/* While the skeleton shows, its own header is the visible one,
+                laid out over its bars; this one is laid out over the empty
+                table's header text alone, so its labels sit elsewhere. It
+                cross-fades in with the rows, as the skeleton's header fades
+                out, so the labels move only by the rows' own column widths,
+                as they did when the skeleton shared this table. */}
+            <DevicesTableHead
+              className={
+                hasSkeleton
+                  ? `transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                      revealed
+                        ? "opacity-100 blur-[0px]"
+                        : "opacity-0 blur-[2px]"
+                    }`
+                  : undefined
+              }
+            />
             <tbody
               className={`t-skel-content ${TBODY} transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
@@ -260,6 +280,52 @@ export default function DevicesClient() {
               )}
             </tbody>
           </table>
+          {/* While loading: the skeleton rows, in the same grid slot as the
+              table, under its own copy of the header (#1242, the #1236
+              cross-fade on /older-versions). A <tbody> cannot share a slot,
+              so the skeleton is its own table. It stays mounted, as #1236's
+              does: once the rows land it fades out on the same signal that
+              fades them in (at once under reduced motion), its pulse pauses
+              where it is, and it stops taking height (h-0), so the table
+              alone sets the box's height and a short result never waits on
+              the fade. Nor does it set the column's width (min-w-0, its
+              overflow clipped sideways), so the settled table is as wide as
+              before; still in the column, it fades over the table at the
+              table's width. overflow-y-hidden clips what hangs below a short
+              table. A range switch keeps the previous rows mounted (above). */}
+          {hasSkeleton && (
+            <div
+              aria-hidden
+              className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                loading ? "" : "h-0 min-w-0 overflow-x-clip"
+              } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
+            >
+              <table className="w-full min-w-[36rem]">
+                <DevicesTableHead />
+                <tbody className={TBODY}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-48 ${pulse}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-28 ${pulse}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-12 ${pulse}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </HeightTween>
 

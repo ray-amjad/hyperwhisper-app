@@ -317,6 +317,8 @@ test("react-query keeps the first page's identity on an append and changes it on
 });
 
 test("the Devices card renders with the opacity dim and the height tween, never `all`", async () => {
+  // The fake window above would make the page's browser-only hooks run.
+  delete (globalThis as { window?: unknown }).window;
   const { createElement } = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");
   const COMPONENT_PATH =
@@ -332,5 +334,5 @@ test("the Devices card renders with the opacity dim and the height tween, never 
     card[1],
     "transition:opacity 150ms cubic-bezier(0.4, 0, 0.2, 1), height 300ms var(--motion-ease-smooth-out)",
   );
-  assert.match(html, /<div aria-busy="false" aria-label="Device activations table" class="overflow-x-auto /);
+  assert.match(html, /<div aria-busy="false" aria-label="Device activations table" class="[^"]*\boverflow-x-auto\b/);
 });
