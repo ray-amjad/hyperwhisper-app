@@ -1,6 +1,11 @@
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
-import { BTN_SECONDARY_XS, BTN_WARN_XS, FOCUS_RING } from "@/components/user/panel-styles";
+import {
+  BTN_DANGER_XS,
+  BTN_SECONDARY_XS,
+  BTN_WARN_XS,
+  FOCUS_RING,
+} from "@/components/user/panel-styles";
 
 /** Every string the view shows, already translated by the container. */
 export interface RotateAccountKeyLabels {
@@ -40,6 +45,13 @@ export type RotateRefusalMessage =
   | "errorGeneric"
   | null;
 
+/** What a refused rotation, delete or issue leaves on screen. */
+export interface KeyActionRefusal<M> {
+  phase: RotatePhase;
+  message: M;
+  refetch: boolean;
+}
+
 /**
  * What a refused rotation leaves on screen, by tRPC error code. Pure, so the
  * rules are tested directly:
@@ -51,11 +63,9 @@ export type RotateRefusalMessage =
  * - TOO_MANY_REQUESTS: back to idle with the reason; start again later.
  * - anything else (network, server): the confirmation stays; retry is real.
  */
-export function rotateRefusal(code: string | undefined): {
-  phase: RotatePhase;
-  message: RotateRefusalMessage;
-  refetch: boolean;
-} {
+export function rotateRefusal(
+  code: string | undefined,
+): KeyActionRefusal<RotateRefusalMessage> {
   switch (code) {
     case "CONFLICT":
       return { phase: "idle", message: "errorStale", refetch: true };
@@ -71,6 +81,102 @@ export function rotateRefusal(code: string | undefined): {
   }
 }
 
+/** The translated message a refused delete shows (keys of `licenseKeysCard`). */
+export type DeleteRefusalMessage =
+  | "deleteErrorStale"
+  | "deleteErrorUnavailable"
+  | "deleteLastKey"
+  | "manageErrorRateLimited"
+  | "deleteErrorGeneric"
+  | null;
+
+/**
+ * What a refused delete (`customer.deleteAccountKey`) leaves on screen:
+ * - CONFLICT (the key was rotated meanwhile): closes and refetches, so the
+ *   user sees the key they would be deleting before they try again.
+ * - NOT_FOUND (gone, not theirs, or no longer active): `closed`, refetched;
+ *   the row leaves the list.
+ * - PRECONDITION_FAILED (their last live key, e.g. another tab deleted the
+ *   other one): closes and refetches; the button then shows the reason.
+ * - FORBIDDEN: the email step-up; TOO_MANY_REQUESTS: back to idle; anything
+ *   else: the confirmation stays, so a retry is one click.
+ */
+export function deleteRefusal(
+  code: string | undefined,
+): KeyActionRefusal<DeleteRefusalMessage> {
+  switch (code) {
+    case "CONFLICT":
+      return { phase: "idle", message: "deleteErrorStale", refetch: true };
+    case "NOT_FOUND":
+      return {
+        phase: "closed",
+        message: "deleteErrorUnavailable",
+        refetch: true,
+      };
+    case "PRECONDITION_FAILED":
+      return { phase: "idle", message: "deleteLastKey", refetch: true };
+    case "FORBIDDEN":
+      return { phase: "verify", message: null, refetch: false };
+    case "TOO_MANY_REQUESTS":
+      return {
+        phase: "idle",
+        message: "manageErrorRateLimited",
+        refetch: false,
+      };
+    default:
+      return {
+        phase: "confirming",
+        message: "deleteErrorGeneric",
+        refetch: false,
+      };
+  }
+}
+
+/** The translated message a refused issue shows (keys of `licenseKeysCard`). */
+export type IssueRefusalMessage =
+  | "issueCap"
+  | "issueErrorUnavailable"
+  | "manageErrorRateLimited"
+  | "issueErrorGeneric"
+  | null;
+
+/**
+ * What a refused issue (`customer.issueAccountKey`) leaves on screen:
+ * - CONFLICT (the cap of live keys, e.g. another tab added one): back to
+ *   idle and refetched; the button then shows the cap.
+ * - PRECONDITION_FAILED (no live key left, e.g. revoked meanwhile): idle,
+ *   refetched; the control then goes away.
+ * - FORBIDDEN: the email step-up; TOO_MANY_REQUESTS: back to idle; anything
+ *   else: the confirmation stays.
+ *
+ * Never `closed`: whether issuing is possible changes with the list (a delete
+ * frees a slot), and the dashboard decides that from the refetched list.
+ */
+export function issueRefusal(
+  code: string | undefined,
+): KeyActionRefusal<IssueRefusalMessage> {
+  switch (code) {
+    case "CONFLICT":
+      return { phase: "idle", message: "issueCap", refetch: true };
+    case "PRECONDITION_FAILED":
+      return { phase: "idle", message: "issueErrorUnavailable", refetch: true };
+    case "FORBIDDEN":
+      return { phase: "verify", message: null, refetch: false };
+    case "TOO_MANY_REQUESTS":
+      return {
+        phase: "idle",
+        message: "manageErrorRateLimited",
+        refetch: false,
+      };
+    default:
+      return {
+        phase: "confirming",
+        message: "issueErrorGeneric",
+        refetch: false,
+      };
+  }
+}
+
 export interface RotateAccountKeyViewProps {
   /** The key row's id: names the panel for `aria-controls`. */
   licenseId: string;
@@ -78,17 +184,38 @@ export interface RotateAccountKeyViewProps {
   labels: RotateAccountKeyLabels;
   /** The success line after a rotation or a sent link, or null. */
   notice: string | null;
-  /** The refusal line, or null. */
+  /**
+   * The refusal line, or null. Shown beside `disabledReason` too (a CONFLICT
+   * or a rate limit says something the reason does not), except when it is
+   * the same words, so the reason is not printed twice.
+   */
   error: string | null;
   onStart: () => void;
   onConfirm: () => void;
   onSendLink: () => void;
   onCancel: () => void;
+  /**
+   * Names the panel's ids (`<idPrefix>-<licenseId>`). Each control under one
+   * key needs its own. Defaults to `rotate-key`.
+   */
+  idPrefix?: string;
+  /**
+   * Why the action is not available right now (the last live key cannot be
+   * deleted; the cap of keys is reached). When set and idle, the button is
+   * shown disabled with this reason next to it.
+   */
+  disabledReason?: string | null;
+  /** `danger` draws the confirmation in red (delete). Defaults to amber. */
+  tone?: "warning" | "danger";
 }
 
 /**
  * The rotate control under one Account Key: a "Rotate key" button, then an
  * inline confirmation that says what rotation does to the user's devices.
+ *
+ * The delete and "add a new key" controls use the same view with their own
+ * labels (`labels.rotate` is the action button's text), `idPrefix`, `tone`
+ * and, when the action is not available, `disabledReason`.
  *
  * HOLDS NO HOOKS (the `CloudCreditsCardView` split, #737): a test calls it as a
  * function and reaches every `onClick` and every state. `RotateAccountKeyControl`
@@ -104,8 +231,18 @@ export default function RotateAccountKeyView({
   onConfirm,
   onSendLink,
   onCancel,
+  idPrefix = "rotate-key",
+  disabledReason = null,
+  tone = "warning",
 }: RotateAccountKeyViewProps) {
-  const panelId = `rotate-key-${licenseId}`;
+  const panelId = `${idPrefix}-${licenseId}`;
+  const shownError =
+    error && phase === "idle" && error === disabledReason ? null : error;
+  const panelTone =
+    tone === "danger"
+      ? "border-rose-400/25 bg-[linear-gradient(180deg,rgba(244,63,94,.09),rgba(255,255,255,.02))]"
+      : "border-[rgba(253,186,140,.26)] bg-[linear-gradient(180deg,rgba(253,186,140,.09),rgba(255,255,255,.02))]";
+  const actionTone = tone === "danger" ? BTN_DANGER_XS : BTN_WARN_XS;
   const confirming = phase === "confirming" || phase === "rotating";
   const verifying = phase === "verify" || phase === "sending";
   const busy = phase === "rotating" || phase === "sending";
@@ -119,7 +256,7 @@ export default function RotateAccountKeyView({
   ) => (
     <div
       aria-labelledby={`${panelId}-title`}
-      className="mt-1.5 rounded-2xl border border-[rgba(253,186,140,.26)] bg-[linear-gradient(180deg,rgba(253,186,140,.09),rgba(255,255,255,.02))] p-4"
+      className={`mt-1.5 rounded-2xl border p-4 ${panelTone}`}
       id={panelId}
       role="group"
     >
@@ -129,7 +266,7 @@ export default function RotateAccountKeyView({
       <p className="mt-1 text-[13px] leading-[1.5] text-[var(--dusk-mute)]">{body}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          className={BTN_WARN_XS}
+          className={actionTone}
           disabled={busy}
           type="button"
           onClick={onAction}
@@ -151,7 +288,23 @@ export default function RotateAccountKeyView({
 
   return (
     <div className="pt-2">
-      {phase === "idle" ? (
+      {phase === "idle" && disabledReason ? (
+        <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
+          <button
+            disabled
+            aria-describedby={`${panelId}-reason`}
+            className="cursor-not-allowed text-white/30"
+            type="button"
+          >
+            {labels.rotate}
+          </button>
+          <span className="text-[var(--dusk-mute)]" id={`${panelId}-reason`}>
+            {disabledReason}
+          </span>
+        </p>
+      ) : null}
+
+      {phase === "idle" && !disabledReason ? (
         <button
           aria-controls={panelId}
           aria-expanded={false}
@@ -190,9 +343,9 @@ export default function RotateAccountKeyView({
       >
         {notice}
       </p>
-      <ErrorReveal className="" open={Boolean(error)}>
+      <ErrorReveal className="" open={Boolean(shownError)}>
         <p className="pt-1.5 text-xs text-rose-300 empty:hidden" role="alert">
-          {error}
+          {shownError}
         </p>
       </ErrorReveal>
     </div>

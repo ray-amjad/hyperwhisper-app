@@ -145,3 +145,45 @@ export async function purgeCloudLicenseCache(
 
   return { purged, failed, skipped: false };
 }
+
+/**
+ * True only when every configured cloud app confirmed the refusal. A skipped
+ * purge (no secret, or no cloud app named) is NOT confirmed: on production it
+ * means the cloud was never told, and its cached verdict can admit the dead
+ * key for up to `LICENSE_CACHE_TTL_SECONDS` (1 hour).
+ */
+export function cloudPurgeConfirmed(outcome: CloudPurgeOutcome): boolean {
+  return !outcome.skipped && outcome.failed === 0;
+}
+
+/**
+ * One JSON line per purge after a rotation or a delete, so an unconfirmed
+ * purge (the dead key may still work in the cloud for up to an hour) leaves a
+ * server record. `userId` and `licenseId` are opaque row ids; never the key.
+ */
+export function logCloudPurge(
+  trigger: "rotate" | "delete",
+  outcome: CloudPurgeOutcome,
+  ids: { userId: string; licenseId: string },
+): void {
+  const confirmed = cloudPurgeConfirmed(outcome);
+  const line = JSON.stringify({
+    event: "account_key.cloud_purge",
+    trigger,
+    outcome: confirmed ? "confirmed" : "unconfirmed",
+    purged: outcome.purged,
+    failed: outcome.failed,
+    skipped: outcome.skipped,
+    userId: ids.userId,
+    licenseId: ids.licenseId,
+  });
+
+  // The Worker's console output is its server log (Workers Logs).
+  /* eslint-disable no-console */
+  if (confirmed) {
+    console.log(line);
+  } else {
+    console.warn(line);
+  }
+  /* eslint-enable no-console */
+}

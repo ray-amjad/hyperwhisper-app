@@ -90,6 +90,9 @@ export const BTN_WARN_XS = `${PILL} ${XS} bg-amber-600 text-white hover:not-disa
 /** A destructive action (refund): solid rose, pill-shaped like the rest. */
 export const BTN_DANGER = `${PILL} ${SM} bg-rose-500/90 text-white hover:not-disabled:bg-rose-500`;
 
+/** A destructive action at row size (the confirm in "delete account key"). */
+export const BTN_DANGER_XS = `${PILL} ${XS} bg-rose-500/90 text-white hover:not-disabled:bg-rose-500`;
+
 /** A small ghost icon button (show/hide, copy, close). */
 export const ICON_BTN =
   `rounded-lg text-[var(--dusk-mute)] transition-colors hover:bg-white/[.07] hover:text-white ${FOCUS_RING}`;
