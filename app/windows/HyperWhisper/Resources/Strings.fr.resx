@@ -949,15 +949,6 @@ Cette action est irréversible.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Le vocabulaire personnalisé n'est pas pris en charge par les modèles Parakeet.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Le vocabulaire personnalisé n'est pas pris en charge par ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Le vocabulaire personnalisé n'est pas pris en charge par les modèles Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Le vocabulaire personnalisé n'est pas pris en charge par les modèles Deepgram Whisper.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Le vocabulaire personnalisé est désactivé avec la détection automatique sur les modèles Nova. Choisissez une langue précise pour activer le renforcement du vocabulaire.</value>
   </data>

@@ -949,15 +949,6 @@ Bu işlem geri alınamaz.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet modellerinde özel kelime hazinesi desteklenmez.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1'de özel kelime hazinesi desteklenmez.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base modellerinde özel kelime hazinesi desteklenmez.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper modellerinde özel kelime hazinesi desteklenmez.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Nova modelleriyle otomatik algılama kullanılırken özel kelime hazinesi devre dışıdır. Kelime hazinesi güçlendirmeyi etkinleştirmek için belirli bir dil ayarlayın.</value>
   </data>

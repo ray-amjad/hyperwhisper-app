@@ -949,15 +949,6 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet-modellen ondersteunen geen eigen woordenlijst.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 ondersteunt geen eigen woordenlijst.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base-modellen ondersteunen geen eigen woordenlijst.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper-modellen ondersteunen geen eigen woordenlijst.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Een eigen woordenlijst werkt niet met automatische taaldetectie op Nova-modellen. Stel een specifieke taal in om de woordenlijst te laten meewegen.</value>
   </data>

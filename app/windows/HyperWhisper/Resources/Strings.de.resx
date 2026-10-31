@@ -949,15 +949,6 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Eigenes Vokabular wird von Parakeet-Modellen nicht unterstützt.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Eigenes Vokabular wird von ElevenLabs Scribe V1 nicht unterstützt.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Eigenes Vokabular wird von Deepgram-Base-Modellen nicht unterstützt.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Eigenes Vokabular wird von Deepgram-Whisper-Modellen nicht unterstützt.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Eigenes Vokabular ist bei automatischer Spracherkennung mit Nova-Modellen deaktiviert. Legen Sie eine bestimmte Sprache fest, um die Vokabulargewichtung zu aktivieren.</value>
   </data>

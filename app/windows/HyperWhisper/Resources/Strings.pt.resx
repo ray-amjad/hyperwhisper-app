@@ -949,15 +949,6 @@ Esta ação não pode ser desfeita.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>O vocabulário personalizado não é suportado pelos modelos Parakeet.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelo ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelos modelos Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelos modelos Deepgram Whisper.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>O vocabulário personalizado é desativado quando usa a deteção automática com modelos Nova. Defina um idioma específico para ativar o reforço de vocabulário.</value>
   </data>

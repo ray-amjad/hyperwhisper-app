@@ -949,15 +949,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Модели Parakeet не поддерживают свой словарь.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 не поддерживает свой словарь.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Модели Deepgram Base не поддерживают свой словарь.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Модели Deepgram Whisper не поддерживают свой словарь.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Свой словарь отключён при автоопределении языка на моделях Nova. Укажите конкретный язык, чтобы включить усиление словаря.</value>
   </data>

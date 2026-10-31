@@ -949,15 +949,6 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Kosakata khusus tidak didukung pada model Parakeet.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Whisper.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Kosakata khusus dinonaktifkan saat menggunakan deteksi otomatis dengan model Nova. Atur bahasa tertentu untuk mengaktifkan penguatan kosakata.</value>
   </data>

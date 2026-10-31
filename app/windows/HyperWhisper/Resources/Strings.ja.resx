@@ -1040,15 +1040,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeetモデルではカスタム語彙はサポートされていません。</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1ではカスタム語彙はサポートされていません。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Baseモデルではカスタム語彙はサポートされていません。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisperモデルではカスタム語彙はサポートされていません。</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Novaモデルで自動検出を使用する場合、カスタム語彙は無効になります。語彙ブースティングを有効にするには、特定の言語を設定してください。</value>
   </data>
