@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
 import { env } from "@/src/env/server.mjs";
 import { describeDbError } from "@/lib/shared/db-error";
+import { readBoundedText } from "@/src/lib/bounded-body";
 import {
   handleCreditPurchase,
   handleChargeRefunded,
@@ -26,9 +27,15 @@ import {
  * SECURITY:
  * - Verifies webhook signature using STRIPE_WEBHOOK_SECRET
  * - Uses raw body for signature verification (required by Stripe)
+ * - Checks the signature header BEFORE reading the body, and reads at most
+ *   MAX_BODY_BYTES of it, so an unsigned or oversized POST is never buffered
+ *   (#2904)
  */
+
+/** Stripe events are a few KB; 1 MB leaves room for any real one. */
+const MAX_BODY_BYTES = 1024 * 1024;
+
 export async function POST(req: NextRequest) {
-  const body = await req.text();
   const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
@@ -45,11 +52,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const body = await readBoundedText(req, MAX_BODY_BYTES);
+
+  if (body instanceof NextResponse) {
+    console.error("Stripe webhook: body over the size cap");
+
+    return body;
+  }
+
   let event: Stripe.Event;
 
-  // Verify webhook signature
+  // Verify webhook signature. The async form: on Cloudflare Workers Stripe may
+  // resolve its Web Crypto provider, which cannot verify synchronously.
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      webhookSecret,
+    );
   } catch (err) {
     console.error(
       "Stripe webhook signature verification failed:",

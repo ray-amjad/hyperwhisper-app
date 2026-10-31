@@ -4,21 +4,29 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike, type SQL } from "drizzle-orm";
+import { eq, ne, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
+import {
+  ACCOUNT_KEY_DELETED_STATUS,
+  MAX_ACCOUNT_KEYS_ISSUED_PER_DAY,
+  MAX_LIVE_ACCOUNT_KEYS,
+} from "@/lib/account-key-limits";
 import { db } from "@/src/db";
 import {
   accountKeys,
-  creditBalances,
-  creditGrants,
   deviceValidations,
   emails,
   sentEmails,
   user,
   account,
   session,
-  stripeProcessedEvents,
 } from "@/src/db/schema";
+import {
+  getCreditBalancesForUsers,
+  grantCreditLotInTransaction,
+  type CreditGrantSourceType,
+  type DbExecutor,
+} from "./credit-ledger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,56 +52,6 @@ export interface AccountKeyRow {
   stripeCustomerId: string | null;
   stripeSessionId: string | null;
   createdAt: Date;
-}
-
-export type CreditGrantSourceType =
-  | "license_bundle"
-  | "polar_bundle"
-  | "internal_bundle"
-  | "admin_license_bundle"
-  | "stripe_credit_pack"
-  | "admin_manual"
-  | "legacy_unknown";
-
-export interface StripeCreditGrantInsert {
-  eventId: string;
-  eventType: string;
-  stripeObjectId: string;
-  userId: string;
-  creditAmount: number;
-  sourceType?: CreditGrantSourceType;
-  sourceId?: string;
-}
-
-export interface CreditGrantInsert {
-  userId: string;
-  amount: number;
-  sourceType: CreditGrantSourceType;
-  sourceId: string;
-}
-
-export interface CreditGrantRefund {
-  sourceType: CreditGrantSourceType;
-  sourceId: string;
-  /**
-   * The TOTAL credits of this grant refunded so far, across every refund of
-   * its purchase (Stripe's `amount_refunded` is cumulative, so the caller
-   * passes the running total, not this refund's share). Omitted means the
-   * whole grant is refunded.
-   */
-  refundedCreditsTotal?: number;
-}
-
-export interface CreditGrantRefundResult {
-  /**
-   * "duplicate": the grant already records this refund total. "not_found":
-   * no grant exists for the source yet (e.g. the refund beat the mint, #1798).
-   */
-  status: "processed" | "duplicate" | "not_found";
-  /** Credits of value this call newly recorded as refunded. */
-  refundedAmount: number;
-  /** Credits this call took off the grant's spendable remainder. */
-  removedAmount: number;
 }
 
 export interface UserResult {
@@ -186,6 +144,7 @@ export interface RevokeWebAccessOptions {
  *   - `revokeAccountKey()`     — a license key was revoked
  *   - `updateCustomerEmail()`  — the account moved to a different address
  *   - `rotateAccountKey()`     — the owner replaced a key (keeps their own tab)
+ *   - `deleteAccountKey()`     — the owner deleted a key (keeps their own tab)
  *
  * Why session rows have to go at all: web sessions last 90 days and roll
  * forward on use, and a session minted by `/sign-in/license-key` outlives the
@@ -331,6 +290,239 @@ export async function rotateAccountKey(input: {
   });
 }
 
+// First key of the two-int advisory lock that serialises one user's Account
+// Key issue and delete (the second is hashtext(user id)). Any constant works;
+// it only keeps these locks apart from GRANT_LICENSE_LOCK_CLASS and any other.
+const MANAGE_KEYS_LOCK_CLASS = 2634;
+
+/**
+ * Take the per-user lock that issue and delete share, inside `tx`. Released
+ * at COMMIT/ROLLBACK. Row locks alone are not enough: under READ COMMITTED a
+ * statement that waited on `FOR UPDATE` still does not see rows another
+ * transaction inserted meanwhile, so two concurrent issues would both count
+ * the same keys and pass the cap. After this lock, the next statement takes a
+ * fresh snapshot and sees what the previous holder committed.
+ */
+async function lockUserKeys(tx: DbExecutor, userId: string): Promise<void> {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(${MANAGE_KEYS_LOCK_CLASS}, hashtext(${userId}))`,
+  );
+}
+
+/**
+ * The caller's live (`granted`) keys, newest first, row-locked. "The caller's"
+ * is the same rule rotation applies: the row's user AND email are the
+ * caller's (the dashboard lists keys by email).
+ */
+async function lockLiveKeys(
+  tx: DbExecutor,
+  userId: string,
+  email: string,
+): Promise<Array<typeof accountKeys.$inferSelect>> {
+  return tx
+    .select()
+    .from(accountKeys)
+    .where(
+      and(
+        eq(accountKeys.userId, userId),
+        eq(accountKeys.email, email),
+        eq(accountKeys.status, "granted"),
+      ),
+    )
+    .orderBy(desc(accountKeys.createdAt), asc(accountKeys.id))
+    .for("update");
+}
+
+/** What `issueAccountKey()` did, or why it refused. */
+export type IssueAccountKeyResult =
+  | { status: "issued"; license: AccountKeyRow }
+  /**
+   * The caller holds no granted key. Issuing is for people who already have
+   * one; it must never be a way to get a first key (that is a purchase or
+   * the ACS claim).
+   */
+  | { status: "no_live_key" }
+  /** The caller already holds `MAX_LIVE_ACCOUNT_KEYS` granted keys. */
+  | { status: "cap_reached" }
+  /**
+   * The user gained `MAX_ACCOUNT_KEYS_ISSUED_PER_DAY` key rows in the last 24
+   * hours (deleted rows count: they are kept).
+   */
+  | { status: "daily_limit" };
+
+/**
+ * Give the caller one more Account Key on the same account.
+ *
+ * The new row belongs to the same user, so it shares everything that is kept
+ * per user: the credit pool (balances and grants are by `user_id`), the
+ * `credit_pool_id` the licence API derives from the user id, and the web
+ * account. Nothing is granted with it: no credits, no bundle.
+ *
+ * Copied from the caller's newest live key: `stripe_customer_id` (the licence
+ * API returns it, and top-up checkouts run under the key row's cached
+ * customer, so the account keeps one Stripe customer). NOT copied:
+ * `stripe_session_id` (unique, and it names the purchase that minted the
+ * original row; refunds and the admin refund find that row by it), and the
+ * Polar ids (`polar_license_key_id` is unique, and both name an imported
+ * Polar licence, which this row is not).
+ *
+ * In ONE transaction under the per-user lock: the caller must hold at least
+ * one granted key, fewer than `MAX_LIVE_ACCOUNT_KEYS`, and fewer than
+ * `MAX_ACCOUNT_KEYS_ISSUED_PER_DAY` rows created in the last 24 hours (the
+ * bound on rows that the live cap is not, since a delete keeps its row).
+ *
+ * Never logs a key.
+ */
+export async function issueAccountKey(input: {
+  userId: string;
+  email: string;
+}): Promise<IssueAccountKeyResult> {
+  const email = input.email.toLowerCase().trim();
+
+  return db.transaction(async (tx) => {
+    await lockUserKeys(tx, input.userId);
+
+    const live = await lockLiveKeys(tx, input.userId, email);
+
+    if (live.length === 0) return { status: "no_live_key" } as const;
+    if (live.length >= MAX_LIVE_ACCOUNT_KEYS) {
+      return { status: "cap_reached" } as const;
+    }
+
+    const [recent] = await tx
+      .select({ n: count() })
+      .from(accountKeys)
+      .where(
+        and(
+          eq(accountKeys.userId, input.userId),
+          gte(accountKeys.createdAt, sql`now() - interval '24 hours'`),
+        ),
+      );
+
+    if ((recent?.n ?? 0) >= MAX_ACCOUNT_KEYS_ISSUED_PER_DAY) {
+      return { status: "daily_limit" } as const;
+    }
+
+    const key = await generateUnusedAccountKey(tx);
+    const stripeCustomerId =
+      live.find((row) => row.stripeCustomerId)?.stripeCustomerId ?? null;
+
+    const license = await insertAccountKey(
+      {
+        key,
+        email,
+        userId: input.userId,
+        status: "granted",
+        stripeCustomerId,
+      },
+      tx,
+    );
+
+    if (!license) throw new Error("Failed to insert issued Account Key");
+
+    return { status: "issued", license } as const;
+  });
+}
+
+/** What `deleteAccountKey()` did, or why it refused. */
+export type DeleteAccountKeyResult =
+  | {
+      status: "deleted";
+      /** The row as it was before the delete (status `granted`). */
+      license: AccountKeyRow;
+      /** Device rows removed with the key. */
+      devicesCleared: number;
+    }
+  /** No such row, or it is not the caller's. The two are not told apart. */
+  | { status: "not_found" }
+  /** The row is already deleted, revoked or refunded: only a live key deletes. */
+  | { status: "not_granted" }
+  /** The row no longer holds the key the caller saw (rotated meanwhile). */
+  | { status: "stale" }
+  /** It is the caller's last live key. An account always keeps one. */
+  | { status: "last_key" };
+
+/**
+ * Delete one of the caller's Account Keys: it stops working everywhere, like
+ * the old key of a rotation, and leaves the dashboard.
+ *
+ * A status change (`ACCOUNT_KEY_DELETED_STATUS`), not a row delete: the row is
+ * what purchase history, the admin refund (by `stripe_session_id`), a top-up
+ * checkout opened on this key (by `account_key_id`) and credit grants
+ * (`source_id` = row id for the internal bundle) point at. Every licence
+ * reader already refuses a non-`granted` row, so the key is dead on
+ * `/api/license/*`, `/api/account/*` and the license-key sign-in on the next
+ * request; its string stays reserved by `idx_account_keys_key`, so it is
+ * never handed out again.
+ *
+ * In ONE transaction under the per-user lock, then the row lock:
+ *   1. ownership (user AND email), as rotation;
+ *   2. only a `granted` key;
+ *   3. `expectedKey`: the key the caller saw, so a key rotated in another tab
+ *      is not deleted unseen;
+ *   4. at least one OTHER granted key remains. The per-user lock makes this
+ *      race-safe: two tabs deleting the last two keys serialise, and the
+ *      second sees the first's delete and gets `last_key`;
+ *   5. the key's device rows are cleared, and every web session of the user
+ *      except `keepSessionId` is deleted (`revokeWebAccess`): a session minted
+ *      with this key must not outlive it.
+ *
+ * Never logs a key.
+ */
+export async function deleteAccountKey(input: {
+  id: string;
+  userId: string;
+  email: string;
+  expectedKey: string;
+  keepSessionId?: string;
+}): Promise<DeleteAccountKeyResult> {
+  const email = input.email.toLowerCase().trim();
+
+  return db.transaction(async (tx) => {
+    await lockUserKeys(tx, input.userId);
+
+    const [row] = await tx
+      .select()
+      .from(accountKeys)
+      .where(eq(accountKeys.id, input.id))
+      .for("update");
+
+    if (!row || row.userId !== input.userId || row.email !== email) {
+      return { status: "not_found" } as const;
+    }
+    if (row.status !== "granted") return { status: "not_granted" } as const;
+    if (row.key !== input.expectedKey.trim())
+      return { status: "stale" } as const;
+
+    const live = await lockLiveKeys(tx, input.userId, email);
+
+    if (!live.some((other) => other.id !== row.id)) {
+      return { status: "last_key" } as const;
+    }
+
+    await tx
+      .update(accountKeys)
+      .set({ status: ACCOUNT_KEY_DELETED_STATUS })
+      .where(eq(accountKeys.id, row.id));
+
+    const cleared = await tx
+      .delete(deviceValidations)
+      .where(eq(deviceValidations.licenseKeyId, row.id))
+      .returning({ id: deviceValidations.id });
+
+    await revokeWebAccess(row.userId, {
+      tx,
+      keepSessionId: input.keepSessionId,
+    });
+
+    return {
+      status: "deleted",
+      license: drizzleAccountKeyToRow(row),
+      devicesCleared: cleared.length,
+    } as const;
+  });
+}
+
 /**
  * Revoke a license key and sign its owner out of the web portal, atomically.
  *
@@ -343,19 +535,38 @@ export async function rotateAccountKey(input: {
  * its own second half. The webhook route answered 200 at the time, so Stripe
  * never retried either, and the key ended up revoked with live 90-day
  * sessions and no path to clean up. Either both land or neither does.
+ *
+ * A key its owner deleted (`deleteAccountKey`) stays `deleted`: it is already
+ * dead everywhere and its sessions were swept when it was deleted, so a later
+ * admin Refund & Revoke on it changes nothing here (the refund itself still
+ * happens in the caller). Relabelling it `revoked` would lose the owner's
+ * delete from the audit trail and bring the row back onto the owner's
+ * dashboard, which hides only `deleted` rows. The status test is in the
+ * UPDATE, so a delete committing first is seen even under a race. Returns
+ * whether this call revoked the key.
  */
 export async function revokeAccountKey(
   id: string,
   userId: string,
   options: { actingUserId?: string } = {},
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
+): Promise<{ revoked: boolean }> {
+  return db.transaction(async (tx) => {
+    const updated = await tx
       .update(accountKeys)
       .set({ status: "revoked" })
-      .where(eq(accountKeys.id, id));
+      .where(
+        and(
+          eq(accountKeys.id, id),
+          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),
+        ),
+      )
+      .returning({ id: accountKeys.id });
+
+    if (updated.length === 0) return { revoked: false };
 
     await revokeWebAccess(userId, { ...options, tx });
+
+    return { revoked: true };
   });
 }
 
@@ -494,7 +705,7 @@ const GRANT_LICENSE_LOCK_CLASS = 2481;
  * granted keys: the first caller mints, and every caller queued behind it
  * finds that key and gets it back with no new key and no second credit grant.
  * The lock also serialises the user insert, so a brand-new email no longer
- * trips `user_email_unique` for the losers. Several Vercel instances share it,
+ * trips `user_email_unique` for the losers. Every Worker isolate shares it,
  * because it lives in Postgres.
  */
 export async function provisionAccountKeyForEmail(email: string): Promise<AccountKeyRow> {
@@ -545,443 +756,29 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
 }
 
 // ---------------------------------------------------------------------------
-// Credit Balances and Grants
+// Credit Balances and Grants: moved to ./credit-ledger (#1595), re-exported
+// here so every importer keeps one module.
 // ---------------------------------------------------------------------------
 
-// A handle that can run queries: either the pooled `db` connection or a
-// transaction handle. Used so balance reads can join the caller's transaction
-// instead of opening a second connection (which sees a stale snapshot and ties
-// up the pool while row locks are held).
-type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-// A grant still backs spendable balance when it has no expiry or hasn't expired
-// yet. This is the single source of that rule for the raw-SQL credit queries
-// below (balance read, spend, clawback) — keep it here so expiry semantics live
-// in one place. The Drizzle-builder variant (using creditGrants.expiresAt) is
-// expressed inline where the query is built with the query builder.
-const ACTIVE_GRANT_EXPIRY = sql`(expires_at IS NULL OR expires_at > now())`;
-
-/**
- * Authoritative spendable balance: the SUM of remaining_amount across a
- * license's still-active grants. The credit_grants rows are the source of
- * truth; credit_balances is only a denormalized cache of this value. Reading
- * via the passed executor lets callers inside a FOR UPDATE transaction get a
- * consistent, locked view rather than a stale snapshot from the outer pool.
- */
-async function getActiveGrantsTotal(
-  executor: DbExecutor,
-  userId: string
-): Promise<number> {
-  const result = await executor.execute<{ total: string | null }>(sql`
-    SELECT COALESCE(SUM(remaining_amount), 0) AS total
-    FROM credit_grants
-    WHERE user_id = ${userId}
-      AND status = 'active'
-      AND remaining_amount > 0
-      AND ${ACTIVE_GRANT_EXPIRY}
-  `);
-  return Number(result.rows[0]?.total ?? 0);
-}
-
-/**
- * Force the credit_balances cache to equal the authoritative grant total,
- * reconciling any drift between the two. Returns the reconciled balance. This
- * is the single place that heals divergence (e.g. a legacy balance row with no
- * matching grants, or a partially-applied transaction) so the cache can never
- * permanently show credits the grants can't back, or vice versa.
- */
-async function reconcileCreditBalance(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  userId: string
-): Promise<number> {
-  const total = await getActiveGrantsTotal(tx, userId);
-  await tx
-    .insert(creditBalances)
-    .values({ userId, balance: total.toString() })
-    .onConflictDoUpdate({
-      target: creditBalances.userId,
-      set: {
-        balance: total.toString(),
-        updatedAt: new Date(),
-      },
-    });
-  return total;
-}
-
-async function incrementCreditBalance(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  userId: string,
-  amount: number
-): Promise<number> {
-  const [row] = await tx
-    .insert(creditBalances)
-    .values({ userId, balance: amount.toString() })
-    .onConflictDoUpdate({
-      target: creditBalances.userId,
-      set: {
-        balance: sql`${creditBalances.balance} + ${amount}`,
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ balance: creditBalances.balance });
-
-  return Number(row.balance);
-}
-
-// Every credit grant expires one year after it is created (OpenRouter model):
-// the ToS reserves the right to expire unused credits 365 days after purchase.
-// Stamped here so it covers every insert path (paid packs, minted keys, admin
-// grants); enforcement is the lazy `expires_at > now()` filter on reads/spends.
-const CREDIT_GRANT_TTL_MS = 365 * 24 * 60 * 60 * 1000;
-
-async function grantCreditLotInTransaction(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  data: CreditGrantInsert
-): Promise<{ status: "processed" | "duplicate"; balance: number }> {
-  const expiresAt = new Date(Date.now() + CREDIT_GRANT_TTL_MS);
-  const [grantRow] = await tx
-    .insert(creditGrants)
-    .values({
-      userId: data.userId,
-      sourceType: data.sourceType,
-      sourceId: data.sourceId,
-      originalAmount: data.amount.toString(),
-      remainingAmount: data.amount.toString(),
-      refundedAmount: "0",
-      status: "active",
-      expiresAt,
-    })
-    .onConflictDoNothing({
-      target: [creditGrants.sourceType, creditGrants.sourceId],
-    })
-    .returning({ id: creditGrants.id });
-
-  if (!grantRow) {
-    // Read inside the transaction so the balance reflects the locked, in-tx
-    // view rather than a stale snapshot from a second pooled connection.
-    const balance = await getActiveGrantsTotal(tx, data.userId);
-    return { status: "duplicate", balance };
-  }
-
-  const balance = await incrementCreditBalance(tx, data.userId, data.amount);
-  return { status: "processed", balance };
-}
-
-export async function grantCreditLot(
-  data: CreditGrantInsert
-): Promise<{ status: "processed" | "duplicate"; balance: number }> {
-  return db.transaction((tx) => grantCreditLotInTransaction(tx, data));
-}
-
-export async function grantCreditsForStripeEvent(
-  data: StripeCreditGrantInsert
-): Promise<"processed" | "duplicate"> {
-  const insertedEvent = await db.transaction(async (tx) => {
-    const [eventRow] = await tx
-      .insert(stripeProcessedEvents)
-      .values({
-        eventId: data.eventId,
-        eventType: data.eventType,
-        stripeObjectId: data.stripeObjectId,
-      })
-      .onConflictDoNothing({ target: stripeProcessedEvents.stripeObjectId })
-      .returning({ eventId: stripeProcessedEvents.eventId });
-
-    if (!eventRow) {
-      return null;
-    }
-
-    await grantCreditLotInTransaction(tx, {
-      userId: data.userId,
-      amount: data.creditAmount,
-      sourceType: data.sourceType ?? "stripe_credit_pack",
-      sourceId: data.sourceId ?? data.stripeObjectId,
-    });
-
-    return eventRow;
-  });
-
-  return insertedEvent ? "processed" : "duplicate";
-}
-
-/**
- * True when a Stripe object (a Checkout Session id) already has its completed
- * event recorded in `stripe_processed_events`. The table is keyed by event id
- * with a unique index on `stripe_object_id`, and a credit purchase writes the
- * session id there in the same transaction as its grant (#1834).
- */
-export async function hasProcessedStripeObject(stripeObjectId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ eventId: stripeProcessedEvents.eventId })
-    .from(stripeProcessedEvents)
-    .where(eq(stripeProcessedEvents.stripeObjectId, stripeObjectId))
-    .limit(1);
-  return Boolean(row);
-}
-
-/**
- * Record a refund against ONE grant and take the refunded credits off it.
- *
- * RULE (#1351, Ray 2026-10-07): a refund removes credits from the refunded
- * purchase's own grant only — never from another grant on the account — and
- * never more than that grant has left unrefunded. A buyer with pack A and pack
- * B who refunds pack A keeps every credit of pack B.
- *
- * DEDUPE: `refunded_amount` holds the running total of credits refunded on
- * this grant. The caller passes the new running total (Stripe's
- * `amount_refunded` is cumulative), and only `total - refunded_amount` is
- * removed. A repeated, re-delivered or out-of-order event is a no-op, and a
- * second partial refund removes only its own part.
- *
- * SPENT CREDITS: the policy refunds only unused credits. When the grant has
- * fewer credits left than the refund is worth, the grant goes to 0 and the
- * rest is NOT drawn from other grants; the full value is still recorded on
- * `refunded_amount` so the running total stays right. The caller sees the gap
- * as `refundedAmount - removedAmount` and logs it.
- */
-export async function refundCreditGrant(
-  data: CreditGrantRefund
-): Promise<CreditGrantRefundResult> {
-  return db.transaction(async (tx) => {
-    // Resolve the refunded purchase by provenance. No remaining_amount filter:
-    // a fully-spent grant still records its refund (and is a duplicate on the
-    // next delivery). FOR UPDATE serialises this against a concurrent spend
-    // and a concurrent delivery of the same refund.
-    const target = await tx.execute<{
-      id: string;
-      user_id: string;
-      original_amount: string;
-      remaining_amount: string;
-      refunded_amount: string;
-      status: string;
-    }>(sql`
-      SELECT id, user_id, original_amount, remaining_amount, refunded_amount, status
-      FROM credit_grants
-      WHERE source_type = ${data.sourceType}
-        AND source_id = ${data.sourceId}
-      FOR UPDATE
-    `);
-
-    const grant = target.rows[0];
-    if (!grant) {
-      // Not a duplicate: nothing was refunded. The caller decides whether a
-      // missing grant is normal or must be retried (#1798).
-      return { status: "not_found", refundedAmount: 0, removedAmount: 0 };
-    }
-
-    const originalAmount = Number(grant.original_amount);
-    const remainingAmount = Number(grant.remaining_amount);
-    const alreadyRefunded = Number(grant.refunded_amount);
-
-    // The running total this refund brings the grant to, capped at the grant.
-    const refundedTotal = Math.min(
-      originalAmount,
-      Math.max(0, data.refundedCreditsTotal ?? originalAmount)
-    );
-    const refundNow = refundedTotal - alreadyRefunded;
-    if (refundNow <= 0) {
-      return { status: "duplicate", refundedAmount: 0, removedAmount: 0 };
-    }
-
-    // Take the refunded credits off THIS grant only, flooring at 0.
-    const removedAmount = Math.min(remainingAmount, refundNow);
-    const newRemaining = remainingAmount - removedAmount;
-
-    await tx
-      .update(creditGrants)
-      .set({
-        remainingAmount: newRemaining.toString(),
-        refundedAmount: refundedTotal.toString(),
-        // A grant with nothing left after a refund is closed as refunded. A
-        // partly refunded grant with credits left keeps its status, so the
-        // rest stays spendable.
-        status: newRemaining <= 0 ? "refunded" : grant.status,
-        updatedAt: new Date(),
-      })
-      .where(eq(creditGrants.id, grant.id));
-
-    // Reconcile the cache to the authoritative grant total, healing any drift.
-    await reconcileCreditBalance(tx, grant.user_id);
-    return {
-      status: "processed",
-      refundedAmount: refundNow,
-      removedAmount,
-    };
-  });
-}
-
-/**
- * True (in SQL) when `remaining` is stored as 0.00 or less. A spend subtracts
- * in floating point, so a charge spanning two grants can leave a residue like
- * 2.78e-17 that the numeric(20,2) column stores as 0.00. Deciding the status
- * on the stored value means a grant that holds 0.00 is never left 'active'
- * (#2620).
- */
-function storesAsZero(remaining: number): SQL {
-  return sql`${remaining.toString()}::numeric(20,2) <= 0`;
-}
-
-export async function spendCreditGrantsByProvenance(
-  userId: string,
-  amount: number
-): Promise<{ balance: number; deductedAmount: number }> {
-  return db.transaction(async (tx) => {
-    const result = await tx.execute<{ id: string; remaining_amount: string }>(sql`
-      SELECT id, remaining_amount
-      FROM credit_grants
-      WHERE user_id = ${userId}
-        AND remaining_amount > 0
-        AND status = 'active'
-        AND ${ACTIVE_GRANT_EXPIRY}
-      -- Spend OLDEST-FIRST: soonest-to-expire grants are consumed before grants
-      -- that still have time on them (and never-expiring grants last), so a user
-      -- naturally burns down credits before they lapse. This replaces the older
-      -- provenance (paid-pack-first) order. A refund takes credits from the
-      -- refunded purchase's own grant only (#1351), so what a pack has left
-      -- here is what a refund of that pack can remove. Expired grants are
-      -- excluded above and never spent.
-      ORDER BY
-        expires_at ASC,
-        created_at ASC,
-        id
-      FOR UPDATE
-    `);
-
-    let remainingToDeduct = amount;
-    let deductedAmount = 0;
-
-    for (let index = 0; index < result.rows.length; index++) {
-      if (remainingToDeduct <= 0) break;
-
-      const grant = result.rows[index];
-      const grantRemaining = Number(grant.remaining_amount);
-      const deduction = Math.min(grantRemaining, remainingToDeduct);
-
-      if (deduction <= 0) continue;
-
-      const newRemaining = grantRemaining - deduction;
-      await tx
-        .update(creditGrants)
-        .set({
-          remainingAmount: newRemaining.toString(),
-          status: sql`CASE WHEN ${storesAsZero(newRemaining)} THEN 'spent' ELSE 'active' END`,
-          updatedAt: new Date(),
-        })
-        .where(eq(creditGrants.id, grant.id));
-
-      remainingToDeduct -= deduction;
-      deductedAmount += deduction;
-    }
-
-    // Reconcile the cached balance to the authoritative grant total in the same
-    // transaction (and same locked view). This both (a) reads via `tx` instead
-    // of a second pooled connection, and (b) self-heals any drift between the
-    // credit_balances cache and the grant rows, so the cache can never report
-    // spendable credits the grants can't actually back, or vice versa.
-    const balance = await reconcileCreditBalance(tx, userId);
-
-    return { balance, deductedAmount };
-  });
-}
-
-/**
- * Atomically deduct credits from source-tracked grants, flooring at zero.
- *
- * Returns the new cached aggregate balance. The public API response shape is
- * preserved, but the underlying grant rows record which source was consumed.
- *
- * The floor at zero swallows any part of `amount` the grants cannot cover. That
- * overspend is written off, never carried as a negative balance, and logged as
- * one structured `credits_shortfall` line (#2008) so it can be counted. The
- * cloud logs the same event, with `source: "cloud"`, for overspend it catches
- * before it charges. No account identifier is logged.
- */
-export async function deductCreditBalance(userId: string, amount: number): Promise<number> {
-  const result = await spendCreditGrantsByProvenance(userId, amount);
-  const shortfall = amount - result.deductedAmount;
-
-  // Grant amounts are stored to the cent, so anything under one is float noise.
-  if (shortfall > 0.005) {
-    console.warn(
-      JSON.stringify({
-        event: "credits_shortfall",
-        source: "license_api",
-        requestedCredits: amount,
-        deductedCredits: result.deductedAmount,
-        shortfallCredits: Math.round(shortfall * 100) / 100,
-      }),
-    );
-  }
-
-  return result.balance;
-}
-
-/**
- * Spendable credit balance for a single license.
- *
- * The credit_grants rows are the source of truth; credit_balances is only a
- * cache of their summed remaining_amount. To avoid ever reporting credits the
- * user cannot actually consume (or hiding credits they can), this returns the
- * authoritative grant total and lazily heals the cache when the two have
- * drifted. The cheap read path (cache hit that already matches) does no write.
- */
-export async function getCreditBalance(userId: string): Promise<number> {
-  const [cachedRow, grantsTotal] = await Promise.all([
-    db.query.creditBalances.findFirst({
-      where: eq(creditBalances.userId, userId),
-    }),
-    getActiveGrantsTotal(db, userId),
-  ]);
-
-  const cached = cachedRow ? Number(cachedRow.balance) : null;
-  if (cached !== grantsTotal) {
-    // Drift detected (e.g. a legacy balance row with no matching grants, or a
-    // partially-applied write): heal the cache to the authoritative total.
-    await db.transaction((tx) => reconcileCreditBalance(tx, userId));
-  }
-
-  return grantsTotal;
-}
-
-/**
- * Spendable credit balances for many accounts at once (dashboard / admin list).
- *
- * Like {@link getCreditBalance}, the credit_grants rows are the source of truth
- * and credit_balances is only a cache. This reads the authoritative grant total
- * (SUM of remaining_amount across each account's still-active grants) directly,
- * so an account whose cached balance has drifted above its true grant total never
- * shows phantom credits on the dashboard. Accounts with no active grants default
- * to 0. (The cache still self-heals on the next single-account ledger
- * operation; this read path simply never relies on it.)
- */
-export async function getCreditBalancesForUsers(userIds: string[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  if (userIds.length === 0) return map;
-  // Default every requested id to 0 so accounts with no active grants are
-  // explicitly present in the map.
-  for (const id of userIds) {
-    map.set(id, 0);
-  }
-  const rows = await db
-    .select({
-      userId: creditGrants.userId,
-      total: sql<string>`COALESCE(SUM(${creditGrants.remainingAmount}), 0)`,
-    })
-    .from(creditGrants)
-    .where(
-      and(
-        inArray(creditGrants.userId, userIds),
-        eq(creditGrants.status, "active"),
-        sql`${creditGrants.remainingAmount} > 0`,
-        sql`(${creditGrants.expiresAt} IS NULL OR ${creditGrants.expiresAt} > now())`
-      )
-    )
-    .groupBy(creditGrants.userId);
-  for (const row of rows) {
-    map.set(row.userId, Number(row.total ?? 0));
-  }
-  return map;
-}
+export {
+  grantCreditLot,
+  grantCreditsForStripeEvent,
+  hasProcessedStripeObject,
+  refundCreditGrant,
+  spendCreditGrantsByProvenance,
+  deductCreditBalance,
+  getCreditBalance,
+  getCreditBalancesForUsers,
+  getPaidCreditGrantsForUsers,
+} from "./credit-ledger";
+export type {
+  CreditGrantSourceType,
+  StripeCreditGrantInsert,
+  CreditGrantInsert,
+  CreditGrantRefund,
+  CreditGrantRefundResult,
+  CreditGrantHistoryRow,
+} from "./credit-ledger";
 
 /**
  * Attach each license's pooled account balance. Credits are pooled per account,
@@ -1002,58 +799,6 @@ async function attachPooledCredits<T extends { userId: string }>(
   }));
 }
 
-export interface CreditGrantHistoryRow {
-  id: string;
-  userId: string;
-  createdAt: Date;
-  expiresAt: Date | null;
-  originalAmount: number;
-  remainingAmount: number;
-  status: string;
-}
-
-/**
- * Paid credit-pack grants for the given licenses, newest-first.
- *
- * Top-up history shows PAID packs only (source_type = 'stripe_credit_pack'),
- * not free/included bundles or admin/legacy grants. Expired rows are still
- * returned (their status/expiresAt let the UI show them as expired) — this is a
- * statement of purchases, distinct from the spendable-balance reads which
- * exclude expired grants.
- */
-export async function getPaidCreditGrantsForUsers(
-  userIds: string[]
-): Promise<CreditGrantHistoryRow[]> {
-  if (userIds.length === 0) return [];
-  const rows = await db
-    .select({
-      id: creditGrants.id,
-      userId: creditGrants.userId,
-      createdAt: creditGrants.createdAt,
-      expiresAt: creditGrants.expiresAt,
-      originalAmount: creditGrants.originalAmount,
-      remainingAmount: creditGrants.remainingAmount,
-      status: creditGrants.status,
-    })
-    .from(creditGrants)
-    .where(
-      and(
-        inArray(creditGrants.userId, userIds),
-        eq(creditGrants.sourceType, "stripe_credit_pack")
-      )
-    )
-    .orderBy(desc(creditGrants.createdAt));
-
-  return rows.map((row) => ({
-    id: row.id,
-    userId: row.userId,
-    createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
-    originalAmount: Number(row.originalAmount),
-    remainingAmount: Number(row.remainingAmount),
-    status: row.status,
-  }));
-}
 
 // Hard cap on the number of license rows returned *per userId* by
 // getAccountKeysWithCreditsForUserIds. Defensive only: a page of customers is

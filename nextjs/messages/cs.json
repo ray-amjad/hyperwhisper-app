@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkce",
+    "modes": "Režimy",
     "faq": "FAQ",
     "support": "Podpora",
     "download": "Stáhnout",
@@ -16,26 +17,36 @@
       "switchTo": "Přepnout jazyk"
     },
     "cloud": "Cloud",
-    "githubAria": "Zobrazit HyperWhisper na GitHubu"
+    "githubAria": "Zobrazit HyperWhisper na GitHubu",
+    "skipToContent": "Přejít na obsah"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Pište, tvořte a vymýšlejte",
-    "headlineAccent": "5x rychleji s AI",
-    "subheadline": "HyperWhisper přepisuje váš hlas s neuvěřitelnou přesností. Stačí mluvit přirozeně a sledovat, jak se vaše slova okamžitě objeví.",
-    "downloadCta": "Stáhnout nyní",
-    "demoCta": "Podívat se na demo",
-    "availableOn": "Dostupné pro",
+    "badge": "Novinka",
+    "headline": "Prostě mluvte.",
+    "headlineAccent": "My napíšeme.",
+    "subheadline": "Vyladěný text v jakékoli aplikaci.",
+    "downloadMac": "Stáhnout pro Mac",
+    "freeForever": "Navždy zdarma",
+    "worksOffline": "Funguje offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Posunout",
+    "closing": {
+      "line1": "Přestaňte psát.",
+      "line2": "Začněte mluvit.",
+      "meta": "Zdarma a s otevřeným zdrojovým kódem. Bez nutnosti účtu."
+    }
   },
   "features": {
-    "title": "Vytvořeno pro profesionály",
-    "subtitle": "Každá funkce je navržená tak, aby vám pomohla pracovat rychleji a efektivněji",
+    "title": "Vytvořeno pro lidi, kteří píšou celý den.",
     "customVocabulary": {
       "title": "Vlastní slovník",
       "description": "Přidejte jména, zkratky a speciální termíny pro perfektní přesnost pokaždé."
+    },
+    "realTime": {
+      "title": "Streamování v reálném čase",
+      "description": "Sledujte, jak se vaše slova objevují okamžitě během řeči. Špičková přesnost v oboru s latencí pod 700 ms."
     },
     "languages": {
       "title": "100+ jazyků",
@@ -45,25 +56,9 @@
       "title": "Podpora offline",
       "description": "Funguje zcela offline. Vaše data nikdy neopustí vaše zařízení."
     },
-    "privacy": {
-      "title": "Důraz na soukromí",
-      "description": "Není potřeba účet. Žádné sledování. Vaše hlasová data zůstávají na vašem Macu nebo PC."
-    },
-    "hybridProcessing": {
-      "title": "Hybridní zpracování",
-      "description": "Vyberte si mezi lokálními modely pro soukromí nebo cloudovými API pro rychlost. To nejlepší z obou světů."
-    },
-    "customizable": {
-      "title": "Vysoce přizpůsobitelné",
-      "description": "Vyberte si z více než 9 poskytovatelů API a 30+ modelů přepisu."
-    },
-    "realTime": {
-      "title": "Streamování v reálném čase",
-      "description": "Sledujte, jak se vaše slova objevují okamžitě během řeči. Špičková přesnost v oboru s latencí pod 700 ms."
-    },
-    "fileImport": {
-      "title": "Import souborů",
-      "description": "Importujte audio nebo video soubory k přepisu. Podpora všech hlavních formátů s automatickou detekcí ticha."
+    "openSource": {
+      "title": "Otevřený zdroj",
+      "description": "Licencováno pod Apache-2.0. Prohlédněte si každý řádek, forkněte to nebo hostujte sami. Žádné černé skříňky, žádné uzamčení dodavatelem."
     },
     "screenOcr": {
       "title": "OCR obrazovky",
@@ -73,28 +68,57 @@
       "title": "Lokální API a MCP server",
       "description": "Vestavěný MCP server umožňuje Claudeovi, Cursoru a dalším AI agentům ovládat HyperWhisper. Pouze lokální HTTP API pro skripty a automatizace."
     },
+    "fileImport": {
+      "title": "Import souborů",
+      "description": "Importujte audio nebo video soubory k přepisu. Podpora všech hlavních formátů s automatickou detekcí ticha."
+    },
     "modes": {
-      "title": "Režimy pro každou situaci",
-      "description": "Přepínejte mezi různými režimy přepisu optimalizovanými pro schůzky, poznámky, e-maily, kódování a další. Každý režim používá vlastní prompty, aby byl text perfektně naformátovaný.",
-      "meeting": "Schůzka",
+      "heading": "Jeden hlas. Každý formát.",
+      "lead": "Každý režim přepíše, co jste řekli, podle toho, kam to míří.",
       "email": "E-mail",
       "note": "Poznámka",
       "code": "Kód",
+      "meeting": "Schůzka",
       "legal": "Právní",
       "medical": "Lékařský",
-      "presetModes": "Přednastavené režimy",
-      "customModes": "Vlastní režimy"
-    },
-    "openSource": {
-      "title": "Otevřený zdroj",
-      "description": "Licencováno pod Apache-2.0. Prohlédněte si každý řádek, forkněte to nebo hostujte sami. Žádné černé skříňky, žádné uzamčení dodavatelem."
+      "youSaid": "Řekli jste",
+      "hyperWhisperWrote": "HyperWhisper napsal",
+      "sample": "ehm takže řekni johnovi že spuštění se posouvá na čtvrtek protože QA pro linux ještě není hotové a ehm díky za trpělivost",
+      "output": {
+        "email": "Ahoj Johne,\n\nSpuštění se posouvá na čtvrtek, než dokončíme QA pro Linux. Díky za trpělivost.\n\nS pozdravem,",
+        "note": "• Spuštění → čtvrtek\n• Blokátor: QA pro Linux nedokončeno\n• Říct Johnovi",
+        "code": "// TODO(john): spuštění přesunuto na čtvrtek, QA pro Linux stále probíhá",
+        "meeting": "Rozhodnutí: spuštění se posouvá na čtvrtek.\nDůvod: QA pro Linux nedokončeno.\nOdpovědná osoba: informovat Johna.",
+        "legal": "Dovolujeme si Vás upozornit, že datum spuštění bylo přeloženo na čtvrtek, a to do dokončení kontroly kvality pro Linux.",
+        "medical": "Plán: odložit spuštění na čtvrtek. Stav: QA pro Linux čeká. Další postup: informovat Johna."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funguje všude, kde píšete",
+    "eyebrow": "Jak to funguje",
+    "titleLine1": "Stiskněte klávesu.",
+    "titleLine2": "Řekněte to.",
+    "titleAccent": "Hotovo.",
+    "lead": "Vaše slova se objeví, učesaná, tam, kde je kurzor.",
+    "step1": "Stiskněte svou zkratku",
+    "step2Key": "Mluvte",
+    "step2": "Mluvte, jak jste zvyklí",
+    "step3Key": "Znovu",
+    "step3": "Čistý text, vložený na místo",
+    "watchVideo": "Přehrát celé demo",
+    "closeVideo": "Zavřít video",
+    "exampleLabel": "Animovaný příklad: mluvená odpověď se zapíše do zprávy ve Slacku",
+    "message1": "Platí pořád, že ve čtvrtek vydáme build pro Linux?",
+    "message2": "Z mé strany QA prošlo 👍",
+    "composePlaceholder": "Zpráva do #launch",
+    "typed": "Ano, QA pro Linux dnes ráno prošlo, takže čtvrtek platí. Poznámky k vydání zveřejním do poledne.",
+    "listening": "Poslouchám",
+    "cleaningUp": "Upravuji…",
     "fasterThanTyping": "Rychlejší než psaní",
     "accuracyRate": "Míra přesnosti",
     "languagesSupported": "Podporované jazyky",
-    "providersSupported": "Podporovaní poskytovatelé"
+    "modelsSupported": "Modely přepisu"
   },
   "faq": {
     "title": "Často kladené dotazy",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Jaké offline modely jsou dostupné?",
-        "answer": "Pro offline přepis nabízíme více velikostí modelu Whisper (od OpenAI, podporuje 99+ jazyků). Nabízíme také modely Parakeet od NVidia (podporují 25+ jazyků).\n      \n      Pro offline následné zpracování nabízíme více velikostí modelu Gemma 3 (od Google)."
+        "answer": "Pro offline přepis nabízíme více velikostí modelu Whisper (od OpenAI, podporuje 99+ jazyků). Nabízíme také modely Parakeet od NVidia (podporují 25+ jazyků).\n      \n      Pro offline následné zpracování nabízíme více velikostí modelu Gemma 4 (od Google)."
       },
       "compatibility": {
         "question": "Funguje to se všemi mými aplikacemi?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Požadavek na podporu HyperWhisper",
       "body": "Ahoj,\n\nVerze: \n[zjistíte v Nastavení > O aplikaci]\n\nProblém: \n[Popište svůj problém]\n\nDetaily: \n[Uveďte relevantní detaily, co jste dělali před pádem]\n\n[Vaše zpráva zde]\n\nS pozdravem,"
-    }
+    },
+    "helpCenterHint": "Nastavení, zkratky a modely.",
+    "chooseModelHint": "Seřaďte modely podle toho, jak pracujete.",
+    "accountHint": "Přihlaste se klíčem k účtu.",
+    "chooseModelTitle": "Vyberte model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Po přidání do skupiny input se odhlaste a znovu přihlaste. Členství je volitelné, ale globální zkratky a automatické vkládání ho vyžadují.",
     "aptTitle": "Vlastní repozitář APT",
     "aptBody": "Vydání pro Linux obsahují také archiv statického repozitáře APT. HyperWhisper v současnosti neprovozuje veřejný server APT; nastavení podepsaného vlastního repozitáře, desktopové doplňky, informace o soukromí a odinstalaci najdete v průvodci instalací pro Linux.",
-    "linuxGuideCta": "Přečíst průvodce instalací pro Linux"
+    "linuxGuideCta": "Přečíst průvodce instalací pro Linux",
+    "heroLead": "Zdarma a open source. Vyberte svou platformu.",
+    "releaseNotes": "Poznámky k vydání",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon a Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 a ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starší verze",
@@ -280,6 +313,7 @@
       "dataTraining": "Ochrana dat"
     },
     "copyright": "© 2026 HyperWhisper. Všechna práva vyhrazena.",
+    "madeBy": "Vytvořil Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Sledujte HyperWhisper na X (Twitter)",
     "githubAria": "HyperWhisper na GitHubu"
@@ -373,7 +407,33 @@
     "sendingLink": "Odesílání…",
     "linkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak vygenerujte nový klíč.",
     "linkFailed": "Přihlašovací odkaz se nepodařilo odeslat. Zkuste to prosím znovu.",
-    "errorUnavailable": "Pro tento klíč už nelze vygenerovat nový. Jeho aktuální stav je zobrazen výše."
+    "errorUnavailable": "Pro tento klíč už nelze vygenerovat nový. Jeho aktuální stav je zobrazen výše.",
+    "delete": "Smazat klíč",
+    "deleteConfirmTitle": "Smazat tento klíč k účtu?",
+    "deleteConfirmBody": "Tento klíč okamžitě přestane fungovat na všech zařízeních. Zařízení, která ho používají, budou potřebovat jeden z vašich dalších klíčů: zadejte ho do HyperWhisper na každém zařízení. Vaše kredity a historie nákupů zůstávají ve vašem účtu. V ostatních prohlížečích budete také odhlášeni z tohoto webu.",
+    "deleteConfirm": "Smazat klíč",
+    "deleting": "Mazání…",
+    "deleted": "Klíč byl smazán. Zařízení, která ho používala, potřebují jeden z vašich dalších klíčů.",
+    "deleteLastKey": "Toto je váš jediný aktivní klíč, proto ho nelze smazat.",
+    "deleteVerifyBody": "Než smažete klíč, nejprve potvrďte svou totožnost e-mailem. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak klíč smažte na této stránce.",
+    "deleteLinkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak klíč smažte.",
+    "deleteErrorStale": "Tento klíč se od načtení stránky změnil. Aktuální klíč je zobrazen výše.",
+    "deleteErrorUnavailable": "Tento klíč už nelze smazat.",
+    "deleteErrorGeneric": "Klíč se nepodařilo smazat. Zkuste to prosím znovu.",
+    "issue": "Přidat nový klíč",
+    "issueConfirmTitle": "Přidat nový klíč k účtu?",
+    "issueConfirmBody": "Získáte další klíč k tomuto účtu. Používá stejné kredity jako vaše ostatní klíče, které budou dál fungovat.",
+    "issueConfirm": "Přidat klíč",
+    "issuing": "Přidávání…",
+    "issued": "Nový klíč byl přidán. Pomocí tlačítka 'Zobrazit' ho zobrazíte a zkopírujete.",
+    "issueCap": "Počet aktivních klíčů: {max}, což je maximum pro jeden účet. Jeden smažte, abyste mohli přidat další.",
+    "issueVerifyBody": "Než přidáte klíč, nejprve potvrďte svou totožnost e-mailem. Pošleme přihlašovací odkaz na e-mailovou adresu vašeho účtu. Otevřete ho a pak klíč přidejte na této stránce.",
+    "issueLinkSent": "Přihlašovací odkaz byl odeslán. Otevřete ho ve své doručené poště a pak klíč přidejte.",
+    "issueErrorUnavailable": "Další klíč může přidat jen účet s aktivním klíčem.",
+    "issueErrorGeneric": "Klíč se nepodařilo přidat. Zkuste to prosím znovu.",
+    "manageErrorRateLimited": "Příliš mnoho změn klíčů. Zkuste to prosím znovu za minutu.",
+    "cloudPurgePending": "Starý klíč může v HyperWhisper Cloud fungovat ještě až hodinu.",
+    "deleteCloudPurgePending": "Tento klíč může v HyperWhisper Cloud fungovat ještě až hodinu."
   },
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Platnost tohoto přihlašovacího odkazu vypršela nebo už byl použit. Zadejte svůj e-mail a získejte nový.",
     "magicLinkFailed": "S tímto odkazem jsme vás nemohli přihlásit. Zadejte svůj e-mail a získejte nový."
+  },
+  "legal": {
+    "onThisPage": "Na této stránce"
   }
 }

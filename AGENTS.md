@@ -1,7 +1,7 @@
 # AGENTS.md
 
 > ⚠️ **This is the PUBLIC, open-source repository** (`ray-amjad/hyperwhisper-app`, Apache-2.0, world-readable). Everything committed here is public forever.
-> - **Never** commit secrets, API keys, license keys, signing keys, customer data, personal paths/emails, or internal infra/business details. Secrets live in **Infisical only** (see the secrets note below) — it syncs to GitHub Actions / Vercel / Fly.
+> - **Never** commit secrets, API keys, license keys, signing keys, customer data, personal paths/emails, or internal infra/business details. Secrets live in **Infisical only** (see the secrets note below) — it syncs to GitHub Actions / Cloudflare Workers / Fly.
 > - Internal-only material stays **out**: `.claude/`, `.codex/`, `app/ios/`, `tasks/`, `notes/`, `plans/` are gitignored — keep them that way. **Exception:** `.claude/skills/` **is** tracked (repo-shareable skills ship with the project). Since it's public, treat everything under `.claude/skills/` like any other committed file: **no secrets, API keys, tokens, or personal paths** in a skill's `SKILL.md` or scripts. `.env` files inside skills stay gitignored — put secrets there (or in Infisical), never inline.
 > - HyperWhisper Cloud is the paid moat: entitlement is **enforced server-side**. Never add a client-side bypass, fake/test license key, or debug backdoor.
 
@@ -31,10 +31,10 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 **Infisical is the single source of truth for all secrets**, and auto-syncs out to:
 
 - **GitHub Actions** — Production (and Preview) **environment** secrets, NOT repo-level. CI jobs that need them must declare `environment: Production` (e.g. `macos-release` / `windows-release`).
-- **Vercel** — `nextjs` env vars (prod + preview).
+- **Cloudflare Workers** — `nextjs` runtime secrets on the Worker `hyperwhisper-web-prod` (production only). Build-time values (`NEXT_PUBLIC_*`) are set in `.github/workflows/nextjs-deploy.yml`; see `nextjs/DEPLOY-CLOUDFLARE.md`.
 - **Fly.io** — `hyperwhisper-cloud` runtime secrets.
 
-Rotate or add a secret **in Infisical only** — never edit GitHub/Vercel/Fly directly or the next sync overwrites your change. Never commit secret values to the repo.
+Rotate or add a secret **in Infisical only** — never edit GitHub/Cloudflare/Fly directly or the next sync overwrites your change. Never commit secret values to the repo.
 </important>
 
 <important if="you are adding or modifying Mode properties, settings, or vocabulary fields on either platform">
@@ -67,7 +67,16 @@ BASE_REF=origin/main python3 .github/scripts/validate_drizzle_journal.py
 ```
 </important>
 
-<important if="you just deployed and are about to check or tail Vercel logs">
+<important if="you just deployed the website, or are about to check or tail its logs">
 
-Only tail Vercel logs when the change touched `nextjs/` or otherwise directly affects the Next.js/Vercel runtime. macOS / Windows / iOS / Fly.io backend / Mintlify docs / integrations / routines / shared schemas / CI-only changes don't hit Vercel — skip log monitoring for those.
+The website (`nextjs/`) runs on **Cloudflare Workers** (Worker `hyperwhisper-web-prod`, built and deployed by `.github/workflows/nextjs-deploy.yml` on push to `main`; runbook `nextjs/DEPLOY-CLOUDFLARE.md`). It is no longer on Vercel, so the `vercel` CLI and Vercel log recipes do not apply to it.
+
+- Only check logs when the change touched `nextjs/` or otherwise affects the website runtime. macOS / Windows / iOS / Fly.io backend / Mintlify docs / integrations / routines / shared schemas / CI-only changes don't hit the Worker — skip log monitoring for those.
+- Deploy status: `gh run list -w nextjs-deploy.yml -L 5`, then `cd nextjs && npx wrangler deployments list --name hyperwhisper-web-prod 2>&1`.
+- Live errors: `cd nextjs && npx wrangler tail hyperwhisper-web-prod --status error --format pretty 2>&1` (it streams until stopped, so run it under a timeout or Monitor). Past logs are in Workers Logs (observability is on in `wrangler.jsonc`).
+</important>
+
+<important if="you changed nextjs/drizzle or nextjs/src/db, or are wondering when website migrations run">
+
+`.github/workflows/nextjs-deploy.yml` runs `db:migrate` on every deploy to `main` (environment `Production`), after the build and just before the new Worker goes live. Keep migrations expand-first (additive and backward compatible), because the old Worker is still serving while the migration lands.
 </important>
