@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Még semmi. Indíts egy felvételt, hogy lásd, amint a szöveg megjelenik itt.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} szó · {1}</value>
+    <value>Szavak: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Csak itt jelenik meg — nincs beillesztve más alkalmazásokba</value>

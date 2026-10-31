@@ -2625,7 +2625,7 @@
     <value>暂无内容。开始录音即可在此看到文字出现。</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} 个字 · {1}</value>
+    <value>字数：{0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>仅在此处显示—不会粘贴到其他应用。</value>

@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Belum ada apa-apa. Mulakan rakaman untuk melihat teks muncul di sini.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} perkataan · {1}</value>
+    <value>Perkataan: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Hanya dipaparkan di sini — tidak ditampal ke aplikasi lain.</value>

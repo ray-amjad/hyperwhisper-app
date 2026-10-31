@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Pagaidām nekā nav. Sāciet ierakstu, lai teksts parādītos šeit.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} vārdi · {1}</value>
+    <value>Vārdi: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Rādīts tikai šeit — netiek ielīmēts citās lietotnēs.</value>

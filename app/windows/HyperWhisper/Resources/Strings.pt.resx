@@ -2621,7 +2621,7 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Ainda nada. Inicie uma gravação para ver o texto aparecer aqui.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} palavras · {1}</value>
+    <value>Palavras: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Mostrado apenas aqui — não colado em outros aplicativos.</value>

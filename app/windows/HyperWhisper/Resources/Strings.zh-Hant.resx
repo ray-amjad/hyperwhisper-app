@@ -2620,7 +2620,7 @@
     <value>尚無內容。開始錄音即可在此看到文字出現。</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} 個字 · {1}</value>
+    <value>字數：{0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>僅在此處顯示—不會貼上到其他應用程式。</value>

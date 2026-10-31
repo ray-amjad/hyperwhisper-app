@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Encara res. Comença una gravació per veure el text aparèixer aquí.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} paraules · {1}</value>
+    <value>Paraules: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Es mostra només aquí — no s'enganxa a altres aplicacions</value>

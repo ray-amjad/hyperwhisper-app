@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Nimic încă. Pornește o înregistrare ca să vezi textul apărând aici.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} cuvinte · {1}</value>
+    <value>Cuvinte: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Afișat doar aici — nu este lipit în alte aplicații.</value>
