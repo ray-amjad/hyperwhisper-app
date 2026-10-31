@@ -111,7 +111,9 @@ function isBuildPrerender(): boolean {
  * An empty TABLE is not a failure: it lists only the code posts on both. Both
  * the list query and the single-post query go through here.
  */
-async function readStoredRows<Row>(query: () => Promise<Row[]>): Promise<Row[]> {
+async function readStoredRows<Row>(
+  query: () => Promise<Row[]>,
+): Promise<Row[]> {
   try {
     return await query();
   } catch (err) {
