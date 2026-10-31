@@ -1,14 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-import RotateAccountKeyView, {
-  rotateRefusal,
-  type RotatePhase,
-} from "./RotateAccountKeyView";
+import RotateAccountKeyView, { rotateRefusal } from "./RotateAccountKeyView";
+import { useKeyAction } from "./use-key-action";
 
-import { authClient } from "@/src/lib/auth-client";
 import { api } from "@/lib/trpc/client";
 
 interface RotateAccountKeyControlProps {
@@ -34,7 +30,8 @@ interface RotateAccountKeyControlProps {
 /**
  * The stateful half of the rotate control: the confirmation step, the
  * `customer.rotateAccountKey` mutation, the email step-up, and the translated
- * copy. The markup is `RotateAccountKeyView`, which holds no hooks.
+ * copy. The markup is `RotateAccountKeyView`, which holds no hooks; the
+ * step-up state is `useKeyAction`.
  *
  * After a rotation the dashboard's `licensesWithCredits` cache is patched with
  * the new key at once (so the card shows it with no flash of the dead one) and
@@ -52,8 +49,12 @@ export default function RotateAccountKeyControl({
 }: RotateAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
-  const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const { phase, setPhase, error, onRefusal, viewHandlers } = useKeyAction({
+    email,
+    emailProven,
+    onNotice,
+    linkSentKey: "linkSent",
+  });
 
   const rotate = api.customer.rotateAccountKey.useMutation({
     onSuccess: (data) => {
@@ -79,33 +80,9 @@ export default function RotateAccountKeyControl({
       onRotated();
     },
     onError: (err) => {
-      const refusal = rotateRefusal(err.data?.code);
-
-      if (refusal.refetch) void utils.customer.licensesWithCredits.invalidate();
-      setPhase(refusal.phase);
-      setError(refusal.message ? t(refusal.message) : null);
+      onRefusal(rotateRefusal(err.data?.code));
     },
   });
-
-  async function sendLink() {
-    setError(null);
-    setPhase("sending");
-    // Back to this page once the link is followed, with an email session.
-    const { error: linkError } = await authClient.signIn.magicLink({
-      email,
-      callbackURL: window.location.pathname,
-    });
-
-    if (linkError) {
-      setPhase("verify");
-      setError(t("linkFailed"));
-
-      return;
-    }
-
-    setPhase("idle");
-    onNotice(t("linkSent"));
-  }
 
   return (
     <RotateAccountKeyView
@@ -125,26 +102,12 @@ export default function RotateAccountKeyControl({
       licenseId={license.id}
       notice={notice}
       phase={phase}
-      onCancel={() => {
-        setError(null);
-        setPhase("idle");
-      }}
-      onConfirm={() => {
-        if (rotate.isPending) return;
-        setError(null);
-        setPhase("rotating");
+      {...viewHandlers(
         // The key the user is looking at: if it changed meanwhile, the server
         // answers CONFLICT instead of rotating a key they never saw.
-        rotate.mutate({ id: license.id, currentKey: license.key });
-      }}
-      onSendLink={() => {
-        void sendLink();
-      }}
-      onStart={() => {
-        onNotice(null);
-        setError(null);
-        setPhase(emailProven ? "confirming" : "verify");
-      }}
+        () => rotate.mutate({ id: license.id, currentKey: license.key }),
+        rotate.isPending,
+      )}
     />
   );
 }
