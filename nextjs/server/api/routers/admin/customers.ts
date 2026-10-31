@@ -603,14 +603,20 @@ export const customersRouter = createTRPCRouter({
         // mid-mutation is never the intent. The key is still revoked; only the
         // session sweep is skipped, and only for the one account we know is
         // legitimately in use right now.
-        if (revokeLicense) {
-          await revokeAccountKey(licenseKeyId, license.userId, {
-            actingUserId: ctx.user.id,
-          });
-        }
-        log.revoked = revokeLicense;
+        //
+        // A key the owner already deleted stays `deleted` (it is dead
+        // everywhere already): the refund above still lands, and `revoked`
+        // reports false.
+        let revoked = false;
 
-        return { success: true, revoked: revokeLicense };
+        if (revokeLicense) {
+          ({ revoked } = await revokeAccountKey(licenseKeyId, license.userId, {
+            actingUserId: ctx.user.id,
+          }));
+        }
+        log.revoked = revoked;
+
+        return { success: true, revoked };
       });
     }),
 });
