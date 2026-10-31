@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
 
+import { Github } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { PROSE_TEXT_LINK } from "@/components/text-link";
+import { BTN_WHITE, WRAP } from "@/components/landing/dusk";
+import { GLASS, SECTION } from "@/components/landing/dusk-pages";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
+import Reveal from "@/components/landing/Reveal";
 
 // The /open-source page body (#1059). It reads the `openSource` namespace with
 // useTranslations, which works in a server component and under a
@@ -20,6 +24,10 @@ export const REFUND_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURICompone
 export const CREDITS_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
   "HyperWhisper — convert my license to Cloud credits",
 )}`;
+
+/** Inline links in the copy: lavender, underlined on hover, a visible focus ring. */
+const PROSE_LINKS =
+  "[&_a]:rounded [&_a]:text-[var(--dusk-lav)] [&_a]:underline [&_a]:decoration-[rgba(196,181,253,.4)] [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-white [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-2 [&_a:focus-visible]:outline-[var(--dusk-lav)]";
 
 const externalLink = (href: string) => {
   const ExternalLink = (chunks: ReactNode) => (
@@ -39,66 +47,137 @@ const mailLink = (href: string) => {
 
 const strong = (chunks: ReactNode) => <strong>{chunks}</strong>;
 
+const WHY = ["whyVerify", "whyNoLockIn", "whyFork", "whyOpen"] as const;
+
 export default function OpenSourceContent() {
   const t = useTranslations("openSource");
 
   return (
-    <article className="mx-auto w-full max-w-4xl pt-16 pb-24 md:pt-24">
-      {/* Header */}
-      <div className="space-y-5 text-center">
-        <p className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-          {t("eyebrow")}
-        </p>
-        <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight text-white md:text-5xl">
-          {t("heading")}
-        </h1>
-        <p className="mx-auto max-w-2xl text-lg leading-8 text-gray-300">
-          {t("lead")}
-        </p>
-      </div>
+    <DuskPage>
+      <PageHero
+        eyebrow={t("eyebrow")}
+        lead={t("lead")}
+        sky="night"
+        title={t("heading")}
+      />
 
-      {/* Body */}
-      <div
-        className={`prose prose-invert mx-auto mt-12 max-w-3xl prose-headings:text-white prose-strong:text-white ${PROSE_TEXT_LINK}`}
-      >
-        <p>
-          {t.rich("intro", {
-            github: externalLink(GITHUB_URL),
-            license: externalLink(LICENSE_URL),
-          })}
-        </p>
+      <section className={SECTION}>
+        <div className={WRAP}>
+          {/* The repository bar, lifted onto the bottom of the sky band. */}
+          {/* Above the fold, so a CSS entrance (it plays from the server
+              HTML), not a scroll Reveal that waits for hydration. */}
+          <div
+            className={`dusk-enter ${GLASS} relative z-[3] -mt-[30px] flex flex-col gap-5 p-6 backdrop-blur-[14px] md:flex-row md:items-center md:justify-between md:px-7`}
+            style={delay(320)}
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <span
+                aria-hidden="true"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-[#0b0b14]"
+              >
+                <Github className="size-6" />
+              </span>
+              <div className="min-w-0 text-start">
+                <p className="font-mono text-base font-medium text-white [overflow-wrap:anywhere] md:text-lg">
+                  ray-amjad/hyperwhisper-app
+                </p>
+                <p className="text-sm text-[var(--dusk-mute)]">
+                  macOS · Windows · Linux · Cloud
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="rounded-full border border-[rgba(196,181,253,.3)] px-3 py-1.5 font-mono text-[13px] text-[var(--dusk-lav)]">
+                Apache-2.0
+              </span>
+              <a
+                className={`${BTN_WHITE} px-[18px] py-[11px] text-sm`}
+                href={GITHUB_URL}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Github aria-hidden="true" />
+                {t("cta")}
+              </a>
+            </div>
+          </div>
 
-        <h2>{t("whyHeading")}</h2>
-        <p>{t.rich("whyVerify", { strong })}</p>
-        <p>{t.rich("whyNoLockIn", { strong })}</p>
-        <p>{t.rich("whyFork", { strong })}</p>
-        <p>{t.rich("whyOpen", { strong })}</p>
-
-        <h2>{t("licenseHeading")}</h2>
-        <p>
-          {t.rich("licenseIntro", {
-            email: SUPPORT_EMAIL,
-            mail: mailLink(`mailto:${SUPPORT_EMAIL}`),
-          })}
-        </p>
-        <ul>
-          <li>
-            {t.rich("licenseRecent", {
-              strong,
-              refund: mailLink(REFUND_MAILTO),
+          <p
+            className={`dusk-enter mx-auto mt-14 max-w-3xl text-center text-base leading-[1.7] text-[var(--dusk-mute)] md:text-lg ${PROSE_LINKS}`}
+            style={delay(400)}
+          >
+            {t.rich("intro", {
+              github: externalLink(GITHUB_URL),
+              license: externalLink(LICENSE_URL),
             })}
-          </li>
-          <li>
-            {t.rich("licenseOlder", {
-              strong,
-              credits: mailLink(CREDITS_MAILTO),
-            })}
-          </li>
-        </ul>
+          </p>
 
-        <h2>{t("contributeHeading")}</h2>
-        <p>{t.rich("contributeBody", { github: externalLink(GITHUB_URL) })}</p>
-      </div>
-    </article>
+          <h2 className="mt-16 text-center text-2xl font-semibold tracking-[-0.02em] text-white md:text-[32px]">
+            {t("whyHeading")}
+          </h2>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {WHY.map((key, i) => (
+              <Reveal
+                key={key}
+                as="li"
+                className={`${GLASS} p-[26px] text-start lg:min-h-[200px]`}
+                delay={i * 100}
+              >
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-[13px] text-[var(--dusk-lav)]"
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                {/* The <strong> lead-in reads as the card's title. */}
+                <p className="mt-6 text-[14.5px] leading-[1.55] text-[var(--dusk-mute)] lg:mt-10 [&_strong]:mb-2 [&_strong]:block [&_strong]:text-[19px] [&_strong]:font-semibold [&_strong]:leading-snug [&_strong]:text-white">
+                  {t.rich(key, { strong })}
+                </p>
+              </Reveal>
+            ))}
+          </ul>
+
+          {/* Licence holders: the peach card. */}
+          <Reveal
+            className={`mt-4 rounded-[22px] border border-[rgba(253,186,140,.25)] bg-[radial-gradient(60%_120%_at_0%_0%,rgba(253,186,140,.12),transparent_60%),#0b0c18] p-6 text-start md:p-8 ${PROSE_LINKS}`}
+          >
+            <h2 className="text-2xl font-semibold tracking-[-0.02em] text-white md:text-[26px]">
+              {t("licenseHeading")}
+            </h2>
+            <p className="mt-3 max-w-3xl leading-[1.65] text-[var(--dusk-mute)]">
+              {t.rich("licenseIntro", {
+                email: SUPPORT_EMAIL,
+                mail: mailLink(`mailto:${SUPPORT_EMAIL}`),
+              })}
+            </p>
+            <ul className="mt-5 grid gap-3 md:grid-cols-2">
+              <li className="rounded-2xl border border-[var(--dusk-line)] bg-white/[.025] p-5 leading-[1.6] text-[#d6d8ea] [&_strong]:text-[var(--dusk-peach)]">
+                {t.rich("licenseRecent", {
+                  strong,
+                  refund: mailLink(REFUND_MAILTO),
+                })}
+              </li>
+              <li className="rounded-2xl border border-[var(--dusk-line)] bg-white/[.025] p-5 leading-[1.6] text-[#d6d8ea] [&_strong]:text-[var(--dusk-peach)]">
+                {t.rich("licenseOlder", {
+                  strong,
+                  credits: mailLink(CREDITS_MAILTO),
+                })}
+              </li>
+            </ul>
+          </Reveal>
+
+          <Reveal
+            className={`mx-auto mt-16 max-w-3xl text-center ${PROSE_LINKS}`}
+          >
+            <h2 className="text-2xl font-semibold tracking-[-0.02em] text-white md:text-[28px]">
+              {t("contributeHeading")}
+            </h2>
+            <p className="mt-3 leading-[1.65] text-[var(--dusk-mute)]">
+              {t.rich("contributeBody", { github: externalLink(GITHUB_URL) })}
+            </p>
+          </Reveal>
+        </div>
+      </section>
+    </DuskPage>
   );
 }

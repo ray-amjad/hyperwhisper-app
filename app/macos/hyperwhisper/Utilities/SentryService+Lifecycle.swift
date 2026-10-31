@@ -144,6 +144,14 @@ extension SentryService {
             // warning diagnostics in `captureMessage` would go nowhere at all.
             options.experimental.enableLogs = true
 
+            // C++ EXCEPTION STACKS
+            // An uncaught C++ throw (whisper.cpp's "failed to initialize CPU
+            // backend", HYPERWHISPER-11R) reached Sentry with no stack frames:
+            // the default handler only sees the exception once it has unwound
+            // to std::terminate. This hooks every `__cxa_throw` and records the
+            // stack at the throw itself. Issue #2678.
+            options.experimental.enableUnhandledCPPExceptionsV2 = true
+
             // HANG DETECTION CONFIGURATION
             // Increase AppHang timeout from default 2s to 10s to reduce false positives
             // from normal modal dialogs (NSAlert, NSOpenPanel) that wait for user input.
