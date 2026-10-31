@@ -1115,6 +1115,7 @@ try
         "a split backup word lost its id or its multi-line replacement (#1777)");
 
     await VocabularyRenamedRestoreTests.RunAsync();
+    await VocabularyTrimMatchTests.RunAsync();
 
     Console.WriteLine("Backup application tests passed (53/53).");
 }

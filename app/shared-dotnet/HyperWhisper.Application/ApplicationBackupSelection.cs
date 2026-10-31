@@ -262,7 +262,7 @@ public sealed partial class ApplicationBackupService
     {
         foreach (var item in imported.OrderBy(item => item.SortOrder).ThenBy(item => item.Word, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.Id))
         {
-            var existing = current.FirstOrDefault(candidate => string.Equals(candidate.Word, item.Word, StringComparison.OrdinalIgnoreCase));
+            var existing = current.FirstOrDefault(candidate => string.Equals(candidate.Word.Trim(), item.Word, StringComparison.OrdinalIgnoreCase));
             if (existing is null)
             {
                 // A word renamed since the export keeps its row id (UpsertAsync matches by id), so
@@ -324,7 +324,9 @@ public sealed partial class ApplicationBackupService
             : [];
         var currentModeIds = currentModes.Select(item => item.Id).ToHashSet();
         var importedModeIds = modes.Select(item => item.Id).ToHashSet();
-        var existingWords = currentVocabulary.Select(item => item.Word).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Trimmed on both sides like ApplyVocabulary (#2930): the incoming word was trimmed by
+        // ParseVocabulary, and a row saved before the repository trimmed may still carry a space.
+        var existingWords = currentVocabulary.Select(item => item.Word.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var vocabularyConflicts = vocabulary.Count(item => existingWords.Contains(item.Word));
         var preview = new BackupMergePreview(
             selection.ImportSettings && backup.HasSettings,
