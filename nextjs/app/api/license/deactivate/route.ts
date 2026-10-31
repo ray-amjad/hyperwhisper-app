@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { readBoundedText } from "@/src/lib/bounded-body";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 
@@ -17,10 +18,16 @@ import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
  * - New app versions handle deactivation locally (clear UserDefaults)
  * - No server-side activation tracking - fair usage policy instead
  */
+
+/** The only field is a licence key; 16 KB is far above any real request (#2904). */
+const MAX_BODY_BYTES = 16 * 1024;
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
-    body = await req.json();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+    if (text instanceof NextResponse) return text;
+    body = JSON.parse(text);
   } catch (err) {
     console.error(
       "License deactivate: request JSON did not parse",
