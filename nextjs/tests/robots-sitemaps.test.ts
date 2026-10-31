@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { SITE_URL } from "../lib/site-metadata";
@@ -18,11 +17,13 @@ test("robots() declares the site sitemap and the docs sitemap", async () => {
   ]);
 });
 
-test("the docs sitemap URL is served by the /docs rewrite", () => {
-  const vercel = JSON.parse(
-    readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
-  ) as { rewrites?: { source: string; destination: string }[] };
-  const docs = vercel.rewrites?.find((r) => r.source === "/docs/:path*");
-  assert.ok(docs, "nextjs/vercel.json has no /docs/:path* rewrite");
-  assert.match(docs.destination, /\/docs\/:path\*$/);
+test("the docs sitemap URL is served by the /docs rewrite", async () => {
+  const { MINTLIFY_ORIGIN, mintlifyRewrites } = await import(
+    "../config/mintlify-rewrites.mjs"
+  );
+  const docs = mintlifyRewrites.find(
+    (r: { source: string }) => r.source === "/docs/:path*",
+  );
+  assert.ok(docs, "config/mintlify-rewrites.mjs has no /docs/:path* rewrite");
+  assert.equal(docs.destination, `${MINTLIFY_ORIGIN}/docs/:path*`);
 });
