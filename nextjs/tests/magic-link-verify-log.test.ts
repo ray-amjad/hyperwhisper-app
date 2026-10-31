@@ -8,7 +8,7 @@
  * own options (its `magicLink` plugin, its `sendMagicLink`, its `hooks` and
  * `databaseHooks`), as `magic-link-dead-link-message.test.ts` builds it. Only
  * the database is swapped for Better Auth's memory adapter (wrapped so a test
- * can make a create fail) and the Resend client is stubbed so the emailed link
+ * can make a create fail) and the email client is stubbed so the emailed link
  * can be read back.
  */
 import assert from "node:assert/strict";
@@ -29,22 +29,18 @@ process.env.BETTER_AUTH_SECRET =
   "test-secret-for-2638-magic-link-verify-log-0123456789";
 
 // ---------------------------------------------------------------------------
-// Collaborator stubs: Resend (to read the emailed link) and `sha256Hex` (real
+// Collaborator stubs: the email client (to read the emailed link) and `sha256Hex` (real
 // digest, except it throws on one sentinel input so a test can fault the log
 // line itself).
 // ---------------------------------------------------------------------------
 
 const sentEmails: Array<{ text?: string }> = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: { text?: string }) => {
-          sentEmails.push(payload);
-          return { data: { id: "unused" }, error: null };
-        },
-      },
+    sendEmail: async (payload: { text?: string }) => {
+      sentEmails.push(payload);
+      return { data: { id: "unused" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -106,7 +102,7 @@ async function realAuthOnMemory(
   const instance = betterAuth({
     ...auth.options,
     database,
-    // The app's limiter is Upstash-backed; it is not what this file tests.
+    // The app's limiter is a Cloudflare binding; it is not what this file tests.
     rateLimit: { enabled: false },
     ...overrides,
   });

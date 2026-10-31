@@ -1,13 +1,35 @@
 "use client";
 
-import { Card, CardBody } from "@heroui/card";
-import { Mail, Clock } from "lucide-react";
+import { ArrowRight, Clock, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { BTN_GLASS, BTN_WHITE, WRAP } from "@/components/landing/dusk";
+import { GLASS, LABEL, SECTION } from "@/components/landing/dusk-pages";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import { GmailIcon, OutlookIcon } from "@/components/landing/MailClientIcons";
+import { Link } from "@/src/i18n/navigation";
+
+const BTN_SIZE = "px-5 py-3 text-[15px]";
+
+/** One row of the right-hand column: a title, a hint and an arrow. */
+const SIDE_ITEM = `${GLASS} group relative block py-5 pe-14 ps-6 text-start backdrop-blur-[14px] transition-colors duration-200 hover:border-[rgba(196,181,253,.28)] hover:bg-white/[.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]`;
+
+function SideItemBody({ title, hint }: { title: string; hint: string }) {
+  return (
+    <>
+      <span className="block text-base font-semibold text-white">{title}</span>
+      <span className="block text-sm text-[var(--dusk-mute)]">{hint}</span>
+      <ArrowRight
+        aria-hidden="true"
+        className="absolute end-6 top-1/2 size-4 -translate-y-1/2 text-[var(--dusk-lav)] transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
+      />
+    </>
+  );
+}
 
 export default function SupportPage() {
   const t = useTranslations("support");
+  const tFooter = useTranslations("footer");
   const emailAddress = "hi@support.hyperwhisper.com";
   const subject = t("emailTemplate.subject");
   const body = t("emailTemplate.body");
@@ -15,87 +37,109 @@ export default function SupportPage() {
   const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
-      <div className="mx-auto lg:max-w-2xl">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
-          </h1>
-          <p className="text-lg text-gray-400">{t("subtitle")}</p>
-        </div>
+    <DuskPage>
+      <PageHero lead={t("subtitle")} sky="night" title={t("title")} />
 
-        <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
-          <CardBody className="p-8">
-            {/* Header section */}
-            <div className="flex flex-col items-center mb-8">
-              {/* Icon */}
-              <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                <Mail className="w-8 h-8 text-purple-400" />
-              </div>
+      <section className={SECTION}>
+        <div
+          className={`${WRAP} relative z-[3] -mt-[30px] grid gap-[18px] lg:grid-cols-[1.3fr_1fr]`}
+        >
+          {/* The whole contact block is above the fold, so it enters with
+              CSS (played from the server HTML), not a scroll Reveal that
+              waits for hydration. */}
+          <div
+            className={`dusk-enter ${GLASS} p-6 text-start backdrop-blur-[14px] md:p-9`}
+            style={delay(320)}
+          >
+            <span
+              aria-hidden="true"
+              className="grid size-[38px] place-items-center rounded-[11px] bg-[rgba(196,181,253,.12)] text-[var(--dusk-lav)]"
+            >
+              <Mail className="size-[19px]" />
+            </span>
+            <h2 className="mt-5 text-xl font-semibold text-white">
+              {t("getInTouch")}
+            </h2>
+            <p className="mt-2 max-w-xl leading-[1.6] text-[var(--dusk-mute)]">
+              {t("description")}
+            </p>
 
-              <h2 className="text-2xl font-bold text-white mb-2 text-center">
-                {t("getInTouch")}
-              </h2>
-              <p className="text-gray-400 text-center max-w-md">
-                {t("description")}
-              </p>
-            </div>
+            <p className={`${LABEL} mt-7`}>{t("emailUsAt")}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white [overflow-wrap:anywhere] md:text-[32px]">
+              {emailAddress}
+            </p>
 
-            {/* Email display box */}
-            <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 mb-6">
-              <p className="text-sm text-gray-400 mb-2">{t("emailUsAt")}</p>
-              <p className="text-lg font-semibold text-white">{emailAddress}</p>
-            </div>
-
-            {/* Email client options */}
-            <div className="space-y-3 mb-6">
-              <p className="text-sm font-medium text-gray-300">
-                {t("openInClient")}
-              </p>
-
+            <p className={`${LABEL} mt-7`}>{t("openInClient")}</p>
+            <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
               {/* Default email client */}
-              <a
-                className="relative isolate flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-base font-semibold text-white transition-shadow hover:shadow-lg before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-pink-500 before:opacity-0 before:transition-opacity hover:before:opacity-100"
-                href={mailtoLink}
-              >
-                <Mail className="h-4 w-4" />
+              <a className={`${BTN_WHITE} ${BTN_SIZE}`} href={mailtoLink}>
+                <Mail aria-hidden="true" />
                 {t("defaultClient")}
               </a>
-
-              {/* Gmail and Outlook options */}
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  className="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:border-gray-600"
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${emailAddress}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <GmailIcon />
-                  {t("gmail")}
-                </a>
-                <a
-                  className="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:border-gray-600"
-                  href={`https://outlook.live.com/mail/0/deeplink/compose?to=${emailAddress}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <OutlookIcon />
-                  {t("outlook")}
-                </a>
-              </div>
+              {/* Gmail and Outlook: their own glyphs, straight on the glass, no tile */}
+              <a
+                className={`${BTN_GLASS} ${BTN_SIZE}`}
+                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${emailAddress}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <GmailIcon />
+                {t("gmail")}
+              </a>
+              <a
+                className={`${BTN_GLASS} ${BTN_SIZE}`}
+                href={`https://outlook.live.com/mail/0/deeplink/compose?to=${emailAddress}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <OutlookIcon />
+                {t("outlook")}
+              </a>
             </div>
 
             {/* Response time info */}
-            <div className="flex items-start gap-3 text-gray-400 pt-4 border-t border-gray-700">
+            <div className="mt-8 flex items-start gap-3 border-t border-[var(--dusk-line)] pt-5 text-[var(--dusk-mute)]">
               <Clock
-                className="w-5 h-5 mt-0.5 flex-shrink-0"
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
                 strokeWidth={1.5}
               />
               <p className="text-sm">{t("responseTime")}</p>
             </div>
-          </CardBody>
-        </Card>
-      </div>
-    </div>
+          </div>
+
+          <ul className="grid content-start gap-3">
+            <li className="dusk-enter" style={delay(420)}>
+              <a className={SIDE_ITEM} href="https://hyperwhisper.com/docs">
+                <SideItemBody
+                  hint={t("helpCenterHint")}
+                  title={tFooter("links.helpCenter")}
+                />
+              </a>
+            </li>
+            <li className="dusk-enter" style={delay(520)}>
+              {/*
+                English-only page: the absolute /en/... with a native <a>
+                (#1170). The card's title is translated, like its hint.
+              */}
+              <a className={SIDE_ITEM} href="/en/choosing-a-model">
+                <SideItemBody
+                  hint={t("chooseModelHint")}
+                  title={t("chooseModelTitle")}
+                />
+              </a>
+            </li>
+            <li className="dusk-enter" style={delay(620)}>
+              <Link className={SIDE_ITEM} href="/user/sign-in">
+                <SideItemBody
+                  hint={t("accountHint")}
+                  title={tFooter("links.customerPortal")}
+                />
+              </Link>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </DuskPage>
   );
 }

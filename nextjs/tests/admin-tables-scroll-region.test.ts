@@ -98,7 +98,7 @@ for (const { name, path, label } of PAGES) {
     assert.match(attrs, new RegExp(`\\baria-label="${label}"`));
     assert.match(attrs, /\btabindex="0"/);
     assert.match(attrs, /\bfocus-visible:outline-2\b/);
-    assert.match(attrs, /\bfocus-visible:outline-focus\b/);
+    assert.match(attrs, /focus-visible:outline-\[var\(--dusk-lav\)\]/);
     // Inset: the card's overflow-hidden would clip an outset ring.
     assert.match(attrs, /\bfocus-visible:-outline-offset-2\b/);
   });

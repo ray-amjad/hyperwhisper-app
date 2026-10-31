@@ -114,7 +114,7 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   for (const c of FADE) assert.ok(skeleton.split(" ").includes(c), c);
   assert.match(
     html,
-    /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full"><thead><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
+    /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full min-w-\[36rem\]"><thead><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
   );
   assert.equal(html.match(/animate-pulse/g)?.length, 15, "5 skeleton rows");
   assert.doesNotMatch(html, /animation-play-state/, "pulsing while loading");
@@ -126,12 +126,12 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   // its header row to the skeleton's height.
   assert.match(
     html,
-    /<table class="\[grid-area:1\/1\] self-start w-full"><thead class="[^"]*">/,
+    /<table class="\[grid-area:1\/1\] self-start w-full min-w-\[36rem\]"><thead class="[^"]*">/,
   );
   // Its header is hidden while the skeleton's shows, and fades in with the
   // rows (at once under reduced motion).
   const head =
-    /<table class="\[grid-area:1\/1\] self-start w-full"><thead class="([^"]*)">/.exec(
+    /<table class="\[grid-area:1\/1\] self-start w-full min-w-\[36rem\]"><thead class="([^"]*)">/.exec(
       html,
     );
 
@@ -153,7 +153,7 @@ test("a mount with the rows already cached shows no skeleton", async () => {
   // No skeleton header to cross-fade from: the real one shows at once.
   assert.match(
     html,
-    /<thead><tr class="border-b border-white\/10"><th[^>]*>Email/,
+    /<thead><tr class="border-b border-\[var\(--dusk-line\)\] bg-white\/\[\.02\]"><th[^>]*>Email/,
   );
   assert.match(html, /a@example\.com/);
 });
@@ -188,7 +188,7 @@ test("after the load the skeleton stays mounted, faded, paused and out of the he
   // Its pulse pauses where it is once revealed: nothing animates unseen.
   assert.match(
     source,
-    /const pulse = `animate-pulse motion-reduce:animate-none\$\{\s*revealed \? " \[animation-play-state:paused\]" : ""\s*\}`;/,
+    /const pulse = `\$\{SKEL\}\$\{\s*revealed \? " \[animation-play-state:paused\]" : ""\s*\}`;/,
   );
-  assert.equal(source.match(/rounded w-(48|28|12) \$\{pulse\}/g)?.length, 3);
+  assert.equal(source.match(/h-4 w-(48|28|12) \$\{pulse\}/g)?.length, 3);
 });
