@@ -1,14 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-import RotateAccountKeyView, {
-  deleteRefusal,
-  type RotatePhase,
-} from "./RotateAccountKeyView";
+import RotateAccountKeyView, { deleteRefusal } from "./RotateAccountKeyView";
+import { useKeyAction } from "./use-key-action";
 
-import { authClient } from "@/src/lib/auth-client";
 import { api } from "@/lib/trpc/client";
 
 interface DeleteAccountKeyControlProps {
@@ -60,8 +56,12 @@ export default function DeleteAccountKeyControl({
 }: DeleteAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
-  const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const { phase, setPhase, error, onRefusal, viewHandlers } = useKeyAction({
+    email,
+    emailProven,
+    onNotice,
+    linkSentKey: "deleteLinkSent",
+  });
 
   const remove = api.customer.deleteAccountKey.useMutation({
     onSuccess: (data) => {
@@ -75,32 +75,9 @@ export default function DeleteAccountKeyControl({
       onDeleted({ cloudCleared: data.cloudCleared });
     },
     onError: (err) => {
-      const refusal = deleteRefusal(err.data?.code);
-
-      if (refusal.refetch) void utils.customer.licensesWithCredits.invalidate();
-      setPhase(refusal.phase);
-      setError(refusal.message ? t(refusal.message) : null);
+      onRefusal(deleteRefusal(err.data?.code));
     },
   });
-
-  async function sendLink() {
-    setError(null);
-    setPhase("sending");
-    const { error: linkError } = await authClient.signIn.magicLink({
-      email,
-      callbackURL: window.location.pathname,
-    });
-
-    if (linkError) {
-      setPhase("verify");
-      setError(t("linkFailed"));
-
-      return;
-    }
-
-    setPhase("idle");
-    onNotice(t("deleteLinkSent"));
-  }
 
   const disabledReason = isLastLiveKey ? t("deleteLastKey") : null;
 
@@ -128,26 +105,12 @@ export default function DeleteAccountKeyControl({
       notice={notice}
       phase={phase}
       tone="danger"
-      onCancel={() => {
-        setError(null);
-        setPhase("idle");
-      }}
-      onConfirm={() => {
-        if (remove.isPending) return;
-        setError(null);
-        setPhase("rotating");
+      {...viewHandlers(
         // The key the user is looking at: if it was rotated meanwhile, the
         // server answers CONFLICT instead of deleting a key they never saw.
-        remove.mutate({ id: license.id, currentKey: license.key });
-      }}
-      onSendLink={() => {
-        void sendLink();
-      }}
-      onStart={() => {
-        onNotice(null);
-        setError(null);
-        setPhase(emailProven ? "confirming" : "verify");
-      }}
+        () => remove.mutate({ id: license.id, currentKey: license.key }),
+        remove.isPending,
+      )}
     />
   );
 }
