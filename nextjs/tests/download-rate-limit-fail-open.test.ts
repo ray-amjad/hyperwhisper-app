@@ -1,11 +1,11 @@
 /**
- * #2136: the download form's email limiter fails open. When Upstash is
+ * #2136: the download form's email limiter fails open. When the binding is
  * unreachable `recordDownload` still hands the visitor the download link; when
  * the limiter refuses, the TOO_MANY_REQUESTS reply is unchanged.
  *
  * The REAL `server/api/routers/download.ts` and `lib/rate-limit-gate.ts` run,
  * driven through tRPC's own `callTRPCProcedure`. Only the collaborators are
- * replaced (`mock.module`): the Upstash limiter, the database layer, the email
+ * replaced (`mock.module`): the rate limiter, the database layer, the email
  * service and Better Auth (which `server/api/trpc.ts` imports).
  */
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import { TRPCError, callTRPCProcedure, type AnyRouter } from "@trpc/server";
 import { captureConsole, moduleMock, moduleUrl, type ConsoleCapture } from "./module-mock";
 
 const behaviour = {
-  /** Thrown by the limiter when set: Upstash unreachable. */
+  /** Thrown by the limiter when set: the binding failing. */
   limitError: null as unknown,
   /** What the limiter answers when it does not throw. */
   limitSuccess: true,
@@ -103,7 +103,7 @@ async function recordDownload(): Promise<unknown> {
 }
 
 test("download: an unreachable limiter still records the download and returns the link (#2136)", async () => {
-  behaviour.limitError = new TypeError(`fetch failed: upstash ${CLIENT_IP}`);
+  behaviour.limitError = new TypeError(`fetch failed: limiter ${CLIENT_IP}`);
 
   const result = (await recordDownload()) as { success: boolean; downloadUrl: string };
 

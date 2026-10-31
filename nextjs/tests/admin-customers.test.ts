@@ -343,6 +343,23 @@ describe("refund", () => {
     ]);
   });
 
+  test("a key the owner deleted is refunded but stays deleted: revoked reports false", async () => {
+    behaviour.accountsById.set(
+      LICENSE_ID,
+      accountKeyRow({ id: LICENSE_ID, userId: "user_owner", status: "deleted" }),
+    );
+    behaviour.revokeRevoked = false;
+
+    const result = await callCustomers("refund", "mutation", {
+      licenseKeyId: LICENSE_ID,
+      revokeLicense: true,
+    });
+
+    assert.deepEqual(result, { success: true, revoked: false });
+    assert.equal(calls.createRefund.length, 1, "the money action still runs");
+    assert.equal(calls.revokeAccountKey.length, 1);
+  });
+
   test("answers NOT_FOUND for an unknown license and touches no money", async () => {
     await rejects(
       callCustomers("refund", "mutation", {

@@ -264,7 +264,7 @@ test("Devices and Customers both use the shared HeightTween, keyed on the query 
     assert.doesNotMatch(source, /function HeightTween\b/, `${name} keeps no copy`);
     assert.match(
       source,
-      /<HeightTween\s+className=\{`bg-white\/5 [^`]*`\}\s+\/\/[^\n]*\n\s+transition="opacity 150ms [^"]+"\s+trigger=\{data\}\s*>/,
+      /<HeightTween\s+className=\{`\$\{CARD\} [^`]*`\}\s+\/\/[^\n]*\n\s+transition="opacity 150ms [^"]+"\s+trigger=\{data\}\s*>/,
       `${name}: the table card tweens on data and keeps its dim`,
     );
   }
@@ -325,7 +325,7 @@ test("the Devices card renders with the opacity dim and the height tween, never 
     default: () => null;
   };
   const html = renderToStaticMarkup(createElement(DevicesClient));
-  const card = /<div class="bg-white\/5 [^"]*" style="([^"]*)"/.exec(html);
+  const card = /<div class="rounded-\[20px\] [^"]*" style="([^"]*)"/.exec(html);
 
   assert.ok(card, "no Devices table card");
   assert.equal(
