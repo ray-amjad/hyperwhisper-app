@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funzionalità",
+    "modes": "Modalità",
     "faq": "FAQ",
     "support": "Supporto",
     "download": "Download",
@@ -16,26 +17,36 @@
       "switchTo": "Cambia lingua"
     },
     "cloud": "Cloud",
-    "githubAria": "Visualizza HyperWhisper su GitHub"
+    "githubAria": "Visualizza HyperWhisper su GitHub",
+    "skipToContent": "Vai al contenuto"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Scrivi, componi e crea",
-    "headlineAccent": "5x più veloce con l'AI",
-    "subheadline": "HyperWhisper trascrive la tua voce con precisione incredibile. Parla in modo naturale e guarda le parole apparire all'istante.",
-    "downloadCta": "Scarica ora",
-    "demoCta": "Guarda la demo",
-    "availableOn": "Disponibile su",
+    "badge": "Novità",
+    "headline": "Tu parla.",
+    "headlineAccent": "Scriviamo noi.",
+    "subheadline": "Testo curato in qualsiasi app.",
+    "downloadMac": "Scarica per Mac",
+    "freeForever": "Gratis per sempre",
+    "worksOffline": "Funziona offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Scorri",
+    "closing": {
+      "line1": "Basta digitare.",
+      "line2": "Inizia a parlare.",
+      "meta": "Gratuito e open source. Nessun account richiesto."
+    }
   },
   "features": {
-    "title": "Progettato per professionisti",
-    "subtitle": "Ogni funzione è pensata per aiutarti a lavorare in modo più rapido ed efficiente",
+    "title": "Pensato per chi scrive tutto il giorno.",
     "customVocabulary": {
       "title": "Vocabolario personalizzato",
       "description": "Aggiungi nomi, acronimi e termini speciali per ottenere sempre la massima precisione."
+    },
+    "realTime": {
+      "title": "Streaming in tempo reale",
+      "description": "Guarda le parole apparire all'istante mentre parli. Precisione ai massimi livelli con latenza inferiore a 700 ms."
     },
     "languages": {
       "title": "100+ lingue",
@@ -45,25 +56,9 @@
       "title": "Supporto offline",
       "description": "Funziona completamente offline. I tuoi dati non lasciano mai il dispositivo."
     },
-    "privacy": {
-      "title": "Privacy al primo posto",
-      "description": "Nessun account richiesto. Nessun tracciamento. I tuoi dati vocali restano sul tuo Mac o PC."
-    },
-    "hybridProcessing": {
-      "title": "Elaborazione ibrida",
-      "description": "Scegli tra modelli locali per la privacy o API cloud per la velocità. Il meglio di entrambi i mondi."
-    },
-    "customizable": {
-      "title": "Altamente personalizzabile",
-      "description": "Scegli tra oltre 9 provider API e più di 30 modelli di trascrizione."
-    },
-    "realTime": {
-      "title": "Streaming in tempo reale",
-      "description": "Guarda le parole apparire all'istante mentre parli. Precisione ai massimi livelli con latenza inferiore a 700 ms."
-    },
-    "fileImport": {
-      "title": "Importazione file",
-      "description": "Importa file audio o video da trascrivere. Supporta tutti i formati principali con rilevamento automatico dei silenzi."
+    "openSource": {
+      "title": "Open Source",
+      "description": "Con licenza Apache-2.0. Ispeziona ogni riga, fai un fork o esegui l'hosting da solo. Nessuna scatola nera, nessun lock-in."
     },
     "screenOcr": {
       "title": "OCR dello schermo",
@@ -73,28 +68,57 @@
       "title": "API locale e server MCP",
       "description": "Il server MCP integrato consente a Claude, Cursor e ad altri agenti IA di pilotare HyperWhisper. API HTTP solo locale per script e automazioni."
     },
+    "fileImport": {
+      "title": "Importazione file",
+      "description": "Importa file audio o video da trascrivere. Supporta tutti i formati principali con rilevamento automatico dei silenzi."
+    },
     "modes": {
-      "title": "Modalità per ogni situazione",
-      "description": "Passa tra diverse modalità di trascrizione ottimizzate per riunioni, appunti, email, codice e altro. Ogni modalità usa prompt personalizzati per formattare perfettamente il testo.",
-      "meeting": "Riunione",
+      "heading": "Una voce. Ogni formato.",
+      "lead": "Ogni modalità riscrive ciò che hai detto in base alla destinazione.",
       "email": "Email",
       "note": "Nota",
       "code": "Codice",
+      "meeting": "Riunione",
       "legal": "Legale",
       "medical": "Medico",
-      "presetModes": "Modalità predefinite",
-      "customModes": "Modalità personalizzate"
-    },
-    "openSource": {
-      "title": "Open Source",
-      "description": "Con licenza Apache-2.0. Ispeziona ogni riga, fai un fork o esegui l'hosting da solo. Nessuna scatola nera, nessun lock-in."
+      "youSaid": "Hai detto",
+      "hyperWhisperWrote": "HyperWhisper ha scritto",
+      "sample": "ehm allora di' a john che il lancio slitta a giovedì perché il QA di linux non è ancora finito e ehm grazie per la pazienza",
+      "output": {
+        "email": "Ciao John,\n\nil lancio slitta a giovedì, il tempo di completare il QA di Linux. Grazie per la pazienza.\n\nUn saluto,",
+        "note": "• Lancio → giovedì\n• Blocco: QA di Linux non completato\n• Avvisare John",
+        "code": "// TODO(john): lancio spostato a giovedì, QA di Linux ancora in corso",
+        "meeting": "Decisione: il lancio slitta a giovedì.\nMotivo: QA di Linux incompleto.\nResponsabile: avvisare John.",
+        "legal": "Si comunica che la data di lancio è stata riprogrammata a giovedì, in attesa del completamento del controllo qualità di Linux.",
+        "medical": "Piano: rinviare il lancio a giovedì. Stato: QA di Linux in sospeso. Follow-up: informare John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funziona ovunque tu scriva",
+    "eyebrow": "Come funziona",
+    "titleLine1": "Premi un tasto.",
+    "titleLine2": "Parla.",
+    "titleAccent": "Fatto.",
+    "lead": "Le tue parole arrivano, già ripulite, dove si trova il cursore.",
+    "step1": "Premi la tua scorciatoia",
+    "step2Key": "Parla",
+    "step2": "Parla come faresti normalmente",
+    "step3Key": "Premi ancora",
+    "step3": "Testo pulito, incollato al suo posto",
+    "watchVideo": "Guarda la demo completa",
+    "closeVideo": "Chiudi video",
+    "exampleLabel": "Esempio animato: una risposta dettata viene scritta in un messaggio Slack",
+    "message1": "Confermiamo il rilascio della build Linux giovedì?",
+    "message2": "Il QA è passato da parte mia 👍",
+    "composePlaceholder": "Messaggio in #launch",
+    "typed": "Sì, il QA Linux è passato stamattina, quindi giovedì va bene. Pubblico le note di rilascio entro mezzogiorno.",
+    "listening": "In ascolto",
+    "cleaningUp": "Pulizia in corso…",
     "fasterThanTyping": "Più veloce della digitazione",
     "accuracyRate": "Tasso di accuratezza",
     "languagesSupported": "Lingue supportate",
-    "providersSupported": "Provider supportati"
+    "modelsSupported": "Modelli di trascrizione"
   },
   "faq": {
     "title": "Domande frequenti",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Quali modelli offline sono disponibili?",
-        "answer": "Per la trascrizione offline offriamo diverse dimensioni del modello Whisper (realizzato da OpenAI, con supporto per 99+ lingue). Offriamo anche i modelli Parakeet di NVidia (supporto per 25+ lingue).\n      \n      Per il post-processing offline offriamo diverse dimensioni del modello Gemma 3 (realizzato da Google)."
+        "answer": "Per la trascrizione offline offriamo diverse dimensioni del modello Whisper (realizzato da OpenAI, con supporto per 99+ lingue). Offriamo anche i modelli Parakeet di NVidia (supporto per 25+ lingue).\n      \n      Per il post-processing offline offriamo diverse dimensioni del modello Gemma 4 (realizzato da Google)."
       },
       "compatibility": {
         "question": "Funziona con tutte le mie app?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Richiesta di supporto HyperWhisper",
       "body": "Ciao,\n\nVersione: \n[puoi verificarla in Impostazioni > Informazioni]\n\nProblema: \n[Descrivi il tuo problema]\n\nDettagli: \n[Fornisci eventuali dettagli rilevanti, cosa stavi facendo prima del crash]\n\n[Il tuo messaggio qui]\n\nCordiali saluti,"
-    }
+    },
+    "helpCenterHint": "Configurazione, scorciatoie e modelli.",
+    "chooseModelHint": "Ordina i modelli in base a come lavori.",
+    "accountHint": "Accedi con la chiave dell'account.",
+    "chooseModelTitle": "Scegli un modello"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Dopo esserti aggiunto al gruppo input, esci e accedi di nuovo. L'appartenenza è facoltativa, ma serve per le scorciatoie globali e l'incolla automatico.",
     "aptTitle": "Ospita da te un repository APT",
     "aptBody": "Le release per Linux includono anche un archivio statico del repository APT. Al momento HyperWhisper non gestisce un endpoint APT pubblico; consulta la guida all'installazione per Linux per la configurazione firmata e self-hosted, i componenti desktop complementari, i dettagli sulla privacy e la rimozione.",
-    "linuxGuideCta": "Leggi la guida all'installazione per Linux"
+    "linuxGuideCta": "Leggi la guida all'installazione per Linux",
+    "heroLead": "Gratis e open source. Scegli la tua piattaforma.",
+    "releaseNotes": "Note di rilascio",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon e Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 e ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versioni precedenti",
@@ -280,6 +313,7 @@
       "dataTraining": "Privacy dei dati"
     },
     "copyright": "© 2026 HyperWhisper. Tutti i diritti riservati.",
+    "madeBy": "Creato da Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Segui HyperWhisper su X (Twitter)",
     "githubAria": "HyperWhisper su GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Questo link di accesso è scaduto o è già stato usato. Inserisci la tua email per riceverne uno nuovo.",
     "magicLinkFailed": "Non è stato possibile farti accedere con quel link. Inserisci la tua email per riceverne uno nuovo."
+  },
+  "legal": {
+    "onThisPage": "In questa pagina"
   }
 }

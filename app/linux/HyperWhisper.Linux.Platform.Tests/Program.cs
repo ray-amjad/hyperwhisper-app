@@ -101,6 +101,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a single dictation restores the user clipboard", InjectionSingleDictationRestoresUserClipboard),
     ("a transcript left with no restore is snapshotted by the next dictation", InjectionTranscriptLeftWithoutRestoreIsSnapshotted),
     ("a copy-only transcript with a restore keeps the user clipboard in a chain", InjectionCopyOnlyChainKeepsUserClipboard),
+    ("two dictations from an empty clipboard inside the restore delay leave the second", InjectionEmptyClipboardChainLeavesSecondTranscript),
+    ("three dictations from an empty clipboard leave the last", InjectionEmptyClipboardThreeChainLeavesLastTranscript),
+    ("after the restore delay an empty-clipboard transcript is the user's clipboard", InjectionEmptyClipboardTranscriptAfterDelayIsRestored),
+    ("a user copy after an empty-clipboard dictation is what comes back", InjectionEmptyClipboardUserCopyComesBack),
+    ("an empty-clipboard transcript left with no restore is snapshotted", InjectionEmptyClipboardRestoreOffIsSnapshotted),
+    ("a no-write dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardNoWriteSessionKeepsWindow),
+    ("a cancelled dictation inside the empty-clipboard window keeps it", InjectionEmptyClipboardCancelledSessionKeepsWindow),
+    ("a restore-off write inside the empty-clipboard window ends it", InjectionEmptyClipboardRestoreOffWriteEndsWindow),
     ("a cancelled chained dictation restores the user clipboard at once", InjectionCancelledChainedDictationRestoresAtOnce),
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
@@ -224,6 +232,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone keep-warm stuck teardown never touches the replacement source", MicrophoneKeepWarmStuckTeardownSparesReplacement),
     ("Linux child process terminate and dispose return on a blocked UI context", ChildProcessTeardownOnBlockedContext),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
+    ("a sound effect does not block the caller while the player runs", SoundEffectDoesNotBlockCaller),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
     ("audio environment duck restores channel volumes", AudioEnvironmentDuckRestore),
@@ -2160,6 +2169,148 @@ static async Task InjectionTranscriptLeftWithoutRestoreIsSnapshotted()
     service.ScheduleClipboardRestore(ShortRestoreDelay());
     await WaitForRestoreCallsAsync(clipboard, 1);
     Assert.Equal("transcript A", clipboard.Text);
+}
+
+// #2269: an empty clipboard, and a clock the test moves (the restore delay is 3 s on it).
+static (FakeClipboard Clipboard, LinuxTextInjectionService Service, Action<long> Advance) NewEmptyClipboardInjection()
+{
+    var clipboard = new FakeClipboard(new Dictionary<string, byte[]>(StringComparer.Ordinal));
+    var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    long now = 1_000_000;
+    service.TickCountMs = () => Volatile.Read(ref now);
+    return (clipboard, service, ms => Interlocked.Add(ref now, ms));
+}
+
+static TimeSpan EmptyClipboardRestoreDelay() => TimeSpan.FromSeconds(3);
+
+static async Task InjectionEmptyClipboardChainLeavesSecondTranscript()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(1_000);
+    await DictateAsync(service, "transcript B");
+    Assert.True(!service.HoldsSnapshot);
+    // With A snapshotted (main), this 20 ms restore would write A back; with none, nothing runs.
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    advance(10_000);
+    await Task.Delay(300);
+    Assert.Equal("transcript B", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
+}
+
+static async Task InjectionEmptyClipboardThreeChainLeavesLastTranscript()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    foreach (var text in new[] { "transcript A", "transcript B", "transcript C" })
+    {
+        await DictateAsync(service, text);
+        service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+        // Each window starts at its own schedule, so 7.5 s in all stays inside every 3 s delay.
+        advance(2_500);
+    }
+    Assert.True(!service.HoldsSnapshot);
+    await Task.Delay(100);
+    Assert.Equal("transcript C", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
+}
+
+static async Task InjectionEmptyClipboardTranscriptAfterDelayIsRestored()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    // The delay has ended: A is the clipboard's content now, and comes back after B, as before.
+    advance(3_000);
+    await DictateAsync(service, "transcript B");
+    Assert.True(service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("transcript A", clipboard.Text);
+}
+
+static async Task InjectionEmptyClipboardUserCopyComesBack()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    clipboard.UserCopy("user copy");
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionEmptyClipboardRestoreOffIsSnapshotted()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    // Restore after paste off: no restore is scheduled, so A stays on purpose and is the user's.
+    await DictateAsync(service, "transcript A");
+    advance(500);
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("transcript A", clipboard.Text);
+}
+
+static Task InjectionEmptyClipboardNoWriteSessionKeepsWindow() =>
+    EmptyClipboardSessionWithoutWriteKeepsWindow(async service =>
+    {
+        service.StartSession();
+        service.EndSession();
+        service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+        await Task.CompletedTask;
+    });
+
+static Task InjectionEmptyClipboardCancelledSessionKeepsWindow() =>
+    EmptyClipboardSessionWithoutWriteKeepsWindow(async service =>
+    {
+        service.StartSession();
+        service.EndSession();
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    });
+
+// Review round 2: a dictation inside A's window that writes the same text with restore off leaves
+// it on purpose, so the next one snapshots it and puts it back, as after any restore-off write.
+static async Task InjectionEmptyClipboardRestoreOffWriteEndsWindow()
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "same text");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    await DictateAsync(service, "same text");
+    advance(500);
+    await DictateAsync(service, "transcript C");
+    Assert.True(service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("same text", clipboard.Text);
+}
+
+// A session inside A's window that writes nothing (silence, a cancel) keeps the mark, as the
+// non-empty chain does, so a third dictation still inside A's delay leaves its own transcript.
+static async Task EmptyClipboardSessionWithoutWriteKeepsWindow(Func<LinuxTextInjectionService, Task> secondSession)
+{
+    var (clipboard, service, advance) = NewEmptyClipboardInjection();
+    using var _ = service;
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(EmptyClipboardRestoreDelay());
+    advance(500);
+    await secondSession(service);
+    advance(500);
+    await DictateAsync(service, "transcript C");
+    Assert.True(!service.HoldsSnapshot);
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await Task.Delay(300);
+    Assert.Equal("transcript C", clipboard.Text);
+    Assert.Equal(0, clipboard.RestoreCalls);
 }
 
 static async Task InjectionCopyOnlyChainKeepsUserClipboard()
@@ -4681,6 +4832,8 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     using var supported = new LinuxSoundEffectsService(runner, "/usr/bin/pw-play", directory);
     Assert.True(supported.ConfigureVolume(0.375).IsSuccess);
     Assert.Success(supported.Play(SoundEffect.RecordingStarted));
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+    while (runner.CallCount == 0 && DateTime.UtcNow < deadline) Thread.Sleep(10);
     Assert.Equal("--volume=0.375", runner.Calls[0].Arguments[0]);
     Assert.Equal(Path.Combine(directory, "start1.wav"), runner.Calls[0].Arguments[1]);
     Assert.True(supported.ConfigureVolume(double.NaN).IsFailure);
@@ -4688,6 +4841,25 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     supported.Dispose(); Assert.True(supported.Play(SoundEffect.RecordingStarted).IsFailure);
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "start1.wav")));
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "stop1.wav")));
+});
+
+// #2453: paplay exits only once the chime has drained on the sink, and Play is called on the UI
+// thread. A player that never finishes must not hold the caller.
+static Task SoundEffectDoesNotBlockCaller() => WithTemporaryDirectory(directory =>
+{
+    File.WriteAllBytes(Path.Combine(directory, "stop1.wav"), [1]);
+    var runner = new BlockingDesktopCommandRunner();
+    using var service = new LinuxSoundEffectsService(runner, "/usr/bin/paplay", directory);
+    var play = Task.Run(() => service.Play(SoundEffect.RecordingStopped));
+    try
+    {
+        Assert.True(play.Wait(TimeSpan.FromSeconds(1)), "Play blocked while the player was still running.");
+        Assert.Success(play.Result);
+        Assert.True(runner.Started.Wait(TimeSpan.FromSeconds(5)), "The player was never started.");
+        Assert.Equal("/usr/bin/paplay", runner.Executable);
+        Assert.Equal(Path.Combine(directory, "stop1.wav"), runner.Arguments![1]);
+    }
+    finally { runner.Finish(); }
 });
 
 static async Task PackageUpdateProbe()
@@ -5094,7 +5266,9 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         if (ThrowOnCapture) throw new InvalidOperationException("test");
         if (CaptureFailureCode is { } code)
             return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Failure(code, "test"));
-        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+        // An empty clipboard reads as no snapshot, as CommandClipboardBackend.CaptureAsync returns it (#2269).
+        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(
+            Formats.Count == 0 ? null : new ClipboardSnapshot(Clone(Formats))));
     }
     /// <summary>When set, a restore waits for it and ignores cancellation, as a helper already writing does.</summary>
     public TaskCompletionSource? RestoreGate { get; set; }
@@ -5182,15 +5356,37 @@ sealed class FakeNativeClipboardOwner : INativeClipboardOwner
 
 sealed record DesktopCommandCall(string Executable, IReadOnlyList<string> Arguments, byte[]? Input, TimeSpan Timeout);
 
+/// <summary>A player that runs until Finish, as paplay does until the sound drains (#2453).</summary>
+sealed class BlockingDesktopCommandRunner : IDesktopCommandRunner
+{
+    private readonly TaskCompletionSource<ExternalProcessResult> _exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public ManualResetEventSlim Started { get; } = new();
+    public string? Executable { get; private set; }
+    public IReadOnlyList<string>? Arguments { get; private set; }
+    public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
+        byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
+    {
+        Executable = executable;
+        Arguments = arguments.ToArray();
+        Started.Set();
+        return _exit.Task;
+    }
+    public void Finish() => _exit.TrySetResult(new ExternalProcessResult(0, []));
+}
+
 sealed class FakeDesktopCommandRunner(params object[] outcomes) : IDesktopCommandRunner
 {
     private readonly Queue<object> _outcomes = new(outcomes);
     public List<DesktopCommandCall> Calls { get; } = [];
+    // Read from another thread when the call runs off the caller's (#2453): bumped after Calls.Add.
+    public int CallCount => Volatile.Read(ref _callCount);
+    private int _callCount;
     public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
         byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Calls.Add(new DesktopCommandCall(executable, arguments.ToArray(), input?.ToArray(), timeout));
+        Interlocked.Increment(ref _callCount);
         if (!_outcomes.TryDequeue(out var outcome)) throw new InvalidOperationException("No fake command result was configured.");
         if (outcome is Exception exception) return Task.FromException<ExternalProcessResult>(exception);
         return Task.FromResult((ExternalProcessResult)outcome);

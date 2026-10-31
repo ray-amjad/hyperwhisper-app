@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Functies",
+    "modes": "Modi",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -16,26 +17,36 @@
       "switchTo": "Taal wisselen"
     },
     "cloud": "Cloud",
-    "githubAria": "Bekijk HyperWhisper op GitHub"
+    "githubAria": "Bekijk HyperWhisper op GitHub",
+    "skipToContent": "Naar inhoud springen"
   },
   "hero": {
-    "logoAlt": "HyperWhisper-logo",
-    "headline": "Schrijf, composeer en creëer",
-    "headlineAccent": "5x sneller met AI",
-    "subheadline": "HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid. Spreek natuurlijk en zie je woorden direct verschijnen.",
-    "downloadCta": "Nu downloaden",
-    "demoCta": "Demo bekijken",
-    "availableOn": "Beschikbaar op",
+    "badge": "Nieuw",
+    "headline": "Gewoon praten.",
+    "headlineAccent": "Wij typen.",
+    "subheadline": "Verzorgde tekst in elke app.",
+    "downloadMac": "Download voor Mac",
+    "freeForever": "Altijd gratis",
+    "worksOffline": "Werkt offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Scrol",
+    "closing": {
+      "line1": "Stop met typen.",
+      "line2": "Begin met praten.",
+      "meta": "Gratis en open source. Geen account nodig."
+    }
   },
   "features": {
-    "title": "Gemaakt voor professionals",
-    "subtitle": "Elke functie is ontworpen om je sneller en efficiënter te laten werken",
+    "title": "Gemaakt voor mensen die de hele dag schrijven.",
     "customVocabulary": {
       "title": "Aangepaste woordenschat",
       "description": "Voeg namen, afkortingen en speciale termen toe voor maximale nauwkeurigheid, elke keer weer."
+    },
+    "realTime": {
+      "title": "Realtime streaming",
+      "description": "Zie je woorden direct verschijnen terwijl je spreekt. Toonaangevende nauwkeurigheid met minder dan 700 ms latency."
     },
     "languages": {
       "title": "100+ talen",
@@ -45,25 +56,9 @@
       "title": "Offline ondersteuning",
       "description": "Werkt volledig offline. Je data verlaat je apparaat nooit."
     },
-    "privacy": {
-      "title": "Privacygericht",
-      "description": "Geen account nodig. Geen tracking. Je spraakdata blijft op je Mac of pc."
-    },
-    "hybridProcessing": {
-      "title": "Hybride verwerking",
-      "description": "Kies tussen lokale modellen voor privacy of cloud-API's voor snelheid. Het beste van beide werelden."
-    },
-    "customizable": {
-      "title": "Zeer aanpasbaar",
-      "description": "Kies uit meer dan 9 API-providers en 30+ transcriptiemodellen."
-    },
-    "realTime": {
-      "title": "Realtime streaming",
-      "description": "Zie je woorden direct verschijnen terwijl je spreekt. Toonaangevende nauwkeurigheid met minder dan 700 ms latency."
-    },
-    "fileImport": {
-      "title": "Bestandsimport",
-      "description": "Importeer audio- of videobestanden om te transcriberen. Ondersteunt alle gangbare formaten met automatische stiltdetectie."
+    "openSource": {
+      "title": "Open source",
+      "description": "Gelicentieerd onder Apache-2.0. Bekijk elke regel, fork het of host het zelf. Geen black boxes, geen lock-in."
     },
     "screenOcr": {
       "title": "Scherm-OCR",
@@ -73,28 +68,57 @@
       "title": "Lokale API & MCP-server",
       "description": "De ingebouwde MCP-server laat Claude, Cursor en andere AI-agents HyperWhisper aansturen. Lokale HTTP-API voor scripts en automatiseringen."
     },
+    "fileImport": {
+      "title": "Bestandsimport",
+      "description": "Importeer audio- of videobestanden om te transcriberen. Ondersteunt alle gangbare formaten met automatische stiltdetectie."
+    },
     "modes": {
-      "title": "Modi voor elke situatie",
-      "description": "Schakel tussen verschillende transcriptiemodi, geoptimaliseerd voor vergaderingen, notities, e-mails, coderen en meer. Elke modus gebruikt aangepaste prompts om je tekst perfect op te maken.",
-      "meeting": "Vergadering",
+      "heading": "Eén stem. Elk formaat.",
+      "lead": "Elke modus herschrijft wat je zei voor waar het naartoe gaat.",
       "email": "E-mail",
       "note": "Notitie",
       "code": "Code",
+      "meeting": "Vergadering",
       "legal": "Juridisch",
       "medical": "Medisch",
-      "presetModes": "Vooraf ingestelde modi",
-      "customModes": "Aangepaste modi"
-    },
-    "openSource": {
-      "title": "Open source",
-      "description": "Gelicentieerd onder Apache-2.0. Bekijk elke regel, fork het of host het zelf. Geen black boxes, geen lock-in."
+      "youSaid": "Jij zei",
+      "hyperWhisperWrote": "HyperWhisper schreef",
+      "sample": "eh dus zeg tegen john dat de launch naar donderdag gaat omdat linux QA nog niet klaar is en uhm bedankt voor je geduld",
+      "output": {
+        "email": "Hoi John,\n\nDe launch verschuift naar donderdag, zodat we de Linux-QA kunnen afronden. Bedankt voor je geduld.\n\nGroet,",
+        "note": "• Launch → donderdag\n• Blokkade: Linux-QA niet afgerond\n• John informeren",
+        "code": "// TODO(john): launch verschoven naar donderdag, Linux-QA nog bezig",
+        "meeting": "Besluit: launch verschuift naar donderdag.\nReden: Linux-QA niet afgerond.\nActie: John informeren.",
+        "legal": "Hierbij delen wij u mede dat de lanceringsdatum is verplaatst naar donderdag, in afwachting van de afronding van de kwaliteitscontrole voor Linux.",
+        "medical": "Plan: launch uitstellen tot donderdag. Status: Linux-QA in behandeling. Vervolg: John informeren."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Werkt overal waar je schrijft",
+    "eyebrow": "Zo werkt het",
+    "titleLine1": "Druk op een toets.",
+    "titleLine2": "Zeg het.",
+    "titleAccent": "Klaar.",
+    "lead": "Je woorden verschijnen, netjes opgeschoond, waar je cursor staat.",
+    "step1": "Druk op je sneltoets",
+    "step2Key": "Praat",
+    "step2": "Praat zoals je normaal zou doen",
+    "step3Key": "Druk opnieuw",
+    "step3": "Schone tekst, direct geplakt",
+    "watchVideo": "Bekijk de volledige demo",
+    "closeVideo": "Video sluiten",
+    "exampleLabel": "Geanimeerd voorbeeld: een ingesproken antwoord wordt in een Slack-bericht getypt",
+    "message1": "Kunnen we de Linux-build donderdag nog steeds uitbrengen?",
+    "message2": "QA is bij mij geslaagd 👍",
+    "composePlaceholder": "Bericht aan #launch",
+    "typed": "Ja, de Linux-QA is vanochtend geslaagd, dus donderdag is prima. Ik post de release notes voor de middag.",
+    "listening": "Luistert",
+    "cleaningUp": "Opschonen…",
     "fasterThanTyping": "Sneller dan typen",
     "accuracyRate": "Nauwkeurigheid",
     "languagesSupported": "Ondersteunde talen",
-    "providersSupported": "Ondersteunde providers"
+    "modelsSupported": "Transcriptiemodellen"
   },
   "faq": {
     "title": "Veelgestelde vragen",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Welke offline modellen zijn beschikbaar?",
-        "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 3-model (gemaakt door Google)."
+        "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 4-model (gemaakt door Google)."
       },
       "compatibility": {
         "question": "Werkt het met al mijn apps?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Supportverzoek",
       "body": "Hoi,\n\nVersie: \n[je kunt dit controleren in Instellingen > Over]\n\nProbleem: \n[Beschrijf je probleem]\n\nDetails: \n[Geef relevante details, wat deed je vóór de crash]\n\n[Jouw bericht hier]\n\nMet vriendelijke groet,"
-    }
+    },
+    "helpCenterHint": "Installatie, sneltoetsen en modellen.",
+    "chooseModelHint": "Rangschik de modellen naar hoe jij werkt.",
+    "accountHint": "Log in met je accountsleutel.",
+    "chooseModelTitle": "Kies een model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Log uit en weer in nadat je lid bent geworden van de groep input. Lidmaatschap is optioneel, maar is nodig voor globale sneltoetsen en automatisch plakken.",
     "aptTitle": "Host zelf een APT-repository",
     "aptBody": "Linux-releases bevatten ook een statisch APT-repositoryarchief. HyperWhisper beheert momenteel geen openbaar APT-endpoint; zie de Linux-installatiehandleiding voor een ondertekende, zelf gehoste installatie, desktopcomponenten, privacydetails en verwijdering.",
-    "linuxGuideCta": "Lees de Linux-installatiehandleiding"
+    "linuxGuideCta": "Lees de Linux-installatiehandleiding",
+    "heroLead": "Gratis en open source. Kies je platform.",
+    "releaseNotes": "Release notes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Oudere versies",
@@ -280,6 +313,7 @@
       "dataTraining": "Gegevensprivacy"
     },
     "copyright": "© 2026 HyperWhisper. Alle rechten voorbehouden.",
+    "madeBy": "Gemaakt door Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Volg HyperWhisper op X (Twitter)",
     "githubAria": "HyperWhisper op GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Deze inloglink is verlopen of al gebruikt. Vul je e-mailadres in om een nieuwe te krijgen.",
     "magicLinkFailed": "We konden je niet inloggen met die link. Vul je e-mailadres in om een nieuwe te krijgen."
+  },
+  "legal": {
+    "onThisPage": "Op deze pagina"
   }
 }

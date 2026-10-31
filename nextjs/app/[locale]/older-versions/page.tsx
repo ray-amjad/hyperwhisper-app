@@ -1,16 +1,31 @@
 "use client";
 
-import { Card, CardBody } from "@heroui/card";
-import { Button } from "@heroui/button";
 import { Download, Calendar, HardDrive, Monitor, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { BTN_GLASS, BTN_WHITE, WRAP } from "@/components/landing/dusk";
+import {
+  SECTION,
+  SEG,
+  SEG_ITEM,
+  SEG_OFF,
+  SEG_ON,
+} from "@/components/landing/dusk-pages";
 import { intlLocale } from "@/lib/format-date";
 import { reportClientError } from "@/lib/shared/report-client-error";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
+
+/** A version card; the newest one gets the lit variant. */
+const CARD =
+  "h-full rounded-[22px] border p-6 transition-[border-color,background-color] duration-150 motion-reduce:transition-none";
+const CARD_PLAIN =
+  "border-[var(--dusk-line)] bg-[var(--dusk-glass)] hover:border-[rgba(196,181,253,.28)]";
+const CARD_LATEST =
+  "border-[rgba(196,181,253,.35)] bg-[linear-gradient(180deg,rgba(129,90,220,.2),rgba(255,255,255,.03))]";
 
 // `formatDate` runs in render, once per row: report its failure once per tab,
 // not once per row per render (#739).
@@ -57,7 +72,7 @@ interface Version {
  * - Displays versions in reverse chronological order (newest first)
  * - Shows formatted release dates and file sizes
  * - Provides direct download links for each version
- * - Matches the support page width and design pattern
+ * - The Dusk sub-page design: the sky band, then a grid of glass cards
  */
 export default function DownloadsPage() {
   const t = useTranslations("olderVersions");
@@ -125,8 +140,7 @@ export default function DownloadsPage() {
             item.querySelector(
               "sparkle\\:minimumSystemVersion, minimumSystemVersion",
             )?.textContent || "";
-          const os =
-            item.querySelector("sparkle\\:os, os")?.textContent || "";
+          const os = item.querySelector("sparkle\\:os, os")?.textContent || "";
           const enclosure = item.querySelector("enclosure");
           const downloadUrl = enclosure?.getAttribute("url") || "";
           const fileSize = parseInt(enclosure?.getAttribute("length") || "0");
@@ -135,6 +149,7 @@ export default function DownloadsPage() {
 
           // Determine architecture label from sparkle:os (e.g. "windows-x64" -> "x64")
           let arch = "";
+
           if (os.includes("arm64")) arch = "ARM64";
           else if (os.includes("x64")) arch = "x64";
 
@@ -163,7 +178,10 @@ export default function DownloadsPage() {
         setLoading(false);
       } catch (err) {
         // Ignore aborts triggered by cleanup / a newer platform selection.
-        if (ignore || (err instanceof DOMException && err.name === "AbortError")) {
+        if (
+          ignore ||
+          (err instanceof DOMException && err.name === "AbortError")
+        ) {
           return;
         }
         void reportClientError("older_versions.fetch", err, {
@@ -206,6 +224,7 @@ export default function DownloadsPage() {
       });
     } catch (error) {
       reportFormatDateFailure(error);
+
       return dateString;
     }
   };
@@ -231,152 +250,129 @@ export default function DownloadsPage() {
     listPlatform === "mac" ? t("downloadDmg") : t("downloadExe");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
-      <div className="max-w-3xl mx-auto">
-        {/* Page Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
-          </h1>
-          <p className="text-lg text-gray-400">{t("subtitle")}</p>
-          <div className="mt-4 inline-flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-full px-2 py-1">
-            <Button
-              aria-pressed={selectedPlatform === "mac"}
-              className={`text-sm px-4 py-2 rounded-full ${
-                selectedPlatform === "mac"
-                  ? "bg-purple-600 text-white"
-                  : "text-gray-300 bg-transparent"
-              }`}
-              size="sm"
-              variant="light"
-              onPress={() => setSelectedPlatform("mac")}
-            >
-              macOS
-            </Button>
-            <Button
-              aria-pressed={selectedPlatform === "windows"}
-              className={`text-sm px-4 py-2 rounded-full ${
-                selectedPlatform === "windows"
-                  ? "bg-purple-600 text-white"
-                  : "text-gray-300 bg-transparent"
-              }`}
-              size="sm"
-              variant="light"
-              onPress={() => setSelectedPlatform("windows")}
-            >
-              Windows
-            </Button>
-          </div>
+    <DuskPage>
+      <PageHero lead={t("subtitle")} title={t("title")}>
+        <div className={SEG}>
+          <button
+            aria-pressed={selectedPlatform === "mac"}
+            className={`${SEG_ITEM} ${selectedPlatform === "mac" ? SEG_ON : SEG_OFF}`}
+            type="button"
+            onClick={() => setSelectedPlatform("mac")}
+          >
+            macOS
+          </button>
+          <button
+            aria-pressed={selectedPlatform === "windows"}
+            className={`${SEG_ITEM} ${selectedPlatform === "windows" ? SEG_ON : SEG_OFF}`}
+            type="button"
+            onClick={() => setSelectedPlatform("windows")}
+          >
+            Windows
+          </button>
         </div>
+      </PageHero>
 
-        {/* Error State */}
-        {error !== null && (
-          <div className="text-center">
-            <Card className="bg-red-900/20 backdrop-blur-xl border-red-800">
-              <CardBody className="p-8">
-                <p className="text-red-400 text-lg" role="alert">
-                  {t("errorLoading", { error: error || t("unknownError") })}
-                </p>
-              </CardBody>
-            </Card>
-          </div>
-        )}
+      <section className={SECTION}>
+        <div className={`${WRAP} max-w-[960px]`}>
+          {/* Error State */}
+          {error !== null && (
+            <div className="rounded-[22px] border border-red-400/30 bg-red-500/[.08] p-8 text-center">
+              <p className="text-lg text-red-300" role="alert">
+                {t("errorLoading", { error: error || t("unknownError") })}
+              </p>
+            </div>
+          )}
 
-        {/* The skeleton is aria-hidden, so this always-mounted live region
-            announces the first load and every platform-switch refetch. */}
-        <p className="sr-only" role="status">
-          {loading ? t("loading") : ""}
-        </p>
+          {/* The skeleton is aria-hidden, so this always-mounted live region
+              announces the first load and every platform-switch refetch. */}
+          <p className="sr-only" role="status">
+            {loading ? t("loading") : ""}
+          </p>
 
-        {/* Versions List: skeleton and content share one slot and cross-fade.
-            A platform switch keeps the previous list mounted, dimmed. */}
-        {error === null && (
-          <div className="t-skel grid mb-12">
-            <div
-              aria-hidden
-              className={`t-skel-skeleton [grid-area:1/1] pointer-events-none grid grid-cols-1 md:grid-cols-2 gap-4 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                loading && versions.length === 0
-                  ? "opacity-100 blur-[0px]"
-                  : "opacity-0 blur-[2px]"
-              }`}
-            >
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Card
-                  key={i}
-                  className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 h-full"
-                >
-                  <CardBody className="p-6 space-y-4">
+          {/* Versions List: skeleton and content share one slot and cross-fade.
+              A platform switch keeps the previous list mounted, dimmed. */}
+          {error === null && (
+            <div className="t-skel grid">
+              <div
+                aria-hidden
+                className={`t-skel-skeleton [grid-area:1/1] pointer-events-none grid grid-cols-1 md:grid-cols-2 gap-4 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                  loading && versions.length === 0
+                    ? "opacity-100 blur-[0px]"
+                    : "opacity-0 blur-[2px]"
+                }`}
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className={`${CARD} ${CARD_PLAIN} space-y-4`}>
                     {["w-32", "w-40", "w-24", "w-28"].map((w) => (
                       <div
                         key={w}
                         className={`h-4 bg-white/10 rounded ${w} animate-pulse motion-reduce:animate-none`}
                       />
                     ))}
-                    <div className="h-10 bg-white/10 rounded animate-pulse motion-reduce:animate-none" />
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-            <div
-              aria-busy={loading}
-              inert={loading}
-              className={`t-skel-content [grid-area:1/1] grid grid-cols-1 md:grid-cols-2 gap-4 content-start transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
-                !loading && revealed
-                  ? "opacity-100 blur-[0px]"
-                  : versions.length > 0
-                    ? "opacity-40 blur-[2px]"
-                    : "opacity-0 blur-[2px]"
-              }`}
-            >
-              {versions.map((version, index) => (
-                <Card
-                  key={version.buildNumber}
-                  className={`bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-purple-700/50 transition-[border-color] duration-150 h-full ${
-                    isLatestVersion(index)
-                      ? "ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/20"
-                      : ""
-                  }`}
-                >
-                  <CardBody className="p-6">
+                    <div className="h-12 bg-white/10 rounded-full animate-pulse motion-reduce:animate-none" />
+                  </div>
+                ))}
+              </div>
+              <div
+                aria-busy={loading}
+                className={`t-skel-content [grid-area:1/1] grid grid-cols-1 md:grid-cols-2 gap-4 content-start transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                  !loading && revealed
+                    ? "opacity-100 blur-[0px]"
+                    : versions.length > 0
+                      ? "opacity-40 blur-[2px]"
+                      : "opacity-0 blur-[2px]"
+                }`}
+                inert={loading}
+              >
+                {versions.map((version, index) => (
+                  <div
+                    key={version.buildNumber}
+                    className={`${CARD} ${isLatestVersion(index) ? CARD_LATEST : CARD_PLAIN}`}
+                  >
                     {/* Version Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div
-                          className={`p-2.5 rounded-lg ${
-                            isLatestVersion(index)
-                              ? "bg-gradient-to-br from-purple-600 to-blue-600"
-                              : "bg-purple-900/30"
-                          }`}
-                        >
-                          {isLatestVersion(index) ? (
-                            <Sparkles className="w-5 h-5 text-white" />
-                          ) : (
-                            <Download className="w-5 h-5 text-purple-400" />
+                    <div className="mb-4 flex items-start gap-3">
+                      <div
+                        className={`grid size-[38px] shrink-0 place-items-center rounded-[11px] ${
+                          isLatestVersion(index)
+                            ? "bg-white text-[#0b0b14]"
+                            : "bg-[rgba(196,181,253,.12)] text-[var(--dusk-lav)]"
+                        }`}
+                      >
+                        {isLatestVersion(index) ? (
+                          <Sparkles
+                            aria-hidden="true"
+                            className="size-[18px]"
+                          />
+                        ) : (
+                          <Download
+                            aria-hidden="true"
+                            className="size-[18px]"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <h3 className="text-xl font-semibold tracking-[-0.02em] text-white">
+                            v{version.version}
+                          </h3>
+                          {isLatestVersion(index) && (
+                            <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-[#111]">
+                              {t("latest")}
+                            </span>
                           )}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-bold text-white">
-                              v{version.version}
-                            </h3>
-                            {isLatestVersion(index) && (
-                              <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full">
-                                {t("latest")}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-400">
-                            {t("build", { number: version.buildNumber })}
-                          </p>
-                        </div>
+                        <p className="text-sm text-[var(--dusk-dim)]">
+                          {t("build", { number: version.buildNumber })}
+                        </p>
                       </div>
                     </div>
 
                     {/* Version Details */}
-                    <div className="space-y-3 mb-5">
-                      <div className="flex items-center gap-2 text-gray-400">
+                    <div className="mb-5 space-y-2.5 text-[var(--dusk-mute)]">
+                      <div className="flex items-center gap-2">
                         <Calendar
-                          className="w-4 h-4 text-purple-400"
+                          aria-hidden="true"
+                          className="size-4 text-[var(--dusk-lav)]"
                           strokeWidth={1.5}
                         />
                         <span className="text-sm">
@@ -387,9 +383,10 @@ export default function DownloadsPage() {
                           multi-arch card puts each file's size on its own
                           button (#2086). */}
                       {version.downloads.length === 1 && (
-                        <div className="flex items-center gap-2 text-gray-400">
+                        <div className="flex items-center gap-2">
                           <HardDrive
-                            className="w-4 h-4 text-purple-400"
+                            aria-hidden="true"
+                            className="size-4 text-[var(--dusk-lav)]"
                             strokeWidth={1.5}
                           />
                           <span className="text-sm">
@@ -399,9 +396,10 @@ export default function DownloadsPage() {
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-gray-400">
+                      <div className="flex items-center gap-2">
                         <Monitor
-                          className="w-4 h-4 text-purple-400"
+                          aria-hidden="true"
+                          className="size-4 text-[var(--dusk-lav)]"
                           strokeWidth={1.5}
                         />
                         <span className="text-sm">
@@ -411,25 +409,16 @@ export default function DownloadsPage() {
                     </div>
 
                     {/* Download Button(s) */}
-                    <div className={`flex gap-2 ${version.downloads.length > 1 ? "flex-col sm:flex-row" : ""}`}>
+                    <div
+                      className={`flex gap-2 ${version.downloads.length > 1 ? "flex-col sm:flex-row" : ""}`}
+                    >
                       {version.downloads.map((dl) => (
-                        <Button
+                        <a
                           key={dl.arch || "default"}
-                          as="a"
-                          className={`flex-1 ${
-                            isLatestVersion(index)
-                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
-                              : "bg-purple-600/20 hover:bg-purple-600/30 text-purple-300"
-                          }`}
+                          className={`${isLatestVersion(index) ? BTN_WHITE : BTN_GLASS} min-h-12 flex-1 px-5 py-2.5 text-[15px]`}
                           href={dl.downloadUrl}
-                          size="lg"
-                          startContent={
-                            <Download
-                              className="w-4 h-4 shrink-0"
-                              strokeWidth={isLatestVersion(index) ? 2 : 1.5}
-                            />
-                          }
                         >
+                          <Download aria-hidden="true" />
                           {version.downloads.length > 1 ? (
                             // Two buttons share a ~350px row: the size goes on
                             // a second line, so the label, size and icon fit.
@@ -446,16 +435,16 @@ export default function DownloadsPage() {
                           ) : (
                             downloadLabel
                           )}
-                        </Button>
+                        </a>
                       ))}
                     </div>
-                  </CardBody>
-                </Card>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      </section>
+    </DuskPage>
   );
 }

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Fitur",
+    "modes": "Mode",
     "faq": "FAQ",
     "support": "Dukungan",
     "download": "Unduh",
@@ -16,26 +17,36 @@
       "switchTo": "Ganti bahasa"
     },
     "cloud": "Cloud",
-    "githubAria": "Lihat HyperWhisper di GitHub"
+    "githubAria": "Lihat HyperWhisper di GitHub",
+    "skipToContent": "Langsung ke konten"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Tulis, susun, dan ciptakan",
-    "headlineAccent": "5x lebih cepat dengan AI",
-    "subheadline": "HyperWhisper mentranskripsikan suara Anda dengan akurasi luar biasa. Cukup bicara secara natural dan lihat kata-kata Anda muncul seketika.",
-    "downloadCta": "Unduh sekarang",
-    "demoCta": "Lihat demo",
-    "availableOn": "Tersedia di",
+    "badge": "Baru",
+    "headline": "Cukup bicara.",
+    "headlineAccent": "Kami yang ketik.",
+    "subheadline": "Teks rapi di aplikasi apa pun.",
+    "downloadMac": "Unduh untuk Mac",
+    "freeForever": "Gratis selamanya",
+    "worksOffline": "Bisa offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Gulir",
+    "closing": {
+      "line1": "Berhenti mengetik.",
+      "line2": "Mulai bicara.",
+      "meta": "Gratis dan sumber terbuka. Tanpa perlu akun."
+    }
   },
   "features": {
-    "title": "Dibuat untuk profesional",
-    "subtitle": "Setiap fitur dirancang untuk membantu Anda bekerja lebih cepat dan efisien",
+    "title": "Dibuat untuk orang yang menulis seharian.",
     "customVocabulary": {
       "title": "Kosakata kustom",
       "description": "Tambahkan nama, akronim, dan istilah khusus untuk akurasi sempurna setiap saat."
+    },
+    "realTime": {
+      "title": "Streaming real-time",
+      "description": "Lihat kata-kata Anda muncul seketika saat Anda berbicara. Akurasi terdepan di industri dengan latensi di bawah 700ms."
     },
     "languages": {
       "title": "100+ Bahasa",
@@ -45,25 +56,9 @@
       "title": "Dukungan offline",
       "description": "Berfungsi sepenuhnya offline. Data Anda tidak pernah meninggalkan perangkat Anda."
     },
-    "privacy": {
-      "title": "Fokus pada privasi",
-      "description": "Tidak perlu akun. Tanpa pelacakan. Data suara Anda tetap di Mac atau PC Anda."
-    },
-    "hybridProcessing": {
-      "title": "Pemrosesan hibrida",
-      "description": "Pilih model lokal untuk privasi atau API cloud untuk kecepatan. Yang terbaik dari kedua dunia."
-    },
-    "customizable": {
-      "title": "Sangat bisa dikustomisasi",
-      "description": "Pilih dari 9+ penyedia API dan 30+ model transkripsi."
-    },
-    "realTime": {
-      "title": "Streaming real-time",
-      "description": "Lihat kata-kata Anda muncul seketika saat Anda berbicara. Akurasi terdepan di industri dengan latensi di bawah 700ms."
-    },
-    "fileImport": {
-      "title": "Impor file",
-      "description": "Impor file audio atau video untuk ditranskripsikan. Mendukung semua format utama dengan deteksi jeda otomatis."
+    "openSource": {
+      "title": "Sumber Terbuka",
+      "description": "Berlisensi Apache-2.0. Periksa setiap baris, fork, atau host sendiri. Tanpa kotak hitam, tanpa lock-in."
     },
     "screenOcr": {
       "title": "OCR Layar",
@@ -73,28 +68,57 @@
       "title": "API Lokal & Server MCP",
       "description": "Server MCP bawaan memungkinkan Claude, Cursor, dan agen AI lainnya menjalankan HyperWhisper. API HTTP khusus lokal untuk skrip dan otomatisasi."
     },
+    "fileImport": {
+      "title": "Impor file",
+      "description": "Impor file audio atau video untuk ditranskripsikan. Mendukung semua format utama dengan deteksi jeda otomatis."
+    },
     "modes": {
-      "title": "Mode untuk setiap situasi",
-      "description": "Beralih antar mode transkripsi yang dioptimalkan untuk rapat, catatan, email, coding, dan lainnya. Setiap mode memakai prompt kustom untuk memformat teks Anda dengan sempurna.",
-      "meeting": "Rapat",
+      "heading": "Satu suara. Semua format.",
+      "lead": "Setiap mode menulis ulang ucapan Anda sesuai tujuannya.",
       "email": "Email",
       "note": "Catatan",
       "code": "Kode",
+      "meeting": "Rapat",
       "legal": "Legal",
       "medical": "Medis",
-      "presetModes": "Mode bawaan",
-      "customModes": "Mode kustom"
-    },
-    "openSource": {
-      "title": "Sumber Terbuka",
-      "description": "Berlisensi Apache-2.0. Periksa setiap baris, fork, atau host sendiri. Tanpa kotak hitam, tanpa lock-in."
+      "youSaid": "Anda bilang",
+      "hyperWhisperWrote": "HyperWhisper menulis",
+      "sample": "eh jadi bilang ke john peluncurannya mundur ke kamis soalnya QA linux belum selesai terus emm makasih ya udah sabar",
+      "output": {
+        "email": "Halo John,\n\nPeluncuran diundur ke hari Kamis selagi kami menyelesaikan QA Linux. Terima kasih atas kesabaran Anda.\n\nSalam,",
+        "note": "• Peluncuran → Kamis\n• Kendala: QA Linux belum selesai\n• Kabari John",
+        "code": "// TODO(john): peluncuran diundur ke Kamis, QA Linux masih berjalan",
+        "meeting": "Keputusan: peluncuran diundur ke Kamis.\nAlasan: QA Linux belum selesai.\nPenanggung jawab: kabari John.",
+        "legal": "Dengan ini kami sampaikan bahwa tanggal peluncuran telah dijadwalkan ulang ke hari Kamis, menunggu selesainya penjaminan mutu Linux.",
+        "medical": "Rencana: tunda peluncuran ke Kamis. Status: QA Linux tertunda. Tindak lanjut: informasikan John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Berfungsi di mana pun Anda menulis",
+    "eyebrow": "Cara kerjanya",
+    "titleLine1": "Tekan tombol.",
+    "titleLine2": "Ucapkan.",
+    "titleAccent": "Selesai.",
+    "lead": "Kata-kata Anda muncul dalam keadaan rapi, tepat di posisi kursor.",
+    "step1": "Tekan pintasan Anda",
+    "step2Key": "Bicara",
+    "step2": "Bicaralah seperti biasa",
+    "step3Key": "Tekan lagi",
+    "step3": "Teks rapi, langsung tertempel di tempatnya",
+    "watchVideo": "Tonton demo lengkap",
+    "closeVideo": "Tutup video",
+    "exampleLabel": "Contoh animasi: balasan yang diucapkan diketik ke dalam pesan Slack",
+    "message1": "Kita masih aman rilis build Linux hari Kamis?",
+    "message2": "QA sudah lolos dari sisi saya 👍",
+    "composePlaceholder": "Kirim pesan ke #launch",
+    "typed": "Ya, QA Linux lolos tadi pagi, jadi Kamis aman. Saya akan posting catatan rilis sebelum jam makan siang.",
+    "listening": "Mendengarkan",
+    "cleaningUp": "Merapikan…",
     "fasterThanTyping": "Lebih cepat dari mengetik",
     "accuracyRate": "Tingkat akurasi",
     "languagesSupported": "Bahasa didukung",
-    "providersSupported": "Penyedia didukung"
+    "modelsSupported": "Model transkripsi"
   },
   "faq": {
     "title": "Pertanyaan yang sering diajukan",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Model offline apa yang tersedia?",
-        "answer": "Untuk transkripsi offline, kami menawarkan beberapa ukuran model Whisper (dibuat oleh OpenAI, mendukung 99+ bahasa). Kami juga menawarkan model Parakeet dari NVidia (mendukung 25+ bahasa).\n      \n      Untuk pascapemrosesan offline, kami menawarkan beberapa ukuran model Gemma 3 (dibuat oleh Google)."
+        "answer": "Untuk transkripsi offline, kami menawarkan beberapa ukuran model Whisper (dibuat oleh OpenAI, mendukung 99+ bahasa). Kami juga menawarkan model Parakeet dari NVidia (mendukung 25+ bahasa).\n      \n      Untuk pascapemrosesan offline, kami menawarkan beberapa ukuran model Gemma 4 (dibuat oleh Google)."
       },
       "compatibility": {
         "question": "Apakah ini bekerja di semua aplikasi saya?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Permintaan Dukungan HyperWhisper",
       "body": "Hai,\n\nVersi: \n[bisa dicek di Settings > About]\n\nMasalah: \n[Jelaskan masalah Anda]\n\nDetail: \n[Berikan detail relevan, apa yang Anda lakukan sebelum crash]\n\n[Pesan Anda di sini]\n\nSalam,"
-    }
+    },
+    "helpCenterHint": "Penyiapan, pintasan, dan model.",
+    "chooseModelHint": "Urutkan model sesuai cara Anda bekerja.",
+    "accountHint": "Masuk dengan kunci akun Anda.",
+    "chooseModelTitle": "Pilih model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Keluar lalu masuk kembali setelah bergabung dengan grup input. Keanggotaan bersifat opsional, tetapi pintasan global dan tempel otomatis memerlukannya.",
     "aptTitle": "Host sendiri repositori APT",
     "aptBody": "Rilis Linux juga menyertakan arsip repositori APT statis. HyperWhisper saat ini tidak mengoperasikan endpoint APT publik; lihat panduan instalasi Linux untuk penyiapan host sendiri yang ditandatangani, pendamping desktop, detail privasi, dan cara menghapus instalasi.",
-    "linuxGuideCta": "Baca panduan instalasi Linux"
+    "linuxGuideCta": "Baca panduan instalasi Linux",
+    "heroLead": "Gratis dan open source. Pilih platform Anda.",
+    "releaseNotes": "Catatan rilis",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versi Lama",
@@ -280,6 +313,7 @@
       "dataTraining": "Privasi Data"
     },
     "copyright": "© 2026 HyperWhisper. Semua hak dilindungi.",
+    "madeBy": "Dibuat oleh Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Ikuti HyperWhisper di X (Twitter)",
     "githubAria": "HyperWhisper di GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Tautan masuk ini sudah kedaluwarsa atau sudah digunakan. Masukkan email Anda untuk mendapatkan tautan baru.",
     "magicLinkFailed": "Kami tidak dapat memasukkan Anda dengan tautan itu. Masukkan email Anda untuk mendapatkan tautan baru."
+  },
+  "legal": {
+    "onThisPage": "Di halaman ini"
   }
 }

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Özellikler",
+    "modes": "Modlar",
     "faq": "SSS",
     "support": "Destek",
     "download": "İndir",
@@ -16,26 +17,36 @@
       "switchTo": "Dili değiştir"
     },
     "cloud": "Bulut",
-    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
+    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin",
+    "skipToContent": "İçeriğe atla"
   },
   "hero": {
-    "logoAlt": "HyperWhisper Logosu",
-    "headline": "Yazın, üretin ve oluşturun",
-    "headlineAccent": "Yapay zeka ile 5x daha hızlı",
-    "subheadline": "HyperWhisper sesinizi inanılmaz doğrulukla metne dönüştürür. Sadece doğal konuşun ve kelimelerinizin anında göründüğünü izleyin.",
-    "downloadCta": "Şimdi indir",
-    "demoCta": "Demoyu izle",
-    "availableOn": "Kullanılabildiği platformlar",
+    "badge": "Yeni",
+    "headline": "Siz konuşun.",
+    "headlineAccent": "Biz yazalım.",
+    "subheadline": "Her uygulamada düzgün metin.",
+    "downloadMac": "Mac için indir",
+    "freeForever": "Sonsuza dek ücretsiz",
+    "worksOffline": "Çevrimdışı çalışır",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Kaydırın",
+    "closing": {
+      "line1": "Yazmayı bırakın.",
+      "line2": "Konuşmaya başlayın.",
+      "meta": "Ücretsiz ve açık kaynak. Hesap gerekmez."
+    }
   },
   "features": {
-    "title": "Profesyoneller için geliştirildi",
-    "subtitle": "Her özellik daha hızlı ve verimli çalışmanıza yardımcı olmak için tasarlandı",
+    "title": "Bütün gün yazan insanlar için tasarlandı.",
     "customVocabulary": {
       "title": "Özel Sözlük",
       "description": "İsimler, kısaltmalar ve özel terimler ekleyerek her seferinde mükemmel doğruluk elde edin."
+    },
+    "realTime": {
+      "title": "Gerçek Zamanlı Akış",
+      "description": "Konuşurken kelimelerinizin anında göründüğünü görün. 700 ms altı gecikmeyle sektör lideri doğruluk."
     },
     "languages": {
       "title": "100+ Dil",
@@ -45,25 +56,9 @@
       "title": "Çevrimdışı Destek",
       "description": "Tamamen çevrimdışı çalışır. Verileriniz cihazınızdan asla çıkmaz."
     },
-    "privacy": {
-      "title": "Gizlilik Odaklı",
-      "description": "Hesap gerektirmez. Takip yok. Ses verileriniz Mac veya PC'nizde kalır."
-    },
-    "hybridProcessing": {
-      "title": "Hibrit İşleme",
-      "description": "Gizlilik için yerel modelleri, hız için bulut API'lerini seçin. İki dünyanın en iyisi."
-    },
-    "customizable": {
-      "title": "Yüksek Özelleştirme",
-      "description": "9'den fazla API sağlayıcısı ve 30+ transkripsiyon modeli arasından seçim yapın."
-    },
-    "realTime": {
-      "title": "Gerçek Zamanlı Akış",
-      "description": "Konuşurken kelimelerinizin anında göründüğünü görün. 700 ms altı gecikmeyle sektör lideri doğruluk."
-    },
-    "fileImport": {
-      "title": "Dosya İçe Aktarma",
-      "description": "Transkripsiyon için ses veya video dosyaları içe aktarın. Otomatik sessizlik algılama ile tüm ana formatlar desteklenir."
+    "openSource": {
+      "title": "Açık Kaynak",
+      "description": "Apache-2.0 lisanslı. Her satırı inceleyin, fork edin veya kendiniz barındırın. Kara kutu yok, kilitlenme yok."
     },
     "screenOcr": {
       "title": "Ekran OCR",
@@ -73,28 +68,57 @@
       "title": "Yerel API ve MCP Sunucusu",
       "description": "Yerleşik MCP sunucusu Claude, Cursor ve diğer yapay zeka ajanlarının HyperWhisper'ı çalıştırmasına olanak tanır. Komut dosyaları ve otomasyonlar için yalnızca yerel HTTP API."
     },
+    "fileImport": {
+      "title": "Dosya İçe Aktarma",
+      "description": "Transkripsiyon için ses veya video dosyaları içe aktarın. Otomatik sessizlik algılama ile tüm ana formatlar desteklenir."
+    },
     "modes": {
-      "title": "Her durum için modlar",
-      "description": "Toplantılar, not alma, e-postalar, kodlama ve daha fazlası için optimize edilmiş farklı transkripsiyon modları arasında geçiş yapın. Her mod, metninizi mükemmel biçimlendirmek için özel prompt'lar kullanır.",
-      "meeting": "Toplantı",
+      "heading": "Tek ses. Her format.",
+      "lead": "Her mod, söylediklerinizi gideceği yere göre yeniden yazar.",
       "email": "E-posta",
       "note": "Not",
       "code": "Kod",
+      "meeting": "Toplantı",
       "legal": "Hukuk",
       "medical": "Tıbbi",
-      "presetModes": "Hazır modlar",
-      "customModes": "Özel modlar"
-    },
-    "openSource": {
-      "title": "Açık Kaynak",
-      "description": "Apache-2.0 lisanslı. Her satırı inceleyin, fork edin veya kendiniz barındırın. Kara kutu yok, kilitlenme yok."
+      "youSaid": "Siz dediniz",
+      "hyperWhisperWrote": "HyperWhisper yazdı",
+      "sample": "ıı şey john'a söyle lansman perşembeye kaydı çünkü linux QA daha bitmedi ve şey sabrın için teşekkürler",
+      "output": {
+        "email": "Merhaba John,\n\nLinux QA'i tamamlarken lansmanı perşembeye kaydırıyoruz. Sabrın için teşekkürler.\n\nSevgiler,",
+        "note": "• Lansman → Perşembe\n• Engel: Linux QA bitmedi\n• John'a haber ver",
+        "code": "// TODO(john): lansman perşembeye kaydırıldı, Linux QA hâlâ devam ediyor",
+        "meeting": "Karar: lansman perşembeye kaydırıldı.\nGerekçe: Linux QA tamamlanmadı.\nSorumlu: John'u bilgilendirmek.",
+        "legal": "Linux kalite güvencesi sürecinin tamamlanmasına bağlı olarak lansman tarihinin perşembe gününe ertelendiğini bilgilerinize sunarız.",
+        "medical": "Plan: lansmanı perşembeye ertele. Durum: Linux QA beklemede. Takip: John'u bilgilendir."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Nerede yazıyorsanız orada çalışır",
+    "eyebrow": "Nasıl çalışır",
+    "titleLine1": "Bir tuşa basın.",
+    "titleLine2": "Söyleyin.",
+    "titleAccent": "Bitti.",
+    "lead": "Sözleriniz temizlenmiş olarak imlecin olduğu yere düşer.",
+    "step1": "Kısayolunuza basın",
+    "step2Key": "Konuşun",
+    "step2": "Normalde nasıl konuşuyorsanız öyle konuşun",
+    "step3Key": "Tekrar basın",
+    "step3": "Temiz metin, yerine yapıştırılır",
+    "watchVideo": "Tam demoyu izleyin",
+    "closeVideo": "Videoyu kapat",
+    "exampleLabel": "Animasyonlu örnek: sesli bir yanıt Slack mesajına yazılıyor",
+    "message1": "Linux sürümünü perşembe yayınlamak için hâlâ hazır mıyız?",
+    "message2": "Bende QA geçti 👍",
+    "composePlaceholder": "#launch kanalına mesaj",
+    "typed": "Evet, Linux QA bu sabah geçti, yani perşembe için hazırız. Sürüm notlarını öğlene kadar paylaşırım.",
+    "listening": "Dinleniyor",
+    "cleaningUp": "Düzenleniyor…",
     "fasterThanTyping": "Yazmaktan daha hızlı",
     "accuracyRate": "Doğruluk oranı",
     "languagesSupported": "Desteklenen diller",
-    "providersSupported": "Desteklenen sağlayıcılar"
+    "modelsSupported": "Transkripsiyon modelleri"
   },
   "faq": {
     "title": "Sık sorulan sorular",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Hangi çevrimdışı modeller mevcut?",
-        "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 3 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
+        "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 4 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
       },
       "compatibility": {
         "question": "Tüm uygulamalarımda çalışıyor mu?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Destek Talebi",
       "body": "Merhaba,\n\nSürüm: \n[Ayarlar > Hakkında bölümünden kontrol edebilirsiniz]\n\nSorun: \n[Sorununuzu açıklayın]\n\nDetaylar: \n[İlgili detayları paylaşın, çökmeden önce ne yapıyordunuz]\n\n[Mesajınız buraya]\n\nSaygılarımla,"
-    }
+    },
+    "helpCenterHint": "Kurulum, kısayollar ve modeller.",
+    "chooseModelHint": "Modelleri çalışma şeklinize göre sıralayın.",
+    "accountHint": "Hesap Anahtarınızla giriş yapın.",
+    "chooseModelTitle": "Bir model seçin"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logosu",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
     "aptTitle": "Kendi APT deponuzu barındırın",
     "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
-    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun"
+    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun",
+    "heroLead": "Ücretsiz ve açık kaynak. Platformunuzu seçin.",
+    "releaseNotes": "Sürüm notları",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ve Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ve ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eski Sürümler",
@@ -280,6 +313,7 @@
       "dataTraining": "Veri Gizliliği"
     },
     "copyright": "© 2026 HyperWhisper. Tüm hakları saklıdır.",
+    "madeBy": "Ray Amjad tarafından yapıldı",
     "linkedinAria": "LinkedIn",
     "xAria": "HyperWhisper'ı X'te (Twitter) takip edin",
     "githubAria": "GitHub'da HyperWhisper"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Bu giriş bağlantısının süresi dolmuş veya bağlantı zaten kullanılmış. Yeni bir bağlantı almak için e-posta adresinizi girin.",
     "magicLinkFailed": "Bu bağlantıyla giriş yapmanızı sağlayamadık. Yeni bir bağlantı almak için e-posta adresinizi girin."
+  },
+  "legal": {
+    "onThisPage": "Bu sayfada"
   }
 }

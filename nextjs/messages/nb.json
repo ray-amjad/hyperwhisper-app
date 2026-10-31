@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funksjoner",
+    "modes": "Moduser",
     "faq": "FAQ",
     "support": "Support",
     "download": "Last ned",
@@ -16,26 +17,36 @@
       "switchTo": "Bytt språk"
     },
     "cloud": "Cloud",
-    "githubAria": "Se HyperWhisper på GitHub"
+    "githubAria": "Se HyperWhisper på GitHub",
+    "skipToContent": "Gå til innhold"
   },
   "hero": {
-    "logoAlt": "HyperWhisper-logo",
-    "headline": "Skriv, formuler og skap",
-    "headlineAccent": "5x raskere med AI",
-    "subheadline": "HyperWhisper transkriberer stemmen din med imponerende nøyaktighet. Bare snakk naturlig og se ordene dine vises med en gang.",
-    "downloadCta": "Last ned nå",
-    "demoCta": "Se demo",
-    "availableOn": "Tilgjengelig på",
+    "badge": "Ny",
+    "headline": "Bare snakk.",
+    "headlineAccent": "Vi skriver.",
+    "subheadline": "Ferdig tekst i alle apper.",
+    "downloadMac": "Last ned for Mac",
+    "freeForever": "Gratis for alltid",
+    "worksOffline": "Fungerer offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Rull",
+    "closing": {
+      "line1": "Slutt å taste.",
+      "line2": "Begynn å snakke.",
+      "meta": "Gratis og åpen kildekode. Ingen konto nødvendig."
+    }
   },
   "features": {
-    "title": "Bygget for profesjonelle",
-    "subtitle": "Hver funksjon er designet for å hjelpe deg å jobbe raskere og mer effektivt",
+    "title": "Laget for folk som skriver hele dagen.",
     "customVocabulary": {
       "title": "Tilpasset ordforråd",
       "description": "Legg til navn, forkortelser og spesialtermer for maksimal nøyaktighet hver gang."
+    },
+    "realTime": {
+      "title": "Sanntidsstrømming",
+      "description": "Se ordene dine vises umiddelbart mens du snakker. Bransjeledende nøyaktighet med under 700 ms forsinkelse."
     },
     "languages": {
       "title": "100+ språk",
@@ -45,25 +56,9 @@
       "title": "Offline-støtte",
       "description": "Fungerer helt offline. Dataene dine forlater aldri enheten din."
     },
-    "privacy": {
-      "title": "Personvern i fokus",
-      "description": "Ingen konto nødvendig. Ingen sporing. Taledataene dine blir på Mac-en eller PC-en din."
-    },
-    "hybridProcessing": {
-      "title": "Hybridprosessering",
-      "description": "Velg mellom lokale modeller for personvern eller sky-API-er for hastighet. Det beste fra begge verdener."
-    },
-    "customizable": {
-      "title": "Svært tilpasningsbar",
-      "description": "Velg mellom over 9 API-leverandører og 30+ transkripsjonsmodeller."
-    },
-    "realTime": {
-      "title": "Sanntidsstrømming",
-      "description": "Se ordene dine vises umiddelbart mens du snakker. Bransjeledende nøyaktighet med under 700 ms forsinkelse."
-    },
-    "fileImport": {
-      "title": "Filimport",
-      "description": "Importer lyd- eller videofiler for transkribering. Støtter alle viktige formater med automatisk stillhetsdeteksjon."
+    "openSource": {
+      "title": "Åpen kildekode",
+      "description": "Lisensiert under Apache-2.0. Inspiser hver linje, fork den eller kjør den selv. Ingen svarte bokser, ingen innelåsing."
     },
     "screenOcr": {
       "title": "Skjerm-OCR",
@@ -73,28 +68,57 @@
       "title": "Lokal API og MCP-server",
       "description": "Den innebygde MCP-serveren lar Claude, Cursor og andre AI-agenter styre HyperWhisper. Lokal HTTP-API for skript og automatiseringer."
     },
+    "fileImport": {
+      "title": "Filimport",
+      "description": "Importer lyd- eller videofiler for transkribering. Støtter alle viktige formater med automatisk stillhetsdeteksjon."
+    },
     "modes": {
-      "title": "Moduser for enhver situasjon",
-      "description": "Bytt mellom ulike transkripsjonsmoduser optimalisert for møter, notater, e-post, koding og mer. Hver modus bruker tilpassede prompts for å formatere teksten perfekt.",
-      "meeting": "Møte",
+      "heading": "Én stemme. Alle formater.",
+      "lead": "Hver modus skriver om det du sa, tilpasset der det skal.",
       "email": "E-post",
       "note": "Notat",
       "code": "Kode",
+      "meeting": "Møte",
       "legal": "Juridisk",
       "medical": "Medisinsk",
-      "presetModes": "Forhåndsinnstilte moduser",
-      "customModes": "Tilpassede moduser"
-    },
-    "openSource": {
-      "title": "Åpen kildekode",
-      "description": "Lisensiert under Apache-2.0. Inspiser hver linje, fork den eller kjør den selv. Ingen svarte bokser, ingen innelåsing."
+      "youSaid": "Du sa",
+      "hyperWhisperWrote": "HyperWhisper skrev",
+      "sample": "eh så si til john at lanseringen flyttes til torsdag fordi linux-QA ikke er ferdig ennå og øh takk for tålmodigheten",
+      "output": {
+        "email": "Hei John,\n\nLanseringen flyttes til torsdag mens vi fullfører Linux-QA. Takk for tålmodigheten.\n\nVennlig hilsen,",
+        "note": "• Lansering → torsdag\n• Hinder: Linux-QA ikke ferdig\n• Si fra til John",
+        "code": "// TODO(john): lansering flyttet til torsdag, Linux-QA pågår fortsatt",
+        "meeting": "Beslutning: lanseringen flyttes til torsdag.\nÅrsak: Linux-QA ikke fullført.\nAnsvarlig: varsle John.",
+        "legal": "Vi gjør oppmerksom på at lanseringsdatoen er flyttet til torsdag, i påvente av at kvalitetssikringen av Linux fullføres.",
+        "medical": "Plan: utsett lansering til torsdag. Status: Linux-QA avventes. Oppfølging: informer John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Fungerer overalt der du skriver",
+    "eyebrow": "Slik fungerer det",
+    "titleLine1": "Trykk en tast.",
+    "titleLine2": "Si det.",
+    "titleAccent": "Ferdig.",
+    "lead": "Ordene dine havner, ryddet opp, der markøren står.",
+    "step1": "Trykk på snarveien din",
+    "step2Key": "Snakk",
+    "step2": "Snakk som du pleier",
+    "step3Key": "Trykk igjen",
+    "step3": "Ren tekst, limt inn på plass",
+    "watchVideo": "Se hele demoen",
+    "closeVideo": "Lukk video",
+    "exampleLabel": "Animert eksempel: et muntlig svar skrives inn i en Slack-melding",
+    "message1": "Er vi fortsatt klare til å sende ut Linux-bygget på torsdag?",
+    "message2": "QA er godkjent fra min side 👍",
+    "composePlaceholder": "Melding #launch",
+    "typed": "Ja, Linux-QA ble godkjent i morges, så vi er klare til torsdag. Jeg legger ut versjonsnotatene innen kl. 12.",
+    "listening": "Lytter",
+    "cleaningUp": "Rydder opp…",
     "fasterThanTyping": "Raskere enn å skrive",
     "accuracyRate": "Nøyaktighet",
     "languagesSupported": "Støttede språk",
-    "providersSupported": "Støttede leverandører"
+    "modelsSupported": "Transkripsjonsmodeller"
   },
   "faq": {
     "title": "Ofte stilte spørsmål",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Hvilke offline-modeller er tilgjengelige?",
-        "answer": "For offline-transkribering tilbyr vi flere størrelser av Whisper-modellen (laget av OpenAI, støtter 99+ språk). Vi tilbyr også NVidia's Parakeet-modeller (støtter 25+ språk).\n      \n      For offline etterbehandling tilbyr vi flere størrelser av Gemma 3-modellen (laget av Google)."
+        "answer": "For offline-transkribering tilbyr vi flere størrelser av Whisper-modellen (laget av OpenAI, støtter 99+ språk). Vi tilbyr også NVidia's Parakeet-modeller (støtter 25+ språk).\n      \n      For offline etterbehandling tilbyr vi flere størrelser av Gemma 4-modellen (laget av Google)."
       },
       "compatibility": {
         "question": "Fungerer det med alle appene mine?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper supportforespørsel",
       "body": "Hei,\n\nVersjon: \n[du kan sjekke i Innstillinger > Om]\n\nProblem: \n[Beskriv problemet]\n\nDetaljer: \n[Oppgi relevante detaljer, hva gjorde du før krasjet]\n\n[Meldingen din her]\n\nVennlig hilsen,"
-    }
+    },
+    "helpCenterHint": "Oppsett, snarveier og modeller.",
+    "chooseModelHint": "Ranger modellene etter hvordan du jobber.",
+    "accountHint": "Logg inn med kontonøkkelen din.",
+    "chooseModelTitle": "Velg en modell"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Logg ut og inn igjen etter at du har blitt med i input-gruppen. Medlemskap er valgfritt, men globale hurtigtaster og automatisk innliming krever det.",
     "aptTitle": "Kjør ditt eget APT-depot",
     "aptBody": "Linux-utgivelsene inneholder også et statisk APT-depotarkiv. HyperWhisper drifter for øyeblikket ikke noe offentlig APT-endepunkt; se installasjonsveiledningen for Linux for signert, selvdriftet oppsett, skrivebordsintegrasjon, personverninformasjon og avinstallering.",
-    "linuxGuideCta": "Les installasjonsveiledningen for Linux"
+    "linuxGuideCta": "Les installasjonsveiledningen for Linux",
+    "heroLead": "Gratis og åpen kildekode. Velg plattformen din.",
+    "releaseNotes": "Utgivelsesnotater",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon og Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 og ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eldre versjoner",
@@ -280,6 +313,7 @@
       "dataTraining": "Datapersonvern"
     },
     "copyright": "© 2026 HyperWhisper. Alle rettigheter forbeholdt.",
+    "madeBy": "Laget av Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Følg HyperWhisper på X (Twitter)",
     "githubAria": "HyperWhisper på GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Denne innloggingslenken har utløpt eller er allerede brukt. Skriv inn e-postadressen din for å få en ny.",
     "magicLinkFailed": "Vi kunne ikke logge deg inn med den lenken. Skriv inn e-postadressen din for å få en ny."
+  },
+  "legal": {
+    "onThisPage": "På denne siden"
   }
 }

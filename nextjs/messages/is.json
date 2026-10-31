@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Eiginleikar",
+    "modes": "Hamir",
     "faq": "Algengar spurningar",
     "support": "Aðstoð",
     "download": "Sækja",
@@ -16,26 +17,36 @@
       "switchTo": "Skipta um tungumál"
     },
     "cloud": "Cloud",
-    "githubAria": "Skoða HyperWhisper á GitHub"
+    "githubAria": "Skoða HyperWhisper á GitHub",
+    "skipToContent": "Fara beint í efni"
   },
   "hero": {
-    "logoAlt": "HyperWhisper merki",
-    "headline": "Skrifaðu, semdu og skapaðu",
-    "headlineAccent": "5x hraðar með AI",
-    "subheadline": "HyperWhisper umritar röddina þína með ótrúlegri nákvæmni. Talaðu bara eðlilega og horfðu á orðin birtast samstundis.",
-    "downloadCta": "Sækja núna",
-    "demoCta": "Sjá kynningu",
-    "availableOn": "Í boði fyrir",
+    "badge": "Nýtt",
+    "headline": "Talaðu bara.",
+    "headlineAccent": "Við skrifum.",
+    "subheadline": "Fágaður texti í hvaða forriti sem er.",
+    "downloadMac": "Sækja fyrir Mac",
+    "freeForever": "Ókeypis að eilífu",
+    "worksOffline": "Virkar offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Skrunaðu",
+    "closing": {
+      "line1": "Hættu að pikka.",
+      "line2": "Byrjaðu að tala.",
+      "meta": "Ókeypis og opinn hugbúnaður. Enginn aðgangur nauðsynlegur."
+    }
   },
   "features": {
-    "title": "Byggt fyrir fagfólk",
-    "subtitle": "Hver eiginleiki er hannaður til að hjálpa þér að vinna hraðar og skilvirkar",
+    "title": "Smíðað fyrir fólk sem skrifar allan daginn.",
     "customVocabulary": {
       "title": "Sérsniðinn orðaforði",
       "description": "Bættu við nöfnum, skammstöfunum og sértækum hugtökum fyrir fullkomna nákvæmni í hvert skipti."
+    },
+    "realTime": {
+      "title": "Rauntímastreymi",
+      "description": "Sjáðu orðin birtast strax á meðan þú talar. Leiðandi nákvæmni í greininni með undir 700ms biðtíma."
     },
     "languages": {
       "title": "100+ tungumál",
@@ -45,25 +56,9 @@
       "title": "Offline stuðningur",
       "description": "Virkar alveg offline. Gögnin þín yfirgefa aldrei tækið þitt."
     },
-    "privacy": {
-      "title": "Áhersla á persónuvernd",
-      "description": "Enginn aðgangur nauðsynlegur. Engin rekjanleiki. Raddgögnin þín eru áfram á Mac eða PC tölvunni þinni."
-    },
-    "hybridProcessing": {
-      "title": "Blönduð vinnsla",
-      "description": "Veldu staðbundin líkön fyrir persónuvernd eða skýja-API fyrir hraða. Það besta úr báðum heimum."
-    },
-    "customizable": {
-      "title": "Mjög sérsniðanlegt",
-      "description": "Veldu úr yfir 9 API veitendum og 30+ umritunarlíkönum."
-    },
-    "realTime": {
-      "title": "Rauntímastreymi",
-      "description": "Sjáðu orðin birtast strax á meðan þú talar. Leiðandi nákvæmni í greininni með undir 700ms biðtíma."
-    },
-    "fileImport": {
-      "title": "Innflutningur skráa",
-      "description": "Flyttu inn hljóð- eða myndskrár til umritunar. Styður öll helstu snið með sjálfvirkri þögnargreiningu."
+    "openSource": {
+      "title": "Opinn hugbúnaður",
+      "description": "Með Apache-2.0 leyfi. Skoðaðu hverja línu, forkaðu hann eða hýstu sjálf(ur). Engir svartir kassar, engin innilokun."
     },
     "screenOcr": {
       "title": "OCR á skjá",
@@ -73,28 +68,57 @@
       "title": "Staðbundið API og MCP-þjónn",
       "description": "Innbyggði MCP-þjónninn gerir Claude, Cursor og öðrum gervigreindarumboðum kleift að stýra HyperWhisper. Staðbundið HTTP API fyrir skriftur og sjálfvirkni."
     },
+    "fileImport": {
+      "title": "Innflutningur skráa",
+      "description": "Flyttu inn hljóð- eða myndskrár til umritunar. Styður öll helstu snið með sjálfvirkri þögnargreiningu."
+    },
     "modes": {
-      "title": "Hamir fyrir allar aðstæður",
-      "description": "Skiptu á milli mismunandi umritunarhama sem eru hannaðir fyrir fundi, minnispunkta, tölvupóst, forritun og fleira. Hver hamur notar sérsniðin prompt til að forma textann fullkomlega.",
-      "meeting": "Fundur",
+      "heading": "Ein rödd. Öll snið.",
+      "lead": "Hver hamur endurskrifar það sem þú sagðir eftir því hvert það fer.",
       "email": "Tölvupóstur",
       "note": "Minnispunktur",
       "code": "Kóði",
+      "meeting": "Fundur",
       "legal": "Lögfræði",
       "medical": "Læknisfræði",
-      "presetModes": "Forstilltir hamir",
-      "customModes": "Sérsniðnir hamir"
-    },
-    "openSource": {
-      "title": "Opinn hugbúnaður",
-      "description": "Með Apache-2.0 leyfi. Skoðaðu hverja línu, forkaðu hann eða hýstu sjálf(ur). Engir svartir kassar, engin innilokun."
+      "youSaid": "Þú sagðir",
+      "hyperWhisperWrote": "HyperWhisper skrifaði",
+      "sample": "öö sko segðu john að útgáfan færist á fimmtudag af því að linux QA er ekki búið og hérna takk fyrir þolinmæðina",
+      "output": {
+        "email": "Hæ John,\n\nÚtgáfan færist á fimmtudag á meðan við klárum Linux QA. Takk fyrir þolinmæðina.\n\nBestu kveðjur,",
+        "note": "• Útgáfa → fimmtudagur\n• Hindrun: Linux QA ekki lokið\n• Láta John vita",
+        "code": "// TODO(john): útgáfu frestað til fimmtudags, Linux QA enn í gangi",
+        "meeting": "Ákvörðun: útgáfan færist á fimmtudag.\nÁstæða: Linux QA ekki lokið.\nÁbyrgð: láta John vita.",
+        "legal": "Vinsamlegast athugið að útgáfudegi hefur verið breytt í fimmtudag, með fyrirvara um að gæðaprófun á Linux ljúki.",
+        "medical": "Áætlun: fresta útgáfu til fimmtudags. Staða: Linux QA í bið. Eftirfylgni: upplýsa John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Virkar hvar sem þú skrifar",
+    "eyebrow": "Svona virkar þetta",
+    "titleLine1": "Ýttu á takka.",
+    "titleLine2": "Segðu það.",
+    "titleAccent": "Búið.",
+    "lead": "Orðin þín birtast, snyrt, þar sem bendillinn er.",
+    "step1": "Ýttu á flýtilykilinn þinn",
+    "step2Key": "Talaðu",
+    "step2": "Talaðu eins og þú ert vanur",
+    "step3Key": "Ýttu aftur",
+    "step3": "Hreinn texti, límdur á sinn stað",
+    "watchVideo": "Horfðu á alla kynninguna",
+    "closeVideo": "Loka myndbandi",
+    "exampleLabel": "Hreyfimyndadæmi: talað svar er skrifað inn í Slack-skilaboð",
+    "message1": "Erum við enn klár að gefa út Linux-útgáfuna á fimmtudaginn?",
+    "message2": "QA stóðst hjá mér 👍",
+    "composePlaceholder": "Skilaboð í #launch",
+    "typed": "Já, Linux QA stóðst í morgun, svo fimmtudagurinn stendur. Ég birti útgáfuupplýsingarnar fyrir hádegi.",
+    "listening": "Hlustar",
+    "cleaningUp": "Snyrti…",
     "fasterThanTyping": "Hraðara en að slá inn",
     "accuracyRate": "Nákvæmni",
     "languagesSupported": "Studd tungumál",
-    "providersSupported": "Studdir veitendur"
+    "modelsSupported": "Umritunarlíkön"
   },
   "faq": {
     "title": "Algengar spurningar",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Hvaða offline líkön eru í boði?",
-        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 3 líkaninu (frá Google)."
+        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 4 líkaninu (frá Google)."
       },
       "compatibility": {
         "question": "Virkar þetta með öllum öppunum mínum?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper aðstoðarbeiðni",
       "body": "Hæ,\n\nÚtgáfa: \n[þú getur séð þetta í Settings > About]\n\nVandamál: \n[Lýstu vandamálinu]\n\nNánar: \n[Gefðu viðeigandi upplýsingar, hvað þú varst að gera fyrir hrun]\n\n[Skilaboðin þín hér]\n\nKveðja,"
-    }
+    },
+    "helpCenterHint": "Uppsetning, flýtilyklar og líkön.",
+    "chooseModelHint": "Raðaðu líkönunum eftir því hvernig þú vinnur.",
+    "accountHint": "Skráðu þig inn með aðgangslyklinum þínum.",
+    "chooseModelTitle": "Veldu líkan"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper merki",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Skráðu þig út og aftur inn eftir að þú gengur í input-hópinn. Aðild er valfrjáls, en altækar flýtileiðir og sjálfvirk innsetning þurfa hana.",
     "aptTitle": "Hýstu þína eigin APT-geymslu",
     "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
-    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux"
+    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux",
+    "heroLead": "Ókeypis og opinn hugbúnaður. Veldu þitt stýrikerfi.",
+    "releaseNotes": "Útgáfuupplýsingar",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon og Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 og ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eldri útgáfur",
@@ -280,6 +313,7 @@
       "dataTraining": "Gagnafriðhelgi"
     },
     "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
+    "madeBy": "Gert af Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Fylgdu HyperWhisper á X (Twitter)",
     "githubAria": "HyperWhisper á GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Þessi innskráningartengill er útrunninn eða hefur þegar verið notaður. Sláðu inn netfangið þitt til að fá nýjan.",
     "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan."
+  },
+  "legal": {
+    "onThisPage": "Á þessari síðu"
   }
 }

@@ -1,90 +1,22 @@
 "use client";
 
-import { m, useReducedMotion } from "framer-motion";
-import { useTranslations } from "next-intl";
-
+/**
+ * The full product demo (Bunny Stream). On the homepage it opens from "Watch
+ * the full demo" in "How it works", and this player only mounts while that
+ * dialog is open. `preload=false` stays pinned (#759): `true` downloads
+ * ~640 KB of HLS segments and starts a RUM probe before any click.
+ */
 export default function VideoDemo() {
-  const t = useTranslations("demo");
-  // Settle the reveal offset at mount under Reduce motion, so the blocks
-  // fade in place instead of snapping up on reveal (#1180, see FeaturesGrid).
-  const settle = useReducedMotion() ? { y: 0 } : undefined;
-
   return (
-    <section className="py-20" id="demo">
-      <m.div
-        animate={settle}
-        className="max-w-6xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
-      >
-        <div className="w-full h-auto rounded-2xl overflow-hidden shadow-2xl">
-          <div style={{ position: "relative", paddingTop: "56.25%" }}>
-            <iframe
-              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-              allowFullScreen={true}
-              loading="lazy"
-              title="HyperWhisper demo video"
-              src="https://iframe.mediadelivery.net/embed/523175/379cb709-30bd-4155-8f70-8965c9d0430d?autoplay=false&loop=false&muted=false&preload=false&responsive=true"
-              style={{
-                border: 0,
-                position: "absolute",
-                top: 0,
-                height: "100%",
-                width: "100%",
-              }}
-            />
-          </div>
-        </div>
-        {/* Feature highlights below video */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
-          <m.div
-            animate={settle}
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <div className="text-3xl font-bold text-purple-500 mb-2">5x</div>
-            <div className="text-gray-400">{t("fasterThanTyping")}</div>
-          </m.div>
-          <m.div
-            animate={settle}
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <div className="text-3xl font-bold text-blue-500 mb-2">99%</div>
-            <div className="text-gray-400">{t("accuracyRate")}</div>
-          </m.div>
-          <m.div
-            animate={settle}
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <div className="text-3xl font-bold text-cyan-500 mb-2">100+</div>
-            <div className="text-gray-400">{t("languagesSupported")}</div>
-          </m.div>
-          <m.div
-            animate={settle}
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <div className="text-3xl font-bold text-emerald-400 mb-2">9+</div>
-            <div className="text-gray-400">{t("providersSupported")}</div>
-          </m.div>
-        </div>
-      </m.div>
-    </section>
+    <div className="relative w-full overflow-hidden rounded-2xl pt-[56.25%]">
+      <iframe
+        allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+        allowFullScreen={true}
+        className="absolute inset-0 h-full w-full border-0"
+        loading="lazy"
+        src="https://iframe.mediadelivery.net/embed/523175/379cb709-30bd-4155-8f70-8965c9d0430d?autoplay=false&loop=false&muted=false&preload=false&responsive=true"
+        title="HyperWhisper demo video"
+      />
+    </div>
   );
 }

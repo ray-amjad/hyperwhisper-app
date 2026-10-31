@@ -259,7 +259,7 @@ describe("RotateAccountKeyView for delete and issue", () => {
 
     assert.match(html, /id="delete-key-row_1"/);
     assert.match(html, /aria-labelledby="delete-key-row_1-title"/);
-    assert.ok(html.includes("bg-red-600"));
+    assert.ok(html.includes("bg-rose-500/90"));
     assert.ok(!html.includes("bg-amber-600"));
     assert.ok(!html.includes("rotate-key-row_1"));
   });

@@ -10,7 +10,8 @@
  *
  * `GET /api/internal/models` fans out to 6 paid provider APIs. It must go
  * through the cached model list, and it must let the edge cache hold the
- * answer, or every anonymous hit costs 6 upstream calls.
+ * answer, or every anonymous hit costs 6 upstream calls. `GET /models` is the
+ * same handler under a second URL, so it must stay an alias, never a copy.
  *
  * Both routes are imported for real. The only boundary replaced is
  * `globalThis.fetch` (the provider APIs) and `process.env` (the provider keys).
@@ -22,6 +23,7 @@ import { NextRequest } from "next/server";
 
 import { GET as getNearestRegion } from "../app/api/geo/nearest-region/route";
 import { GET as getInternalModels } from "../app/api/internal/models/route";
+import { GET as getModels } from "../app/models/route";
 
 const ORIGIN = "https://preview-42.example.test";
 
@@ -150,6 +152,12 @@ describe("GET /api/geo/nearest-region", () => {
       (await nearest([...filler, "zzzz", "fra"].join(","))).body,
       NO_ANSWER,
     );
+  });
+});
+
+describe("GET /models", () => {
+  test("is the /api/internal/models handler, not a copy of it", () => {
+    assert.equal(getModels, getInternalModels);
   });
 });
 

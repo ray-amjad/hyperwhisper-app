@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Features",
+    "modes": "Modes",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -16,26 +17,36 @@
       "zh": "中文",
       "switchTo": "Switch language"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "skipToContent": "Skip to content"
   },
   "hero": {
-    "logoAlt": "HyperWhisper Logo",
-    "headline": "Write, compose, and create",
-    "headlineAccent": "5x faster with AI",
-    "subheadline": "HyperWhisper transcribes your voice with incredible accuracy. Just speak naturally and watch your words appear instantly.",
-    "downloadCta": "Download now",
-    "demoCta": "Watch demo",
-    "availableOn": "Available on",
+    "badge": "New",
+    "headline": "Just talk.",
+    "headlineAccent": "We'll type.",
+    "subheadline": "Polished text in any app.",
+    "downloadMac": "Download for Mac",
+    "freeForever": "Free forever",
+    "worksOffline": "Works offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Scroll",
+    "closing": {
+      "line1": "Stop typing.",
+      "line2": "Start talking.",
+      "meta": "Free and open source. No account needed."
+    }
   },
   "features": {
-    "title": "Built for professionals",
-    "subtitle": "Every feature is designed to help you work faster and more efficiently",
+    "title": "Built for people who write all day.",
     "customVocabulary": {
       "title": "Custom Vocabulary",
       "description": "Add names, acronyms, and special terms for perfect accuracy every time."
+    },
+    "realTime": {
+      "title": "Real-Time Streaming",
+      "description": "See your words appear instantly as you speak. Industry-leading accuracy with sub-700ms latency."
     },
     "languages": {
       "title": "100+ Languages",
@@ -45,25 +56,9 @@
       "title": "Offline Support",
       "description": "Works completely offline. Your data never leaves your device."
     },
-    "privacy": {
-      "title": "Privacy Focused",
-      "description": "No account required. No tracking. Your voice data stays on your Mac or PC."
-    },
-    "hybridProcessing": {
-      "title": "Hybrid Processing",
-      "description": "Choose between local models for privacy or cloud APIs for speed. Best of both worlds."
-    },
-    "customizable": {
-      "title": "Highly Customizable",
-      "description": "Choose from over 9 API providers and 30+ transcription models."
-    },
-    "realTime": {
-      "title": "Real-Time Streaming",
-      "description": "See your words appear instantly as you speak. Industry-leading accuracy with sub-700ms latency."
-    },
-    "fileImport": {
-      "title": "File Import",
-      "description": "Import audio or video files to transcribe. Supports all major formats with automatic silence detection."
+    "openSource": {
+      "title": "Open Source",
+      "description": "Apache-2.0 licensed. Inspect every line, fork it, or self-host. No black boxes, no lock-in."
     },
     "screenOcr": {
       "title": "Screen OCR",
@@ -73,21 +68,30 @@
       "title": "Local API & MCP Server",
       "description": "Built-in MCP server lets Claude, Cursor, and other AI agents drive HyperWhisper. Local-only HTTP API for scripts and automations."
     },
-    "openSource": {
-      "title": "Open Source",
-      "description": "Apache-2.0 licensed. Inspect every line, fork it, or self-host. No black boxes, no lock-in."
+    "fileImport": {
+      "title": "File Import",
+      "description": "Import audio or video files to transcribe. Supports all major formats with automatic silence detection."
     },
     "modes": {
-      "title": "Modes for every situation",
-      "description": "Switch between different transcription modes optimized for meetings, note-taking, emails, coding, and more. Each mode uses custom prompts to format your text perfectly.",
-      "meeting": "Meeting",
+      "heading": "One voice. Every format.",
+      "lead": "Each mode rewrites what you said for where it's going.",
       "email": "Email",
       "note": "Note",
       "code": "Code",
+      "meeting": "Meeting",
       "legal": "Legal",
       "medical": "Medical",
-      "presetModes": "Preset modes",
-      "customModes": "Custom modes"
+      "youSaid": "You said",
+      "hyperWhisperWrote": "HyperWhisper wrote",
+      "sample": "um so tell john the launch moves to thursday because linux QA isn't done yet and uh thanks for being patient",
+      "output": {
+        "email": "Hi John,\n\nThe launch is moving to Thursday while we finish Linux QA. Thanks for your patience.\n\nBest,",
+        "note": "• Launch → Thursday\n• Blocker: Linux QA not finished\n• Tell John",
+        "code": "// TODO(john): launch moved to Thursday, Linux QA still in progress",
+        "meeting": "Decision: launch moves to Thursday.\nReason: Linux QA incomplete.\nOwner: notify John.",
+        "legal": "Please be advised that the launch date has been rescheduled to Thursday, pending completion of Linux quality assurance.",
+        "medical": "Plan: defer launch to Thursday. Status: Linux QA pending. Follow-up: inform John."
+      }
     }
   },
   "openSource": {
@@ -118,10 +122,30 @@
     "dismiss": "Dismiss announcement"
   },
   "demo": {
+    "worksWherever": "Works wherever you write",
+    "eyebrow": "How it works",
+    "titleLine1": "Press a key.",
+    "titleLine2": "Say it.",
+    "titleAccent": "Done.",
+    "lead": "Your words land, cleaned up, where your cursor is.",
+    "step1": "Press your shortcut",
+    "step2Key": "Speak",
+    "step2": "Talk like you normally would",
+    "step3Key": "Press again",
+    "step3": "Clean text, pasted in place",
+    "watchVideo": "Watch the full demo",
+    "closeVideo": "Close video",
+    "exampleLabel": "Animated example: a spoken reply is typed into a Slack message",
+    "message1": "Are we still good to ship the Linux build Thursday?",
+    "message2": "QA passed on my side 👍",
+    "composePlaceholder": "Message #launch",
+    "typed": "Yes, Linux QA passed this morning, so we're good for Thursday. I'll post the release notes by noon.",
+    "listening": "Listening",
+    "cleaningUp": "Cleaning up…",
     "fasterThanTyping": "Faster than typing",
     "accuracyRate": "Accuracy rate",
     "languagesSupported": "Languages supported",
-    "providersSupported": "Providers supported"
+    "modelsSupported": "Transcription models"
   },
   "faq": {
     "title": "Frequently asked questions",
@@ -146,7 +170,7 @@
       },
       "offlineModels": {
         "question": "What offline models are available?",
-        "answer": "For offline transcription, we offer multiple sizes of the Whisper model (made by OpenAI, supporting 99+ languages). We also offer NVidia's Parakeet models (supporting 25+ languages).\n      \n      For offline post-processing, we offer multiple sizes of the Gemma 3 model (made by Google)."
+        "answer": "For offline transcription, we offer multiple sizes of the Whisper model (made by OpenAI, supporting 99+ languages). We also offer NVidia's Parakeet models (supporting 25+ languages).\n      \n      For offline post-processing, we offer multiple sizes of the Gemma 4 model (made by Google)."
       },
       "compatibility": {
         "question": "Does it work with all my apps?",
@@ -216,7 +240,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Support Request",
       "body": "Hi,\n\nVersion: \n[you can check in Settings > About]\n\nIssue: \n[Describe your issue]\n\nDetails: \n[Provide any relevant details, what were you doing before the crash]\n\n[Your message here]\n\nBest,"
-    }
+    },
+    "helpCenterHint": "Setup, shortcuts and models.",
+    "chooseModelHint": "Rank the models for how you work.",
+    "accountHint": "Sign in with your Account Key.",
+    "chooseModelTitle": "Choose a model"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -255,7 +283,12 @@
     "linuxInputGroupNote": "Log out and back in after joining the input group. Membership is optional, but global shortcuts and automatic paste need it.",
     "aptTitle": "Self-host an APT repository",
     "aptBody": "Linux releases also include a static APT repository archive. HyperWhisper does not currently operate a public APT endpoint; see the Linux installation guide for signed, self-hosted setup, desktop companions, privacy details, and removal.",
-    "linuxGuideCta": "Read the Linux installation guide"
+    "linuxGuideCta": "Read the Linux installation guide",
+    "heroLead": "Free and open source. Pick your platform.",
+    "releaseNotes": "Release notes",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Older Versions",
@@ -307,6 +340,7 @@
       "dataTraining": "Data Privacy"
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
+    "madeBy": "Made by Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Follow HyperWhisper on X (Twitter)",
     "githubAria": "HyperWhisper on GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "This sign-in link has expired or was already used. Enter your email to get a new one.",
     "magicLinkFailed": "We could not sign you in with that link. Enter your email to get a new one."
+  },
+  "legal": {
+    "onThisPage": "On this page"
   }
 }

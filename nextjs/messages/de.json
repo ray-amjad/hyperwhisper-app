@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funktionen",
+    "modes": "Modi",
     "faq": "FAQ",
     "support": "Support",
     "download": "Download",
@@ -16,26 +17,36 @@
       "switchTo": "Sprache wechseln"
     },
     "cloud": "Cloud",
-    "githubAria": "HyperWhisper auf GitHub ansehen"
+    "githubAria": "HyperWhisper auf GitHub ansehen",
+    "skipToContent": "Zum Inhalt springen"
   },
   "hero": {
-    "logoAlt": "HyperWhisper Logo",
-    "headline": "Schreiben, formulieren und erstellen",
-    "headlineAccent": "5x schneller mit KI",
-    "subheadline": "HyperWhisper transkribiert Ihre Stimme mit beeindruckender Genauigkeit. Sprechen Sie einfach natürlich und sehen Sie Ihre Wörter sofort auf dem Bildschirm.",
-    "downloadCta": "Jetzt herunterladen",
-    "demoCta": "Demo ansehen",
-    "availableOn": "Verfügbar für",
+    "badge": "Neu",
+    "headline": "Einfach sprechen.",
+    "headlineAccent": "Wir tippen.",
+    "subheadline": "Ausgefeilter Text in jeder App.",
+    "downloadMac": "Für Mac herunterladen",
+    "freeForever": "Für immer kostenlos",
+    "worksOffline": "Funktioniert offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Scrollen",
+    "closing": {
+      "line1": "Schluss mit Tippen.",
+      "line2": "Einfach sprechen.",
+      "meta": "Kostenlos und Open Source. Kein Konto erforderlich."
+    }
   },
   "features": {
-    "title": "Für Profis entwickelt",
-    "subtitle": "Jede Funktion ist darauf ausgelegt, Ihnen schnelleres und effizienteres Arbeiten zu ermöglichen",
+    "title": "Gemacht für Menschen, die den ganzen Tag schreiben.",
     "customVocabulary": {
       "title": "Benutzerdefinierter Wortschatz",
       "description": "Fügen Sie Namen, Akronyme und Fachbegriffe hinzu, um jedes Mal maximale Genauigkeit zu erzielen."
+    },
+    "realTime": {
+      "title": "Echtzeit-Streaming",
+      "description": "Sehen Sie Ihre Wörter sofort erscheinen, während Sie sprechen. Branchenführende Genauigkeit bei unter 700 ms Latenz."
     },
     "languages": {
       "title": "Über 100 Sprachen",
@@ -45,25 +56,9 @@
       "title": "Offline-Support",
       "description": "Funktioniert vollständig offline. Ihre Daten verlassen Ihr Gerät nie."
     },
-    "privacy": {
-      "title": "Datenschutzorientiert",
-      "description": "Kein Konto erforderlich. Kein Tracking. Ihre Sprachdaten bleiben auf Ihrem Mac oder PC."
-    },
-    "hybridProcessing": {
-      "title": "Hybridverarbeitung",
-      "description": "Wählen Sie zwischen lokalen Modellen für den Datenschutz oder Cloud-APIs für mehr Geschwindigkeit. Das Beste aus beiden Welten."
-    },
-    "customizable": {
-      "title": "Hochgradig anpassbar",
-      "description": "Wählen Sie aus über 9 API-Anbietern und über 30 Transkriptionsmodellen."
-    },
-    "realTime": {
-      "title": "Echtzeit-Streaming",
-      "description": "Sehen Sie Ihre Wörter sofort erscheinen, während Sie sprechen. Branchenführende Genauigkeit bei unter 700 ms Latenz."
-    },
-    "fileImport": {
-      "title": "Dateiimport",
-      "description": "Importieren Sie Audio- oder Videodateien zur Transkription. Unterstützt alle gängigen Formate mit automatischer Erkennung von Stille."
+    "openSource": {
+      "title": "Open Source",
+      "description": "Lizenziert unter Apache-2.0. Prüfen Sie jede Zeile, forken Sie es oder hosten Sie es selbst. Keine Blackboxes, kein Lock-in."
     },
     "screenOcr": {
       "title": "Bildschirm-OCR",
@@ -73,28 +68,57 @@
       "title": "Lokale API & MCP-Server",
       "description": "Der integrierte MCP-Server ermöglicht es Claude, Cursor und anderen KI-Agenten, HyperWhisper zu steuern. Lokale HTTP-API für Skripte und Automatisierungen."
     },
+    "fileImport": {
+      "title": "Dateiimport",
+      "description": "Importieren Sie Audio- oder Videodateien zur Transkription. Unterstützt alle gängigen Formate mit automatischer Erkennung von Stille."
+    },
     "modes": {
-      "title": "Modi für jede Situation",
-      "description": "Wechseln Sie zwischen verschiedenen Transkriptionsmodi, optimiert für Besprechungen, Notizen, E-Mails, Programmieren und mehr. Jeder Modus nutzt benutzerdefinierte Prompts, um Ihren Text perfekt zu formatieren.",
-      "meeting": "Meeting",
+      "heading": "Eine Stimme. Jedes Format.",
+      "lead": "Jeder Modus formuliert das Gesagte passend zum Ziel um.",
       "email": "E-Mail",
       "note": "Notiz",
       "code": "Code",
+      "meeting": "Meeting",
       "legal": "Legal",
       "medical": "Medizinisch",
-      "presetModes": "Voreingestellte Modi",
-      "customModes": "Benutzerdefinierte Modi"
-    },
-    "openSource": {
-      "title": "Open Source",
-      "description": "Lizenziert unter Apache-2.0. Prüfen Sie jede Zeile, forken Sie es oder hosten Sie es selbst. Keine Blackboxes, kein Lock-in."
+      "youSaid": "Sie sagten",
+      "hyperWhisperWrote": "HyperWhisper schrieb",
+      "sample": "ähm also sag john dass der launch auf donnerstag verschoben wird weil linux QA noch nicht fertig ist und äh danke für die geduld",
+      "output": {
+        "email": "Hallo John,\n\nder Launch wird auf Donnerstag verschoben, während wir die Linux-QA abschließen. Danke für deine Geduld.\n\nViele Grüße",
+        "note": "• Launch → Donnerstag\n• Blocker: Linux-QA nicht abgeschlossen\n• John informieren",
+        "code": "// TODO(john): Launch auf Donnerstag verschoben, Linux-QA läuft noch",
+        "meeting": "Entscheidung: Launch wird auf Donnerstag verschoben.\nGrund: Linux-QA nicht abgeschlossen.\nVerantwortlich: John informieren.",
+        "legal": "Hiermit teilen wir Ihnen mit, dass der Launch-Termin vorbehaltlich des Abschlusses der Linux-Qualitätssicherung auf Donnerstag verlegt wurde.",
+        "medical": "Plan: Launch auf Donnerstag verschieben. Status: Linux-QA ausstehend. Nachsorge: John informieren."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funktioniert überall, wo Sie schreiben",
+    "eyebrow": "So funktioniert es",
+    "titleLine1": "Taste drücken.",
+    "titleLine2": "Sprechen.",
+    "titleAccent": "Fertig.",
+    "lead": "Ihre Worte landen bereinigt genau dort, wo Ihr Cursor ist.",
+    "step1": "Drücken Sie Ihr Tastenkürzel",
+    "step2Key": "Sprechen",
+    "step2": "Sprechen Sie ganz natürlich",
+    "step3Key": "Erneut drücken",
+    "step3": "Sauberer Text, direkt eingefügt",
+    "watchVideo": "Komplette Demo ansehen",
+    "closeVideo": "Video schließen",
+    "exampleLabel": "Animiertes Beispiel: Eine gesprochene Antwort wird in eine Slack-Nachricht getippt",
+    "message1": "Bleibt es dabei, dass wir den Linux-Build am Donnerstag ausliefern?",
+    "message2": "QA ist bei mir durch 👍",
+    "composePlaceholder": "Nachricht an #launch",
+    "typed": "Ja, die Linux-QA ist heute Morgen durchgelaufen, Donnerstag steht also. Ich poste die Release Notes bis Mittag.",
+    "listening": "Hört zu",
+    "cleaningUp": "Wird bereinigt…",
     "fasterThanTyping": "Schneller als Tippen",
     "accuracyRate": "Genauigkeitsrate",
     "languagesSupported": "Unterstützte Sprachen",
-    "providersSupported": "Unterstützte Anbieter"
+    "modelsSupported": "Transkriptionsmodelle"
   },
   "faq": {
     "title": "Häufig gestellte Fragen",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Welche Offline-Modelle gibt es?",
-        "answer": "Für die Offline-Transkription bieten wir verschiedene Größen des Whisper-Modells an (von OpenAI, mit Unterstützung für 99+ Sprachen). Außerdem bieten wir die Parakeet-Modelle von NVIDIA an (mit Unterstützung für 25+ Sprachen).\n \n Für die Offline-Nachbearbeitung bieten wir verschiedene Größen des Gemma-3-Modells (von Google) an."
+        "answer": "Für die Offline-Transkription bieten wir verschiedene Größen des Whisper-Modells an (von OpenAI, mit Unterstützung für 99+ Sprachen). Außerdem bieten wir die Parakeet-Modelle von NVIDIA an (mit Unterstützung für 25+ Sprachen).\n \n Für die Offline-Nachbearbeitung bieten wir verschiedene Größen des Gemma-4-Modells (von Google) an."
       },
       "compatibility": {
         "question": "Funktioniert es mit allen meinen Apps?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper Supportanfrage",
       "body": "Hallo,\n\nVersion:\n[Sie finden sie unter Einstellungen > Über]\n\nProblem:\n[Beschreiben Sie Ihr Problem]\n\nDetails:\n[Bitte geben Sie alle relevanten Details an, z. B. was Sie vor dem Absturz gemacht haben]\n\n[Ihre Nachricht hier]\n\nViele Grüße,"
-    }
+    },
+    "helpCenterHint": "Einrichtung, Tastenkürzel und Modelle.",
+    "chooseModelHint": "Ordnen Sie die Modelle nach Ihrer Arbeitsweise.",
+    "accountHint": "Melden Sie sich mit Ihrem Kontoschlüssel an.",
+    "chooseModelTitle": "Modell auswählen"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper Logo",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Melden Sie sich nach dem Beitritt zur Gruppe input ab und wieder an. Die Mitgliedschaft ist optional, wird aber für globale Tastenkürzel und automatisches Einfügen benötigt.",
     "aptTitle": "Ein APT-Repository selbst hosten",
     "aptBody": "Linux-Releases enthalten außerdem ein statisches APT-Repository-Archiv. HyperWhisper betreibt derzeit keinen öffentlichen APT-Endpunkt; in der Linux-Installationsanleitung finden Sie Informationen zur signierten, selbst gehosteten Einrichtung, zu Desktop-Begleitkomponenten, zum Datenschutz und zur Deinstallation.",
-    "linuxGuideCta": "Linux-Installationsanleitung lesen"
+    "linuxGuideCta": "Linux-Installationsanleitung lesen",
+    "heroLead": "Kostenlos und Open Source. Wählen Sie Ihre Plattform.",
+    "releaseNotes": "Versionshinweise",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Ältere Versionen",
@@ -280,6 +313,7 @@
       "dataTraining": "Datenschutz"
     },
     "copyright": "© 2026 HyperWhisper. Alle Rechte vorbehalten.",
+    "madeBy": "Entwickelt von Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Folgen Sie HyperWhisper auf X (Twitter)",
     "githubAria": "HyperWhisper auf GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Dieser Anmeldelink ist abgelaufen oder wurde bereits verwendet. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten.",
     "magicLinkFailed": "Wir konnten Sie mit diesem Link nicht anmelden. Geben Sie Ihre E-Mail-Adresse ein, um einen neuen zu erhalten."
+  },
+  "legal": {
+    "onThisPage": "Auf dieser Seite"
   }
 }

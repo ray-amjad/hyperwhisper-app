@@ -1,5 +1,11 @@
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  BTN_DANGER_XS,
+  BTN_SECONDARY_XS,
+  BTN_WARN_XS,
+  FOCUS_RING,
+} from "@/components/user/panel-styles";
 
 /** Every string the view shows, already translated by the container. */
 export interface RotateAccountKeyLabels {
@@ -234,12 +240,9 @@ export default function RotateAccountKeyView({
     error && phase === "idle" && error === disabledReason ? null : error;
   const panelTone =
     tone === "danger"
-      ? "border-red-500/30 bg-red-500/10"
-      : "border-amber-500/30 bg-amber-500/10";
-  const actionTone =
-    tone === "danger"
-      ? "bg-red-600 hover:bg-red-500"
-      : "bg-amber-600 hover:bg-amber-500";
+      ? "border-rose-400/25 bg-[linear-gradient(180deg,rgba(244,63,94,.09),rgba(255,255,255,.02))]"
+      : "border-[rgba(253,186,140,.26)] bg-[linear-gradient(180deg,rgba(253,186,140,.09),rgba(255,255,255,.02))]";
+  const actionTone = tone === "danger" ? BTN_DANGER_XS : BTN_WARN_XS;
   const confirming = phase === "confirming" || phase === "rotating";
   const verifying = phase === "verify" || phase === "sending";
   const busy = phase === "rotating" || phase === "sending";
@@ -253,26 +256,26 @@ export default function RotateAccountKeyView({
   ) => (
     <div
       aria-labelledby={`${panelId}-title`}
-      className={`mt-1 rounded-lg border p-3 ${panelTone}`}
+      className={`mt-1.5 rounded-2xl border p-4 ${panelTone}`}
       id={panelId}
       role="group"
     >
       <p className="text-sm font-medium text-white" id={`${panelId}-title`}>
         {title}
       </p>
-      <p className="mt-1 text-xs text-gray-300">{body}</p>
+      <p className="mt-1 text-[13px] leading-[1.5] text-[var(--dusk-mute)]">{body}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white rounded transition-colors disabled:opacity-50 ${actionTone}`}
+          className={actionTone}
           disabled={busy}
           type="button"
           onClick={onAction}
         >
-          {busy ? <Spinner className="w-3 h-3" /> : null}
+          {busy ? <Spinner className="w-3.5 h-3.5" /> : null}
           {busy ? busyLabel : action}
         </button>
         <button
-          className="px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+          className={BTN_SECONDARY_XS}
           disabled={busy}
           type="button"
           onClick={onCancel}
@@ -290,12 +293,12 @@ export default function RotateAccountKeyView({
           <button
             disabled
             aria-describedby={`${panelId}-reason`}
-            className="text-gray-600 cursor-not-allowed"
+            className="cursor-not-allowed text-white/30"
             type="button"
           >
             {labels.rotate}
           </button>
-          <span className="text-gray-500" id={`${panelId}-reason`}>
+          <span className="text-[var(--dusk-mute)]" id={`${panelId}-reason`}>
             {disabledReason}
           </span>
         </p>
@@ -305,7 +308,7 @@ export default function RotateAccountKeyView({
         <button
           aria-controls={panelId}
           aria-expanded={false}
-          className="text-xs text-gray-400 hover:text-white transition-colors"
+          className={`rounded text-xs text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50 ${FOCUS_RING}`}
           type="button"
           onClick={onStart}
         >
@@ -335,13 +338,13 @@ export default function RotateAccountKeyView({
 
       <p
         aria-live="polite"
-        className="pt-1.5 text-xs text-emerald-300 empty:hidden"
+        className="pt-1.5 text-xs text-[var(--dusk-lav)] empty:hidden"
         role="status"
       >
         {notice}
       </p>
       <ErrorReveal className="" open={Boolean(shownError)}>
-        <p className="pt-1.5 text-xs text-red-400 empty:hidden" role="alert">
+        <p className="pt-1.5 text-xs text-rose-300 empty:hidden" role="alert">
           {shownError}
         </p>
       </ErrorReveal>

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkcje",
+    "modes": "Tryby",
     "faq": "FAQ",
     "support": "Wsparcie",
     "download": "Pobierz",
@@ -16,26 +17,36 @@
       "switchTo": "Zmień język"
     },
     "cloud": "Cloud",
-    "githubAria": "Zobacz HyperWhisper na GitHub"
+    "githubAria": "Zobacz HyperWhisper na GitHub",
+    "skipToContent": "Przejdź do treści"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Pisz, twórz i komponuj",
-    "headlineAccent": "5x szybciej dzięki AI",
-    "subheadline": "HyperWhisper transkrybuje Twój głos z niesamowitą dokładnością. Po prostu mów naturalnie i patrz, jak Twoje słowa pojawiają się natychmiast.",
-    "downloadCta": "Pobierz teraz",
-    "demoCta": "Zobacz demo",
-    "availableOn": "Dostępne na",
+    "badge": "Nowość",
+    "headline": "Po prostu mów.",
+    "headlineAccent": "My napiszemy.",
+    "subheadline": "Dopracowany tekst w każdej aplikacji.",
+    "downloadMac": "Pobierz na Maca",
+    "freeForever": "Za darmo na zawsze",
+    "worksOffline": "Działa offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Przewiń",
+    "closing": {
+      "line1": "Przestań pisać.",
+      "line2": "Zacznij mówić.",
+      "meta": "Darmowe i otwarte oprogramowanie. Konto nie jest potrzebne."
+    }
   },
   "features": {
-    "title": "Stworzone dla profesjonalistów",
-    "subtitle": "Każda funkcja została zaprojektowana tak, aby pomóc Ci pracować szybciej i wydajniej",
+    "title": "Stworzony dla ludzi, którzy piszą cały dzień.",
     "customVocabulary": {
       "title": "Własne słownictwo",
       "description": "Dodawaj nazwy, akronimy i specjalistyczne terminy, aby uzyskać perfekcyjną dokładność za każdym razem."
+    },
+    "realTime": {
+      "title": "Strumieniowanie w czasie rzeczywistym",
+      "description": "Widzisz słowa natychmiast, gdy mówisz. Wiodąca w branży dokładność przy opóźnieniu poniżej 700 ms."
     },
     "languages": {
       "title": "Ponad 100 języków",
@@ -45,25 +56,9 @@
       "title": "Obsługa offline",
       "description": "Działa całkowicie offline. Twoje dane nigdy nie opuszczają urządzenia."
     },
-    "privacy": {
-      "title": "Nacisk na prywatność",
-      "description": "Bez konta. Bez śledzenia. Dane głosowe pozostają na Twoim Macu lub PC."
-    },
-    "hybridProcessing": {
-      "title": "Przetwarzanie hybrydowe",
-      "description": "Wybieraj między modelami lokalnymi dla prywatności a API w chmurze dla szybkości. Najlepsze z obu światów."
-    },
-    "customizable": {
-      "title": "Wysoka personalizacja",
-      "description": "Wybieraj spośród ponad 9 dostawców API i 30+ modeli transkrypcji."
-    },
-    "realTime": {
-      "title": "Strumieniowanie w czasie rzeczywistym",
-      "description": "Widzisz słowa natychmiast, gdy mówisz. Wiodąca w branży dokładność przy opóźnieniu poniżej 700 ms."
-    },
-    "fileImport": {
-      "title": "Import plików",
-      "description": "Importuj pliki audio lub wideo do transkrypcji. Obsługa wszystkich głównych formatów z automatycznym wykrywaniem ciszy."
+    "openSource": {
+      "title": "Otwarte oprogramowanie",
+      "description": "Na licencji Apache-2.0. Sprawdź każdą linię kodu, sforkuj go lub hostuj samodzielnie. Żadnych czarnych skrzynek, żadnego uzależnienia od dostawcy."
     },
     "screenOcr": {
       "title": "OCR ekranu",
@@ -73,28 +68,57 @@
       "title": "Lokalne API i serwer MCP",
       "description": "Wbudowany serwer MCP pozwala Claude, Cursorowi i innym agentom AI sterować HyperWhisperem. Lokalne API HTTP do skryptów i automatyzacji."
     },
+    "fileImport": {
+      "title": "Import plików",
+      "description": "Importuj pliki audio lub wideo do transkrypcji. Obsługa wszystkich głównych formatów z automatycznym wykrywaniem ciszy."
+    },
     "modes": {
-      "title": "Tryby na każdą sytuację",
-      "description": "Przełączaj się między różnymi trybami transkrypcji zoptymalizowanymi pod spotkania, notatki, e-maile, kodowanie i nie tylko. Każdy tryb korzysta z własnych promptów, aby idealnie formatować tekst.",
-      "meeting": "Spotkanie",
+      "heading": "Jeden głos. Każdy format.",
+      "lead": "Każdy tryb przepisuje to, co powiedziałeś, pod miejsce docelowe.",
       "email": "E-mail",
       "note": "Notatka",
       "code": "Kod",
+      "meeting": "Spotkanie",
       "legal": "Prawo",
       "medical": "Medyczny",
-      "presetModes": "Gotowe tryby",
-      "customModes": "Własne tryby"
-    },
-    "openSource": {
-      "title": "Otwarte oprogramowanie",
-      "description": "Na licencji Apache-2.0. Sprawdź każdą linię kodu, sforkuj go lub hostuj samodzielnie. Żadnych czarnych skrzynek, żadnego uzależnienia od dostawcy."
+      "youSaid": "Powiedziałeś",
+      "hyperWhisperWrote": "HyperWhisper napisał",
+      "sample": "yyy no to powiedz johnowi że premiera przesuwa się na czwartek bo QA na linux jeszcze nie jest skończone i eee dzięki za cierpliwość",
+      "output": {
+        "email": "Cześć John,\n\nPremiera przesuwa się na czwartek, bo kończymy QA wersji na Linux. Dzięki za cierpliwość.\n\nPozdrawiam,",
+        "note": "• Premiera → czwartek\n• Blokada: QA na Linux nieukończone\n• Powiedzieć Johnowi",
+        "code": "// TODO(john): premiera przesunięta na czwartek, QA na Linux wciąż w toku",
+        "meeting": "Decyzja: premiera przesuwa się na czwartek.\nPowód: QA na Linux nieukończone.\nOdpowiedzialny: powiadomić Johna.",
+        "legal": "Uprzejmie informujemy, że termin premiery został przesunięty na czwartek do czasu zakończenia kontroli jakości wersji na Linux.",
+        "medical": "Plan: odroczyć premierę do czwartku. Stan: QA na Linux w toku. Dalsze kroki: poinformować Johna."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Działa wszędzie, gdzie piszesz",
+    "eyebrow": "Jak to działa",
+    "titleLine1": "Naciśnij klawisz.",
+    "titleLine2": "Powiedz to.",
+    "titleAccent": "Gotowe.",
+    "lead": "Twoje słowa trafiają, uporządkowane, tam, gdzie jest kursor.",
+    "step1": "Naciśnij swój skrót",
+    "step2Key": "Mów",
+    "step2": "Mów tak jak zwykle",
+    "step3Key": "Naciśnij znowu",
+    "step3": "Czysty tekst, wklejony na miejscu",
+    "watchVideo": "Obejrzyj pełne demo",
+    "closeVideo": "Zamknij wideo",
+    "exampleLabel": "Animowany przykład: wypowiedziana odpowiedź jest wpisywana do wiadomości na Slacku",
+    "message1": "Czy wersja na Linux nadal wychodzi w czwartek?",
+    "message2": "U mnie QA przeszło 👍",
+    "composePlaceholder": "Napisz na #launch",
+    "typed": "Tak, QA wersji na Linux przeszło dziś rano, więc czwartek aktualny. Opublikuję informacje o wydaniu do południa.",
+    "listening": "Słucham",
+    "cleaningUp": "Porządkuję…",
     "fasterThanTyping": "Szybciej niż pisanie",
     "accuracyRate": "Wskaźnik dokładności",
     "languagesSupported": "Obsługiwane języki",
-    "providersSupported": "Obsługiwani dostawcy"
+    "modelsSupported": "Modele transkrypcji"
   },
   "faq": {
     "title": "Najczęściej zadawane pytania",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Jakie modele offline są dostępne?",
-        "answer": "Do transkrypcji offline oferujemy kilka rozmiarów modelu Whisper (stworzonego przez OpenAI, obsługującego 99+ języków). Oferujemy też modele Parakeet firmy NVidia (obsługujące 25+ języków).\n      \n      Do post-processingu offline oferujemy kilka rozmiarów modelu Gemma 3 (stworzonego przez Google)."
+        "answer": "Do transkrypcji offline oferujemy kilka rozmiarów modelu Whisper (stworzonego przez OpenAI, obsługującego 99+ języków). Oferujemy też modele Parakeet firmy NVidia (obsługujące 25+ języków).\n      \n      Do post-processingu offline oferujemy kilka rozmiarów modelu Gemma 4 (stworzonego przez Google)."
       },
       "compatibility": {
         "question": "Czy działa ze wszystkimi moimi aplikacjami?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Prośba o wsparcie HyperWhisper",
       "body": "Cześć,\n\nWersja: \n[możesz sprawdzić w Ustawienia > O programie]\n\nProblem: \n[Opisz swój problem]\n\nSzczegóły: \n[Podaj istotne szczegóły, co robiłeś przed awarią]\n\n[Twoja wiadomość tutaj]\n\nPozdrawiam,"
-    }
+    },
+    "helpCenterHint": "Konfiguracja, skróty i modele.",
+    "chooseModelHint": "Uszereguj modele według swojego sposobu pracy.",
+    "accountHint": "Zaloguj się kluczem konta.",
+    "chooseModelTitle": "Wybierz model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Po dołączeniu do grupy input wyloguj się i zaloguj ponownie. Członkostwo jest opcjonalne, ale wymagają go globalne skróty i automatyczne wklejanie.",
     "aptTitle": "Własne repozytorium APT",
     "aptBody": "Wydania dla Linuxa zawierają też archiwum statycznego repozytorium APT. HyperWhisper nie prowadzi obecnie publicznego serwera APT; informacje o konfiguracji podpisanego, własnego repozytorium, komponentach desktopowych, prywatności i odinstalowaniu znajdziesz w przewodniku instalacji dla Linuxa.",
-    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa"
+    "linuxGuideCta": "Przeczytaj przewodnik instalacji dla Linuxa",
+    "heroLead": "Darmowy i open source. Wybierz swoją platformę.",
+    "releaseNotes": "Informacje o wydaniu",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon i Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 i ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starsze wersje",
@@ -280,6 +313,7 @@
       "dataTraining": "Prywatność danych"
     },
     "copyright": "© 2026 HyperWhisper. Wszelkie prawa zastrzeżone.",
+    "madeBy": "Autor: Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Obserwuj HyperWhisper na X (Twitter)",
     "githubAria": "HyperWhisper na GitHubie"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Ten link do logowania wygasł lub został już użyty. Wpisz swój e-mail, aby otrzymać nowy.",
     "magicLinkFailed": "Nie udało się zalogować Cię za pomocą tego linku. Wpisz swój e-mail, aby otrzymać nowy."
+  },
+  "legal": {
+    "onThisPage": "Na tej stronie"
   }
 }

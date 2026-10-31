@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkcijos",
+    "modes": "Režimai",
     "faq": "DUK",
     "support": "Pagalba",
     "download": "Atsisiųsti",
@@ -16,26 +17,36 @@
       "switchTo": "Pakeisti kalbą"
     },
     "cloud": "Cloud",
-    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub"
+    "githubAria": "Peržiūrėti HyperWhisper svetainėje GitHub",
+    "skipToContent": "Pereiti prie turinio"
   },
   "hero": {
-    "logoAlt": "HyperWhisper logotipas",
-    "headline": "Rašykite, kurkite ir komponuokite",
-    "headlineAccent": "5x greičiau su AI",
-    "subheadline": "HyperWhisper transkribuoja jūsų balsą stulbinamu tikslumu. Tiesiog kalbėkite natūraliai ir stebėkite, kaip žodžiai atsiranda akimirksniu.",
-    "downloadCta": "Atsisiųsti dabar",
-    "demoCta": "Žiūrėti demonstraciją",
-    "availableOn": "Prieinama",
+    "badge": "Nauja",
+    "headline": "Tiesiog kalbėkite.",
+    "headlineAccent": "Mes parašysime.",
+    "subheadline": "Nugludintas tekstas bet kurioje programoje.",
+    "downloadMac": "Atsisiųsti Mac kompiuteriui",
+    "freeForever": "Nemokama visam laikui",
+    "worksOffline": "Veikia neprisijungus",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Slinkite",
+    "closing": {
+      "line1": "Nebespausdinkite.",
+      "line2": "Pradėkite kalbėti.",
+      "meta": "Nemokama ir atvirojo kodo. Paskyros nereikia."
+    }
   },
   "features": {
-    "title": "Sukurta profesionalams",
-    "subtitle": "Kiekviena funkcija sukurta tam, kad padėtų jums dirbti greičiau ir efektyviau",
+    "title": "Sukurta žmonėms, kurie rašo visą dieną.",
     "customVocabulary": {
       "title": "Pritaikytas žodynas",
       "description": "Pridėkite vardus, akronimus ir specialius terminus, kad kiekvieną kartą pasiektumėte tobulą tikslumą."
+    },
+    "realTime": {
+      "title": "Srautinis perdavimas realiuoju laiku",
+      "description": "Matykite žodžius iškart, kai kalbate. Pramonėje pirmaujantis tikslumas su mažesniu nei 700 ms vėlavimu."
     },
     "languages": {
       "title": "100+ kalbų",
@@ -45,25 +56,9 @@
       "title": "Veikimas neprisijungus",
       "description": "Veikia visiškai neprisijungus. Jūsų duomenys niekada nepalieka jūsų įrenginio."
     },
-    "privacy": {
-      "title": "Privatumo prioritetas",
-      "description": "Nereikia paskyros. Jokio sekimo. Jūsų balso duomenys lieka jūsų Mac arba PC."
-    },
-    "hybridProcessing": {
-      "title": "Hibridinis apdorojimas",
-      "description": "Rinkitės vietinius modelius privatumui arba cloud API greičiui. Geriausia iš abiejų pasaulių."
-    },
-    "customizable": {
-      "title": "Labai pritaikoma",
-      "description": "Rinkitės iš daugiau nei 9 API tiekėjų ir 30+ transkripcijos modelių."
-    },
-    "realTime": {
-      "title": "Srautinis perdavimas realiuoju laiku",
-      "description": "Matykite žodžius iškart, kai kalbate. Pramonėje pirmaujantis tikslumas su mažesniu nei 700 ms vėlavimu."
-    },
-    "fileImport": {
-      "title": "Failų importas",
-      "description": "Importuokite garso ar vaizdo failus transkripcijai. Palaikomi visi pagrindiniai formatai su automatiniu tylos aptikimu."
+    "openSource": {
+      "title": "Atvirasis kodas",
+      "description": "Licencijuota pagal Apache-2.0. Patikrinkite kiekvieną eilutę, šakokite (fork) ją arba talpinkite patys. Jokių juodųjų dėžių, jokio pririšimo."
     },
     "screenOcr": {
       "title": "Ekrano OCR",
@@ -73,28 +68,57 @@
       "title": "Vietinė API ir MCP serveris",
       "description": "Įmontuotas MCP serveris leidžia Claude, Cursor ir kitiems AI agentams valdyti HyperWhisper. Tik vietinis HTTP API skriptams ir automatizavimui."
     },
+    "fileImport": {
+      "title": "Failų importas",
+      "description": "Importuokite garso ar vaizdo failus transkripcijai. Palaikomi visi pagrindiniai formatai su automatiniu tylos aptikimu."
+    },
     "modes": {
-      "title": "Režimai kiekvienai situacijai",
-      "description": "Perjunkite skirtingus transkripcijos režimus, optimizuotus susitikimams, užrašams, el. laiškams, programavimui ir kt. Kiekvienas režimas naudoja pritaikytus promptus, kad tekstas būtų suformatuotas idealiai.",
-      "meeting": "Susitikimas",
+      "heading": "Vienas balsas. Bet koks formatas.",
+      "lead": "Kiekvienas režimas perrašo, ką pasakėte, pagal tai, kur tai keliauja.",
       "email": "El. paštas",
       "note": "Užrašas",
       "code": "Kodas",
+      "meeting": "Susitikimas",
       "legal": "Teisinis",
       "medical": "Medicininis",
-      "presetModes": "Paruošti režimai",
-      "customModes": "Pritaikyti režimai"
-    },
-    "openSource": {
-      "title": "Atvirasis kodas",
-      "description": "Licencijuota pagal Apache-2.0. Patikrinkite kiekvieną eilutę, šakokite (fork) ją arba talpinkite patys. Jokių juodųjų dėžių, jokio pririšimo."
+      "youSaid": "Jūs pasakėte",
+      "hyperWhisperWrote": "HyperWhisper parašė",
+      "sample": "ee tai pasakyk johnui kad paleidimas nukeliamas į ketvirtadienį nes linux QA dar nebaigtas ir mmm ačiū už kantrybę",
+      "output": {
+        "email": "Sveiki, John,\n\nPaleidimas nukeliamas į ketvirtadienį, kol baigsime Linux QA. Ačiū už kantrybę.\n\nPagarbiai,",
+        "note": "• Paleidimas → ketvirtadienis\n• Kliūtis: Linux QA nebaigtas\n• Pranešti Johnui",
+        "code": "// TODO(john): paleidimas nukeltas į ketvirtadienį, Linux QA dar vyksta",
+        "meeting": "Sprendimas: paleidimas nukeliamas į ketvirtadienį.\nPriežastis: Linux QA nebaigtas.\nAtsakingas: informuoti Johną.",
+        "legal": "Informuojame, kad paleidimo data perkelta į ketvirtadienį, kol bus užbaigtas Linux kokybės užtikrinimas.",
+        "medical": "Planas: atidėti paleidimą iki ketvirtadienio. Būklė: laukiama Linux QA. Tolesni veiksmai: informuoti Johną."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Veikia visur, kur rašote",
+    "eyebrow": "Kaip tai veikia",
+    "titleLine1": "Paspauskite klavišą.",
+    "titleLine2": "Pasakykite.",
+    "titleAccent": "Atlikta.",
+    "lead": "Jūsų žodžiai, sutvarkyti, atsiranda ten, kur yra žymeklis.",
+    "step1": "Paspauskite savo spartųjį klavišą",
+    "step2Key": "Kalbėkite",
+    "step2": "Kalbėkite kaip įprastai",
+    "step3Key": "Dar kartą",
+    "step3": "Švarus tekstas, įklijuotas į vietą",
+    "watchVideo": "Žiūrėti visą demonstraciją",
+    "closeVideo": "Uždaryti vaizdo įrašą",
+    "exampleLabel": "Animuotas pavyzdys: ištartas atsakymas įrašomas į Slack žinutę",
+    "message1": "Ar vis dar spėjame išleisti Linux versiją ketvirtadienį?",
+    "message2": "Mano pusėje QA praeitas 👍",
+    "composePlaceholder": "Žinutė #launch",
+    "typed": "Taip, Linux QA šįryt praėjo, tad ketvirtadienis galioja. Leidimo pastabas paskelbsiu iki vidurdienio.",
+    "listening": "Klausoma",
+    "cleaningUp": "Tvarkoma…",
     "fasterThanTyping": "Greičiau nei rašyti",
     "accuracyRate": "Tikslumo rodiklis",
     "languagesSupported": "Palaikomos kalbos",
-    "providersSupported": "Palaikomi tiekėjai"
+    "modelsSupported": "Transkripcijos modeliai"
   },
   "faq": {
     "title": "Dažniausiai užduodami klausimai",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Kokie modeliai neprisijungus yra prieinami?",
-        "answer": "Transkripcijai neprisijungus siūlome kelis Whisper modelio dydžius (sukurtas OpenAI, palaiko 99+ kalbų). Taip pat siūlome NVidia Parakeet modelius (palaiko 25+ kalbų).\n      \n      Papildomam apdorojimui neprisijungus siūlome kelis Gemma 3 modelio dydžius (sukurtas Google)."
+        "answer": "Transkripcijai neprisijungus siūlome kelis Whisper modelio dydžius (sukurtas OpenAI, palaiko 99+ kalbų). Taip pat siūlome NVidia Parakeet modelius (palaiko 25+ kalbų).\n      \n      Papildomam apdorojimui neprisijungus siūlome kelis Gemma 4 modelio dydžius (sukurtas Google)."
       },
       "compatibility": {
         "question": "Ar veikia su visomis mano programomis?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper pagalbos užklausa",
       "body": "Sveiki,\n\nVersija: \n[galite patikrinti Nustatymai > Apie]\n\nProblema: \n[Aprašykite savo problemą]\n\nDetalės: \n[Pateikite svarbias detales, ką darėte prieš programos strigtį]\n\n[Jūsų žinutė čia]\n\nPagarbiai,"
-    }
+    },
+    "helpCenterHint": "Sąranka, spartieji klavišai ir modeliai.",
+    "chooseModelHint": "Surikiuokite modelius pagal tai, kaip dirbate.",
+    "accountHint": "Prisijunkite su paskyros raktu.",
+    "chooseModelTitle": "Pasirinkite modelį"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logotipas",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Prisijungę prie input grupės, atsijunkite ir vėl prisijunkite. Narystė neprivaloma, tačiau jos reikia visuotiniams spartiesiems klavišams ir automatiniam įklijavimui.",
     "aptTitle": "Talpinkite savo APT saugyklą",
     "aptBody": "Linux leidimuose taip pat yra statinis APT saugyklos archyvas. HyperWhisper šiuo metu neteikia viešo APT galinio taško; informacijos apie pasirašytą, savarankiškai talpinamą sąranką, darbalaukio integraciją, privatumą ir pašalinimą rasite Linux diegimo vadove.",
-    "linuxGuideCta": "Skaityti Linux diegimo vadovą"
+    "linuxGuideCta": "Skaityti Linux diegimo vadovą",
+    "heroLead": "Nemokama ir atvirojo kodo. Pasirinkite savo platformą.",
+    "releaseNotes": "Leidimo pastabos",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ir Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ir ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Senesnės versijos",
@@ -280,6 +313,7 @@
       "dataTraining": "Duomenų privatumas"
     },
     "copyright": "© 2026 HyperWhisper. Visos teisės saugomos.",
+    "madeBy": "Sukūrė Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Sekite HyperWhisper platformoje X (Twitter)",
     "githubAria": "HyperWhisper platformoje GitHub"
@@ -438,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Ši prisijungimo nuoroda nebegalioja arba jau buvo panaudota. Įveskite savo el. paštą ir gausite naują.",
     "magicLinkFailed": "Šia nuoroda nepavyko jūsų prijungti. Įveskite savo el. paštą ir gausite naują."
+  },
+  "legal": {
+    "onThisPage": "Šiame puslapyje"
   }
 }
