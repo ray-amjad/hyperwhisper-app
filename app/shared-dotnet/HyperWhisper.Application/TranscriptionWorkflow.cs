@@ -781,7 +781,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         if (postProcessing.WasApplied
             && !string.IsNullOrWhiteSpace(postProcessing.Text)
             && !string.IsNullOrWhiteSpace(postProcessing.Provider))
-            return (postProcessing.Text.Trim(), postProcessing.Provider);
+            // The provider id, not the display label, goes to the row and the
+            // result (issue #1158; Ray 2026-10-19).
+            return (postProcessing.Text.Trim(), postProcessing.StoredProvider);
 
         return (rawText, null);
     }

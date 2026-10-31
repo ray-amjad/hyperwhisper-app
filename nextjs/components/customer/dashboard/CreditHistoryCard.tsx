@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
+import { CARD, FOCUS_RING, LABEL, LINK_ACCENT } from "@/components/user/panel-styles";
 
 /**
  * Credit History Card
@@ -11,48 +12,65 @@ import { formatDate } from "@/lib/format-date";
  * with the amount, purchase date, expiry, and remaining balance per grant.
  * Paid packs only — free/included bundles are not shown here.
  *
+ * Expired grants sort after the live ones, and only the first
+ * `COLLAPSED_GRANTS` show until "Show all" is pressed, so a long history does
+ * not push Billing off the page (#1664).
+ *
  * Its query settles after the dashboard's own, so the card grows its slot open
  * (`.t-cell-reveal`, #865) instead of pushing the cards below it down in one
  * frame, unless its data was already cached. `gap` is the space it has above
  * it: it sits inside the clip, so it grows with the tween and a hidden card
  * takes no space.
  */
+/** Purchases shown before "Show all" is pressed (#1664). */
+export const COLLAPSED_GRANTS = 5;
+
 export default function CreditHistoryCard({ gap }: { gap?: string }) {
   const { data, isLoading, error } = api.customer.creditHistory.useQuery();
   // Grow open only when the card arrives after a wait; a remount with cached
   // data shows it at once.
   const [revealOnArrival] = useState(isLoading);
+  const [showAll, setShowAll] = useState(false);
 
   // Hide the card entirely when there's nothing to show (no purchases yet).
   if (isLoading || error) return null;
   if (!data || data.grants.length === 0) return null;
 
+  // The server sends newest-first; a stable sort keeps that order within the
+  // live and the expired groups.
+  const grants = [...data.grants].sort(
+    (a, b) => Number(a.expired) - Number(b.expired),
+  );
+  const hidden = grants.length - COLLAPSED_GRANTS;
+  const shown =
+    showAll || hidden <= 0 ? grants : grants.slice(0, COLLAPSED_GRANTS);
+
   return (
     <div className={revealOnArrival ? "t-cell-reveal" : undefined}>
       <div>
         <div className={gap}>
-          <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-            <p className="text-sm text-gray-400 mb-4">Credit Purchases</p>
+          <div className={`${CARD} p-5 sm:p-6`}>
+            <p className={`${LABEL} mb-2`}>Credit Purchases</p>
 
-            <div className="space-y-3">
-              {data.grants.map((grant) => (
+            <div className="divide-y divide-[var(--dusk-line)]">
+              {shown.map((grant) => (
                 <div
                   key={grant.id}
-                  className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0"
+                  className="flex items-center justify-between gap-4 py-3 last:pb-0"
                 >
                   <div className="min-w-0">
                     {/* <bdi> keeps the English number-and-word order on an RTL page (#1659). */}
-                    <p className="text-white font-medium">
+                    <p className="text-[var(--dusk-ink)] font-medium tabular-nums">
                       <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-[var(--dusk-dim)] mt-0.5">
                       <bdi>
                         {formatDate(grant.createdAt)}
                         {grant.expiresAt && (
                           <>
                             {" · "}
                             {grant.expired ? (
-                              <span className="text-red-400">
+                              <span className="text-rose-300">
                                 expired {formatDate(grant.expiresAt)}
                               </span>
                             ) : (
@@ -64,7 +82,7 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm text-gray-300">
+                    <p className="text-sm text-[var(--dusk-mute)] tabular-nums">
                       <bdi>
                         {grant.expired ? 0 : grant.remainingAmount.toLocaleString()}{" "}
                         left
@@ -74,6 +92,16 @@ export default function CreditHistoryCard({ gap }: { gap?: string }) {
                 </div>
               ))}
             </div>
+            {hidden > 0 ? (
+              <button
+                aria-expanded={showAll}
+                className={`mt-3 rounded text-sm ${FOCUS_RING} ${LINK_ACCENT}`}
+                type="button"
+                onClick={() => setShowAll((prev) => !prev)}
+              >
+                {showAll ? "Show fewer" : `Show all ${grants.length}`}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

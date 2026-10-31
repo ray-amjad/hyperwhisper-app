@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { m } from "framer-motion";
 import { Button } from "@heroui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
+import {
+  GLASS,
+  ICON_TILE,
+  LABEL,
+  SECTION,
+} from "@/components/landing/dusk-pages";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import { Link } from "@/src/i18n/navigation";
 import { loadPostHog } from "@/src/lib/posthog-client";
 
@@ -60,86 +67,60 @@ function PurchaseSuccessContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
-      <m.div
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-xl w-full text-center"
-        initial={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.5 }}
-      >
-        <m.div
-          animate={{ scale: 1 }}
-          className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full mb-9 shadow-[0_12px_40px_-8px_rgba(16,185,129,0.5)]"
-          initial={{ scale: 0.9 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <CheckCircle className="w-11 h-11 text-white" />
-        </m.div>
+    <DuskPage>
+      <PageHero
+        eyebrow={
+          <span className="inline-grid size-[64px] place-items-center rounded-full border border-[rgba(196,181,253,.35)] bg-[linear-gradient(180deg,rgba(129,90,220,.28),rgba(255,255,255,.04))] text-[var(--dusk-lav)] shadow-[0_12px_40px_-10px_rgba(129,90,220,.6)] backdrop-blur-[14px]">
+            <CheckCircle aria-hidden="true" className="size-8" />
+          </span>
+        }
+        lead={hasCredits ? t("subtitle", { credits }) : t("subtitleGeneric")}
+        title={t("title")}
+      />
 
-        <m.h1
-          animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          {t("title")}
-        </m.h1>
-
-        <m.p
-          animate={{ opacity: 1, y: 0 }}
-          className="text-base text-gray-400 leading-relaxed mt-[18px] mx-auto max-w-[480px]"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          {hasCredits ? t("subtitle", { credits }) : t("subtitleGeneric")}
-        </m.p>
-
-        <m.div
-          animate={{ opacity: 1, y: 0 }}
-          className="text-left bg-zinc-800/40 rounded-2xl p-7 mt-10"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-[22px]">
-            {t("whatsNext")}
-          </h2>
-          <ul className="space-y-6">
-            {steps.map((step, i) => (
-              <li key={i} className="flex gap-4">
-                <span className="flex-none w-[26px] h-[26px] rounded-lg bg-purple-500/15 text-purple-400 text-[13px] font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <div>
-                  <p className="text-[15px] font-semibold text-gray-200 leading-snug">
-                    {step.title}
-                  </p>
-                  <p className="text-[13.5px] text-gray-400 mt-1.5 leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </m.div>
-
-        <m.div
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-9"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-        >
-          <Button
-            as={Link}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
-            href="/user/dashboard"
-            size="lg"
+      <section className={SECTION}>
+        <div className="mx-auto w-full max-w-[640px] px-6 md:px-8">
+          <div
+            className={`dusk-enter ${GLASS} p-6 text-start backdrop-blur-[14px] md:p-8`}
+            style={delay(320)}
           >
-            {t("manageButton")}
-            <ArrowRight className="w-[18px] h-[18px] ml-2" />
-          </Button>
-        </m.div>
-      </m.div>
-    </div>
+            <h2 className={`${LABEL} mb-[22px]`}>{t("whatsNext")}</h2>
+            <ul className="space-y-6">
+              {steps.map((step, i) => (
+                <li key={i} className="flex gap-4">
+                  <span
+                    className={`${ICON_TILE} text-[13px] font-semibold tabular-nums`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-[15px] font-semibold leading-snug text-white">
+                      {step.title}
+                    </p>
+                    <p className="mt-1.5 text-[14px] leading-relaxed text-[var(--dusk-mute)]">
+                      {step.description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="dusk-enter mt-8" style={delay(400)}>
+            <Button
+              as={Link}
+              className={`${BTN_WHITE} ${BTN_LG} h-auto w-full min-w-0`}
+              href="/user/dashboard"
+              role="link"
+              size="lg"
+            >
+              {t("manageButton")}
+              <ArrowRight className="rtl:-scale-x-100" />
+            </Button>
+          </div>
+        </div>
+      </section>
+    </DuskPage>
   );
 }
 
@@ -147,12 +128,15 @@ function LoadingFallback() {
   const t = useTranslations("purchaseSuccess");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-purple-600 to-blue-600 rounded-full mb-6 animate-pulse" />
-        <p className="text-lg text-gray-400">{t("loading")}</p>
+    <DuskPage className="flex items-center justify-center py-20">
+      <div className="text-center" role="status">
+        <div
+          aria-hidden="true"
+          className="mx-auto mb-6 size-[64px] animate-pulse rounded-full border border-[var(--dusk-line)] bg-[var(--dusk-glass)] motion-reduce:animate-none"
+        />
+        <p className="text-lg text-[var(--dusk-mute)]">{t("loading")}</p>
       </div>
-    </div>
+    </DuskPage>
   );
 }
 
