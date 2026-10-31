@@ -31,16 +31,22 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
       admin: {
         devices: {
           list: {
-            useQuery: () => ({
+            useInfiniteQuery: () => ({
               data: loading
                 ? undefined
                 : {
-                    devices: [
+                    pages: [
                       {
-                        licenseKeyId: "k1",
-                        email: "a@example.com",
-                        licenseKey: "hw-0000-0000-0000",
-                        deviceCount: 2,
+                        devices: [
+                          {
+                            licenseKeyId: "k1",
+                            email: "a@example.com",
+                            licenseKey: "hw-0000-0000-0000",
+                            deviceCount: 2,
+                          },
+                        ],
+                        total: 1,
+                        nextCursor: null,
                       },
                     ],
                   },

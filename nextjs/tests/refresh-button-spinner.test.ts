@@ -58,7 +58,13 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
         admin: { customers: { list: { invalidate: () => undefined } } },
       }),
       admin: {
-        devices: { list: { useQuery: listQuery({ devices: [] }) } },
+        devices: {
+          list: {
+            useInfiniteQuery: listQuery({
+              pages: [{ devices: [], total: 0, nextCursor: null }],
+            }),
+          },
+        },
         customers: {
           list: {
             useQuery: listQuery({ customers: [], total: 0, totalPages: 0 }),

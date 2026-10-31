@@ -56,6 +56,13 @@ const TIME_RANGES = [
   { label: "90 days", value: 90 },
 ] as const;
 
+/**
+ * Account Keys fetched per "Show more" in the main table (#1948). The table
+ * rendered every key with devices at once; at 2,000 keys that is a page no
+ * one scrolls. Matches the db-layer's ACCOUNT_KEYS_PAGE_SIZE.
+ */
+export const ACCOUNT_KEY_PAGE_SIZE = 50;
+
 /** Devices fetched per "Show more" in an expanded key (#1661). */
 export const DEVICE_PAGE_SIZE = 50;
 
@@ -78,20 +85,42 @@ export function formatCount(n: number): string {
 export default function DevicesClient() {
   const [days, setDays] = useState(30);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // One page of ACCOUNT_KEY_PAGE_SIZE keys at a time (#1948), as an expanded
+  // key pages its devices (#1661). The search box finds a key paging would
+  // hide. A new range or search is a new query key, so paging starts again
+  // from the top.
   const {
     data,
     isLoading: loading,
     isFetching,
+    isFetchingNextPage,
     isPlaceholderData,
+    hasNextPage,
+    fetchNextPage,
     error: queryError,
     refetch,
-  } = api.admin.devices.list.useQuery(
-    { days },
-    // Keep the previous range's rows on screen while a new range loads,
-    // instead of tearing the table down to the skeleton on every click
-    // (#863), as the Customers page does.
-    { placeholderData: keepPreviousData }
+  } = api.admin.devices.list.useInfiniteQuery(
+    {
+      days,
+      search: debouncedSearch || undefined,
+      limit: ACCOUNT_KEY_PAGE_SIZE,
+    },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      // Keep the previous range's rows on screen while a new range loads,
+      // instead of tearing the table down to the skeleton on every click
+      // (#863), as the Customers page does. A new search does the same.
+      placeholderData: keepPreviousData,
+    },
   );
 
   // A range switch shows the previous range's rows until the new ones land,
@@ -102,9 +131,18 @@ export default function DevicesClient() {
   // for, as before.
   const [shownDays, setShownDays] = useState(days);
   if (!isPlaceholderData && shownDays !== days) setShownDays(days);
+  // The same for the search the rows on screen answer (#1948), so the empty
+  // copy names a search only once its own (empty) result has landed.
+  const [shownSearch, setShownSearch] = useState(debouncedSearch);
 
-  // In flight with rows already on screen: a range switch or a Refresh.
-  const isTransitioning = isFetching && !loading;
+  if (!isPlaceholderData && shownSearch !== debouncedSearch) {
+    setShownSearch(debouncedSearch);
+  }
+
+  // In flight with rows already on screen: a range switch, a search or a
+  // Refresh. A "Show more" is not: it keeps the rows it appends to at full
+  // opacity, as an expanded key's does (#1948).
+  const isTransitioning = isFetching && !loading && !isFetchingNextPage;
 
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
@@ -139,7 +177,17 @@ export default function DevicesClient() {
   // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
   const pulse = `${SKEL}${shown ? " [animation-play-state:paused]" : ""}`;
 
-  const devices = data?.devices ?? [];
+  // Offset paging over a live table: a key that gains a device between two
+  // pages moves up, so the next page can repeat a row. Keep the first copy,
+  // so React never sees two rows with one key (as DeviceRow does).
+  const seenIds = new Set<string>();
+  const devices = (data?.pages.flatMap((page) => page.devices) ?? []).filter(
+    (row) => !seenIds.has(row.licenseKeyId) && seenIds.add(row.licenseKeyId),
+  );
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0;
+  const nextCount = Math.min(ACCOUNT_KEY_PAGE_SIZE, total - devices.length);
+  // The result's identity: the table tweens its height when it changes.
+  const firstPage = data?.pages[0];
   const error = queryError?.message ?? null;
 
   function truncateKey(key: string) {
@@ -186,7 +234,8 @@ export default function DevicesClient() {
             disabled={isFetching}
             className={BTN_SECONDARY}
           >
-            {isFetching ? (
+            {/* A "Show more" spins its own button, not this one (#1948). */}
+            {isFetching && !isFetchingNextPage ? (
               <Spinner className="w-4 h-4" />
             ) : (
               <svg
@@ -218,16 +267,31 @@ export default function DevicesClient() {
         )}
       </ErrorReveal>
 
-      {/* Devices Table. A range switch that changes the row count tweens
-          the card's height (#2757, as #916 did on Customers) instead of
-          stepping in one frame; the first load's rows land at once. */}
+      {/* Search (#1948): the table shows one page of keys, so a key on a
+          later page is found by its email or Account Key. */}
+      <input
+        aria-label="Search Account Keys by email or key"
+        className={`w-full max-w-sm px-3.5 py-2 text-sm ${INPUT}`}
+        placeholder="Search by email or Account Key..."
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {/* Devices Table. A range switch or a search that changes the row
+          count tweens the card's height (#2757, as #916 did on Customers)
+          instead of stepping in one frame; the first load's rows land at
+          once. It keys on the first page, not `data`: "Show more" appends a
+          page, and structural sharing keeps the first page the same object,
+          so an append grows the table at once instead of pinning it (#1948,
+          as an expanded key's list does). */}
       <HeightTween
         className={`${CARD} overflow-hidden ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
         // Tailwind's transition-opacity, kept beside the height tween.
         transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
-        trigger={data}
+        trigger={firstPage}
       >
         {/* aria-busy sits here: HeightTween's box takes no aria props, and
             this box holds the whole table. The box scrolls sideways on a
@@ -270,7 +334,9 @@ export default function DevicesClient() {
                     colSpan={3}
                     className="px-6 py-14 text-center text-[var(--dusk-mute)]"
                   >
-                    No device activations found in the last {shownDays} days.
+                    {shownSearch
+                      ? "No Account Keys match that search."
+                      : `No device activations found in the last ${shownDays} days.`}
                   </td>
                 </tr>
               ) : (
@@ -342,12 +408,31 @@ export default function DevicesClient() {
         </div>
       </HeightTween>
 
-      {/* Row Count */}
+      {/* Row Count, and the next page (#1948) */}
       {!loading && devices.length > 0 && (
-        <p className="text-[var(--dusk-mute)] text-sm tabular-nums">
-          Showing {formatCount(devices.length)} Account Key
-          {devices.length !== 1 ? "s" : ""} with active devices
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[var(--dusk-mute)] text-sm tabular-nums">
+            Showing {formatCount(devices.length)} of {formatCount(total)}{" "}
+            Account Key{total !== 1 ? "s" : ""}
+          </p>
+          {hasNextPage && (
+            <button
+              className={BTN_SECONDARY_XS}
+              disabled={isFetchingNextPage}
+              type="button"
+              onClick={() => fetchNextPage()}
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Spinner className="w-3.5 h-3.5" />
+                  Loading...
+                </>
+              ) : (
+                `Show ${formatCount(nextCount)} more`
+              )}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
