@@ -28,7 +28,9 @@ export function declaresLengthOver(
   maxBytes: number,
 ): boolean {
   const header = req.headers.get("content-length")?.trim();
+
   if (!header || !/^\d+$/.test(header)) return false;
+
   return Number(header) > maxBytes;
 }
 
@@ -54,6 +56,7 @@ export async function readBoundedText(
   if (declaresLengthOver(req, maxBytes)) return payloadTooLarge();
 
   const body = req.body;
+
   if (!body) return "";
 
   const reader = body.getReader();
@@ -63,6 +66,7 @@ export async function readBoundedText(
 
   for (;;) {
     const { done, value } = await reader.read();
+
     if (done) break;
 
     bytes += value.byteLength;
@@ -70,6 +74,7 @@ export async function readBoundedText(
       // Tell the source to stop sending. A cancel that fails changes nothing
       // about the answer, so its error is not allowed to replace the 413.
       await reader.cancel().catch(() => undefined);
+
       return payloadTooLarge();
     }
 
@@ -77,5 +82,6 @@ export async function readBoundedText(
   }
 
   parts.push(decoder.decode());
+
   return parts.join("");
 }

@@ -53,8 +53,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await readBoundedText(req, MAX_BODY_BYTES);
+
   if (body instanceof NextResponse) {
     console.error("Stripe webhook: body over the size cap");
+
     return body;
   }
 

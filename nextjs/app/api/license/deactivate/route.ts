@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try {
     const text = await readBoundedText(req, MAX_BODY_BYTES);
+
     if (text instanceof NextResponse) return text;
     body = JSON.parse(text);
   } catch (err) {
