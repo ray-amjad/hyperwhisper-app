@@ -350,6 +350,33 @@ function frameKind(frame: Record<string, unknown>): string {
   return 'unknown';
 }
 
+/**
+ * A real WebSocket (WHATWG, and Bun's) discards a message that arrives once
+ * `readyState` is no longer OPEN. The base fake delivers regardless, which would
+ * hide a session that closed too early: the frame it threw away would still
+ * reach the client. The stop-settle tests (#2920) need the real behaviour.
+ */
+class ClosingDiscardsUpstreamSocket extends FakeUpstreamSocket {
+  override deliver(payload: unknown): void {
+    if (this.readyState !== FakeUpstreamSocketBase.OPEN) return;
+    super.deliver(payload);
+  }
+}
+
+/** The single settle timer still armed on `clock` (the post-stop wait, #2920). */
+function liveSettleTimer(clock: FakeStreamingTimers): { ms: number; fire: () => void } {
+  const live = clock.timeouts.filter((timer) => !timer.cleared);
+  if (live.length !== 1) throw new Error(`expected exactly one live timeout, got ${live.length}`);
+  const timer = live[0]!;
+  return { ms: timer.ms, fire: () => { timer.cleared = true; timer.fn(); } };
+}
+
+function finalsOf(client: FakeClientSocket): unknown[] {
+  return client.messagesOfType('transcript')
+    .filter((message) => message.is_final === true)
+    .map((message) => message.text);
+}
+
 function audioFrame(seconds: number): ArrayBuffer {
   return new ArrayBuffer(Math.round(seconds * BYTES_PER_SECOND));
 }
@@ -670,8 +697,9 @@ describe('gemini live socket lifecycle', () => {
   });
 
   describe('stop sequence', () => {
-    test('sends audio_stream_end rather than closing, then closes on generationComplete', async () => {
-      const harness = openSession();
+    test('sends audio_stream_end rather than closing, then closes once generationComplete settles', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
       harness.events.onMessage(binaryMessage(audioFrame(4)));
 
       harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
@@ -687,7 +715,111 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.client.messagesOfType('transcript').at(-1)).toEqual({
         type: 'transcript', text: 'trailing words', is_final: true, speech_final: true,
       });
+      // Not on the spot: the completion could be an earlier turn's (#2920).
+      expect(harness.upstream.closes).toHaveLength(0);
+      liveSettleTimer(clock).fire();
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      await harness.endSession();
+    });
+
+    test('an earlier turn\'s completion that lands after stop does not close before the stop\'s own final (#2920)', async () => {
+      // The user says sentence A, pauses briefly, says sentence B and releases
+      // the key. Turn A's closing frame (final + turnComplete) is still in flight
+      // as audio_stream_end goes out, and closing on it discarded the answer to
+      // the stop — sentence B — because a closed socket drops what arrives next.
+      globalThis.WebSocket = ClosingDiscardsUpstreamSocket as unknown as typeof WebSocket;
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      harness.events.onMessage(binaryMessage(new ArrayBuffer(64_000)));
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+
+      // Turn A's closing frame, already in flight.
+      clock.nowMs += 40;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'First sentence.' }, turnComplete: true } });
+      // The answer to audio_stream_end: turn B's final, ~0.5 s after the stop.
+      clock.nowMs += 460;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: ' Second sentence.' }, generationComplete: true } });
+
+      expect(finalsOf(harness.client)).toEqual(['First sentence.', ' Second sentence.']);
+      liveSettleTimer(clock).fire();
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      await harness.endSession();
+      // Both sentences are billed, not only the first.
+      expect(licenseCharges[0]!.metadata.transcription_cost_usd)
+        .toBe(computeGeminiTranscribeLiveCost(2, 'First sentence. Second sentence.'.length));
+    });
+
+    test('an in-flight completion holds the session for a stop answer that is slow to come (#2920)', async () => {
+      // Codex review, round 1: the earlier turn's completion lands 40 ms after
+      // the stop and Google's answer takes 900 ms. A fixed 800 ms floor closed
+      // at 800 ms and threw the answer away.
+      globalThis.WebSocket = ClosingDiscardsUpstreamSocket as unknown as typeof WebSocket;
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+
+      clock.nowMs += 40;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'First sentence.' }, turnComplete: true } });
+      // Inside the in-flight window: held to 2.5 s after the stop, not 300 ms.
+      expect(liveSettleTimer(clock).ms).toBe(2_460);
+
+      clock.nowMs += 860;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: ' Second sentence.' }, generationComplete: true } });
+
+      expect(finalsOf(harness.client)).toEqual(['First sentence.', ' Second sentence.']);
+      // That one is the answer: only the quiet window is left.
+      expect(liveSettleTimer(clock).ms).toBe(300);
+      liveSettleTimer(clock).fire();
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      await harness.endSession();
+    });
+
+    test('the usual stop answer, ~0.5 s after the stop, closes after the quiet window alone', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+
+      clock.nowMs += 500;
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'Hello world.' }, generationComplete: true } });
+
+      // ~0.8 s after the stop, not the 2.5 s in-flight hold or the 5 s grace.
+      expect(liveSettleTimer(clock).ms).toBe(300);
+      await harness.endSession();
+    });
+
+    test('a single-turn stop still ends the session promptly, nowhere near the 5 s backstop', async () => {
+      // Real timers, so this is the wall-clock latency the user sees. Before the
+      // final-and-complete fix this waited the whole 5 s STOP_GRACE_MS.
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(1)));
+      const stoppedAt = performance.now();
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+      // Google answers audio_stream_end ~0.5 s later (verified live).
+      await Bun.sleep(500);
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'Hello world.' }, generationComplete: true } });
+
+      while (harness.upstream.closes.length === 0 && performance.now() - stoppedAt < 5_000) {
+        await Bun.sleep(25);
+      }
+
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      expect(performance.now() - stoppedAt).toBeLessThan(1_500);
+      await harness.endSession();
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+    }, 10_000);
+
+    test('a mid-dictation completion with no stop arms nothing and closes nothing', async () => {
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ timers: clock });
+
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'First sentence.' }, turnComplete: true } });
+      harness.upstream.deliver({ serverContent: { generationComplete: true } });
+      harness.upstream.deliver({ serverContent: { interimInputTranscription: { text: 'Second' } } });
+
+      expect(clock.timeouts).toHaveLength(0);
+      expect(harness.upstream.closes).toHaveLength(0);
+      expect(harness.client.closes).toHaveLength(0);
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(0);
       await harness.endSession();
     });
 
@@ -739,7 +871,8 @@ describe('gemini live socket lifecycle', () => {
       // audio_stream_end straight away put it AHEAD of the audio it terminates
       // (setup → END → audio → audio): Google transcribed nothing, the user got
       // an empty result, and the forwarded seconds were still charged.
-      const harness = openSession({ skipSetup: true });
+      const clock = new FakeStreamingTimers();
+      const harness = openSession({ skipSetup: true, timers: clock });
 
       harness.events.onMessage(binaryMessage(audioFrame(4)));
       harness.events.onMessage(binaryMessage(audioFrame(4)));
@@ -761,6 +894,7 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.client.messagesOfType('transcript').at(-1)).toEqual({
         type: 'transcript', text: 'eight seconds of words', is_final: true, speech_final: true,
       });
+      liveSettleTimer(clock).fire();
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
       await harness.endSession();
       expect(harness.client.messagesOfType('session_complete')[0]!.duration_seconds).toBe(8);

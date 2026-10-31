@@ -208,6 +208,25 @@ export interface StreamingVendor {
   stopFrames?(): string[];
   readonly stopGraceMs?: number;
   /**
+   * For a vendor whose post-stop `complete` cannot be told apart from an EARLIER
+   * turn's completion that was still in flight when the stop frames went out
+   * (Gemini live, #2920). When set, a `complete` after the stop does not close
+   * the upstream at once:
+   * - one arriving within `inFlightWindowMs` of the stop frames is presumed to
+   *   be an earlier turn's, already in flight, and holds the session until
+   *   `inFlightHoldMs` after the stop unless a later completion arrives first;
+   * - one arriving after that window is presumed to be the stop's answer.
+   * The upstream then closes after `quietMs` with no further transcript or
+   * completion (each re-arms the wait). Always capped by `stopGraceMs`.
+   * Omitted means the first post-stop `complete` closes the upstream
+   * immediately (Deepgram).
+   */
+  readonly stopSettle?: {
+    readonly quietMs: number;
+    readonly inFlightWindowMs: number;
+    readonly inFlightHoldMs: number;
+  };
+  /**
    * Cost in USD of `seconds` of audio, and of `transcriptChars` characters of
    * committed transcript for a vendor whose bill depends on both.
    *
@@ -534,6 +553,13 @@ export function createStreamingEventsFor(
    */
   let stopDeferred = false;
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
+  /** `clock.now()` when the stop frames went out; `stopSettle`'s windows count from it. */
+  let stopSentAt = 0;
+  /** A `complete` arrived after the stop; from then on `settleTimer` decides the close. */
+  let stopCompletionSeen = false;
+  /** A post-stop `complete` arrived too late to have been in flight: the stop's answer. */
+  let stopAnswerSeen = false;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set when a terminal upstream fault should close the client with 1011. */
   let clientCloseCode: number | null = null;
   /**
@@ -580,6 +606,10 @@ export function createStreamingEventsFor(
     if (stopTimer) {
       clearTimeout(stopTimer);
       stopTimer = null;
+    }
+    if (settleTimer) {
+      clock.clearTimeout(settleTimer);
+      settleTimer = null;
     }
 
     // The metered charge, then the clamp. `enforceCreditCutoff` ends a session
@@ -792,10 +822,32 @@ export function createStreamingEventsFor(
     }, vendor.stopGraceMs ?? 5000);
   }
 
+  /**
+   * (Re)arm the post-stop settle wait — see `StreamingVendor.stopSettle`. Runs
+   * on the first post-stop `complete` and on every transcript or completion
+   * after it, so a turn that closed while the stop was in flight cannot end the
+   * session ahead of the stop's own final (#2920). The grace backstop stays
+   * armed underneath, so a vendor that keeps talking still closes at
+   * `stopGraceMs`.
+   */
+  function armStopSettle(settle: NonNullable<StreamingVendor['stopSettle']>): void {
+    if (sessionEnded) return;
+    if (settleTimer) clock.clearTimeout(settleTimer);
+    // Until the stop's answer is seen, only an in-flight earlier turn has
+    // completed, so hold for the answer; after it, only the quiet window.
+    const untilHold = stopAnswerSeen ? 0 : stopSentAt + settle.inFlightHoldMs - clock.now();
+    settleTimer = clock.setTimeout(() => {
+      settleTimer = null;
+      log('stop_settled', { answerSeen: stopAnswerSeen });
+      closeUpstream('Session ended');
+    }, Math.max(settle.quietMs, untilHold));
+  }
+
   /** Send the vendor's end-of-audio frames and wait out the grace period. */
   function sendStopFrames(frames: string[]): void {
     stopDeferred = false;
     stopRequested = true;
+    stopSentAt = clock.now();
     if (upstreamWs && upstreamWs.readyState === WebSocket.OPEN) {
       for (const frame of frames) upstreamWs.send(frame);
     }
@@ -863,14 +915,24 @@ export function createStreamingEventsFor(
             speech_final: event.speechFinal,
           });
         }
+        // The stop's own final may still be behind this one: keep waiting.
+        if (stopCompletionSeen && vendor.stopSettle) armStopSettle(vendor.stopSettle);
         return;
       }
       case 'complete': {
         // Only terminal once the client asked to stop: vendors that emit this at
         // every turn boundary would otherwise cut a live dictation short.
-        if (stopRequested) {
+        if (!stopRequested) return;
+        if (!vendor.stopSettle) {
           closeUpstream('Session ended');
+          return;
         }
+        // A completion after the stop is not necessarily the stop's answer: an
+        // earlier turn's closing frame can still have been in flight when the
+        // stop frames went out (#2920). Settle instead of closing outright.
+        stopCompletionSeen = true;
+        if (clock.now() - stopSentAt >= vendor.stopSettle.inFlightWindowMs) stopAnswerSeen = true;
+        armStopSettle(vendor.stopSettle);
         return;
       }
       case 'error': {
