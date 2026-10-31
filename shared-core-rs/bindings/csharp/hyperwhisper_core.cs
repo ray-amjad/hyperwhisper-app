@@ -4258,8 +4258,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict();
-            if (checksum != 1585) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `1585`, library returned `{checksum}`");
+            if (checksum != 36115) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `36115`, library returned `{checksum}`");
             }
         }
         {
@@ -10612,13 +10612,26 @@ class FfiConverterTypeValidateRequest: FfiConverterRustBuffer<ValidateRequest> {
 /// Outcome of a validation attempt. Mirrors
 /// `hw_license::validate::ValidationOutcome`.
 /// </summary>
+/// <param name="is_verdict">
+/// Whether the server stated a verdict about the key. `false` for a 200
+/// that is not the validate JSON (#2916), the offline fallback and the
+/// empty-key outcome: a head must not persist such an outcome, and takes
+/// its network-failure path instead.
+/// </param>
 internal record ValidationOutcome (
     bool @isValid, 
     HwLicenseStatus @status, 
     string? @customerId, 
     string? @customerEmail, 
     string? @expiresAt, 
-    string? @errorMessage
+    string? @errorMessage, 
+    /// <summary>
+    /// Whether the server stated a verdict about the key. `false` for a 200
+    /// that is not the validate JSON (#2916), the offline fallback and the
+    /// empty-key outcome: a head must not persist such an outcome, and takes
+    /// its network-failure path instead.
+    /// </summary>
+    bool @isVerdict
 ) {
 }
 
@@ -10632,7 +10645,8 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             @customerId: FfiConverterOptionalString.INSTANCE.Read(stream),
             @customerEmail: FfiConverterOptionalString.INSTANCE.Read(stream),
             @expiresAt: FfiConverterOptionalString.INSTANCE.Read(stream),
-            @errorMessage: FfiConverterOptionalString.INSTANCE.Read(stream)
+            @errorMessage: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @isVerdict: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -10643,7 +10657,8 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@customerId)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@customerEmail)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@expiresAt)
-            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@errorMessage);
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@errorMessage)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@isVerdict);
     }
 
     public override void Write(ValidationOutcome value, BigEndianStream stream) {
@@ -10653,6 +10668,7 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             FfiConverterOptionalString.INSTANCE.Write(value.@customerEmail, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@expiresAt, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@errorMessage, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@isVerdict, stream);
     }
 }
 
@@ -17359,6 +17375,10 @@ internal static class HyperwhisperCoreMethods {
     /// only FFI write path for a validate response: it prevents a rejected
     /// *replacement* key from clobbering the stored key's cached status (a 24h
     /// lockout for a valid user).
+    ///
+    /// Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+    /// a 200 that is not the validate JSON) goes to the offline fallback instead,
+    /// so its `Invalid` is never cached.
     /// </summary>
     public static void LicensePersistValidationVerdict(KeyValueStore @store, HwLicenseStatus @status, string @attemptedKey, long @nowUnixSecs) {
         
