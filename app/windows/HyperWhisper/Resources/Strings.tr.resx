@@ -2189,7 +2189,7 @@ Daha sonra yeniden indirebilirsiniz.</value>
     <value>İçe aktarmak için en az bir bölüm seçin.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} yeni kelime ekle, {1} mevcut kelimelerle çakışma. Devam edilsin mi?</value>
+    <value>Yeni kelimeler: {0}. Mevcut kelimelerle çakışmalar: {1}. Devam edilsin mi?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Kelime Hazinesi İçe Aktarılsın mı?</value>

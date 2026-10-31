@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Vyberte alespoň jednu sekci k importu.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Přidat {0} nových slov, {1} konflikty se stávajícími slovy. Pokračovat?</value>
+    <value>Nová slova: {0}. Konflikty se stávajícími slovy: {1}. Pokračovat?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Importovat slovník?</value>

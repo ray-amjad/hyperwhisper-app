@@ -2189,7 +2189,7 @@ You can re-download it later.</value>
     <value>Legalább egy részt ki kell jelölni az importáláshoz.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} új szó hozzáadása, {1} ütközés meglévő szavakkal. Folytatja?</value>
+    <value>Új szavak: {0}. Ütközések meglévő szavakkal: {1}. Folytatja?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Szótár importálása?</value>
