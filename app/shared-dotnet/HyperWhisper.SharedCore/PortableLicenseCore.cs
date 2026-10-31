@@ -53,6 +53,14 @@ public sealed record PortableValidateRequest(string Url, string ContentType, byt
 /// The core's verdict for a validation attempt. <see cref="ExpiresAt"/> is the
 /// server's string, verbatim and unparsed — the core does not reject a value it
 /// cannot parse, and neither should a caller.
+/// <para>
+/// <see cref="IsVerdict"/> says whether the server stated a verdict about the
+/// key. It is false for a 200 whose body is not the validate JSON (a captive
+/// portal or proxy login page, an empty body — #2916), for the offline fallback
+/// and for the empty-key outcome. Only a verdict may be passed to
+/// <see cref="PortableLicenseCore.PersistValidationVerdict"/>; a non-verdict
+/// takes the caller's network-failure path instead.
+/// </para>
 /// </summary>
 public sealed record PortableValidationOutcome(
     bool IsValid,
@@ -60,7 +68,8 @@ public sealed record PortableValidationOutcome(
     string? CustomerId,
     string? CustomerEmail,
     string? ExpiresAt,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    bool IsVerdict);
 
 /// <summary>
 /// Stable public surface over the <c>hw-license</c> functions of the generated
@@ -108,8 +117,11 @@ public static class PortableLicenseCore
     }
 
     /// <summary>
-    /// The verdict for a 200-OK validate response. A body that is not JSON is an
-    /// Invalid verdict, not an exception.
+    /// The outcome for a 200-OK validate response. A body that is not the
+    /// validate JSON (not JSON, empty, or JSON with neither <c>valid</c> nor
+    /// <c>status</c>) is not an exception and not a verdict: it comes back
+    /// Invalid with <see cref="PortableValidationOutcome.IsVerdict"/> false, and
+    /// the caller must not persist it (#2916).
     /// </summary>
     public static PortableValidationOutcome ParseValidateResponse(byte[] body)
     {
@@ -166,6 +178,8 @@ public static class PortableLicenseCore
     /// verdict stores the key and caches the status. Any other verdict caches the
     /// status only when the attempted key is the key on file, so a rejected
     /// replacement key cannot lock a valid user out for the 24-hour cache window.
+    /// Call it only for an outcome whose
+    /// <see cref="PortableValidationOutcome.IsVerdict"/> is true (#2916).
     /// </summary>
     public static void PersistValidationVerdict(
         IPortableKeyValueStore store,
@@ -199,7 +213,8 @@ public static class PortableLicenseCore
         outcome.customerId,
         outcome.customerEmail,
         outcome.expiresAt,
-        outcome.errorMessage);
+        outcome.errorMessage,
+        outcome.isVerdict);
 
     private static PortableLicenseStatus Convert(HwLicenseStatus status) => status switch
     {
