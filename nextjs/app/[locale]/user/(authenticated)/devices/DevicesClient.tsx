@@ -180,8 +180,19 @@ export default function DevicesClient() {
         trigger={data}
       >
         {/* aria-busy sits here: HeightTween's box takes no aria props, and
-            this box holds the whole table. */}
-        <div aria-busy={loading || isTransitioning} className="overflow-x-auto">
+            this box holds the whole table. The box scrolls sideways on a
+            phone, so it is a named region with a tab stop (#1148, as #1145
+            did on /download): a keyboard user can scroll it.
+            The ring is inset (-outline-offset-2), and rounded like the card:
+            the card clips its overflow, so an outset ring would be hidden. */}
+        <div
+          aria-busy={loading || isTransitioning}
+          aria-label="Device activations table"
+          className="overflow-x-auto rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
+          role="region"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+          tabIndex={0}
+        >
           <table className="w-full min-w-[36rem]">
             <thead>
               <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">

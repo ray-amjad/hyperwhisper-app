@@ -332,5 +332,5 @@ test("the Devices card renders with the opacity dim and the height tween, never 
     card[1],
     "transition:opacity 150ms cubic-bezier(0.4, 0, 0.2, 1), height 300ms var(--motion-ease-smooth-out)",
   );
-  assert.match(html, /<div aria-busy="false" class="overflow-x-auto">/);
+  assert.match(html, /<div aria-busy="false" aria-label="Device activations table" class="overflow-x-auto /);
 });
