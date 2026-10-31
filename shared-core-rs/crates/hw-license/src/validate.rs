@@ -217,13 +217,19 @@ pub fn parse_validate_response(body: &[u8]) -> ValidationOutcome {
 
 /// Decode a 200 body as the validate reply: a JSON object that names `valid`
 /// or `status` and decodes into [`ValidateResponse`]. `None` for anything else.
+///
+/// The struct is decoded straight from the bytes, so a duplicated field
+/// (`{"valid":false,"valid":true}`) is still rejected as malformed, exactly as
+/// before #2916. Going through `serde_json::Value` first would keep only the
+/// last duplicate and could turn a malformed body into an Active verdict. The
+/// key-presence check is a separate pass and decides nothing on its own.
 fn decode_validate_body(body: &[u8]) -> Option<ValidateResponse> {
-    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let object = value.as_object()?;
+    let resp: ValidateResponse = serde_json::from_slice(body).ok()?;
+    let object: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(body).ok()?;
     if !object.contains_key("valid") && !object.contains_key("status") {
         return None;
     }
-    serde_json::from_value(value).ok()
+    Some(resp)
 }
 
 /// Map an already-parsed [`ValidateResponse`] to a [`ValidationOutcome`].
@@ -390,6 +396,24 @@ mod tests {
                 Some("Invalid server response"),
                 "{shown:?}"
             );
+        }
+    }
+
+    #[test]
+    fn duplicate_fields_are_a_non_verdict_not_active() {
+        // A duplicated key is malformed. It must never become the last
+        // duplicate's verdict (review of #2916: `valid` false then true).
+        let bodies: [&[u8]; 3] = [
+            br#"{"valid":false,"valid":true}"#,
+            br#"{"valid":true,"valid":false}"#,
+            br#"{"status":"revoked","status":"active"}"#,
+        ];
+        for body in bodies {
+            let out = parse_validate_response(body);
+            let shown = String::from_utf8_lossy(body);
+            assert!(!out.is_verdict, "{shown:?} was a verdict");
+            assert_eq!(out.status, LicenseStatus::Invalid, "{shown:?}");
+            assert!(!out.is_valid, "{shown:?}");
         }
     }
 
