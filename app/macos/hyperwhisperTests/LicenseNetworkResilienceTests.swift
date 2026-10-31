@@ -284,7 +284,8 @@ struct LicenseNetworkResilienceTests {
             customerId: "cust_1",
             customerEmail: "person@example.com",
             expiresAt: nil,
-            errorMessage: "Using cached license (offline)"
+            errorMessage: "Using cached license (offline)",
+            isVerdict: false
         )
 
         let fellBackDueToNetwork = LicenseNetworkService.adapt(outcome, networkFailureFallback: true)

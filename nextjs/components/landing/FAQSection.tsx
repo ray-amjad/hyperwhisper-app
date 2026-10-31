@@ -1,9 +1,12 @@
 "use client";
 
-import { m } from "framer-motion";
-import { ChevronDown } from "lucide-react";
-import { useState, type ReactElement } from "react";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState, type ReactElement } from "react";
+
+import { EYEBROW, H2, WRAP } from "./dusk";
+import Reveal from "./Reveal";
+
 import { TEXT_LINK } from "@/components/text-link";
 
 // Parse markdown links [text](url) and convert to JSX
@@ -48,6 +51,7 @@ function parseMarkdownLinks(text: string) {
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const t = useTranslations("faq");
+  const tNav = useTranslations("navbar");
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -75,42 +79,39 @@ export default function FAQSection() {
   ];
 
   return (
-    <section className="py-20" id="faq">
-      <m.div
-        className="max-w-3xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
-      >
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
-          </h2>
-          <p className="text-lg text-gray-400">{t("subtitle")}</p>
+    <section className="pb-24 pt-10 md:pb-[140px]" id="faq">
+      <div className={WRAP}>
+        <div className="mx-auto max-w-[640px] text-center">
+          <Reveal className={EYEBROW}>{tNav("faq")}</Reveal>
+          <Reveal delay={80}>
+            <h2 className={`${H2} mt-3`}>{t("title")}</h2>
+          </Reveal>
         </div>
 
-        <div className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-2xl overflow-hidden">
+        <Reveal
+          className="mx-auto mt-12 max-w-[820px] border-t border-[var(--dusk-line)]"
+          delay={160}
+        >
           {faqKeys.map((key, index) => (
-            <div key={key} className="border-b border-gray-800 last:border-b-0">
+            <div key={key} className="border-b border-[var(--dusk-line)]">
               <button
                 aria-controls={`faq-panel-${key}`}
                 aria-expanded={openIndex === index}
-                className="w-full px-6 py-4 text-left hover:bg-gray-800/50 transition-colors flex items-center justify-between"
+                className="flex w-full items-center justify-between gap-4 px-1 py-5 text-start text-base font-medium text-[var(--dusk-ink)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] md:py-[22px] md:text-[17px]"
                 id={`faq-trigger-${key}`}
+                type="button"
                 onClick={() => toggleFAQ(index)}
               >
-                <span className="text-gray-200 font-medium">
-                  {t(`questions.${key}.question`)}
-                </span>
-                <ChevronDown
-                  className={`w-5 h-5 text-gray-400 transition-transform ${
-                    openIndex === index ? "rotate-180" : ""
+                <span>{t(`questions.${key}.question`)}</span>
+                <Plus
+                  aria-hidden="true"
+                  className={`size-[18px] flex-none text-[var(--dusk-mute)] transition-[rotate] duration-[250ms] ease-[var(--dusk-ease)] ${
+                    openIndex === index ? "rotate-45" : ""
                   }`}
                 />
               </button>
               <div
-                className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                className={`grid transition-[grid-template-rows] duration-300 ease-[var(--dusk-ease)] ${
                   openIndex === index ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 }`}
                 id={`faq-panel-${key}`}
@@ -122,33 +123,22 @@ export default function FAQSection() {
                     automatic-minimum-size sizing, which is what lets the 0fr track
                     resolve to 0. Without it every closed panel keeps its full height. */}
                 <div className="overflow-hidden">
-                  <p className="text-gray-400 px-6 pt-2 pb-6 whitespace-pre-line">
+                  <p className="max-w-[700px] whitespace-pre-line px-1 pb-[22px] text-[15.5px] leading-[1.6] text-[var(--dusk-mute)]">
                     {parseMarkdownLinks(t(`questions.${key}.answer`))}
                   </p>
                 </div>
               </div>
             </div>
           ))}
-        </div>
+        </Reveal>
 
-        <m.div
-          className="text-center mt-12"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0 }}
-        >
-          <p className="text-gray-400">
-            {t("contactPrompt")}{" "}
-            <a
-              className={TEXT_LINK}
-              href="mailto:hi@support.hyperwhisper.com"
-            >
-              hi@support.hyperwhisper.com
-            </a>
-          </p>
-        </m.div>
-      </m.div>
+        <Reveal as="p" className="mt-10 text-center text-[var(--dusk-mute)]">
+          {t("contactPrompt")}{" "}
+          <a className={TEXT_LINK} href="mailto:hi@support.hyperwhisper.com">
+            hi@support.hyperwhisper.com
+          </a>
+        </Reveal>
+      </div>
     </section>
   );
 }

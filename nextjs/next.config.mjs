@@ -3,12 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 
+import { mintlifyRewrites } from './config/mintlify-rewrites.mjs';
 import { blogLinkRedirects } from './config/redirects.mjs';
 import { securityHeaderRoutes } from './config/security-headers.mjs';
 
 /**
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.
- * This is especially useful for Docker builds.
+ * cf:build sets it: runtime secrets (Infisical -> the Worker) do not
+ * exist at build time, and src/env/server.mjs validates again at runtime.
  */
 !process.env.SKIP_ENV_VALIDATION && (await import("./src/env/server.mjs"));
 
@@ -35,6 +37,23 @@ const nextConfig = {
     async redirects() {
         return blogLinkRedirects;
     },
+    // The Mintlify docs under /docs (formerly vercel.json rewrites).
+    async rewrites() {
+        return { beforeFiles: mintlifyRewrites, afterFiles: [], fallback: [] };
+    },
+    // The one next/image (DownloadModal) is a static PNG. Optimisation on
+    // Workers needs a billed Cloudflare Images binding, so it is off.
+    images: { unoptimized: true },
+    // pg loads pg-cloudflare (its Workers socket) only under the `workerd`
+    // export condition, so Next's node-condition file tracing copies just its
+    // empty stub and the OpenNext bundle fails to resolve it. Ship it whole.
+    outputFileTracingIncludes: {
+        '/*': ['./node_modules/pg-cloudflare/**/*'],
+    },
+    // Sentry release: nextjs-deploy.yml sets the commit at build time only.
+    ...(process.env.SENTRY_RELEASE
+        ? { env: { SENTRY_RELEASE: process.env.SENTRY_RELEASE } }
+        : {}),
     experimental: {
         // app/global-not-found.tsx serves unmatched URLs (/de/zzz) on their own
         // route, so it can read the request locale. As app/not-found.tsx it ran

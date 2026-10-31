@@ -54,15 +54,24 @@ describe('buildTranscriptJob — language_code primary-subtag rule', () => {
     });
   }
 
-  test('a degenerate "-en" tag reduces to an empty language_code, not detection', () => {
+  test('a degenerate "-en" tag (empty subtag) falls back to language_detection, never language_code ""', () => {
     const { createBody } = buildTranscriptJob(URL_, '-en', undefined, false, 'universal-3-5-pro');
-    expect(createBody.language_code).toBe('');
-    expect('language_detection' in createBody).toBe(false);
+    expect(createBody.language_detection).toBe(true);
+    expect('language_code' in createBody).toBe(false);
   });
 
-  test('the language is not trimmed (only the sync path trims)', () => {
-    const { createBody } = buildTranscriptJob(URL_, ' en-US', undefined, false, 'universal-3-5-pro');
-    expect(createBody.language_code).toBe(' en');
+  for (const language of [' en-US ', ' en-US', '\ten\n']) {
+    test(`${JSON.stringify(language)} is trimmed like sync → language_code en`, () => {
+      const { createBody } = buildTranscriptJob(URL_, language, undefined, false, 'universal-3-5-pro');
+      expect(createBody.language_code).toBe('en');
+      expect('language_detection' in createBody).toBe(false);
+    });
+  }
+
+  test('" auto " (padded) is auto-detect, not language_code "auto"', () => {
+    const { createBody } = buildTranscriptJob(URL_, ' auto ', undefined, false, 'universal-3-5-pro');
+    expect(createBody.language_detection).toBe(true);
+    expect('language_code' in createBody).toBe(false);
   });
 });
 
@@ -87,14 +96,42 @@ describe('buildTranscriptJob — keyterms_prompt', () => {
     expect(createBody.keyterms_prompt).toBe(keyterms);
   });
 
-  test('a term over 50 characters is dropped; duplicates and long phrases are kept', () => {
+  test('a term over 50 characters is dropped; duplicates are kept', () => {
     const long = 'x'.repeat(51);
     const fifty = 'y'.repeat(50);
-    const phrase = 'one two three four five six seven';
     const { keyterms } = buildTranscriptJob(
-      URL_, 'en', `${long}, ${fifty}, Dup, Dup, ${phrase}`, false, 'universal-3-5-pro',
+      URL_, 'en', `${long}, ${fifty}, Dup, Dup`, false, 'universal-3-5-pro',
     );
-    expect(keyterms).toEqual([fifty, 'Dup', 'Dup', phrase]);
+    expect(keyterms).toEqual([fifty, 'Dup', 'Dup']);
+  });
+
+  test('a phrase over 6 words is dropped, like sync; 6 words is kept', () => {
+    const seven = 'one two three four five six seven';
+    const six = 'one two three four five six';
+    const { createBody, keyterms } = buildTranscriptJob(
+      URL_, 'en', `${seven}, ${six}, Short`, false, 'universal-3-5-pro',
+    );
+    expect(keyterms).toEqual([six, 'Short']);
+    expect(createBody.keyterms_prompt).toEqual([six, 'Short']);
+  });
+
+  test('only over-long phrases: no keyterms_prompt and empty keyterms (no keyterms add-on)', () => {
+    const { createBody, keyterms } = buildTranscriptJob(
+      URL_, 'en', 'one two three four five six seven, a b c d e f g h', false, 'universal-3-5-pro',
+    );
+    expect('keyterms_prompt' in createBody).toBe(false);
+    expect(keyterms).toEqual([]);
+  });
+
+  test('over-long phrases do not use up the 200-term cap', () => {
+    const longs = Array.from({ length: 10 }, (_, i) => `a b c d e f g${i}`);
+    const shorts = Array.from({ length: 200 }, (_, i) => `term${i}`);
+    const { keyterms } = buildTranscriptJob(
+      URL_, 'en', [...longs, ...shorts].join(', '), false, 'universal-3-5-pro',
+    );
+    expect(keyterms.length).toBe(200);
+    expect(keyterms[0]).toBe('term0');
+    expect(keyterms[199]).toBe('term199');
   });
 
   test('keyterms are capped at 200 terms', () => {

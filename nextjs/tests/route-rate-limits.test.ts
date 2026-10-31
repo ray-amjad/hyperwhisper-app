@@ -10,12 +10,12 @@
  *   and `GET /api/checkout` redirects into it; both use `checkoutRateLimiter`.
  *
  * Over the limit: 429, a `Retry-After` header, and no work done (no database
- * read, no Stripe call). Upstash unreachable: the request is served (fail
+ * read, no Stripe call). Limiter unavailable: the request is served (fail
  * open) and a warning is logged.
  *
  * The routes are the real modules; the limiters are in-memory stand-ins
  * installed by `credit-routes-harness.ts`, counting per identifier so the
- * N+1th request is the first refused. The Upstash sliding window itself is
+ * N+1th request is the first refused. The Cloudflare limiters themselves are
  * covered by tests/rate-limit.test.ts.
  */
 import assert from "node:assert/strict";
@@ -152,9 +152,9 @@ for (const route of ROUTES) {
       assert.equal(other.status, route.okStatus);
     });
 
-    test("fails open: Upstash throwing still serves the request, with a warning", async () => {
+    test("fails open: a throwing limiter still serves the request, with a warning", async () => {
       behaviour.rateLimitMax = 0;
-      behaviour.rateLimitError = new Error(`upstash down, saw ${CALLER_IP}`);
+      behaviour.rateLimitError = new Error(`limiter down, saw ${CALLER_IP}`);
 
       const response = await route.send(CALLER_IP);
 
@@ -164,18 +164,6 @@ for (const route of ROUTES) {
       assert.match(warnings[0], /Rate limit unavailable for .*failing open: Error/);
       // The error message (which can quote the command) is not logged.
       assert.ok(!warnings[0].includes(CALLER_IP), warnings[0]);
-    });
-
-    test("fails open on @upstash/ratelimit's timeout verdict, with a warning", async () => {
-      behaviour.rateLimitTimeout = true;
-
-      const response = await route.send(CALLER_IP);
-
-      assert.equal(response.status, route.okStatus);
-      assert.ok(
-        logLines.some((line) => /warn Rate limit timed out for .*failing open/.test(line)),
-        logLines.join("\n"),
-      );
     });
   });
 }

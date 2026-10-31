@@ -7,6 +7,7 @@ import { emailTag } from "@/lib/shared/redact";
 import { refundedCreditsTotal } from "@/lib/services/credit-refund";
 import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
 import type { AccountKeyRow } from "@/src/lib/db-layer";
+import { ACCOUNT_KEY_DELETED_STATUS } from "@/lib/account-key-limits";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -37,6 +38,8 @@ const accountKeyId = z.string().uuid();
  * 1. by ROW ID (`metadata.account_key_id`), which never changes;
  * 2. by the key string (`metadata.license_key`), which still works when no
  *    rotation happened;
+ *    (A row found by 1 or 2 that the owner deleted resolves to the user's
+ *    newest live key: `liveSiblingIfDeleted`.)
  * 3. by the session's Stripe customer. Checkouts opened before the id was
  *    written carry only the string, which a rotation kills, but every top-up
  *    checkout runs under the customer cached on its key row
@@ -52,13 +55,13 @@ async function findTopUpAccount(
   if (id && accountKeyId.safeParse(id).success) {
     const byId = await findAccountById(id);
 
-    if (byId) return byId;
+    if (byId) return liveSiblingIfDeleted(byId);
   }
 
   const key = session.metadata?.license_key;
   const byKey = key ? await findAccountByKey(key) : null;
 
-  if (byKey) return byKey;
+  if (byKey) return liveSiblingIfDeleted(byKey);
 
   const customerId = getStripeCustomerId(session.customer);
 
@@ -72,6 +75,26 @@ async function findTopUpAccount(
   if (new Set(rows.map((r) => r.userId)).size > 1) return null;
 
   return rows.find((r) => r.status === "granted") ?? rows[0];
+}
+
+/**
+ * A top-up checkout opened on a key the owner has since deleted from the
+ * dashboard lands on the same user's newest live key instead: credits belong
+ * to the user, not the key, and the owner always keeps one live key. Any
+ * other status (revoked, refunded) is returned as is, and the top-up refuses
+ * it as before. With no live sibling (an admin revoked the rest), the deleted
+ * row is returned and refused too.
+ */
+async function liveSiblingIfDeleted(
+  row: AccountKeyRow,
+): Promise<AccountKeyRow> {
+  if (row.status !== ACCOUNT_KEY_DELETED_STATUS) return row;
+
+  const live = (await getAccountKeysByEmail(row.email)).find(
+    (k) => k.userId === row.userId && k.status === "granted",
+  );
+
+  return live ?? row;
 }
 
 /** Why a top-up's key row could not be found, for logs (never the full key). */
