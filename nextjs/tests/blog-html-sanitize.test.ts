@@ -68,7 +68,7 @@ const NORMAL_ARTICLE = [
   '<table><thead><tr><th scope="col">Model</th><th align="right">Speed</th></tr></thead><tbody><tr><td>Parakeet</td><td colspan="2" align="right">Fast</td></tr></tbody></table>',
   '<figure><img src="https://cdnimg.co/a/schedule.jpg" alt="A flow chart" width="800" height="450" /><figcaption>Caption</figcaption></figure>',
   '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" width="560" height="315" title="YouTube video player" allow="accelerometer; encrypted-media" allowfullscreen></iframe>',
-  '<iframe src="https://player.vimeo.com/video/76979871" width="640" height="360"></iframe>',
+  '<iframe src="https://player.vimeo.com/video/76979871" width="640" height="360" title="Vimeo video"></iframe>',
   "<hr /><p>line<br />break</p>",
 ].join("\n");
 
@@ -114,7 +114,42 @@ describe("sanitizeBlogHtml", () => {
     assert.equal(sanitizeBlogHtml("<iframe></iframe>"), "");
     assert.equal(
       sanitizeBlogHtml('<iframe src="https://www.youtube.com/embed/x" onload="alert(1)" srcdoc="<script>1</script>"></iframe>'),
-      '<iframe src="https://www.youtube.com/embed/x"></iframe>',
+      '<iframe src="https://www.youtube.com/embed/x" title="YouTube video"></iframe>',
+    );
+  });
+
+  test("an iframe with no title or a blank one is named from its src (#2953)", () => {
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://www.youtube.com/embed/x"></iframe>'),
+      '<iframe src="https://www.youtube.com/embed/x" title="YouTube video"></iframe>',
+    );
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://player.vimeo.com/video/1"></iframe>'),
+      '<iframe src="https://player.vimeo.com/video/1" title="Vimeo video"></iframe>',
+    );
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://www.youtube.com/embed/x" title="  "></iframe>'),
+      '<iframe src="https://www.youtube.com/embed/x" title="YouTube video"></iframe>',
+    );
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://www.youtube.com/embed/x" title=""></iframe>'),
+      '<iframe src="https://www.youtube.com/embed/x" title="YouTube video"></iframe>',
+    );
+    // The live Outrank shape (#2953 evidence): every other attribute is kept.
+    assert.equal(
+      sanitizeBlogHtml('<iframe width="100%" src="https://www.youtube.com/embed/oSTGBLxrSvM" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen=""></iframe>'),
+      '<iframe width="100%" src="https://www.youtube.com/embed/oSTGBLxrSvM" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen title="YouTube video"></iframe>',
+    );
+  });
+
+  test("a supplied non-blank iframe title is kept as it is", () => {
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://www.youtube.com/embed/x" title="Demo"></iframe>'),
+      '<iframe src="https://www.youtube.com/embed/x" title="Demo"></iframe>',
+    );
+    assert.equal(
+      sanitizeBlogHtml('<iframe src="https://player.vimeo.com/video/1" title=" Demo "></iframe>'),
+      '<iframe src="https://player.vimeo.com/video/1" title=" Demo "></iframe>',
     );
   });
 
