@@ -7,6 +7,11 @@ import { env } from "@/src/env/server.mjs";
 import { db } from "@/src/db";
 import { blogPosts } from "@/src/db/schema/blog-posts";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import {
+  declaresLengthOver,
+  payloadTooLarge,
+  readBoundedText,
+} from "@/src/lib/bounded-body";
 
 /**
  * Outrank "publish_articles" webhook.
@@ -329,10 +334,9 @@ function normalizeTags(tags: unknown): string[] {
 async function readAuthorizedBody(
   req: NextRequest,
 ): Promise<{ rawBody: string } | NextResponse> {
-  const contentLength = Number(req.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
-  }
+  // A declared oversize body is refused before auth, as it always was.
+  // readBoundedText below caps a body that declares no length (#2904).
+  if (declaresLengthOver(req, MAX_BODY_BYTES)) return payloadTooLarge();
 
   // Signature verification needs the raw bytes, so we can only HMAC-check after
   // buffering the body. The bearer token, by contrast, is independent of the
@@ -350,11 +354,13 @@ async function readAuthorizedBody(
     );
   }
 
-  // Read the raw body once so we can both size-check it and verify an HMAC
-  // signature over the exact bytes.
+  // Read the raw body once, capped at MAX_BODY_BYTES as it streams (#2904),
+  // so we can verify an HMAC signature over the exact bytes.
   let rawBody: string;
   try {
-    rawBody = await req.text();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+    if (text instanceof NextResponse) return text;
+    rawBody = text;
   } catch (err) {
     // Log only the content type, never a header that carries the token or a
     // signature: this line is the one trace a rejected delivery leaves.
@@ -363,10 +369,6 @@ async function readAuthorizedBody(
       err,
     });
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
   // When signing is enabled, prefer HMAC signature verification but still fall

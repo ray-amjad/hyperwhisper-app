@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funktsioonid",
+    "modes": "Režiimid",
     "faq": "KKK",
     "support": "Tugi",
     "download": "Laadi alla",
@@ -16,26 +17,36 @@
       "switchTo": "Vaheta keelt"
     },
     "cloud": "Cloud",
-    "githubAria": "Vaata HyperWhisperit GitHubis"
+    "githubAria": "Vaata HyperWhisperit GitHubis",
+    "skipToContent": "Liigu sisu juurde"
   },
   "hero": {
-    "logoAlt": "HyperWhisperi logo",
-    "headline": "Kirjuta, loo ja kujunda",
-    "headlineAccent": "5x kiiremini AI-ga",
-    "subheadline": "HyperWhisper transkribeerib sinu häält uskumatult täpselt. Lihtsalt räägi loomulikult ja vaata, kuidas sinu sõnad ilmuvad kohe.",
-    "downloadCta": "Laadi kohe alla",
-    "demoCta": "Vaata demot",
-    "availableOn": "Saadaval",
+    "badge": "Uus",
+    "headline": "Lihtsalt räägi.",
+    "headlineAccent": "Meie kirjutame.",
+    "subheadline": "Viimistletud tekst igas rakenduses.",
+    "downloadMac": "Laadi alla Macile",
+    "freeForever": "Igavesti tasuta",
+    "worksOffline": "Töötab offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Keri",
+    "closing": {
+      "line1": "Lõpeta trükkimine.",
+      "line2": "Hakka rääkima.",
+      "meta": "Tasuta ja avatud lähtekoodiga. Kontot pole vaja."
+    }
   },
   "features": {
-    "title": "Loodud professionaalidele",
-    "subtitle": "Iga funktsioon on loodud selleks, et aidata sul töötada kiiremini ja tõhusamalt",
+    "title": "Loodud inimestele, kes kirjutavad terve päeva.",
     "customVocabulary": {
       "title": "Kohandatud sõnavara",
       "description": "Lisa nimesid, lühendeid ja eritermineid, et saavutada iga kord täiuslik täpsus."
+    },
+    "realTime": {
+      "title": "Reaalajas voogedastus",
+      "description": "Näe, kuidas sõnad ilmuvad kohe, kui räägid. Tööstusharu tipptasemel täpsus koos alla 700 ms latentsusega."
     },
     "languages": {
       "title": "100+ keelt",
@@ -45,25 +56,9 @@
       "title": "Offline tugi",
       "description": "Töötab täielikult offline. Sinu andmed ei lahku kunagi sinu seadmest."
     },
-    "privacy": {
-      "title": "Privaatsus esikohal",
-      "description": "Konto pole vajalik. Jälgimist pole. Sinu hääleandmed jäävad sinu Maci või PC-sse."
-    },
-    "hybridProcessing": {
-      "title": "Hübriidtöötlus",
-      "description": "Vali privaatsuse jaoks kohalikud mudelid või kiiruse jaoks pilve API-d. Mõlema maailma parimad küljed."
-    },
-    "customizable": {
-      "title": "Väga kohandatav",
-      "description": "Vali enam kui 9 API pakkuja ja 30+ transkriptsioonimudeli vahel."
-    },
-    "realTime": {
-      "title": "Reaalajas voogedastus",
-      "description": "Näe, kuidas sõnad ilmuvad kohe, kui räägid. Tööstusharu tipptasemel täpsus koos alla 700 ms latentsusega."
-    },
-    "fileImport": {
-      "title": "Faili import",
-      "description": "Impordi transkriptsiooniks heli- või videofaile. Toetatud on kõik peamised formaadid automaatse vaikuse tuvastusega."
+    "openSource": {
+      "title": "Avatud lähtekood",
+      "description": "Apache-2.0 litsentsiga. Uuri iga rida, tee fork või majuta ise. Ei mingeid musti kaste ega lukustust."
     },
     "screenOcr": {
       "title": "Ekraani OCR",
@@ -73,28 +68,57 @@
       "title": "Kohalik API ja MCP-server",
       "description": "Sisseehitatud MCP-server võimaldab Claude'il, Cursoril ja teistel AI agentidel HyperWhisperit juhtida. Ainult kohalik HTTP API skriptide ja automatiseerimise jaoks."
     },
+    "fileImport": {
+      "title": "Faili import",
+      "description": "Impordi transkriptsiooniks heli- või videofaile. Toetatud on kõik peamised formaadid automaatse vaikuse tuvastusega."
+    },
     "modes": {
-      "title": "Režiimid igaks olukorraks",
-      "description": "Lülitu erinevate transkriptsioonirežiimide vahel, mis on optimeeritud koosolekute, märkmete, e-kirjade, programmeerimise ja muu jaoks. Iga režiim kasutab kohandatud prompt-e, et sinu tekst oleks ideaalselt vormindatud.",
-      "meeting": "Koosolek",
+      "heading": "Üks hääl. Iga formaat.",
+      "lead": "Iga režiim kirjutab öeldu ümber vastavalt sellele, kuhu see läheb.",
       "email": "E-kiri",
       "note": "Märge",
       "code": "Kood",
+      "meeting": "Koosolek",
       "legal": "Juriidiline",
       "medical": "Meditsiiniline",
-      "presetModes": "Eelseadistatud režiimid",
-      "customModes": "Kohandatud režiimid"
-    },
-    "openSource": {
-      "title": "Avatud lähtekood",
-      "description": "Apache-2.0 litsentsiga. Uuri iga rida, tee fork või majuta ise. Ei mingeid musti kaste ega lukustust."
+      "youSaid": "Sina ütlesid",
+      "hyperWhisperWrote": "HyperWhisper kirjutas",
+      "sample": "ee nii et ütle johnile et väljalase lükkub neljapäevale sest linuxi QA pole veel valmis ja öö aitäh kannatlikkuse eest",
+      "output": {
+        "email": "Tere, John!\n\nVäljalase lükkub neljapäevale, kuni lõpetame Linuxi QA. Aitäh kannatlikkuse eest.\n\nParimate soovidega",
+        "note": "• Väljalase → neljapäev\n• Takistus: Linuxi QA pooleli\n• Teavita Johni",
+        "code": "// TODO(john): väljalase lükatud neljapäevale, Linuxi QA veel pooleli",
+        "meeting": "Otsus: väljalase lükkub neljapäevale.\nPõhjus: Linuxi QA pole lõpetatud.\nVastutaja: teavita Johni.",
+        "legal": "Teatame, et väljalaske kuupäev on muudetud neljapäevaks ja sõltub Linuxi kvaliteedikontrolli lõpuleviimisest.",
+        "medical": "Plaan: lükata väljalase neljapäevale. Seisund: Linuxi QA ootel. Järelkontroll: teavitada Johni."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Töötab kõikjal, kus sa kirjutad",
+    "eyebrow": "Kuidas see töötab",
+    "titleLine1": "Vajuta klahvi.",
+    "titleLine2": "Ütle välja.",
+    "titleAccent": "Valmis.",
+    "lead": "Sinu sõnad jõuavad puhastatult sinna, kus on kursor.",
+    "step1": "Vajuta oma kiirklahvi",
+    "step2Key": "Räägi",
+    "step2": "Räägi nagu tavaliselt",
+    "step3Key": "Vajuta uuesti",
+    "step3": "Puhas tekst, kohe õiges kohas",
+    "watchVideo": "Vaata kogu demo",
+    "closeVideo": "Sulge video",
+    "exampleLabel": "Animeeritud näide: suuline vastus kirjutatakse Slacki sõnumisse",
+    "message1": "Kas Linuxi versioon läheb ikka neljapäeval välja?",
+    "message2": "Minu poolt QA läbitud 👍",
+    "composePlaceholder": "Sõnum #launch",
+    "typed": "Jah, Linuxi QA läbiti täna hommikul, nii et neljapäev sobib. Postitan väljalaskemärkmed keskpäevaks.",
+    "listening": "Kuulan",
+    "cleaningUp": "Puhastan…",
     "fasterThanTyping": "Kiirem kui trükkimine",
     "accuracyRate": "Täpsusmäär",
     "languagesSupported": "Toetatud keeled",
-    "providersSupported": "Toetatud pakkujad"
+    "modelsSupported": "Transkriptsioonimudelid"
   },
   "faq": {
     "title": "Korduma kippuvad küsimused",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Millised offline mudelid on saadaval?",
-        "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 3 mudeli mitut suurust (loodud Google'i poolt)."
+        "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 4 mudeli mitut suurust (loodud Google'i poolt)."
       },
       "compatibility": {
         "question": "Kas see töötab kõigi minu rakendustega?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisperi toe päring",
       "body": "Tere,\n\nVersioon: \n[seda saad kontrollida menüüst Settings > About]\n\nProbleem: \n[Kirjelda oma probleemi]\n\nDetailid: \n[Lisa olulised detailid, mida tegid enne krahhi]\n\n[Sinu sõnum siia]\n\nParimate soovidega,"
-    }
+    },
+    "helpCenterHint": "Seadistamine, otseteed ja mudelid.",
+    "chooseModelHint": "Järjesta mudelid oma töötavade järgi.",
+    "accountHint": "Logi sisse oma kontovõtmega.",
+    "chooseModelTitle": "Vali mudel"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisperi logo",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Pärast input-grupiga liitumist logi välja ja uuesti sisse. Liikmesus on valikuline, kuid globaalsed kiirklahvid ja automaatne kleepimine vajavad seda.",
     "aptTitle": "Majuta oma APT-hoidla",
     "aptBody": "Linuxi väljalasked sisaldavad ka staatilist APT-hoidla arhiivi. HyperWhisper ei halda praegu avalikku APT-lõpp-punkti; allkirjastatud ja ise majutatud seadistuse, töölauaintegratsiooni, privaatsusteabe ja eemaldamise kohta vaata Linuxi paigaldusjuhendit.",
-    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit"
+    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit",
+    "heroLead": "Tasuta ja avatud lähtekoodiga. Vali oma platvorm.",
+    "releaseNotes": "Väljalaskemärkmed",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ja Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ja ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vanemad versioonid",
@@ -280,6 +313,7 @@
       "dataTraining": "Andmete privaatsus"
     },
     "copyright": "© 2026 HyperWhisper. Kõik õigused kaitstud.",
+    "madeBy": "Autor: Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Jälgi HyperWhisperit X-is (Twitter)",
     "githubAria": "HyperWhisper GitHubis"
@@ -373,7 +407,33 @@
     "sendingLink": "Saatmine…",
     "linkSent": "Sisselogimislink on saadetud. Ava see oma postkastist ja loo siis uus võti.",
     "linkFailed": "Sisselogimislingi saatmine ebaõnnestus. Proovi uuesti.",
-    "errorUnavailable": "Selle võtme asemele ei saa enam uut luua. Selle praegune olek on näidatud ülal."
+    "errorUnavailable": "Selle võtme asemele ei saa enam uut luua. Selle praegune olek on näidatud ülal.",
+    "delete": "Kustuta võti",
+    "deleteConfirmTitle": "Kas kustutada see kontovõti?",
+    "deleteConfirmBody": "See võti lakkab kohe töötamast kõigis seadmetes. Seadmed, mis seda kasutavad, vajavad mõnda sinu teist võtit: sisesta see igas seadmes HyperWhisperisse. Sinu krediidid ja ostuajalugu jäävad sinu kontole. Samuti logitakse sind teistes brauserites sellelt veebisaidilt välja.",
+    "deleteConfirm": "Kustuta võti",
+    "deleting": "Kustutamine…",
+    "deleted": "Võti on kustutatud. Seadmed, mis seda kasutasid, vajavad mõnda sinu teist võtit.",
+    "deleteLastKey": "See on sinu ainus aktiivne võti, seega ei saa seda kustutada.",
+    "deleteVerifyBody": "Võtme kustutamiseks kinnita esmalt e-posti teel, et see oled sina. Saadame sisselogimislingi sinu konto e-posti aadressile. Ava see ja kustuta siis võti sellel lehel.",
+    "deleteLinkSent": "Sisselogimislink on saadetud. Ava see oma postkastist ja kustuta siis võti.",
+    "deleteErrorStale": "See võti on pärast lehe laadimist muutunud. Praegune võti on näidatud ülal.",
+    "deleteErrorUnavailable": "Seda võtit ei saa enam kustutada.",
+    "deleteErrorGeneric": "Võtit ei õnnestunud kustutada. Proovi uuesti.",
+    "issue": "Lisa uus võti",
+    "issueConfirmTitle": "Kas lisada uus kontovõti?",
+    "issueConfirmBody": "Saad sellele kontole veel ühe võtme. See kasutab samu krediite nagu sinu teised võtmed, mis jäävad tööle.",
+    "issueConfirm": "Lisa võti",
+    "issuing": "Lisamine…",
+    "issued": "Uus võti on lisatud. Selle nägemiseks ja kopeerimiseks kasuta nuppu 'Näita'.",
+    "issueCap": "Aktiivseid võtmeid: {max}, mis on konto maksimum. Kustuta üks, et lisada uus.",
+    "issueVerifyBody": "Võtme lisamiseks kinnita esmalt e-posti teel, et see oled sina. Saadame sisselogimislingi sinu konto e-posti aadressile. Ava see ja lisa siis võti sellel lehel.",
+    "issueLinkSent": "Sisselogimislink on saadetud. Ava see oma postkastist ja lisa siis võti.",
+    "issueErrorUnavailable": "Uue võtme saab lisada ainult konto, millel on aktiivne võti.",
+    "issueErrorGeneric": "Võtit ei õnnestunud lisada. Proovi uuesti.",
+    "manageErrorRateLimited": "Liiga palju võtmemuudatusi. Proovi minuti pärast uuesti.",
+    "cloudPurgePending": "Vana võti võib HyperWhisper Cloudis veel kuni tund aega töötada.",
+    "deleteCloudPurgePending": "See võti võib HyperWhisper Cloudis veel kuni tund aega töötada."
   },
   "openSource": {
     "heading": "Avatud lähtekood. Midagi pole varjata.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "See sisselogimislink on aegunud või juba kasutatud. Sisesta oma e-posti aadress, et saada uus.",
     "magicLinkFailed": "Selle lingiga ei õnnestunud sind sisse logida. Sisesta oma e-posti aadress, et saada uus."
+  },
+  "legal": {
+    "onThisPage": "Sellel lehel"
   }
 }

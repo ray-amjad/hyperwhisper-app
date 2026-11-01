@@ -25,6 +25,14 @@ import {
 import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
 import { captureConsole, type ConsoleCapture } from "./module-mock";
 
+// A refund that revokes the key now purges HyperWhisper Cloud's licence cache
+// (#2915), which loads `src/env/server.mjs`. It snapshots process.env on first
+// import (#682), which happens when the harness first loads the router, inside
+// a test. No cloud app is named, so the purge never leaves the process; its own
+// cases are in admin-refund-cloud-purge.test.ts.
+process.env.SKIP_ENV_VALIDATION = "1";
+process.env.HYPERWHISPER_CLOUD_URLS = "";
+
 const LICENSE_ID = "11111111-1111-4111-8111-111111111111";
 
 async function rejects(
@@ -341,6 +349,23 @@ describe("refund", () => {
     assert.deepEqual(calls.revokeAccountKey, [
       { id: LICENSE_ID, userId: "user_owner", options: { actingUserId: "admin_1" } },
     ]);
+  });
+
+  test("a key the owner deleted is refunded but stays deleted: revoked reports false", async () => {
+    behaviour.accountsById.set(
+      LICENSE_ID,
+      accountKeyRow({ id: LICENSE_ID, userId: "user_owner", status: "deleted" }),
+    );
+    behaviour.revokeRevoked = false;
+
+    const result = await callCustomers("refund", "mutation", {
+      licenseKeyId: LICENSE_ID,
+      revokeLicense: true,
+    });
+
+    assert.deepEqual(result, { success: true, revoked: false });
+    assert.equal(calls.createRefund.length, 1, "the money action still runs");
+    assert.equal(calls.revokeAccountKey.length, 1);
   });
 
   test("answers NOT_FOUND for an unknown license and touches no money", async () => {
@@ -848,6 +873,13 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       paymentRefunded: true,
       creditsReversed: true,
       revoked: true,
+      // No cloud app is named in this file, so the purge (#2915) sent nothing
+      // and is recorded as unconfirmed; the refund still answers ok.
+      cloudPurgeKeyReread: true,
+      cloudPurge: "unconfirmed",
+      cloudPurged: 0,
+      cloudPurgeFailed: 0,
+      cloudPurgeSkipped: true,
     });
   });
 

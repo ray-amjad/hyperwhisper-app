@@ -7,7 +7,7 @@
  * `auth.options.plugins.find((p) => p.id === "magic-link").options.sendMagicLink`
  * IS the closure under test. Nothing is re-implemented here.
  *
- * ONE module is mocked: `lib/clients/resend.ts`. That is the whole seam.
+ * ONE module is mocked: `lib/clients/email.ts`. That is the whole seam.
  * `src/env/server.mjs` is real (auth.ts and the db client read it, #682) with
  * `SKIP_ENV_VALIDATION` set, since no secret is set here. `@/src/db` is NOT
  * mocked and does not need to be: with no PLANETSCALE_DATABASE_URL it builds
@@ -30,7 +30,7 @@ const RECIPIENT = "magic-link-probe@example.com";
 const MAGIC_URL = "https://x.test/magic";
 
 /**
- * A SUBDOMAINED recipient. Resend answers one of these by naming the domain it
+ * A SUBDOMAINED recipient. A provider can answer one of these by naming the domain it
  * actually checked — the parent, `example.com` — not the `mail.example.com` that
  * was submitted, so `redactAddresses` has to redact the parents too.
  */
@@ -118,10 +118,10 @@ interface SendPayload {
   text: string;
 }
 
-/** Every payload the callback handed to Resend, in call order. */
+/** Every payload the callback handed to `sendEmail`, in call order. */
 const sendCalls: SendPayload[] = [];
 
-/** What the stubbed `resend.emails.send` resolves to. Each test sets it. */
+/** What the stubbed `sendEmail` resolves to. Each test sets it. */
 const behaviour = {
   result: { data: null, error: null } as unknown,
 };
@@ -142,18 +142,14 @@ after(() => {
 });
 
 // Keyed on the REAL file, so the registry key matches even though `auth.ts`
-// imports it as `@/lib/clients/resend` — the same trick
+// imports it as `@/lib/clients/email` — the same trick
 // `tests/license-routes-harness.ts` uses for `lib/rate-limit.ts`. Both named
-// exports are needed: `auth.ts:8` imports `resend` AND `DEFAULT_FROM_EMAIL`.
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+// exports are needed: `auth.ts` imports `sendEmail` AND `DEFAULT_FROM_EMAIL`.
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: SendPayload): Promise<unknown> => {
-          sendCalls.push(payload);
-          return behaviour.result;
-        },
-      },
+    sendEmail: async (payload: SendPayload): Promise<unknown> => {
+      sendCalls.push(payload);
+      return behaviour.result;
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -186,7 +182,7 @@ async function loadSendMagicLink(): Promise<SendMagicLink> {
   return send as SendMagicLink;
 }
 
-test("a Resend error object rejects the send and logs it without the address", async () => {
+test("a provider error rejects the send and logs it without the address", async () => {
   const sendMagicLink = await loadSendMagicLink();
 
   sendCalls.length = 0;
@@ -194,12 +190,11 @@ test("a Resend error object rejects the send and logs it without the address", a
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
+      code: "E_VALIDATION_ERROR",
       // A message that carries no address of its own, so the assertions below
       // are about the log FORMAT: the hash, the fields, and the fact that
-      // `message` is there at all. The case where Resend's own text echoes the
-      // recipient — which is what a real `validation_error` does — is the next
+      // `message` is there at all. The case where the provider's own text echoes
+      // the recipient — which a real validation error can do — is the next
       // test, and that is where "no address in the log" is really proved.
       message: "The from address is not a verified domain",
     },
@@ -232,7 +227,7 @@ test("a Resend error object rejects the send and logs it without the address", a
       );
       return true;
     },
-    "the callback rejects instead of resolving on a Resend error object",
+    "the callback rejects instead of resolving on a provider error",
   );
 
   // Exactly one line — no "attempting send", nothing extra on the throw path.
@@ -243,17 +238,16 @@ test("a Resend error object rejects the send and logs it without the address", a
   );
   const line = logLines[0];
   assert.match(line, /sendMagicLink/);
-  assert.match(line, /422/);
-  assert.match(line, /validation_error/);
+  assert.match(line, /code=E_VALIDATION_ERROR/);
 
-  // Resend's `message` is the only field that usually says what actually
-  // failed, and the implementation calls it load-bearing. Assert it, with the
-  // `message=` key, or it can be dropped later in silence: `/sendMagicLink/`
-  // matches the prefix, `/422/` matches `statusCode=422`, and a
-  // `recipientHash=...\b` regex still matches at end-of-string.
+  // The provider's `message` is the only field that usually says what
+  // actually failed, and the implementation calls it load-bearing. Assert it,
+  // with the `message=` key, or it can be dropped later in silence:
+  // `/sendMagicLink/` matches the prefix, and a `recipientHash=...\b` regex
+  // still matches at end-of-string.
   assert.ok(
     line.includes("message=The from address is not a verified domain"),
-    `the log line must carry Resend's own message: ${line}`,
+    `the log line must carry the provider's own message: ${line}`,
   );
 
   // The recipient is present only as a 12-char digest prefix, pinned as a
@@ -269,7 +263,7 @@ test("a Resend error object rejects the send and logs it without the address", a
   );
 });
 
-test("a Resend message that echoes the recipient still reaches the log with no address in it", async () => {
+test("a provider message that echoes the recipient still reaches the log with no address in it", async () => {
   const sendMagicLink = await loadSendMagicLink();
 
   sendCalls.length = 0;
@@ -277,12 +271,11 @@ test("a Resend message that echoes the recipient still reaches the log with no a
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
+      code: "E_VALIDATION_ERROR",
       // This is the shape the OTHER test deliberately avoids, and it is the
-      // shape a real Resend `validation_error` takes. `message` is
+      // shape a real validation error can take. `message` is
       // provider-controlled text, it is interpolated into the log line, and
-      // Resend echoes the rejected recipient in it — so the address arrived a
+      // the provider can echo the rejected recipient in it — so the address arrived a
       // few characters from the hash whose whole purpose is to avoid it, and
       // the "never the address itself" contract did not hold. The other test's
       // `!line.includes(RECIPIENT)` was vacuous evidence because its stub
@@ -321,20 +314,17 @@ test("a Resend message that echoes the recipient still reaches the log with no a
     `the redaction must actually have fired: ${line}`,
   );
 
-  // Redaction must not cost the diagnostics. The hash, the status, the Resend
-  // error name and the part of the message that is not an address all survive.
+  // Redaction must not cost the diagnostics. The hash, the error code and the part of the message that is not an address all survive.
   assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
-  assert.match(line, /statusCode=422/);
-  assert.match(line, /name=validation_error/);
+  assert.match(line, /code=E_VALIDATION_ERROR/);
   assert.ok(
     line.includes("is not a valid recipient"),
-    `the non-address part of Resend's message must survive: ${line}`,
+    `the non-address part of the provider's message must survive: ${line}`,
   );
 });
 
 const RATE_LIMIT_ERROR = {
-  name: "rate_limit_exceeded",
-  statusCode: 429,
+  code: "E_RATE_LIMIT_EXCEEDED",
   message: "Slow down",
 };
 
@@ -402,9 +392,8 @@ test("a message that STARTS with the address is redacted without eating the mess
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
-      // Resend's text begins with the address, which is the shape that broke
+      code: "E_VALIDATION_ERROR",
+      // The provider's text begins with the address, which is the shape that broke
       // the first version of the redaction: `/\S+@\S+/g` matched leftwards
       // across the `=` and took `message=` with it, leaving a line no operator
       // and no log parser could grep for the reason a send failed.
@@ -445,8 +434,7 @@ test("a message that STARTS with the address is redacted without eating the mess
     `nothing address-shaped may survive into the log line: ${line}`,
   );
   // The other keys are unharmed too.
-  assert.match(line, /name=validation_error/);
-  assert.match(line, /statusCode=422/);
+  assert.match(line, /code=E_VALIDATION_ERROR/);
   assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
 });
 
@@ -458,9 +446,8 @@ test("a bare PARENT domain of a subdomained recipient is redacted, and short lab
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
-      // No `@` anywhere, so the address pass cannot help: Resend names the
+      code: "E_VALIDATION_ERROR",
+      // No `@` anywhere, so the address pass cannot help: the provider names the
       // domain it actually checked, which is the PARENT of the submitted
       // `mail.example.com`. The word "recommended" is deliberate — it contains
       // the bare label `com`, so it also pins the label floor. If the floor
@@ -506,81 +493,6 @@ test("a bare PARENT domain of a subdomained recipient is redacted, and short lab
   );
 });
 
-test("statusCode=null is distinguished from a missing or wrong-typed statusCode", async () => {
-  const sendMagicLink = await loadSendMagicLink();
-
-  sendCalls.length = 0;
-  logLines.length = 0;
-  behaviour.result = {
-    data: null,
-    error: {
-      // Resend's own network-failure path: the `catch` around `fetch` in
-      // `resend/dist/index.mjs` sets exactly this shape, and the SDK types
-      // `statusCode` as `number | null`.
-      name: "application_error",
-      statusCode: null,
-      message: "Unable to fetch data. The request could not be resolved.",
-    },
-  };
-
-  await assert.rejects(() =>
-    sendMagicLink({ email: RECIPIENT, url: MAGIC_URL }),
-  );
-
-  const line = logLines[0];
-
-  // "the request never left the box", not "Resend sent something this code does
-  // not understand". Collapsing the two makes an unreachable provider
-  // indistinguishable from a malformed error to whoever is on call.
-  assert.ok(
-    line.includes("statusCode=null"),
-    `an explicit null statusCode must log as null: ${line}`,
-  );
-  assert.ok(
-    !line.includes("statusCode=unknown"),
-    `null must not collapse into the unknown default: ${line}`,
-  );
-  assert.match(line, /name=application_error/);
-});
-
-test("a non-object Resend error still rejects and logs with the fallback fields", async () => {
-  const sendMagicLink = await loadSendMagicLink();
-
-  sendCalls.length = 0;
-  logLines.length = 0;
-  // Not an object at all, so every `in` narrowing in `resendErrorFieldsOf`
-  // would throw `Cannot use 'in' operator` without the typeof guard — taking
-  // the log line and the APIError with it and rejecting with a TypeError
-  // instead.
-  behaviour.result = { data: null, error: "boom" };
-
-  await assert.rejects(
-    () => sendMagicLink({ email: RECIPIENT, url: MAGIC_URL }),
-    (err: unknown) => {
-      assert.ok(err instanceof Error);
-      assert.equal(err.name, "APIError", "throws better-auth's APIError");
-      return true;
-    },
-  );
-
-  assert.equal(
-    logLines.length,
-    1,
-    `expected one log line, got ${logLines.length}`,
-  );
-  const line = logLines[0];
-
-  assert.ok(
-    line.includes("name=unknown statusCode=unknown"),
-    `both fallbacks must appear for a non-object error: ${line}`,
-  );
-  assert.ok(
-    line.endsWith("message="),
-    `the message fallback is the empty string: ${line}`,
-  );
-  assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
-});
-
 test("a recipient with no domain leaves the log line intact", async () => {
   const sendMagicLink = await loadSendMagicLink();
 
@@ -589,8 +501,7 @@ test("a recipient with no domain leaves the log line intact", async () => {
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
+      code: "E_VALIDATION_ERROR",
       message: "Invalid to field. The recipient is not an email address.",
     },
   };
@@ -609,7 +520,7 @@ test("a recipient with no domain leaves the log line intact", async () => {
 
   assert.match(
     line,
-    /^sendMagicLink failed: resend error name=validation_error/,
+    /^sendMagicLink failed: email error code=E_VALIDATION_ERROR/,
   );
   assert.ok(
     line.includes(
@@ -645,7 +556,7 @@ test("a successful send resolves quietly with the real template payload", async 
 
   sendCalls.length = 0;
   logLines.length = 0;
-  behaviour.result = { data: { id: "resend_msg_1" }, error: null };
+  behaviour.result = { data: { id: "cf_msg_1" }, error: null };
 
   await sendMagicLink({ email: RECIPIENT, url: MAGIC_URL });
 
