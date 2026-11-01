@@ -1112,6 +1112,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Codex 0 defects on all 3. Own probes clean: settings.json + files written after toggles, Text Output restore-delay stepper clamps 1..60, file preflight messages (dir/no-ext -> 'format' by design of check order). Licence change #2977 (cached licence on undecodable 200) needs a licensed profile; no Linux Cloud URL override to fake it. These 3 routes look mined out on Linux."
+    },
+    {
+      "at": "2026-11-01T04:14:14Z",
+      "platform": "linux",
+      "commit": "269b02a1",
+      "routes": [
+        "history-and-backup",
+        "local-api",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        3000
+      ],
+      "licensed": false,
+      "note": "Codex 0 real on history+local-api, 1 on modes (API-created mode invisible). My probe of Local API writes vs the Linux UI found #3000 (UI save reverts API PATCH, resurrects API-deleted mode). Backup import-duplication not reached (Codex ran out of steps at the save dialog). Unlicensed."
     }
   ]
 }
