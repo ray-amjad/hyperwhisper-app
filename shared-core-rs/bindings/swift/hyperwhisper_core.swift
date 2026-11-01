@@ -9009,16 +9009,30 @@ public struct ValidationOutcome {
     public var customerEmail: String?
     public var expiresAt: String?
     public var errorMessage: String?
+    /**
+     * Whether the server stated a verdict about the key. `false` for a 200
+     * that is not the validate JSON (#2916), the offline fallback and the
+     * empty-key outcome: a head must not persist such an outcome, and takes
+     * its network-failure path instead.
+     */
+    public var isVerdict: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?) {
+    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?, 
+        /**
+         * Whether the server stated a verdict about the key. `false` for a 200
+         * that is not the validate JSON (#2916), the offline fallback and the
+         * empty-key outcome: a head must not persist such an outcome, and takes
+         * its network-failure path instead.
+         */isVerdict: Bool) {
         self.isValid = isValid
         self.status = status
         self.customerId = customerId
         self.customerEmail = customerEmail
         self.expiresAt = expiresAt
         self.errorMessage = errorMessage
+        self.isVerdict = isVerdict
     }
 }
 
@@ -9044,6 +9058,9 @@ extension ValidationOutcome: Equatable, Hashable {
         if lhs.errorMessage != rhs.errorMessage {
             return false
         }
+        if lhs.isVerdict != rhs.isVerdict {
+            return false
+        }
         return true
     }
 
@@ -9054,6 +9071,7 @@ extension ValidationOutcome: Equatable, Hashable {
         hasher.combine(customerEmail)
         hasher.combine(expiresAt)
         hasher.combine(errorMessage)
+        hasher.combine(isVerdict)
     }
 }
 
@@ -9070,7 +9088,8 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
                 customerId: FfiConverterOptionString.read(from: &buf), 
                 customerEmail: FfiConverterOptionString.read(from: &buf), 
                 expiresAt: FfiConverterOptionString.read(from: &buf), 
-                errorMessage: FfiConverterOptionString.read(from: &buf)
+                errorMessage: FfiConverterOptionString.read(from: &buf), 
+                isVerdict: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -9081,6 +9100,7 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.customerEmail, into: &buf)
         FfiConverterOptionString.write(value.expiresAt, into: &buf)
         FfiConverterOptionString.write(value.errorMessage, into: &buf)
+        FfiConverterBool.write(value.isVerdict, into: &buf)
     }
 }
 
@@ -16086,18 +16106,6 @@ public func buildHealthRequest(provider: HwProvider, apiKey: String) -> HttpRequ
 })
 }
 /**
- * Like `build_health_request` but with an explicit HW Cloud base URL.
- */
-public func buildHealthRequestWithBase(provider: HwProvider, apiKey: String, baseUrl: String?) -> HttpRequest {
-    return try!  FfiConverterTypeHttpRequest.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(
-        FfiConverterTypeHwProvider.lower(provider),
-        FfiConverterString.lower(apiKey),
-        FfiConverterOptionString.lower(baseUrl),$0
-    )
-})
-}
-/**
  * Build the DYNAMIC system-info block (prepended to the user message).
  */
 public func buildSystemInfo(ctx: PromptContext) -> String {
@@ -16114,17 +16122,6 @@ public func buildSystemPrompt(ctx: PromptContext) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_build_system_prompt(
         FfiConverterTypePromptContext.lower(ctx),$0
-    )
-})
-}
-/**
- * Map an HTTP status + response body to a `HwTranscriptionError`.
- */
-public func classifyError(status: UInt16, body: String) -> HwTranscriptionError {
-    return try!  FfiConverterTypeHwTranscriptionError.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_classify_error(
-        FfiConverterUInt16.lower(status),
-        FfiConverterString.lower(body),$0
     )
 })
 }
@@ -16637,15 +16634,6 @@ public func groqParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscri
     )
 })
 }
-/**
- * Default HyperWhisper Cloud health URL for routed providers.
- */
-public func hwCloudHealthDefault() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default($0
-    )
-})
-}
 public func hyperwhisperCloudBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_build_transcribe_request(
@@ -16882,6 +16870,10 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
  * only FFI write path for a validate response: it prevents a rejected
  * *replacement* key from clobbering the stored key's cached status (a 24h
  * lockout for a valid user).
+ *
+ * Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+ * a 200 that is not the validate JSON) goes to the offline fallback instead,
+ * so its `Invalid` is never cached.
  */
 public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
@@ -17086,26 +17078,6 @@ public func llmBuildRequest(params: HwLlmParams)throws  -> HttpRequest {
 })
 }
 /**
- * Port the embedded llama-server listens on.
- */
-public func llmDefaultLocalLlamaPort() -> UInt16 {
-    return try!  FfiConverterUInt16.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port($0
-    )
-})
-}
-/**
- * The URL a request would go to, without building the body. For logging and
- * for the health checker.
- */
-public func llmEndpointFor(params: HwLlmParams)throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
-    uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(
-        FfiConverterTypeHwLlmParams.lower(params),$0
-    )
-})
-}
-/**
  * Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
  * leaf crate for why).
  */
@@ -17143,24 +17115,6 @@ public func llmIsCustomProviderString(providerString: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(
         FfiConverterString.lower(providerString),$0
-    )
-})
-}
-/**
- * Max custom endpoint model-name length, for a UI character counter.
- */
-public func llmMaxCustomEndpointModelChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars($0
-    )
-})
-}
-/**
- * Max custom endpoint URL length, for a UI character counter.
- */
-public func llmMaxCustomEndpointUrlChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars($0
     )
 })
 }
@@ -18643,16 +18597,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_build_health_request() != 52092) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base() != 19402) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_info() != 24795) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_prompt() != 19711) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_classify_error() != 31917) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_is_enabled() != 62116) {
@@ -18814,9 +18762,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response() != 63704) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default() != 4042) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request() != 49953) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18886,7 +18831,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 1585) {
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 36115) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_should_revalidate() != 37174) {
@@ -18934,12 +18879,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_request() != 57763) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port() != 14194) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for() != 36443) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens() != 51471) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18950,12 +18889,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string() != 5642) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars() != 49114) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars() != 61579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens() != 41429) {

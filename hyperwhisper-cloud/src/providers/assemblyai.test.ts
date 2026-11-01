@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { couldRouteThroughSync, transcribeWithAssemblyAI } from './assemblyai';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
+import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 
 const originalFetch = globalThis.fetch;
 
@@ -387,6 +388,30 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
     const createCall = calls.find((c) => c.url === CREATE_URL)!;
     expect((createCall.body as any).keyterms_prompt).toBeUndefined();
   });
+
+  test('a phrase over 6 words is dropped from keyterms_prompt, like the sync path', async () => {
+    const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
+    await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US', 'one two three four five six seven, HyperWhisper'))
+      .rejects.toThrow(ProviderInputError);
+    const createCall = calls.find((c) => c.url === CREATE_URL)!;
+    expect((createCall.body as any).keyterms_prompt).toEqual(['HyperWhisper']);
+  });
+
+  test('a padded language is trimmed (" en-US " → language_code en), like the sync path', async () => {
+    const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
+    await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', ' en-US ')).rejects.toThrow(ProviderInputError);
+    const createCall = calls.find((c) => c.url === CREATE_URL)!;
+    expect(createCall.body).toMatchObject({ language_code: 'en' });
+    expect((createCall.body as any).language_detection).toBeUndefined();
+  });
+
+  test('a language with an empty subtag ("-en") requests language_detection, never language_code ""', async () => {
+    const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
+    await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', '-en')).rejects.toThrow(ProviderInputError);
+    const createCall = calls.find((c) => c.url === CREATE_URL)!;
+    expect(createCall.body).toMatchObject({ language_detection: true });
+    expect((createCall.body as any).language_code).toBeUndefined();
+  });
 });
 
 describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () => {
@@ -440,6 +465,21 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
     const deleteCall = calls.find((c) => c.method === 'DELETE');
     expect(deleteCall?.url).toBe(`${CREATE_URL}/transcript-123`);
   }, 10_000);
+
+  test('a prompt of only over-long phrases sends no keyterms_prompt and bills no keyterms add-on', async () => {
+    const completed = { status: 200, body: { status: 'completed', text: 'hello', audio_duration: 120, speech_model_used: 'universal-3-5-pro' } };
+    const longOnly = mockAsyncFlow({ pollBodies: [completed] });
+    const withoutAddOn = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en', 'one two three four five six seven');
+    expect((longOnly.find((c) => c.url === CREATE_URL)!.body as any).keyterms_prompt).toBeUndefined();
+
+    const withShort = mockAsyncFlow({ pollBodies: [completed] });
+    const withAddOn = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en', 'HyperWhisper');
+    expect((withShort.find((c) => c.url === CREATE_URL)!.body as any).keyterms_prompt).toEqual(['HyperWhisper']);
+
+    expect(withoutAddOn.costUsd).toBeCloseTo(computeAssemblyAITranscriptionCost(120, 'universal-3-5-pro', false, false), 6);
+    expect(withAddOn.costUsd).toBeCloseTo(computeAssemblyAITranscriptionCost(120, 'universal-3-5-pro', false, true), 6);
+    expect(withAddOn.costUsd).toBeGreaterThan(withoutAddOn.costUsd);
+  }, 20_000);
 
   test('an unrecognized speech_model_used bills the requested model; a non-positive duration falls back to the byte estimate', async () => {
     mockAsyncFlow({
