@@ -591,8 +591,9 @@ describe("getDeviceCountsPerLicense", () => {
     await seedDevice(three, "d2", daysAgo(2));
     await seedDevice(three, "d3", daysAgo(50));
 
-    const rows = await L.getDeviceCountsPerLicense();
+    const { rows, total } = await L.getDeviceCountsPerLicense();
 
+    assert.equal(total, 2);
     assert.deepEqual(rows, [
       { licenseKeyId: three, email: "three@example.test", licenseKey: "HW-C3", deviceCount: 3 },
       { licenseKeyId: one, email: "one@example.test", licenseKey: "HW-C1", deviceCount: 1 },
@@ -610,7 +611,7 @@ describe("getDeviceCountsPerLicense", () => {
     await seedDevice(b, "d2", daysAgo(60));
     await seedDevice(b, "d3", daysAgo(70));
 
-    const rows = await L.getDeviceCountsPerLicense(30);
+    const { rows, total } = await L.getDeviceCountsPerLicense(30);
 
     assert.deepEqual(
       rows.map((r) => [r.licenseKey, r.deviceCount]),
@@ -619,5 +620,114 @@ describe("getDeviceCountsPerLicense", () => {
         ["HW-W2", 1],
       ],
     );
+    assert.equal(total, 2);
+  });
+
+  test("a key with no device inside the window is not counted in the total", async () => {
+    await seedUser("u1");
+    const a = await seedKey("HW-T1", "u1");
+    const b = await seedKey("HW-T2", "u1");
+    await seedDevice(a, "d1", daysAgo(1));
+    await seedDevice(b, "d1", daysAgo(60));
+
+    const { rows, total } = await L.getDeviceCountsPerLicense(30);
+
+    assert.deepEqual(rows.map((r) => r.licenseKey), ["HW-T1"]);
+    assert.equal(total, 1);
+  });
+});
+
+describe("getDeviceCountsPerLicense paging and search (#1948)", () => {
+  // n keys of one owner, key i holding (i % 3) + 1 devices, so counts tie.
+  async function seedKeys(n: number): Promise<string[]> {
+    await seedUser("u1");
+    const keys = await db
+      .insert(schema.accountKeys)
+      .values(
+        Array.from({ length: n }, (_, i) => ({
+          key: `HW-PAGE-${String(i).padStart(4, "0")}`,
+          userId: "u1",
+          email: `buyer${i}@example.test`,
+          status: "granted",
+        })),
+      )
+      .returning({ id: schema.accountKeys.id });
+    const at = daysAgo(1);
+    await db.insert(schema.deviceValidations).values(
+      keys.flatMap((k, i) =>
+        Array.from({ length: (i % 3) + 1 }, (_, d) => ({
+          licenseKeyId: k.id,
+          deviceId: `dev-${i}-${d}`,
+          createdAt: at,
+          lastValidatedAt: at,
+        })),
+      ),
+    );
+    return keys.map((k) => k.id);
+  }
+
+  test("returns 50 keys by default and the full total", async () => {
+    await seedKeys(120);
+
+    const { rows, total } = await L.getDeviceCountsPerLicense(30);
+
+    assert.equal(L.ACCOUNT_KEYS_PAGE_SIZE, 50);
+    assert.equal(rows.length, 50);
+    assert.equal(total, 120);
+    // 40 keys hold 3 devices: the page starts with them, then the 2s.
+    assert.deepEqual(
+      rows.map((r) => r.deviceCount),
+      [...Array(40).fill(3), ...Array(10).fill(2)],
+    );
+  });
+
+  test("equal counts keep key id order, so pages never repeat or skip a key", async () => {
+    const ids = await seedKeys(120);
+
+    const seen: string[] = [];
+    for (let offset = 0; offset < 120; offset += 50) {
+      const page = await L.getDeviceCountsPerLicense(30, { limit: 50, offset });
+      assert.equal(page.total, 120);
+      seen.push(...page.rows.map((r) => r.licenseKeyId));
+    }
+
+    const countOf = (i: number) => (i % 3) + 1;
+    const expected = ids
+      .map((id, i) => ({ id, n: countOf(i) }))
+      .sort((a, b) => b.n - a.n || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((r) => r.id);
+    assert.deepEqual(seen, expected);
+  });
+
+  test("search matches the email or the key, case-insensitive", async () => {
+    await seedUser("u1");
+    const ray = await seedKey("HW-ALPHA-1", "u1", { email: "Ray@Example.test" });
+    const key = await seedKey("HW-BRAVO-2", "u1", { email: "other@example.test" });
+    const none = await seedKey("HW-CHARLIE-3", "u1", { email: "third@example.test" });
+    for (const k of [ray, key, none]) await seedDevice(k, "d1", daysAgo(1));
+
+    const byEmail = await L.getDeviceCountsPerLicense(30, { search: "ray@EX" });
+    assert.deepEqual(byEmail.rows.map((r) => r.licenseKeyId), [ray]);
+    assert.equal(byEmail.total, 1);
+
+    const byKey = await L.getDeviceCountsPerLicense(30, { search: " hw-bravo " });
+    assert.deepEqual(byKey.rows.map((r) => r.licenseKeyId), [key]);
+    assert.equal(byKey.total, 1);
+  });
+
+  test("% and _ in the search match themselves, not any text", async () => {
+    await seedUser("u1");
+    const pct = await seedKey("HW-100%-OFF", "u1", { email: "pct@example.test" });
+    const under = await seedKey("HW-K1", "u1", { email: "first_last@example.test" });
+    const plain = await seedKey("HW-K2", "u1", { email: "firstxlast@example.test" });
+    for (const k of [pct, under, plain]) await seedDevice(k, "d1", daysAgo(1));
+
+    const percent = await L.getDeviceCountsPerLicense(30, { search: "%" });
+    assert.deepEqual(percent.rows.map((r) => r.licenseKeyId), [pct]);
+    assert.equal(percent.total, 1);
+
+    const underscore = await L.getDeviceCountsPerLicense(30, { search: "FIRST_" });
+    assert.deepEqual(underscore.rows.map((r) => r.licenseKeyId), [under]);
+    assert.equal(underscore.total, 1);
   });
 });

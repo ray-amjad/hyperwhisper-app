@@ -1031,14 +1031,35 @@ export async function getDevicesForLicense(
   return { devices, total: Number(countRows[0]?.total ?? 0) };
 }
 
-export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<
-  Array<{
+/** Account Keys per page of the admin Devices table (#1948). */
+export const ACCOUNT_KEYS_PAGE_SIZE = 50;
+
+/**
+ * One page of the Account Keys that have devices, each with its device count,
+ * plus how many keys match in total (#1948). The admin Devices table rendered
+ * every key at once; it now asks for 50 at a time.
+ *
+ * - `sinceDays` counts only devices validated inside that window, and a key
+ *   with none in it is left out.
+ * - `search` matches the key's email or the key itself, case-insensitive, as
+ *   literal text (LIKE wildcards in it are escaped), so a key paging would
+ *   hide can still be found.
+ * - Ordered by device count, biggest first, then by key id, so two keys with
+ *   the same count never swap places between two requests (a page boundary
+ *   would otherwise repeat one key and skip the other).
+ */
+export async function getDeviceCountsPerLicense(
+  sinceDays?: number,
+  page: { limit?: number; offset?: number; search?: string } = {},
+): Promise<{
+  rows: Array<{
     licenseKeyId: string;
     email: string;
     licenseKey: string;
     deviceCount: number;
-  }>
-> {
+  }>;
+  total: number;
+}> {
   const conditions = [];
   if (sinceDays) {
     const since = new Date();
@@ -1046,20 +1067,50 @@ export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<
     conditions.push(gte(deviceValidations.lastValidatedAt, since));
   }
 
-  const rows = await db
-    .select({
-      licenseKeyId: accountKeys.id,
-      email: accountKeys.email,
-      licenseKey: accountKeys.key,
-      deviceCount: count(deviceValidations.id),
-    })
-    .from(deviceValidations)
-    .innerJoin(accountKeys, eq(deviceValidations.licenseKeyId, accountKeys.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .groupBy(accountKeys.id, accountKeys.email, accountKeys.key)
-    .orderBy(sql`count(${deviceValidations.id}) desc`);
+  const search = page.search?.trim();
 
-  return rows.map((r) => ({ ...r, deviceCount: Number(r.deviceCount) }));
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const match = or(
+      ilike(accountKeys.email, pattern),
+      ilike(accountKeys.key, pattern),
+    );
+
+    if (match) conditions.push(match);
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // One grouped query for both the page and the total: the total counts its
+  // groups, so it always agrees with the rows it pages over.
+  const grouped = () =>
+    db
+      .select({
+        licenseKeyId: accountKeys.id,
+        email: accountKeys.email,
+        licenseKey: accountKeys.key,
+        deviceCount: count(deviceValidations.id),
+      })
+      .from(deviceValidations)
+      .innerJoin(
+        accountKeys,
+        eq(deviceValidations.licenseKeyId, accountKeys.id),
+      )
+      .where(where)
+      .groupBy(accountKeys.id, accountKeys.email, accountKeys.key);
+
+  const [rows, countRows] = await Promise.all([
+    grouped()
+      .orderBy(sql`count(${deviceValidations.id}) desc`, asc(accountKeys.id))
+      .limit(page.limit ?? ACCOUNT_KEYS_PAGE_SIZE)
+      .offset(page.offset ?? 0),
+    db.select({ total: count() }).from(grouped().as("device_counts")),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({ ...r, deviceCount: Number(r.deviceCount) })),
+    total: Number(countRows[0]?.total ?? 0),
+  };
 }
 
 // ---------------------------------------------------------------------------
