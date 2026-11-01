@@ -8,12 +8,35 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { before, test } from "node:test";
 
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+
 import { moduleMock, moduleUrl } from "./module-mock";
 
-let rows: unknown[] = [];
+// The list is select().from().where(locale).orderBy(); one post is
+// select().from().where(locale and slug).limit(1). The stub renders the real
+// where clause and answers with the rows it matches.
+const dialect = new PgDialect();
+let rows: Array<{ locale: string; slug: string }> = [];
 moduleMock.module(moduleUrl("../src/db/index.ts"), {
   namedExports: {
-    db: { select: () => ({ from: () => ({ orderBy: async () => rows }) }) },
+    db: {
+      select: () => ({
+        from: () => ({
+          where: (condition: SQL) => {
+            const [locale, slug] = dialect.sqlToQuery(condition).params;
+            const matching = rows.filter(
+              (item) =>
+                item.locale === locale && (slug === undefined || item.slug === slug),
+            );
+            return {
+              orderBy: async () => matching,
+              limit: async (count: number) => matching.slice(0, count),
+            };
+          },
+        }),
+      }),
+    },
   },
 });
 
