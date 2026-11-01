@@ -1,7 +1,7 @@
-import { validateDictationOptions } from '../providers/assemblyai-dictation';
 import type { Context } from 'hono';
 import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
+import { rejectRequestOptions } from '../providers/request-options';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
 import { isIPBlocked } from '../lib/redis';
@@ -126,17 +126,18 @@ export async function prepareTranscriptionRequest(
   const language = rawQuery(c.req.url, 'language');
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
-  if (provider === 'assemblyai' && model === 'dictation') {
-    try { validateDictationOptions(language, domain); } catch (error) {
-      logEvent(requestId, startTime, 'transcribe.request_rejected', {
-        reason: 'invalid_dictation_options',
-        flyRequestId,
-        // Caller-supplied query value, so cap what reaches the log.
-        language: language?.slice(0, 35),
-        hasDomain: Boolean(domain),
-      });
-      return errorResponse(400, 'Invalid Dictation options', (error as Error).message, { requestId });
-    }
+  // Per-model option rules (language, domain) live in the providers layer; the
+  // route only turns a rejection into the 400. See providers/request-options.ts.
+  const optionsRejection = rejectRequestOptions(provider, model, { language, domain });
+  if (optionsRejection !== null) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', {
+      reason: 'invalid_dictation_options',
+      flyRequestId,
+      // Caller-supplied query value, so cap what reaches the log.
+      language: language?.slice(0, 35),
+      hasDomain: Boolean(domain),
+    });
+    return errorResponse(400, 'Invalid Dictation options', optionsRejection, { requestId });
   }
 
   // Some providers are unreachable from the region this machine runs in. The
