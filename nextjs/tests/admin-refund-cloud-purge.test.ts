@@ -106,6 +106,70 @@ test("admin refund with revokeLicense purges the cloud licence cache for the rev
   for (const entry of logs) assert.ok(!entry.includes(KEY), `the key is never logged: ${entry}`);
 });
 
+test("a key rotated while the refund is in flight: the purge names the string the revoke killed", async () => {
+  // The owner rotates the `granted` key after the router's first read and
+  // before the revoke (here: while the credit grant is reversed). The revoke
+  // is by row id, so it kills the NEW string; that is the one the cloud must
+  // stop admitting. The old string was purged by the rotation itself.
+  const ROTATED = "HW-FAKE-0000-0002";
+  const record = calls.refundCreditGrant.push.bind(calls.refundCreditGrant);
+  calls.refundCreditGrant.push = (...items) => {
+    behaviour.accountsById.set(
+      LICENSE_ID,
+      accountKeyRow({ id: LICENSE_ID, key: ROTATED, status: "granted" }),
+    );
+    return record(...items);
+  };
+
+  let result: unknown;
+  try {
+    result = await callCustomers("refund", "mutation", {
+      licenseKeyId: LICENSE_ID,
+      revokeLicense: true,
+    });
+  } finally {
+    // `resetHarness` empties the call lists in place, so drop the override.
+    delete (calls.refundCreditGrant as { push?: unknown }).push;
+  }
+
+  assert.deepEqual(result, { success: true, revoked: true });
+  assert.deepEqual(
+    sent.map(({ url, body }) => ({ url, body })),
+    [{ url: PURGE_URL, body: { account_key: ROTATED } }],
+    "the purge must name the key string the revoke killed, not the one read before the refund",
+  );
+  for (const entry of logs) assert.ok(!entry.includes(ROTATED), `the key is never logged: ${entry}`);
+});
+
+test("a failed re-read after the revoke still purges (the pre-refund string) and the refund stands", async () => {
+  let reads = 0;
+  behaviour.accountsById = new Proxy(behaviour.accountsById, {
+    get(target, prop) {
+      if (prop === "get") {
+        return (id: string) => {
+          reads += 1;
+          if (reads > 1) throw new Error("db down");
+          return target.get(id);
+        };
+      }
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+
+  const result = await callCustomers("refund", "mutation", {
+    licenseKeyId: LICENSE_ID,
+    revokeLicense: true,
+  });
+
+  assert.deepEqual(result, { success: true, revoked: true });
+  assert.equal(reads, 2, "the row was read before the refund and again after the revoke");
+  assert.deepEqual(
+    sent.map(({ body }) => body),
+    [{ account_key: KEY }],
+  );
+});
+
 test("admin refund without revokeLicense sends nothing to the cloud", async () => {
   const result = await callCustomers("refund", "mutation", {
     licenseKeyId: LICENSE_ID,

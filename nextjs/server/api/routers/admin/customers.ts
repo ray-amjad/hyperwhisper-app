@@ -631,7 +631,18 @@ export const customersRouter = createTRPCRouter({
         log.revoked = revoked;
 
         if (revoked) {
-          const purge = await purgeCloudLicenseCache(license.key);
+          // Purge the string the row holds NOW, not the one read before the
+          // refund: the owner can rotate a `granted` key while the refund is
+          // in flight, and the revoke is by row id. A revoked row can no
+          // longer be rotated, so this re-read names the string just revoked.
+          // A failed re-read must not fail the committed refund: fall back to
+          // the string read before it.
+          const revokedRow = await findAccountById(licenseKeyId).catch(
+            () => null,
+          );
+          const purge = await purgeCloudLicenseCache(
+            revokedRow?.key ?? license.key,
+          );
 
           log.cloudPurge = cloudPurgeConfirmed(purge)
             ? "confirmed"
