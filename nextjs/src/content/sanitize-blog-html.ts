@@ -15,6 +15,15 @@ const IFRAME_SRC_PREFIXES = [
   "https://player.vimeo.com/",
 ] as const;
 
+/**
+ * The accessible name an iframe gets when Outrank sends it without a `title`
+ * (#2953: axe frame-title, WCAG 4.1.2). A non-blank title it does send wins.
+ */
+const IFRAME_TITLES: Record<(typeof IFRAME_SRC_PREFIXES)[number], string> = {
+  "https://www.youtube.com/embed/": "YouTube video",
+  "https://player.vimeo.com/": "Vimeo video",
+};
+
 const ARTICLE_TAGS = [
   "h1",
   "h2",
@@ -143,6 +152,8 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowProtocolRelative: false,
   allowedIframeHostnames: ["www.youtube.com", "player.vimeo.com"],
   allowIframeRelativeUrls: false,
+  // Runs before exclusiveFilter, which still removes a disallowed iframe whole.
+  transformTags: { iframe: addIframeTitle },
   // An iframe whose src is not one of the exact prefixes is removed whole,
   // not left behind as an empty frame.
   exclusiveFilter: (frame) =>
@@ -156,6 +167,22 @@ function isAllowedIframeSrc(src: string | undefined): boolean {
   if (!src) return false;
 
   return IFRAME_SRC_PREFIXES.some((prefix) => src.startsWith(prefix));
+}
+
+function addIframeTitle(
+  tagName: string,
+  attribs: sanitizeHtml.Attributes,
+): sanitizeHtml.Tag {
+  if (attribs.title?.trim()) return { tagName, attribs };
+
+  const src = attribs.src;
+  const prefix = src
+    ? IFRAME_SRC_PREFIXES.find((candidate) => src.startsWith(candidate))
+    : undefined;
+
+  if (!prefix) return { tagName, attribs };
+
+  return { tagName, attribs: { ...attribs, title: IFRAME_TITLES[prefix] } };
 }
 
 /** Returns `html` with only the article allow-list above left in it. */
