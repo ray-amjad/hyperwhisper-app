@@ -8,7 +8,8 @@ using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services.Streaming;
 
-// The reconnect policy: up to MaxReconnectAttempts with a linear backoff, stopping early on a refused upgrade.
+// The reconnect policy: up to MaxReconnectAttempts with a linear backoff, stopping early on a refused upgrade,
+// and at most MaxReconnectsWithoutTranscript successful reconnects in a row with no transcript frame.
 public sealed partial class StreamingTranscriptionClient
 {
     private async Task<bool> TryReconnectAsync(CancellationToken cancellationToken)
@@ -16,6 +17,17 @@ public sealed partial class StreamingTranscriptionClient
         var uri = _strategy.BuildWebSocketUri(_config);
         if (uri == null)
             return false;
+
+        // Issue #2784: a server that accepts every upgrade and then drops it would otherwise
+        // get a fresh MaxReconnectAttempts loop after each reconnect, forever.
+        if (_reconnectsWithoutTranscript >= MaxReconnectsWithoutTranscript)
+        {
+            LoggingService.Warn(
+                $"StreamingTranscriptionClient: not reconnecting - {_reconnectsWithoutTranscript} reconnects with no transcript frame " +
+                $"(budget MaxReconnectsWithoutTranscript = {MaxReconnectsWithoutTranscript}) for {_strategy.TranscriptionProviderLabel}");
+            GiveUpReconnect();
+            return false;
+        }
 
         ChangeState(StreamingConnectionState.Reconnecting);
         SentryService.AddBreadcrumb(
@@ -92,7 +104,10 @@ public sealed partial class StreamingTranscriptionClient
                 ["provider"] = _strategy.TranscriptionProviderLabel,
                 ["attempt"] = attempt.ToString()
             });
-        LoggingService.Info($"StreamingTranscriptionClient: reconnect succeeded on attempt {attempt}");
+        _reconnectsWithoutTranscript++;
+        LoggingService.Info(
+            $"StreamingTranscriptionClient: reconnect succeeded on attempt {attempt} " +
+            $"({_reconnectsWithoutTranscript}/{MaxReconnectsWithoutTranscript} with no transcript frame)");
         return true;
     }
 
@@ -131,7 +146,8 @@ public sealed partial class StreamingTranscriptionClient
         return false;
     }
 
-    // Every attempt failed without a refusal: the connection is lost for good.
+    // Every attempt failed without a refusal, or the no-transcript reconnect budget ran out:
+    // the connection is lost for good.
     private void GiveUpReconnect()
     {
         SentryService.AddBreadcrumb(

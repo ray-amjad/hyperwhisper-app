@@ -29489,6 +29489,107 @@ internal static class Program
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
+
+        // Issue #2784: every successful reconnect used to start a fresh MaxReconnectAttempts
+        // loop, so a server that accepts each upgrade and drops it at once (a transient close
+        // frame, or a TCP drop with no close frame) was reconnected forever, never Error. The
+        // client now stops after MaxReconnectsWithoutTranscript (5) reconnects in a row with no
+        // transcript frame, and any transcript frame starts that count over.
+        const int reconnectBudget = 5; // StreamingTranscriptionClient.MaxReconnectsWithoutTranscript
+        foreach (var (closeFrame, sendsTranscript) in new[] { (true, false), (false, false), (true, true) })
+        {
+            var name = sendsTranscript
+                ? "StreamingTranscriptionClient keeps reconnecting while each connection sends a transcript (#2784)"
+                : $"StreamingTranscriptionClient gives up after the no-transcript reconnect budget ({(closeFrame ? "close 1001" : "TCP drop")}, #2784)";
+            RunAsync(name, async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    await AssertEveryConnectionDrops(closeFrame, sendsTranscript);
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+        }
+
+        static async Task AssertEveryConnectionDrops(bool closeFrame, bool sendsTranscript)
+        {
+            var wait = TimeSpan.FromSeconds(15);
+            var streaming = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var error = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var errors = new List<string>();
+
+            await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+            {
+                // The first drop waits for StartAsync to reach Streaming, or StartAsync's
+                // Connecting -> Streaming step could lose to the receive loop's Reconnecting.
+                if (index == 0)
+                    await streaming.Task.WaitAsync(wait, ct);
+                if (sendsTranscript)
+                    await ServerSendText(ws, $"{{\"t\":\"final\",\"text\":\"Segment {index}.\"}}", ct);
+
+                if (closeFrame)
+                {
+                    await ws.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, "going away", ct);
+                    await ServerDrainUntilGone(ws, ct);
+                    return;
+                }
+
+                socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+            });
+
+            var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+            await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+            client.StateChanged += state =>
+            {
+                if (state == StreamingConnectionState.Streaming)
+                    streaming.TrySetResult();
+                if (state == StreamingConnectionState.Error)
+                    error.TrySetResult();
+            };
+            client.ErrorReceived += m => { lock (errors) errors.Add(m); };
+
+            Assert(await client.StartAsync(), $"StartAsync did not start the session (State {client.State})");
+
+            if (sendsTranscript)
+            {
+                // Twice the budget's connections, each with a transcript before its drop:
+                // the budget never runs out. The test stops the session itself.
+                var deadline = DateTime.UtcNow + wait;
+                while (server.ConnectionCount < 2 * (1 + reconnectBudget) && !error.Task.IsCompleted && DateTime.UtcNow < deadline)
+                    await Task.Delay(50);
+                var connections = server.ConnectionCount;
+                var stateBefore = client.State;
+                await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+                Assert(!error.Task.IsCompleted, $"a session that got a transcript on every connection ended in Error after {connections} connections");
+                Assert(connections >= 2 * (1 + reconnectBudget),
+                    $"expected reconnects past the budget while transcripts arrive, saw {connections} connections (State {stateBefore})");
+                lock (errors)
+                    Assert(errors.Count == 0, $"ErrorReceived fired while transcripts arrived: [{string.Join(" | ", errors)}]");
+                return;
+            }
+
+            Assert(await Task.WhenAny(error.Task, Task.Delay(wait)) == error.Task,
+                $"the client never gave up: State {client.State} after {server.ConnectionCount} connections");
+            // Long enough for one more reconnect's 500 ms backoff, had the budget not stopped it.
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+            var finalConnections = server.ConnectionCount;
+            var stateAfter = client.State;
+            await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+            Assert(stateAfter == StreamingConnectionState.Error, $"expected State Error after the budget, got {stateAfter}");
+            Assert(finalConnections == 1 + reconnectBudget,
+                $"expected exactly {1 + reconnectBudget} connections (1 + budget), saw {finalConnections}");
+            lock (errors)
+                Assert(errors.Any(m => m.Contains("Streaming connection was lost and could not be restored.", StringComparison.Ordinal)),
+                    $"ErrorReceived never named the lost connection: [{string.Join(" | ", errors)}]");
+        }
     }
 
     // The close-frame path ends the session once the provider has failed it (State Error).
