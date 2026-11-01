@@ -100,6 +100,7 @@ test("admin refund with revokeLicense purges the cloud licence cache for the rev
   assert.equal(line.outcome, "ok");
   assert.equal(line.revoked, true);
   assert.equal(line.cloudPurge, "confirmed");
+  assert.equal(line.cloudPurgeKeyReread, true);
   assert.equal(line.cloudPurged, 1);
   assert.equal(line.cloudPurgeFailed, 0);
   assert.equal(line.cloudPurgeSkipped, false);
@@ -168,6 +169,16 @@ test("a failed re-read after the revoke still purges (the pre-refund string) and
     sent.map(({ body }) => body),
     [{ account_key: KEY }],
   );
+
+  // The cloud answered 200, but the purged string may not be the revoked one
+  // (a rotation may have replaced it), so the log must not claim confirmed.
+  const line = refundLine();
+  assert.equal(line.outcome, "ok");
+  assert.equal(line.cloudPurge, "unconfirmed");
+  assert.equal(line.cloudPurgeKeyReread, false);
+  assert.equal(line.cloudPurged, 1);
+  assert.equal(line.cloudPurgeFailed, 0);
+  for (const entry of logs) assert.ok(!entry.includes(KEY), `the key is never logged: ${entry}`);
 });
 
 test("admin refund without revokeLicense sends nothing to the cloud", async () => {

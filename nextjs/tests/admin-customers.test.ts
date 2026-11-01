@@ -875,6 +875,7 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       revoked: true,
       // No cloud app is named in this file, so the purge (#2915) sent nothing
       // and is recorded as unconfirmed; the refund still answers ok.
+      cloudPurgeKeyReread: true,
       cloudPurge: "unconfirmed",
       cloudPurged: 0,
       cloudPurgeFailed: 0,
