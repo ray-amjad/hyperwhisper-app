@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace HyperWhisper.PortableApplication.ViewModels;
 
 /// <summary>
@@ -23,7 +25,29 @@ public sealed class SoundSettingsViewModel(SettingsViewModel settings)
 }
 
 public sealed class StorageSettingsViewModel(SettingsViewModel settings)
-    : SettingsSectionViewModel(settings);
+    : SettingsSectionViewModel(settings), INotifyPropertyChanged
+{
+    private string _lastCleanupText = string.Empty;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>The page's "Last cleanup" line, written by the shell after each sweep. It lives on
+    /// the page's view model because the page is a template built only while shown and rebuilt on
+    /// every visit (#1371), and not on <see cref="SettingsViewModel"/>, whose every change arms the
+    /// settings auto-save: a save runs a sweep, so the line would loop save -> sweep -> save.
+    /// Display only: never persisted.</summary>
+    public string LastCleanupText
+    {
+        get => _lastCleanupText;
+        set
+        {
+            value ??= string.Empty;
+            if (value == _lastCleanupText) return;
+            _lastCleanupText = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastCleanupText)));
+        }
+    }
+}
 
 public sealed class OutputSettingsViewModel(SettingsViewModel settings)
     : SettingsSectionViewModel(settings);
