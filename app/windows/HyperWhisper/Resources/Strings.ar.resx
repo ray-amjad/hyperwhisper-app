@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>لا شيء بعد. ابدأ تسجيلاً لترى النص يظهر هنا.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} كلمة · {1}</value>
+    <value>الكلمات: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>يظهر هنا فقط — لا يتم لصقه في تطبيقات أخرى</value>

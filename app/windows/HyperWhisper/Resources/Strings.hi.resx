@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>अभी तक कुछ नहीं। यहां टेक्स्ट आते देखने के लिए रिकॉर्डिंग शुरू करें।</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} शब्द · {1}</value>
+    <value>शब्द: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>यहाँ केवल दिखाया गया है — अन्य ऐप्स में पेस्ट नहीं किया गया</value>

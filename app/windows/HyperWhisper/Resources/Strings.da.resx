@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Intet endnu. Start en optagelse for at se teksten dukke op her.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} ord · {1}</value>
+    <value>Ord: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Vises kun her — indsættes ikke i andre apps</value>

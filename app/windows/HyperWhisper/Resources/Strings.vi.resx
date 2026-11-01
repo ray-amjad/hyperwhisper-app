@@ -2620,7 +2620,7 @@ You can re-download it later.</value>
     <value>Chưa có gì cả. Bắt đầu ghi âm để xem văn bản xuất hiện ở đây.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} từ · {1}</value>
+    <value>Số từ: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Chỉ hiển thị ở đây — không dán vào ứng dụng khác.</value>

@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Ingenting ennå. Start et opptak for å se teksten dukke opp her.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} ord · {1}</value>
+    <value>Ord: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Vises bare her — limes ikke inn i andre apper.</value>

@@ -2621,7 +2621,7 @@
     <value>Пока пусто. Начните запись, чтобы увидеть текст здесь.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} слов · {1}</value>
+    <value>Слова: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Показано только здесь — не вставляется в другие приложения.</value>
