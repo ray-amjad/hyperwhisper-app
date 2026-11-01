@@ -106,11 +106,11 @@ public static class TranscriptionDiagnosticsService
     /// <remarks>
     /// Split out of <see cref="CaptureNoSpeechDiagnostic"/> so the smoke tests can
     /// read the payload this diagnostic actually sends. The specific thing they read
-    /// is the extras KEYS: <see cref="SentryService.IsRedactedExtraKey"/> identifies
-    /// the value of any key containing "transcript", "text", "prompt" or "path" with
-    /// <c>"[redacted]"</c>, and three of these fields were named that way, so they
-    /// arrived empty on every event of HYPERWHISPER-PA/-RM/-XR with nothing at the
-    /// call site to say so.
+    /// is the extras KEYS: <see cref="SentryService.IsRedactedExtraKey"/> replaces the
+    /// String value of any key that is not on
+    /// <see cref="SentryService.AllowedExtraKeys"/> with <c>"[redacted]"</c>, so a new
+    /// field that is not added to that list arrives empty with nothing at the call
+    /// site to say so.
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
@@ -211,8 +211,9 @@ public static class TranscriptionDiagnosticsService
     }
 
     /// <summary>
-    /// The extras half of <see cref="BuildDiagnosticPayload"/>. Every key must clear
-    /// <see cref="SentryService.IsRedactedExtraKey"/> - see the comment at the top of
+    /// The extras half of <see cref="BuildDiagnosticPayload"/>. Every key except
+    /// <c>selected_input_device_name</c> must be on
+    /// <see cref="SentryService.AllowedExtraKeys"/> - see the comment at the top of
     /// the dictionary.
     /// </summary>
     private static Dictionary<string, object> BuildDiagnosticExtras(
@@ -228,16 +229,20 @@ public static class TranscriptionDiagnosticsService
     {
         var extras = new Dictionary<string, object>
         {
-            // KEY NAMES ARE LEAD-BEARING HERE. SentryService.IsRedactedExtraKey does a
-            // substring match on the key and replaces the value with "[redacted]", so
-            // an extra whose name contains "transcript", "text", "prompt" or "path"
-            // never arrives - silently, with no warning at the call site. This
-            // dictionary shipped three such names ("transcript_id",
-            // "transcription_provider_display_name",
-            // "backend_empty_transcript_without_flag"), and every event of
-            // HYPERWHISPER-PA/-RM/-XR carried "[redacted]" for all three. The names
-            // below are chosen to clear that filter; a smoke test asserts it for the
-            // whole dictionary so the next one fails in CI instead.
+            // EVERY KEY HERE MUST BE ON SentryService.AllowedExtraKeys. Sentry's
+            // filter is an exact key allow-list (#1890): a String value under any
+            // other key arrives as "[redacted]" - silently, with no warning at the
+            // call site. Only selected_input_device_name is deliberately off it (a
+            // person can rename the microphone). A smoke test asserts this for the
+            // whole dictionary so a new key that was not added fails in CI instead.
+            //
+            // History: the filter used to be a substring deny-list on "transcript",
+            // "text", "prompt" and "path", and this dictionary shipped three names
+            // it caught ("transcript_id", "transcription_provider_display_name",
+            // "backend_empty_transcript_without_flag"), so every event of
+            // HYPERWHISPER-PA/-RM/-XR carried "[redacted]" for all three. They were
+            // renamed to the names below, which stay as they are so Sentry queries
+            // keep working.
             //
             // This is the local record id, so a support thread can be joined to the
             // event. It is a GUID the app minted - it is not the transcript.
@@ -284,6 +289,9 @@ public static class TranscriptionDiagnosticsService
             // ("which mode was this") without carrying anything they wrote.
             ["mode_preset"] = mode?.Preset ?? "unknown",
             ["provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
+            // Deliberately NOT on SentryService.AllowedExtraKeys, so this arrives as
+            // "[redacted]" in the transaction data. It is still sent as a TAG above,
+            // where only the account-identifier rewrite applies.
             ["selected_input_device_name"] = inputDeviceName ?? "n/a",
             // This value describes the device-list shape. It does not include
             // another device name or any other user content.

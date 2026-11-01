@@ -140,20 +140,17 @@ public static partial class SentryService
 
     private static SentryEvent SanitizeEvent(SentryEvent sentryEvent, IReadOnlyList<RedactionRule> rules)
     {
-        // Drop any suspicious extras (transcript, text, prompt), and rewrite the
-        // user's Windows identifiers out of every extra that survives. The redacted
-        // branch is never re-examined, which is what makes the "not already
-        // [redacted]" rule structural rather than a second check.
+        // Redact every extra whose key is not on the allow-list (a Bool or a number
+        // survives under any key), and rewrite the user's Windows identifiers out of
+        // every allowed String. The redacted branch is never re-examined, which is
+        // what makes the "not already [redacted]" rule structural rather than a
+        // second check.
         if (sentryEvent.Extra != null)
         {
             var sanitizedExtras = new Dictionary<string, object?>();
             foreach (var kvp in sentryEvent.Extra)
             {
-                sanitizedExtras[kvp.Key] = IsRedactedExtraKey(kvp.Key)
-                    ? "[redacted]"
-                    : kvp.Value is string extraText
-                        ? Redact(extraText, rules)
-                        : kvp.Value;
+                sanitizedExtras[kvp.Key] = SanitizeExtraValue(kvp.Key, kvp.Value, rules);
             }
 
             // Buffered first: SetExtra writes into the dictionary being enumerated.
@@ -274,42 +271,171 @@ public static partial class SentryService
     private const string SentryDefaultFingerprintDirective = "{{ default }}";
 
     /// <summary>
-    /// Whether the Sentry privacy filter replaces this extra's value with <c>"[redacted]"</c>.
+    /// EVERY extra key whose String value may leave this machine. Matched EXACTLY,
+    /// case and all (<see cref="StringComparer.Ordinal"/>). A key that is not here is
+    /// redacted: its String, array, null or any other non-Bool, non-number value
+    /// becomes <c>"[redacted]"</c>. See <see cref="SanitizeExtraValue"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The match is on the KEY only, and it is a substring match, so it cannot tell a
-    /// transcript from a field that merely has "transcript" in its name. That is the
-    /// safe direction for a privacy filter and it stays exactly as it was — but it
-    /// also means a diagnostic field named <c>transcription_provider_display_name</c>
-    /// or <c>backend_empty_transcript_without_flag</c> arrives at Sentry as
-    /// <c>"[redacted]"</c>, and the call site gets no warning. Three fields of the
-    /// Windows no-speech diagnostic were lost that way for every event of
-    /// HYPERWHISPER-PA/-RM/-XR.
+    /// This replaced a substring deny-list (<c>transcript</c> / <c>text</c> /
+    /// <c>prompt</c> / <c>path</c>), the same move macOS made in #1887 (#805). That
+    /// list over-matched - <c>transcript_id</c>,
+    /// <c>transcription_provider_display_name</c> and
+    /// <c>backend_empty_transcript_without_flag</c> arrived as <c>"[redacted]"</c> on
+    /// every event of HYPERWHISPER-PA/-RM/-XR - and under-matched: a content key whose
+    /// name holds none of the four words went out verbatim (#795). With an allow-list
+    /// a key nobody reviewed stays hidden, so a new diagnostic fails safe.
     /// </para>
     /// <para>
-    /// "path" is here as a backstop, not as the fix. Recordings, models and
-    /// user-picked media all live under the user's profile, so any full path carries
-    /// their Windows account name. A call site must still send a description of the
-    /// file rather than the file (<see cref="LoggingService.DescribePath"/>); this
-    /// only stops the next one that forgets.
+    /// <b>To add a key</b>, decide from the VALUE it holds, never from its spelling.
+    /// It may go here only if no value it can ever hold is user content: nothing
+    /// spoken or typed, no prompt or transcript, no path, no user-chosen file name,
+    /// no Mode name or vocabulary, no device name a person can rename, no device id,
+    /// and no raw exception message or process output (those embed paths and server
+    /// text). A key whose value is only ever a Bool or a number does not need to be
+    /// here - but a key whose number falls back to a String such as
+    /// <c>"unknown"</c> does, or the fallback arrives as <c>"[redacted]"</c>.
     /// </para>
     /// <para>
-    /// Name a metadata field so it does not collide. The smoke tests assert this for
-    /// every key the no-speech diagnostic emits, so a colliding name fails in CI
-    /// rather than going quiet in production.
+    /// Sent today but deliberately NOT on the list, so their String values arrive as
+    /// <c>"[redacted]"</c>: <c>selected_input_device_name</c> (the no-speech
+    /// diagnostic; <c>WaveInCapabilities.ProductName</c>, which a person can rename
+    /// and a Bluetooth headset is named after its owner - it stays a TAG, where the
+    /// identifier rewrite still applies) and <c>parakeet_stderr_tail</c> (the
+    /// Parakeet daemon's own stderr, raw process output; only the account
+    /// identifiers are scrubbed out of it). Ray's ruling 2026-10-07 (#1364): a device
+    /// name or raw error text that can carry a person's name is personal data. The
+    /// slug, exit code and line-count keys beside them still identify the failure.
+    /// </para>
+    /// <para>
+    /// The <c>diagnostic_message</c> and <c>diagnostic_fingerprint</c> data of a
+    /// diagnostic TRANSACTION are written by
+    /// <see cref="PrepareDiagnosticTransactionData"/> itself, not from the caller's
+    /// extras, so they are not looked up here. Tags are not looked up here either:
+    /// they go through the identifier rewrite only, on both paths.
     /// </para>
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static bool IsRedactedExtraKey(string key)
+    internal static readonly IReadOnlySet<string> AllowedExtraKeys = new HashSet<string>(StringComparer.Ordinal)
     {
-        var keyLower = key.ToLowerInvariant();
-        return keyLower.Contains("transcript")
-            || keyLower.Contains("text")
-            || keyLower.Contains("prompt")
-            || keyLower.Contains("path");
+        // Capture(). The caller's own description of the failure. Every caller
+        // passes a fixed literal or a message built from fixed slugs - never an
+        // exception's Message - and the identifier rewrite still runs on it.
+        "error_message",
+
+        // MainViewModel.ReportBackgroundModelLoadFailure. Trigger and engine are
+        // fixed slugs, the model is the catalog model id, the exception is the
+        // TYPE name only.
+        "model_load_trigger", "model_load_engine", "model_load_model",
+        "model_load_exception_type", "runtime_identifier", "is_arm64",
+
+        // LocalLlmGpuLoadCrashStore.ReportRecoveredGpuLoadCrash. model_file is
+        // Path.GetFileName of a catalog GGUF the app downloaded itself (there is no
+        // import); gpu_name is the DXGI adapter description, a hardware model string.
+        "model_file", "gpu_name", "gpu_vram", "crashed_backend", "fallback_backend",
+
+        // LicenseNetworkService "License validation server error". endpoint is the
+        // app's own validation URL, status the HTTP status, license_reason the
+        // server's own reason slug.
+        "endpoint", "status", "license_reason",
+
+        // SmartPasteDiagnostics. paste_target_process is the target's process name,
+        // which names an app, not anything typed into it (macOS sends the bundle id
+        // the same way, paste_target_bundle_id).
+        "paste_outcome", "paste_component", "paste_target_process", "paste_target_app_kind",
+        "paste_had_captured_target", "paste_target_window_alive", "paste_target_window_minimized",
+        "paste_focus_ready", "paste_focus_wait_ms", "paste_character_count",
+        "paste_hide_from_clipboard_history", "paste_elapsed_ms", "paste_reported_once_per_run",
+
+        // RenderThreadFailureRecovery.
+        "hresult", "render_recovery", "capture_stage",
+
+        // ApplicationControlDiagnostics block report. blocked_file_name is the
+        // sanitized simple name of the app's own DLL or exe, already a tag.
+        "blocked_file_name", "blocked_hresult", "blocked_match", "blocked_exception_type",
+        "outer_exception_type",
+
+        // ApplicationControlDiagnostics classifier load failure. Exception TYPE names
+        // and HRESULTs only, never a message.
+        "classifier_assembly_present", "classifier_file_size_bytes",
+        "classifier_winverifytrust_hresult", "classifier_trust_probe_exception_type",
+        "classifier_trust_probe_exception_hresult", "classifier_zone_id",
+        "classifier_load_succeeded", "classifier_outer_exception_type", "classifier_outer_hresult",
+        "classifier_innermost_exception_type", "classifier_innermost_hresult",
+
+        // OptionalAssemblyGuard. Exception TYPE names and HRESULTs only.
+        "optional_assembly_stage", "optional_assembly_outer_exception_type",
+        "optional_assembly_outer_hresult", "optional_assembly_innermost_exception_type",
+        "optional_assembly_innermost_hresult",
+
+        // ParakeetTranscriptionService.BuildStartFailureFields (#854). The model id is
+        // the catalog folder name, the language hint a language code.
+        // Not parakeet_stderr_tail: raw process output, see above.
+        "parakeet_failure", "parakeet_exit_code", "parakeet_engine", "parakeet_model_id",
+        "parakeet_language_hint", "parakeet_ready_timeout_s", "parakeet_elapsed_ms",
+        "parakeet_stderr_line_count",
+
+        // TranscriptionDiagnosticsService.BuildDiagnosticExtras (no-speech /
+        // empty-recording transaction). diagnostic_record_id is a GUID the app
+        // minted, not the transcript; audio_file_extension is the extension alone;
+        // audio_analysis_error is "<exception type> (0x<HRESULT>)" or a fixed
+        // sentence; mode_preset is the preset slug, never the user-typed Mode name;
+        // provider_display_name and exception_provider are the provider's catalog
+        // display name. Several of the numbers fall back to the String "unknown".
+        // Not selected_input_device_name: a person can rename the microphone.
+        "diagnostic_record_id", "audio_file_exists", "audio_file_extension",
+        "audio_file_size_bytes", "audio_duration_seconds", "audio_sample_rate_hz",
+        "audio_channels", "audio_peak_dbfs", "audio_rms_dbfs", "audio_non_silent_ratio",
+        "audio_decoded_sample_count", "audio_measured_sample_count", "mode_preset",
+        "provider_display_name", "capture_device_list_position", "provider_attempt_ms",
+        "raw_result_length", "backend_request_id", "backend_stt_provider",
+        "backend_http_status", "backend_response_latency_ms", "backend_empty_without_flag",
+        "audio_analysis_error", "exception_type", "exception_code", "exception_provider",
+        "exception_http_status",
+    };
+
+    /// <summary>
+    /// Whether the Sentry privacy filter redacts this extra's content: true for
+    /// every key that is not EXACTLY on <see cref="AllowedExtraKeys"/>.
+    /// </summary>
+    /// <remarks>
+    /// A redacted key still keeps a Bool or a number value - see
+    /// <see cref="SanitizeExtraValue"/>, which is the only place this is applied.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static bool IsRedactedExtraKey(string key) => !AllowedExtraKeys.Contains(key);
+
+    /// <summary>
+    /// The value one extra leaves the machine with. The single rule both the
+    /// <c>beforeSend</c> path (<see cref="SanitizeEvent(SentryEvent)"/>) and the
+    /// transaction path (<see cref="PrepareDiagnosticTransactionData"/>) apply, so
+    /// the two cannot drift.
+    /// </summary>
+    /// <remarks>
+    /// An allowed key keeps its value, with the user's Windows identifiers rewritten
+    /// out of a String. A key that is not allowed keeps a Bool or a number - a
+    /// measurement cannot hold speech or a name - and anything else (a String, an
+    /// array, null, any object) becomes <c>"[redacted]"</c>. The same rule as macOS
+    /// <c>SentryService.redactedValue(forKey:value:)</c>; issue #684 is the Bool that
+    /// once shipped as <c>"[redacted]"</c>.
+    /// </remarks>
+    private static object? SanitizeExtraValue(string key, object? value, IReadOnlyList<RedactionRule> rules)
+    {
+        if (!IsRedactedExtraKey(key))
+        {
+            return value is string text ? Redact(text, rules) : value;
+        }
+
+        return value is bool
+            or sbyte or byte or short or ushort or int or uint or long or ulong
+            or float or double or decimal
+            ? value
+            : "[redacted]";
     }
 
     /// <summary>

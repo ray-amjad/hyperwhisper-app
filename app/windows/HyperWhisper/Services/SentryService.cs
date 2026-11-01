@@ -300,8 +300,12 @@ public static partial class SentryService
     /// Capture an exception with optional message and extra context.
     /// </summary>
     /// <param name="exception">The exception to capture</param>
-    /// <param name="message">Optional descriptive message (improves grouping and readability)</param>
-    /// <param name="extras">Additional context (will NOT affect grouping)</param>
+    /// <param name="message">Optional descriptive message (improves grouping and readability).
+    /// Sent as the allow-listed <c>error_message</c> extra, so it must be a fixed
+    /// description, never an exception's <c>Message</c> or other user content.</param>
+    /// <param name="extras">Additional context (will NOT affect grouping). A key that is not
+    /// on <see cref="AllowedExtraKeys"/> arrives as <c>"[redacted]"</c> unless its value is a
+    /// Bool or a number.</param>
     /// <param name="tags">Tags for filtering (will NOT affect grouping)</param>
     /// <param name="fingerprint">Optional custom fingerprint for grouping</param>
     public static void Capture(
@@ -514,13 +518,11 @@ public static partial class SentryService
 
         if (extras != null)
         {
+            // The same per-extra rule as beforeSend: an allow-listed key keeps its
+            // identifier-rewritten value, any other key keeps only a Bool or a number.
             foreach (var (key, value) in extras)
             {
-                preparedData[key] = IsRedactedExtraKey(key)
-                    ? "[redacted]"
-                    : value is string extraText
-                        ? Redact(extraText, rules)
-                        : value;
+                preparedData[key] = SanitizeExtraValue(key, value, rules);
             }
         }
 
