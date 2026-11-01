@@ -147,6 +147,9 @@ describe('Dictation validation and billing', () => {
     const reservation = providerAudioReservation('assemblyai', audio.byteLength, 'dictation');
     expect(reservation.requiresBufferedBody).toBe(true);
     expect(reservation.resolveBufferedAudio(audio, 'audio/wav')).toEqual({ kind: 'duration', audioSeconds: 60 });
-    expect(providerAudioReservation('assemblyai', audio.byteLength, 'universal-2').requiresBufferedBody).toBe(false);
+    // Other AssemblyAI models take the default reservation (#2483): it buffers
+    // too, but reads any container and keeps a size floor before the body.
+    expect(reservation.preBufferAudioSeconds).toBe(0);
+    expect(providerAudioReservation('assemblyai', audio.byteLength, 'universal-2').preBufferAudioSeconds).toBeGreaterThan(0);
   });
 });
