@@ -172,19 +172,12 @@ struct MultiDeleteConfirmButtonTests {
     private static let key = "transcripts.delete.multiple.confirm"
 
     @Test func everyLocaleNamesTheCountWithOneIntegerSpecifier() throws {
-        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
-        let locales = try FileManager.default.contentsOfDirectory(
-            at: localizations,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "lproj" }
+        let locales = try ProductionSource.localeDirectories()
         #expect(locales.count == 40)
 
         for locale in locales {
-            let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
-                .components(separatedBy: .newlines)
-            let matches = lines.filter { $0.hasPrefix("\"\(Self.key)\" = \"") }
-            #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one \(Self.key)")
-            guard let line = matches.first else { continue }
+            let lines = try ProductionSource.localizableLines(of: locale)
+            guard let line = ProductionSource.onlyLine(forKey: Self.key, in: lines, locale: locale) else { continue }
             let specifiers = line.components(separatedBy: "%").count - 1
             #expect(specifiers == 1, "\(locale.lastPathComponent): \(line)")
             #expect(line.contains("%d"), "\(locale.lastPathComponent): \(line)")
@@ -202,9 +195,9 @@ struct MultiDeleteConfirmButtonTests {
     @Test func manyPluralFormLocalesPutTheCountAfterTheNoun() throws {
         let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
         for locale in Self.countSafeLocales {
-            let lines = try ProductionSource.text(
-                of: localizations.appendingPathComponent("\(locale).lproj/Localizable.strings")
-            ).components(separatedBy: .newlines)
+            let lines = try ProductionSource.localizableLines(
+                of: localizations.appendingPathComponent("\(locale).lproj")
+            )
             let line = try #require(lines.first { $0.hasPrefix("\"\(Self.key)\" = \"") }, "\(locale)")
             #expect(line.hasSuffix(": %d\";"), "\(locale): \(line)")
         }

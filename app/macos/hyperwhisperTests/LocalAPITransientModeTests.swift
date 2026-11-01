@@ -213,20 +213,16 @@ struct LocalAPITransientModeTests {
     }
 
     @Test func everyLocaleHasTheLocalAPIInUseKey() throws {
-        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
-        let locales = try FileManager.default.contentsOfDirectory(
-            at: localizations,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "lproj" }
+        let locales = try ProductionSource.localeDirectories()
         #expect(locales.count == 40)
 
         for locale in locales {
-            let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
-                .components(separatedBy: .newlines)
-            let matches = lines.filter { $0.hasPrefix("\"settings.models.inUse.localAPI\" = \"") }
-            #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one settings.models.inUse.localAPI")
-            guard let line = matches.first else { continue }
-            #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent)")
+            let lines = try ProductionSource.localizableLines(of: locale)
+            guard let line = ProductionSource.onlyLine(
+                forKey: "settings.models.inUse.localAPI",
+                in: lines,
+                locale: locale
+            ) else { continue }
             // Shown as-is, never through String(format:).
             #expect(!line.contains("%"), "\(locale.lastPathComponent)")
         }
