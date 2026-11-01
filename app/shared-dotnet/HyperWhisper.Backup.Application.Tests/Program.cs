@@ -1114,6 +1114,8 @@ try
         && splitWords.Single(item => item.Word == "y").Replacement == "Best,\nRay",
         "a split backup word lost its id or its multi-line replacement (#1777)");
 
+    await VocabularyRenamedRestoreTests.RunAsync();
+
     Console.WriteLine("Backup application tests passed (53/53).");
 }
 finally
