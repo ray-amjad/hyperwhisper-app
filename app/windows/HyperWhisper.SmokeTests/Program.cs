@@ -8623,8 +8623,10 @@ internal static class Program
                     // reaches beforeSend, so nothing downstream would have caught it.
                     new[] { "transcription-no-speech", Environment.UserName });
 
-                Assert((string)data["selected_input_device_name"]! == "%USER%'s AirPods",
-                    $"the transaction extra still carries the account name: {data["selected_input_device_name"]}");
+                // Since #1890 the device name is off the extras allow-list altogether, so
+                // the EXTRA is redacted outright; the TAG below still shows the rewrite.
+                Assert((string)data["selected_input_device_name"]! == "[redacted]",
+                    $"the transaction extra still carries the device name: {data["selected_input_device_name"]}");
                 Assert(tags["selected_input_device_name"] == "%USER%'s AirPods",
                     $"the transaction TAG still carries the account name: {tags["selected_input_device_name"]}");
                 Assert((string)data["raw_text"]! == "[redacted]",
