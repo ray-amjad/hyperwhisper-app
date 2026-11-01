@@ -31,14 +31,14 @@ When **Paste result automatically** is on, HyperWhisper copies the transcript to
   <Tab title="Windows">
     Auto Paste sends a **Ctrl+V** keystroke to the focused application. It does not use UI Automation for the paste. HyperWhisper uses UI Automation only before the paste, to find password fields. If the field is a password field, HyperWhisper skips the paste. Auto Paste needs no extra permission.
 
-    For a regular (not streaming) recording: if the **Ctrl+V** keystroke fails, the transcript stays on the clipboard. Paste it yourself with **Ctrl+V**. If HyperWhisper cannot write the transcript to the clipboard, for example because another app holds the clipboard open, it shows this error: **HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.** Copy the transcript from [History](/history).
+    For a regular (not streaming) recording: if the **Ctrl+V** keystroke fails, the transcript stays on the clipboard. Paste it yourself with **Ctrl+V**. If HyperWhisper cannot write the transcript to the clipboard, for example because another app holds the clipboard open, it shows this error: "HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History." Copy the transcript from [History](/history).
   </Tab>
   <Tab title="Linux">
     Auto Paste sends the paste keystroke through `/dev/uinput`, which needs the `hyperwhisper-input` group. Add the group, then log out completely and log back in. See [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
 
     Without the group, transcription still works. HyperWhisper leaves the transcript on your clipboard and you paste it yourself.
 
-    Before it pastes, HyperWhisper asks AT-SPI for the role of the focused field. If the field is a password field, HyperWhisper copies the text and does not paste. The recording overlay then shows **Copied — secure field protected**.
+    Before it pastes, HyperWhisper asks AT-SPI for the role of the focused field. If the field is a password field, HyperWhisper copies the text and does not paste. The recording overlay then shows "Copied — secure field protected".
 
     <Note>
       AT-SPI cannot read the focused field in every toolkit. If HyperWhisper cannot get an answer, it treats the state as unknown and pastes as usual. Do not rely on this guard as a security control.
@@ -101,7 +101,7 @@ HyperWhisper does not add the space in these three cases:
 
 The languages that write no spaces are Japanese (`ja`), Chinese (`zh`, and the `zh-TW`, `zh-Hans`, and `zh-Hant` variants), Cantonese (`yue`), Korean (`ko`), and Thai (`th`). A regional variant such as `zh-CN` counts as Chinese.
 
-When the language of the mode is **Automatic**, HyperWhisper reads the transcript instead. If more than 30% of the characters are CJK characters — the punctuation and the spaces are not counted — HyperWhisper adds no space.
+When the language of the mode is **Automatic**, HyperWhisper reads the transcript instead. If more than 30% of the characters are CJK or Thai characters — the punctuation and the spaces are not counted — HyperWhisper adds no space.
 
 ### During streaming
 
@@ -150,7 +150,7 @@ Use this setting when you dictate sensitive content, such as passwords, private 
   <Tab title="Linux">
     Linux has no standard exclusion mechanism. HyperWhisper attaches a hint that a compatible native clipboard owner can read, but your desktop can ignore the hint.
 
-    The status line below the checkbox tells you what your desktop supports. It reads **Clipboard-history exclusion hints are enabled for compatible clipboard managers** when the hint can be attached, or **This clipboard backend cannot attach a history-exclusion hint** when it cannot. In the second case, the restore behavior still applies.
+    The status line below the checkbox tells you what your desktop supports. It reads "Clipboard-history exclusion hints are enabled for compatible clipboard managers" when the hint can be attached, or "This clipboard backend cannot attach a history-exclusion hint" when it cannot. In the second case, the restore behavior still applies.
 
     <Warning>
       Treat this setting as best effort on Linux. Do not dictate a password into a field and rely on the hint to keep it out of your clipboard manager.

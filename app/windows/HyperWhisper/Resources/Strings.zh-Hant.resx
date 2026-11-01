@@ -949,15 +949,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet 模型不支援自訂詞彙。</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 不支援自訂詞彙。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base 模型不支援自訂詞彙。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper 模型不支援自訂詞彙。</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Nova 模型使用自動偵測語言時，會停用自訂詞彙。請設定特定語言以啟用詞彙加權。</value>
   </data>
@@ -2188,7 +2179,7 @@
     <value>請至少選擇一個要匯入的部分。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>新增 {0} 個詞，{1} 個與現有詞衝突。是否繼續？</value>
+    <value>新詞：{0} 個。與現有詞衝突：{1} 個。是否繼續？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>匯入詞彙？</value>

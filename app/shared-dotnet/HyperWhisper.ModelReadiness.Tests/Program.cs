@@ -28,6 +28,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("provider metadata folds a vendor 400 through the core grade", TestMetadataProbeRejectedKeyFoldsAsync),
     ("provider metadata cancellation propagates", TestMetadataProbeCancellationAsync),
     ("Meta readiness reports configured without a probe", TestMetaReadinessAsync),
+    ("a retired cloud STT id is labelled by its successor", TestCloudSttRetiredIdLabelAsync),
 };
 
 foreach (var test in tests)
@@ -39,6 +40,19 @@ Console.WriteLine($"Model readiness: {tests.Length}/{tests.Length} tests passed.
 
 static IReadOnlyList<ModelCapability> Load(CustomEndpointDefinition[]? custom = null) =>
     UnifiedModelCatalog.LoadBundled(custom);
+
+// #1976: a stored id the catalog no longer lists (Grok 1.0, retired in #1908) is named by its
+// successor through the core's alias table, for every caller, not only the Linux status bar.
+static Task TestCloudSttRetiredIdLabelAsync()
+{
+    var successor = CloudSttModelCatalog.Label("grok-voice-transcribe-2.0");
+    True(successor != "grok-voice-transcribe-2.0", "the Grok 2.0 row has no catalog label");
+    Equal(successor, CloudSttModelCatalog.Label("grok-voice-transcribe-1.0", "grok"));
+    Equal(successor, CloudSttModelCatalog.Label("grok-voice-transcribe-1.0"));
+    // Neither listed nor aliased: the stored id comes back unchanged.
+    Equal("not-a-real-model", CloudSttModelCatalog.Label("not-a-real-model", "grok"));
+    return Task.CompletedTask;
+}
 
 static Task TestLocalCatalogAsync()
 {
