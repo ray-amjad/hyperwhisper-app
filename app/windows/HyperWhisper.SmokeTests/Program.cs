@@ -7465,10 +7465,15 @@ internal static class Program
                 };
                 Assert(fields.Select(f => f.Key).SequenceEqual(expectedKeys),
                     $"the field names must be the issue's, got {string.Join(",", fields.Select(f => f.Key))}");
-                foreach (var key in expectedKeys)
+                // Every field is allow-listed except the stderr tail: that is raw daemon
+                // output, and only the account identifiers are scrubbed out of it, so it
+                // stays in the local log and reaches Sentry as [redacted] (#1890).
+                foreach (var key in expectedKeys.Where(k => k != "parakeet_stderr_tail"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key), $"Sentry's key filter would replace '{key}' with [redacted]");
                 }
+                Assert(SentryService.IsRedactedExtraKey("parakeet_stderr_tail"),
+                    "the raw stderr tail is on the Sentry allow-list");
 
                 var byKey = fields.ToDictionary(f => f.Key, f => f.Value);
                 Assert(byKey["parakeet_failure"] is "stdout_closed", "the failure slug");
@@ -7679,16 +7684,17 @@ internal static class Program
 
             Run("TranscriptionDiagnosticsService payload: transaction data is complete and privacy-safe", () =>
             {
-                // The bug this guards. SentryService.IsRedactedExtraKey matches on the
-                // KEY, as a substring, and replaces the value with "[redacted]". Three
-                // fields of this diagnostic were named "transcript_id",
-                // "transcription_provider_display_name" and
-                // "backend_empty_transcript_without_flag", so every event of
-                // HYPERWHISPER-PA/-RM/-XR arrived with all three empty - including the
-                // empty-vs-flag discriminator the whole diagnostic turns on. Nothing at
-                // the call site said so, and nothing failed. The names are chosen to
-                // clear the filter now; this asserts the WHOLE payload does, so the next
-                // field named with one of those four words fails in CI instead.
+                // The bug this guards. Sentry's filter replaces the String value of any
+                // extra whose key is not on SentryService.AllowedExtraKeys with
+                // "[redacted]" (#1890; it used to be a substring deny-list, which is how
+                // "transcript_id", "transcription_provider_display_name" and
+                // "backend_empty_transcript_without_flag" arrived empty on every event of
+                // HYPERWHISPER-PA/-RM/-XR - including the empty-vs-flag discriminator the
+                // whole diagnostic turns on). Nothing at the call site says so, and
+                // nothing fails. This asserts the WHOLE payload is allow-listed, so the
+                // next field nobody added to the list fails in CI instead. The one
+                // exception is the microphone name, which a person can rename: it is
+                // off the list on purpose and asserted redacted below.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
                     DurationSeconds: 1.7,
@@ -7735,11 +7741,13 @@ internal static class Program
                         ],
                         reason: AudioDeviceSelectionReason.StartupFirstAvailable));
 
-                foreach (var key in extras.Keys)
+                foreach (var key in extras.Keys.Where(k => k != "selected_input_device_name"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                        $"extra '{key}' will arrive at Sentry as [redacted] - add it to SentryService.AllowedExtraKeys if its value is never user content");
                 }
+                Assert(SentryService.IsRedactedExtraKey("selected_input_device_name"),
+                    "the renamable microphone name is on the Sentry allow-list");
 
                 // The three renamed fields must actually be present under their new
                 // names, or the rename above would "pass" by having deleted them.
@@ -7790,6 +7798,13 @@ internal static class Program
                     "the transaction dropped a supplied diagnostic extra");
                 Assert((string)transactionData["raw_text"]! == "[redacted]",
                     "the transaction sent a denied extra without redaction");
+                Assert((string)transactionData["selected_input_device_name"]! == "[redacted]",
+                    "the transaction sent the renamable microphone name");
+                Assert(Equals(transactionData["provider_display_name"], "HyperWhisper Cloud")
+                        && Equals(transactionData["backend_stt_provider"], "elevenlabs/scribe_v2"),
+                    "the transaction redacted an allow-listed String extra");
+                Assert(transactionData["audio_file_exists"] is false,
+                    "the transaction dropped a Bool extra");
                 Assert(transactionData["diagnostic_fingerprint"] is string[] transactionFingerprint
                         && transactionFingerprint.SequenceEqual(fingerprint),
                     "the transaction did not retain the diagnostic fingerprint as data");
@@ -7865,24 +7880,102 @@ internal static class Program
                 Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.Unknown,
                     $"provider_attempt_source should be unknown with no diagnostics, got {tags["provider_attempt_source"]}");
 
-                foreach (var key in extras.Keys)
+                foreach (var key in extras.Keys.Where(k => k != "selected_input_device_name"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                        $"extra '{key}' will arrive at Sentry as [redacted] - add it to SentryService.AllowedExtraKeys if its value is never user content");
                 }
+                Assert(SentryService.IsRedactedExtraKey("selected_input_device_name"),
+                    "the renamable microphone name is on the Sentry allow-list");
             });
 
-            Run("SentryService.IsRedactedExtraKey keeps matching the four denied words", () =>
+            Run("SentryService extras are an exact allow-list: unknown and content keys lose a String, keep a Bool or a number (#1890)", () =>
             {
-                // The predicate was inlined in beforeSend and is now a named method the
-                // payload test can call. Nothing about WHAT it matches changed, and this
-                // pins that.
-                Assert(SentryService.IsRedactedExtraKey("transcript_id"), "transcript is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("raw_text"), "text is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("system_prompt"), "prompt is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("audio_path"), "path is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("AUDIO_PATH"), "the match should be case-insensitive");
-                Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "a plain metadata key is denied");
+                // The filter used to be a substring deny-list (transcript / text /
+                // prompt / path). It is now an exact, case-sensitive lookup in
+                // SentryService.AllowedExtraKeys, the rule macOS shipped in #1887. This
+                // drives BOTH real consumers - the transaction path and beforeSend - so
+                // the shared helper cannot drift from either.
+                var unknownKey = "brand_new_field_nobody_reviewed";
+                var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["transcript"] = "what the user said",
+                    ["text"] = "what the user typed",
+                    ["prompt"] = "the user's system prompt",
+                    [unknownKey] = "anything at all",
+                    ["unknown_flag"] = true,
+                    ["unknown_count"] = 42,
+                    ["unknown_ratio"] = 0.25,
+                    ["unknown_list"] = new[] { "a", "b" },
+                    // Built from the LIVE account name: the transaction path reads the
+                    // live environment, as the account-name transaction test below does.
+                    ["error_message"] = $"Load failed for {Environment.UserName}'s profile",
+                    ["audio_file_extension"] = ".wav",
+                    // Exact lookup: a case variant of an allowed key, and a key that
+                    // merely CONTAINS an allowed key, are both unknown. The case variant
+                    // has no lower-case twin here, because the transaction data
+                    // dictionary is case-insensitive and a twin would overwrite it.
+                    ["Audio_Duration_Seconds"] = "case variant",
+                    ["audio_file_extension_raw"] = "superstring",
+                    ["status_text"] = "superstring",
+                };
+
+                var (_, data) = SentryService.PrepareDiagnosticTransactionData(
+                    "allow-list probe", payload, null, null);
+
+                foreach (var key in new[]
+                         {
+                             "transcript", "text", "prompt", unknownKey, "unknown_list",
+                             "Audio_Duration_Seconds", "audio_file_extension_raw", "status_text",
+                         })
+                {
+                    Assert(Equals(data[key], "[redacted]"),
+                        $"transaction extra '{key}' was not redacted: {data[key]}");
+                }
+                Assert(data["unknown_flag"] is true, "a Bool under an unknown key did not survive");
+                Assert(data["unknown_count"] is 42, "an int under an unknown key did not survive");
+                Assert(data["unknown_ratio"] is 0.25, "a double under an unknown key did not survive");
+                Assert(Equals(data["audio_file_extension"], ".wav"), "an allow-listed String was redacted");
+                Assert(Equals(data["error_message"], "Load failed for %USER%'s profile"),
+                    $"an allow-listed String did not go through the identifier rewrite: {data["error_message"]}");
+
+                // The predicate itself: no Contains, no case folding.
+                Assert(SentryService.IsRedactedExtraKey("transcript"), "transcript is allowed");
+                Assert(SentryService.IsRedactedExtraKey("text"), "text is allowed");
+                Assert(SentryService.IsRedactedExtraKey("prompt"), "prompt is allowed");
+                Assert(SentryService.IsRedactedExtraKey("audio_path"), "audio_path is allowed");
+                Assert(SentryService.IsRedactedExtraKey(unknownKey), "an unknown key is allowed");
+                Assert(SentryService.IsRedactedExtraKey("ERROR_MESSAGE"), "the lookup is case-insensitive");
+                Assert(SentryService.IsRedactedExtraKey("Audio_Duration_Seconds"), "the lookup is case-insensitive");
+                Assert(SentryService.IsRedactedExtraKey("audio_file_extension_raw"), "the lookup matches a superstring");
+                Assert(SentryService.IsRedactedExtraKey("extension"), "the lookup matches a substring");
+                Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "an allow-listed key is redacted");
+                Assert(!SentryService.IsRedactedExtraKey("error_message"), "error_message is redacted");
+
+                // beforeSend, through the seam with fixed identifiers.
+                var sentryEvent = new Sentry.SentryEvent();
+                foreach (var (key, value) in payload)
+                {
+                    sentryEvent.SetExtra(key, value);
+                }
+                sentryEvent.SetExtra("error_message", @"Load failed at C:\Users\testaccount\AppData");
+                SentryService.SanitizeEvent(sentryEvent, @"C:\Users\testaccount", null, "testaccount");
+
+                foreach (var key in new[]
+                         {
+                             "transcript", "text", "prompt", unknownKey, "unknown_list",
+                             "Audio_Duration_Seconds", "audio_file_extension_raw", "status_text",
+                         })
+                {
+                    Assert(Equals(sentryEvent.Extra[key], "[redacted]"),
+                        $"event extra '{key}' was not redacted: {sentryEvent.Extra[key]}");
+                }
+                Assert(sentryEvent.Extra["unknown_flag"] is true, "beforeSend redacted a Bool under an unknown key");
+                Assert(sentryEvent.Extra["unknown_count"] is 42, "beforeSend redacted an int under an unknown key");
+                Assert(sentryEvent.Extra["unknown_ratio"] is 0.25, "beforeSend redacted a double under an unknown key");
+                Assert(Equals(sentryEvent.Extra["audio_file_extension"], ".wav"), "beforeSend redacted an allow-listed String");
+                Assert(Equals(sentryEvent.Extra["error_message"], @"Load failed at %USERPROFILE%\AppData"),
+                    $"beforeSend did not rewrite the identifiers in an allow-listed String: {sentryEvent.Extra["error_message"]}");
             });
 
             Run("SentryService.RedactUserIdentifiers strips the Windows account name but keeps the HRESULT and the assembly name", () =>
