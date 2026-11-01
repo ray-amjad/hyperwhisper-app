@@ -293,11 +293,16 @@ public class BackupService
                     (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // The transaction rolled the modes and vocabulary back, so the
                 // backup's settings must not stay applied on their own (issue #1614).
-                RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                var settingsRestored = RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                {
+                    LoggingService.Error($"BackupService: Import failed in the database step (settings restored: {settingsRestored})", ex);
+                    return Result<string>.Failure(refused);
+                }
                 throw;
             }
 
@@ -442,9 +447,15 @@ public class BackupService
                     summary.VocabularyAdded = added;
                     summary.VocabularyConflicts = conflicts;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
+                    var settingsRestored = RestoreSettingsAfterFailedImport(
+                        SettingsService.Instance, settingsBefore, "selective import");
+                    if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                    {
+                        LoggingService.Error($"BackupService: Selective import failed in the database step (settings restored: {settingsRestored})", ex);
+                        return Result<ImportSummary>.Failure(refused);
+                    }
                     throw;
                 }
             }
@@ -727,27 +738,46 @@ public class BackupService
     /// Puts settings.json back to <paramref name="before"/> after an import's database
     /// step failed (issue #1614). Never throws: the caller is already failing with the
     /// database error, and that is the message the user must see, so a restore that
-    /// itself fails is only logged.
+    /// itself fails is only logged. Returns false only when that restore threw, so the
+    /// backup's settings may still be applied.
     /// </summary>
-    private static void RestoreSettingsAfterFailedImport(
+    private static bool RestoreSettingsAfterFailedImport(
         SettingsService settings,
         SettingsService.ImportSnapshot? before,
         string operation)
     {
         // Step 1 never ran (settings not selected, or the batch was refused).
         if (before == null)
-            return;
+            return true;
 
         try
         {
             if (settings.RestoreImportSnapshot(before))
                 LoggingService.Info($"BackupService: the {operation} failed in the database step; restored the settings it had applied");
+            return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error(
                 $"BackupService: the {operation} failed in the database step and the settings it applied could not be restored", ex);
+            return false;
         }
+    }
+
+    /// <summary>
+    /// The plain sentence the user sees when an import's database step failed because
+    /// the database refused it, and the transaction rolled back (issue #1695). The EF
+    /// Core / SQLite text ("See the inner exception for details") goes to the log only.
+    /// Null for any other exception (a cancel, a mapping fault): its own message stands.
+    /// </summary>
+    private static string? DatabaseRefusedMessage(Exception ex, bool settingsRestored)
+    {
+        if (ex is not (DbUpdateException or System.Data.Common.DbException))
+            return null;
+
+        return settingsRestored
+            ? "Import failed: the database refused the change. Nothing was imported."
+            : "Import failed: the database refused the change. Your modes and vocabulary were not changed, but some settings from the backup may still be applied.";
     }
 
     // =========================================================================
