@@ -12,9 +12,45 @@ import { countFailOpen } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import { describeDbError } from "@/lib/shared/db-error";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
+import { isStorableText } from "@/src/lib/license-key-input";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * The device fields as the database can store them. Postgres refuses a NUL
+ * byte in a text parameter (#2688), which failed the whole device write:
+ * - a `device_id` with NUL is malformed, so the device is not tracked (a
+ *   warning says so; stripping could merge two ids into one row);
+ * - a `device_name` with NUL has each NUL replaced by a space (then trimmed),
+ *   so the name is kept (dropping it would make the upsert overwrite a stored
+ *   name with null) and "Studio\0Mac" stays two words. A name that is only
+ *   NULs and spaces ends up empty and is handled like an empty name today.
+ * Called only once the key is valid, so a rejected key logs no warning.
+ */
+function deviceFields(payload: Record<string, unknown>): {
+  deviceId?: string;
+  deviceName?: string;
+} {
+  let deviceId =
+    typeof payload.device_id === "string" ? payload.device_id : undefined;
+
+  if (deviceId !== undefined && !isStorableText(deviceId)) {
+    console.warn(
+      "License validate: device_id contains NUL, device not tracked",
+    );
+    deviceId = undefined;
+  }
+
+  let deviceName =
+    typeof payload.device_name === "string" ? payload.device_name : undefined;
+
+  if (deviceName !== undefined && !isStorableText(deviceName)) {
+    deviceName = deviceName.replaceAll("\0", " ").trim();
+  }
+
+  return { deviceId, deviceName };
 }
 
 /**
@@ -84,7 +120,7 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup, capping what an unauthenticated
   // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),
@@ -124,13 +160,17 @@ export async function POST(req: NextRequest) {
       ? payload.license_key.trim()
       : undefined;
   const include_credits = payload.include_credits === true;
-  const device_id =
-    typeof payload.device_id === "string" ? payload.device_id : undefined;
-  const device_name =
-    typeof payload.device_name === "string" ? payload.device_name : undefined;
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("License validate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body)
+        ? typeof body.license_key
+        : "no-body-object",
+    });
+
     return invalidLicenseResponse({
       valid: false,
       error: "License key is required",
@@ -158,8 +198,9 @@ export async function POST(req: NextRequest) {
     const license = result.license;
 
     // DEVICE TRACKING: Record device validation for fair usage monitoring
-    if (device_id) {
-      await trackDeviceValidation(license.id, device_id, device_name);
+    const { deviceId, deviceName } = deviceFields(payload);
+    if (deviceId) {
+      await trackDeviceValidation(license.id, deviceId, deviceName);
     }
 
     // License is valid - return extended info if requested

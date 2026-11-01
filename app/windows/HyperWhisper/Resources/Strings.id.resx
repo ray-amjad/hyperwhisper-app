@@ -949,15 +949,6 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Kosakata khusus tidak didukung pada model Parakeet.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Whisper.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Kosakata khusus dinonaktifkan saat menggunakan deteksi otomatis dengan model Nova. Atur bahasa tertentu untuk mengaktifkan penguatan kosakata.</value>
   </data>
@@ -2189,7 +2180,7 @@ Anda dapat mengunduhnya lagi nanti.</value>
     <value>Pilih setidaknya satu bagian untuk diimpor.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Tambahkan {0} kata baru, {1} konflik dengan kata yang ada. Lanjutkan?</value>
+    <value>Kata baru: {0}. Konflik dengan kata yang ada: {1}. Lanjutkan?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Impor Kosakata?</value>

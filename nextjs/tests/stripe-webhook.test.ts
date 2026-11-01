@@ -152,6 +152,49 @@ test("a top-up started before a key rotation still lands, found by the row id", 
   assert.equal(calls.emails[0].payload.licenseKey, "HW-NEWK-0001");
 });
 
+test("a top-up opened on a key the owner since deleted lands on their newest live key", async () => {
+  // The owner deleted the key from the dashboard between opening the Stripe
+  // page and paying. Credits are the user's, so they land; the receipt names
+  // a key that works.
+  const rowId = "7a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: "row_other_user", key: "HW-ELSE-0001", email: "owner@example.com", userId: "user_other" }),
+    accountKeyRow({ id: "row_live", key: "HW-LIVE-0001", email: "owner@example.com", userId: "user_9" }),
+    accountKeyRow({ id: rowId, key: "HW-GONE-0001", email: "owner@example.com", userId: "user_9", status: "deleted" }),
+  ]);
+
+  await handleCreditPurchase(
+    checkoutSession({
+      metadata: { license_key: "HW-GONE-0001", account_key_id: rowId, credit_amount: "500" },
+    }),
+    "evt_deleted",
+    "checkout.session.completed",
+  );
+
+  assert.equal(calls.grantCreditsForStripeEvent.length, 1);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-LIVE-0001");
+});
+
+test("a top-up on a deleted key with no live sibling is refused, as a revoked one is", async () => {
+  const rowId = "7a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4e";
+  behaviour.byEmail.set("owner@example.com", [
+    accountKeyRow({ id: "row_rev", key: "HW-REVK-0001", email: "owner@example.com", userId: "user_9", status: "revoked" }),
+    accountKeyRow({ id: rowId, key: "HW-GONE-0002", email: "owner@example.com", userId: "user_9", status: "deleted" }),
+  ]);
+
+  await assert.rejects(
+    handleCreditPurchase(
+      checkoutSession({
+        metadata: { license_key: "HW-GONE-0002", account_key_id: rowId, credit_amount: "500" },
+      }),
+      "evt_deleted_alone",
+    ),
+    { message: "Cannot grant credits to deleted license: HW-GONE..." },
+  );
+  assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+});
+
 test("a top-up whose account_key_id is not a uuid falls back to the key string", async () => {
   behaviour.byEmail.set("owner@example.com", [
     accountKeyRow({ key: "HW-OWNED-0001", email: "owner@example.com", userId: "user_9" }),

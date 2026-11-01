@@ -16,6 +16,11 @@
 //   LicensePersistValidationVerdict on a real verdict (stores the key only when
 //   valid; caches only for the stored key, so a rejected replacement key can't
 //   clobber a valid user's cached status).
+// - A 200 whose body is not the validate JSON (a captive-portal or proxy login
+//   page, an empty body) comes back from the core with isVerdict == false. It
+//   is not the server's word on the key, so it is NOT persisted: it takes the
+//   same offline fallback as a timeout (#2916). The probe reports it as
+//   "unable to verify", like a transient 5xx.
 //
 // CACHING (in the core, keyed off plain UTC `now`):
 // - 24-hour validation cache; 7-day offline grace period.
@@ -224,6 +229,18 @@ public sealed class LicenseNetworkService : IDisposable
             // TODO-verify (Windows/CI): Rust shared-core swap.
             var outcome = HyperwhisperCoreMethods.LicenseParseValidateResponse(responseBytes);
 
+            // A 200 that is not the validate JSON (captive portal, proxy page,
+            // empty body) is not a verdict (#2916). Caching its Invalid would
+            // lock a paying user out for the 24h cache window, so treat it like
+            // a network failure: serve the cached verdict, leave the cache stale
+            // so the next check retries. The core decides; no HTML sniffing here.
+            if (!outcome.isVerdict)
+            {
+                LoggingService.Warn(
+                    $"LicenseNetworkService: 200 reply is not the validate JSON ({responseBytes.Length} bytes; captive portal or proxy?) - using cached/offline status");
+                return OfflineFallbackForKey(store, trimmedKey);
+            }
+
             // Persist the verdict guardedly (see the non-200 branch above): key
             // stored only on a valid verdict, cache written only for the stored key.
             HyperwhisperCoreMethods.LicensePersistValidationVerdict(
@@ -326,6 +343,16 @@ public sealed class LicenseNetworkService : IDisposable
             }
 
             var outcome = HyperwhisperCoreMethods.LicenseParseValidateResponse(responseBytes);
+
+            // Not the validate JSON (#2916): no verdict about this key, so say
+            // the server could not be reached, exactly as for a transient 5xx.
+            if (!outcome.isVerdict)
+            {
+                LoggingService.Warn(
+                    $"LicenseNetworkService: Probe got a 200 that is not the validate JSON ({responseBytes.Length} bytes)");
+                return LicenseValidationResult.Failed(ProbeUnavailableMessage);
+            }
+
             LoggingService.Info($"LicenseNetworkService: Probe complete (valid={outcome.isValid})");
             return RustLicenseCore.ToResult(outcome);
         }

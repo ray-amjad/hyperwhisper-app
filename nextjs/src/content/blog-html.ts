@@ -48,10 +48,17 @@ export function lazyLoadBodyImages(html: string): string {
 // is a focusable region so a keyboard can scroll it too. It takes over the
 // table's 2em margin (28 px at the table's 0.875em), because a scroll container
 // stops the table's own margin collapsing with the paragraphs around it.
+//
+// The table also keeps a 36rem floor. Without it, a 4-column table squeezed
+// itself into a 342 px phone column: the scroller had about 30 px to give,
+// the last column was cut mid-word ("Traditio…", "$1,5…"), and a swipe
+// seemed to do nothing. With the floor the columns stay readable and the
+// table scrolls sideways on a phone. The 780 px desktop column is wider than
+// 36rem, so on desktop the table still spans the column as before.
 const TABLE_OPEN = /<table\b/gi;
 const TABLE_CLOSE = /<\/table\s*>/gi;
 const TABLE_SCROLLER =
-  '<div class="my-[1.75em] overflow-x-auto [&>table]:my-0" role="region" aria-label="Table" tabindex="0">';
+  '<div class="my-[1.75em] overflow-x-auto [&>table]:my-0 [&>table]:min-w-[36rem]" role="region" aria-label="Table" tabindex="0">';
 
 export function scrollableBodyTables(html: string): string {
   return html

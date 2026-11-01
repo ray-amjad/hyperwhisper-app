@@ -34,6 +34,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("overlay interaction policy cannot activate or focus", OverlayDoesNotActivate),
     ("live preview remains ephemeral bounded and lifecycle-owned", LivePreviewIsEphemeral),
     ("error toast message is readable in full", ErrorToastMessageIsFullyReadable),
+    ("error toast message can be selected, so a URL in it can be copied (#2632)", ErrorToastSelectableMessageTests.MessageCanBeSelected),
 };
 
 var failed = 0;
@@ -75,8 +76,14 @@ static Task AudioLevelsDriveWaveform()
     using var fixture = OverlayFixture.Create();
     fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
     fixture.Controller.UpdateAudioLevel(.2f);
-    Assert(fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
-        "real recorder level was not gain-normalized");
+    // The macOS mapping: dBFS from -60 (0) to 0 (1), so .2 (-14 dBFS) reads about .77.
+    Assert(fixture.ViewModel.AudioLevel > .75 && fixture.ViewModel.AudioLevel < .78,
+        "real recorder level was not mapped from dBFS like macOS");
+    fixture.Controller.UpdateAudioLevel(.0794f);
+    Assert(fixture.ViewModel.AudioLevel > .62 && fixture.ViewModel.AudioLevel < .645,
+        "normal speech (-22 dBFS) did not read as a mid-to-tall level");
+    fixture.Controller.UpdateAudioLevel(.0005f);
+    Assert(fixture.ViewModel.AudioLevel == 0, "a level under -60 dBFS was not silence");
     fixture.Controller.UpdateAudioLevel(float.PositiveInfinity);
     Assert(fixture.ViewModel.AudioLevel == 0, "non-finite recorder level escaped normalization");
     fixture.Controller.UpdateAudioLevel(100);
@@ -154,10 +161,10 @@ static Task CancelConfirmationSurvivesLevelTicks()
     fixture.Controller.UpdateAudioLevel(.2f);
     fixture.Controller.DismissCancelConfirmation();
     Assert(fixture.ViewModel.IsRecording, "dismissed confirmation did not resume recording");
-    Assert(fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
+    Assert(fixture.ViewModel.AudioLevel > .75 && fixture.ViewModel.AudioLevel < .78,
         "resumed recording did not show the latest level");
     fixture.Controller.UpdateAudioLevel(.1f);
-    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.AudioLevel > .3 && fixture.ViewModel.AudioLevel < .35,
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.AudioLevel > .65 && fixture.ViewModel.AudioLevel < .68,
         "level ticks did not drive the waveform after the confirmation was dismissed");
 
     // A recording that ends with the confirmation still up must not leave the next one frozen.
@@ -213,7 +220,7 @@ static async Task ModeToastSurvivesLevelTicks()
     fixture.Controller.UpdateAudioLevel(.2f);
     fixture.Delay.CompleteLatest();
     await WaitUntil(() => fixture.ViewModel.IsRecording);
-    Assert(fixture.ViewModel.ModeText == "Coding" && fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
+    Assert(fixture.ViewModel.ModeText == "Coding" && fixture.ViewModel.AudioLevel > .75 && fixture.ViewModel.AudioLevel < .78,
         "recording did not resume with the new mode and the latest level");
 
     fixture.Controller.ShowStreaming(LinuxOverlayModeLabel.Create("Live"));
