@@ -342,6 +342,7 @@ internal static class ScriptGuardPorts
                 Assert(edited != null, "the fixture mode was not saved");
                 edited!.Name = "g2782 waited";
                 var update = WriteWhileAReaderHolds(() => modes.UpdateMode(edited), "SELECT Id FROM Modes");
+                Console.WriteLine($"       [measured] mode update under a reader released after ~1 s: {update.Elapsed.TotalMilliseconds:F0} ms");
                 Assert(update.Failure == null,
                     $"the mode update failed after {update.Elapsed.TotalMilliseconds:F0} ms while a reader held the database: {DescribeCause(update.Failure)}");
                 Assert(update.WaitedForReader,
@@ -370,6 +371,7 @@ internal static class ScriptGuardPorts
             {
                 Assert(modes.GetMode(fixture.Id) != null, "the fixture mode was not saved");
                 var delete = WriteWhileAReaderHolds(() => deleted = modes.DeleteMode(fixture.Id), "SELECT Id FROM Modes");
+                Console.WriteLine($"       [measured] mode delete under a reader released after ~1 s: {delete.Elapsed.TotalMilliseconds:F0} ms");
                 Assert(delete.Failure == null, $"the mode delete threw: {DescribeCause(delete.Failure)}");
                 Assert(deleted,
                     $"DeleteMode returned false after {delete.Elapsed.TotalMilliseconds:F0} ms while a reader held the database (it logs the refused write)");
