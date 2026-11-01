@@ -28,6 +28,10 @@ import {
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import {
+  cloudPurgeConfirmed,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
+import {
   dbErrorCode,
   dbErrorConstraint,
   describeDbError,
@@ -607,6 +611,16 @@ export const customersRouter = createTRPCRouter({
         // A key the owner already deleted stays `deleted` (it is dead
         // everywhere already): the refund above still lands, and `revoked`
         // reports false.
+        //
+        // A key revoked here must also be purged from HyperWhisper Cloud's
+        // licence cache (#2915). The cloud caches each key's verdict for an
+        // hour, so without the purge it keeps admitting the revoked key until
+        // that hour runs out, as a rotated or deleted key would. Only a key
+        // revoked by THIS call is purged: an owner-deleted key was purged when
+        // it was deleted. The purge is best effort and never throws, so the
+        // refund and the revoke above stand whatever the cloud answers; an
+        // unconfirmed purge is recorded on this mutation's log line (never
+        // the key) and the cached verdict expires on its own.
         let revoked = false;
 
         if (revokeLicense) {
@@ -615,6 +629,17 @@ export const customersRouter = createTRPCRouter({
           }));
         }
         log.revoked = revoked;
+
+        if (revoked) {
+          const purge = await purgeCloudLicenseCache(license.key);
+
+          log.cloudPurge = cloudPurgeConfirmed(purge)
+            ? "confirmed"
+            : "unconfirmed";
+          log.cloudPurged = purge.purged;
+          log.cloudPurgeFailed = purge.failed;
+          log.cloudPurgeSkipped = purge.skipped;
+        }
 
         return { success: true, revoked };
       });

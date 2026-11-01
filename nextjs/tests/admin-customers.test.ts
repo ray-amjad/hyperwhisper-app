@@ -25,6 +25,14 @@ import {
 import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
 import { captureConsole, type ConsoleCapture } from "./module-mock";
 
+// A refund that revokes the key now purges HyperWhisper Cloud's licence cache
+// (#2915), which loads `src/env/server.mjs`. It snapshots process.env on first
+// import (#682), which happens when the harness first loads the router, inside
+// a test. No cloud app is named, so the purge never leaves the process; its own
+// cases are in admin-refund-cloud-purge.test.ts.
+process.env.SKIP_ENV_VALIDATION = "1";
+process.env.HYPERWHISPER_CLOUD_URLS = "";
+
 const LICENSE_ID = "11111111-1111-4111-8111-111111111111";
 
 async function rejects(
@@ -865,6 +873,12 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       paymentRefunded: true,
       creditsReversed: true,
       revoked: true,
+      // No cloud app is named in this file, so the purge (#2915) sent nothing
+      // and is recorded as unconfirmed; the refund still answers ok.
+      cloudPurge: "unconfirmed",
+      cloudPurged: 0,
+      cloudPurgeFailed: 0,
+      cloudPurgeSkipped: true,
     });
   });
 
