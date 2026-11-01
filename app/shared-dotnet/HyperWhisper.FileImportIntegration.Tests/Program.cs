@@ -29,6 +29,8 @@ try
         ("malformed cloud source returns a stable failure", MalformedSourceIsStable),
         ("terminal failure deletes owned copy only", OwnedFailureCleanup),
         ("shared core rechecks actual upload artifact", SharedCoreArtifactCap),
+        ("failed file transcription keeps the picked path for a retry (#2911)",
+            () => ImportedFilePathKeptTests.FailedTranscriptionKeepsPickedPath(root)),
     };
     foreach (var test in tests)
     {
