@@ -132,6 +132,8 @@ internal static class PendingHistoryUnreadableChecks
 
     private static Dictionary<string, long> SnapshotLogOffsets()
     {
+        // The log writer is buffered (#985): write out queued lines first.
+        LoggingService.Flush();
         var offsets = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         if (!Directory.Exists(LoggingService.LogDirectory)) return offsets;
         foreach (var file in Directory.GetFiles(LoggingService.LogDirectory))
@@ -141,6 +143,8 @@ internal static class PendingHistoryUnreadableChecks
 
     private static string ReadLogSince(Dictionary<string, long> offsets)
     {
+        // The log writer is buffered (#985): write out queued lines first.
+        LoggingService.Flush();
         if (!Directory.Exists(LoggingService.LogDirectory)) return string.Empty;
         var files = Directory.GetFiles(LoggingService.LogDirectory);
         Array.Sort(files, StringComparer.Ordinal);
