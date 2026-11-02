@@ -327,6 +327,50 @@ function normalizeTags(tags: unknown): string[] {
     .slice(0, 12);
 }
 
+/** Why a delivery was refused before any article was read (#3003). */
+type RejectionReason =
+  | "declared_too_large"
+  | "bearer_refused"
+  | "streamed_too_large"
+  | "signature_refused"
+  | "unsupported_event_type"
+  | "no_articles"
+  | "too_many_articles";
+
+/** The longest event_type a rejection line repeats. */
+const MAX_LOGGED_EVENT_TYPE = 40;
+
+/**
+ * Log ONE line for a refused delivery, then return its reply untouched.
+ *
+ * The website's only server log is its console (Workers Logs), so without this
+ * line a token that drifted between Infisical and Outrank refuses every post
+ * and leaves no trace (#3003). Only safe fields are logged: header PRESENCE as
+ * booleans, never the authorization header, the signature, the token, the body
+ * or any article text.
+ */
+function rejected(
+  req: NextRequest,
+  reason: RejectionReason,
+  response: NextResponse,
+  extra: { articleCount?: number | null; eventType?: string } = {},
+): NextResponse {
+  console.warn("[add-blog-post] delivery rejected", {
+    reason,
+    status: response.status,
+    contentType: req.headers.get("content-type"),
+    contentLength: req.headers.get("content-length"),
+    signingEnabled: Boolean(env.OUTRANK_WEBHOOK_SIGNING_SECRET),
+    hasAuthorizationHeader: req.headers.has("authorization"),
+    hasSignatureHeader:
+      req.headers.has("x-outrank-signature") ||
+      req.headers.has("outrank-signature"),
+    ...extra,
+  });
+
+  return response;
+}
+
 /**
  * Size-check, authenticate and buffer the delivery. Returns the raw body, or
  * the 413 / 401 / 400 reply to send instead.
@@ -336,7 +380,9 @@ async function readAuthorizedBody(
 ): Promise<{ rawBody: string } | NextResponse> {
   // A declared oversize body is refused before auth, as it always was.
   // readBoundedText below caps a body that declares no length (#2904).
-  if (declaresLengthOver(req, MAX_BODY_BYTES)) return payloadTooLarge();
+  if (declaresLengthOver(req, MAX_BODY_BYTES)) {
+    return rejected(req, "declared_too_large", payloadTooLarge());
+  }
 
   // Signature verification needs the raw bytes, so we can only HMAC-check after
   // buffering the body. The bearer token, by contrast, is independent of the
@@ -348,9 +394,10 @@ async function readAuthorizedBody(
     req.headers.get("outrank-signature");
   const signingEnabled = Boolean(env.OUTRANK_WEBHOOK_SIGNING_SECRET);
   if (!signingEnabled && !isBearerAuthorized(req)) {
-    return NextResponse.json(
-      { error: "Invalid access token" },
-      { status: 401 },
+    return rejected(
+      req,
+      "bearer_refused",
+      NextResponse.json({ error: "Invalid access token" }, { status: 401 }),
     );
   }
 
@@ -359,7 +406,11 @@ async function readAuthorizedBody(
   let rawBody: string;
   try {
     const text = await readBoundedText(req, MAX_BODY_BYTES);
-    if (text instanceof NextResponse) return text;
+    // The declared length was checked above, so a reply here is the
+    // streaming cap.
+    if (text instanceof NextResponse) {
+      return rejected(req, "streamed_too_large", text);
+    }
     rawBody = text;
   } catch (err) {
     // Log only the content type, never a header that carries the token or a
@@ -379,9 +430,10 @@ async function readAuthorizedBody(
     const authorized =
       isSignatureValid(rawBody, signature) || isBearerAuthorized(req);
     if (!authorized) {
-      return NextResponse.json(
-        { error: "Invalid access token" },
-        { status: 401 },
+      return rejected(
+        req,
+        "signature_refused",
+        NextResponse.json({ error: "Invalid access token" }, { status: 401 }),
       );
     }
   }
@@ -417,9 +469,16 @@ function readArticlesEnvelope(
   const eventType = isRecord(parsed) ? parsed.event_type : undefined;
 
   if (eventType !== "publish_articles") {
-    return NextResponse.json(
-      { error: `Unsupported event_type: ${String(eventType)}` },
-      { status: 400 },
+    const shown = String(eventType);
+
+    return rejected(
+      req,
+      "unsupported_event_type",
+      NextResponse.json(
+        { error: `Unsupported event_type: ${shown}` },
+        { status: 400 },
+      ),
+      { eventType: shown.slice(0, MAX_LOGGED_EVENT_TYPE) },
     );
   }
 
@@ -427,9 +486,12 @@ function readArticlesEnvelope(
   const rawArticles = isRecord(data) ? data.articles : undefined;
 
   if (!Array.isArray(rawArticles) || rawArticles.length === 0) {
-    return NextResponse.json(
-      { error: "No articles in payload" },
-      { status: 400 },
+    return rejected(
+      req,
+      "no_articles",
+      NextResponse.json({ error: "No articles in payload" }, { status: 400 }),
+      // null: the payload carried no articles array at all.
+      { articleCount: Array.isArray(rawArticles) ? rawArticles.length : null },
     );
   }
 
@@ -437,11 +499,16 @@ function readArticlesEnvelope(
   // prepareArticle in POST's loop, so a malformed article becomes a permanent
   // skip for that index and later articles in the delivery still run.
   if (rawArticles.length > MAX_ARTICLES) {
-    return NextResponse.json(
-      {
-        error: `Too many articles: ${rawArticles.length} (max ${MAX_ARTICLES})`,
-      },
-      { status: 413 },
+    return rejected(
+      req,
+      "too_many_articles",
+      NextResponse.json(
+        {
+          error: `Too many articles: ${rawArticles.length} (max ${MAX_ARTICLES})`,
+        },
+        { status: 413 },
+      ),
+      { articleCount: rawArticles.length },
     );
   }
 
