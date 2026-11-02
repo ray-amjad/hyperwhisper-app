@@ -68,6 +68,11 @@ async function handlePostProcess(c: Context) {
   // is a JSON body too (#2326). The 400 still echoes the header as sent.
   const rawContentType = c.req.header('Content-Type') || '';
   if (!rawContentType.toLowerCase().includes('application/json')) {
+    // The header is caller-supplied, so cap what reaches the log.
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'invalid_content_type',
+      contentType: rawContentType.slice(0, 100),
+    });
     return invalidContentTypeResponse('application/json', rawContentType);
   }
 
@@ -89,20 +94,29 @@ async function handlePostProcess(c: Context) {
   try {
     parsed = await c.req.json();
   } catch {
+    // Never log the parse error: its message can quote the body.
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'invalid_json' });
     return errorResponse(400, 'Invalid JSON', 'Request body must be valid JSON');
   }
   // `null`, a number, a string or an array is valid JSON but not a body: reading
   // `body.text` off `null` would throw and surface as a 500.
   if (!isRecord(parsed) || Array.isArray(parsed)) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'body_not_object' });
     return errorResponse(400, 'Invalid JSON', 'Request body must be a JSON object');
   }
   const body: PostProcessBody = parsed;
 
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!text) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'missing_text' });
     return errorResponse(400, 'Missing field', 'Request body must include "text" field');
   }
   if (text.length > MAX_TEXT_LENGTH) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'text_too_long',
+      textLength: text.length,
+      maxLength: MAX_TEXT_LENGTH,
+    });
     return errorResponse(400, 'Text too long', `Text must be ${MAX_TEXT_LENGTH} characters or less`, {
       max_length: MAX_TEXT_LENGTH,
       actual_length: text.length,
@@ -111,6 +125,7 @@ async function handlePostProcess(c: Context) {
 
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'missing_prompt' });
     return errorResponse(400, 'Missing field', 'Request body must include "prompt" field');
   }
 

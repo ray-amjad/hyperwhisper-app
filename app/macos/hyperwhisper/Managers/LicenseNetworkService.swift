@@ -331,6 +331,21 @@ class LicenseNetworkService: LicenseNetworkServing {
                 // Core parses the 200 body and maps it to a status/outcome.
                 let outcome = licenseParseValidateResponse(body: data)
 
+                // A 200 whose body is not the validate JSON (a captive-portal or
+                // proxy login page, an empty body) is not the server's verdict
+                // on the key (#2916). Caching its Invalid would lock a paying
+                // user out for the 24 h cache window, so treat it like a
+                // transport failure instead: throw, and let the retry loop and
+                // then the catch path below serve the cached verdict (offline
+                // grace) without touching the cache. The core decides what is a
+                // verdict; nothing here looks at the body.
+                if !outcome.isVerdict {
+                    AppLogger.network.warning(
+                        "License validation · 200 reply is not the validate JSON (captive portal or proxy?) · bytes=\(data.count, privacy: .public) · not cached"
+                    )
+                    throw URLError(.cannotParseResponse)
+                }
+
                 // Persist the key + cache the result through the core's store —
                 // but only for explicit activation or background revalidation,
                 // never for an onboarding probe.

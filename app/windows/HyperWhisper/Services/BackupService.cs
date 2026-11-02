@@ -198,7 +198,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON while inspecting backup", ex);
-            return Result<BackupContents>.Failure("Invalid backup file: not valid JSON");
+            return Result<BackupContents>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -293,11 +293,16 @@ public class BackupService
                     (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // The transaction rolled the modes and vocabulary back, so the
                 // backup's settings must not stay applied on their own (issue #1614).
-                RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                var settingsRestored = RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                {
+                    LoggingService.Error($"BackupService: Import failed in the database step (settings restored: {settingsRestored})", ex);
+                    return Result<string>.Failure(refused);
+                }
                 throw;
             }
 
@@ -336,7 +341,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON in backup", ex);
-            return Result<string>.Failure("Invalid backup file: not valid JSON");
+            return Result<string>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -442,9 +447,15 @@ public class BackupService
                     summary.VocabularyAdded = added;
                     summary.VocabularyConflicts = conflicts;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
+                    var settingsRestored = RestoreSettingsAfterFailedImport(
+                        SettingsService.Instance, settingsBefore, "selective import");
+                    if (DatabaseRefusedMessage(ex, settingsRestored) is { } refused)
+                    {
+                        LoggingService.Error($"BackupService: Selective import failed in the database step (settings restored: {settingsRestored})", ex);
+                        return Result<ImportSummary>.Failure(refused);
+                    }
                     throw;
                 }
             }
@@ -501,7 +512,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON in backup (selective)", ex);
-            return Result<ImportSummary>.Failure("Invalid backup file: not valid JSON");
+            return Result<ImportSummary>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -571,7 +582,7 @@ public class BackupService
         catch (JsonException ex)
         {
             LoggingService.Error("BackupService: Invalid JSON while previewing vocab merge", ex);
-            return Result<VocabularyMergePreview>.Failure("Invalid backup file: not valid JSON");
+            return Result<VocabularyMergePreview>.Failure(InvalidBackupFieldMessage(ex));
         }
         catch (Exception ex)
         {
@@ -727,27 +738,46 @@ public class BackupService
     /// Puts settings.json back to <paramref name="before"/> after an import's database
     /// step failed (issue #1614). Never throws: the caller is already failing with the
     /// database error, and that is the message the user must see, so a restore that
-    /// itself fails is only logged.
+    /// itself fails is only logged. Returns false only when that restore threw, so the
+    /// backup's settings may still be applied.
     /// </summary>
-    private static void RestoreSettingsAfterFailedImport(
+    private static bool RestoreSettingsAfterFailedImport(
         SettingsService settings,
         SettingsService.ImportSnapshot? before,
         string operation)
     {
         // Step 1 never ran (settings not selected, or the batch was refused).
         if (before == null)
-            return;
+            return true;
 
         try
         {
             if (settings.RestoreImportSnapshot(before))
                 LoggingService.Info($"BackupService: the {operation} failed in the database step; restored the settings it had applied");
+            return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error(
                 $"BackupService: the {operation} failed in the database step and the settings it applied could not be restored", ex);
+            return false;
         }
+    }
+
+    /// <summary>
+    /// The plain sentence the user sees when an import's database step failed because
+    /// the database refused it, and the transaction rolled back (issue #1695). The EF
+    /// Core / SQLite text ("See the inner exception for details") goes to the log only.
+    /// Null for any other exception (a cancel, a mapping fault): its own message stands.
+    /// </summary>
+    private static string? DatabaseRefusedMessage(Exception ex, bool settingsRestored)
+    {
+        if (ex is not (DbUpdateException or System.Data.Common.DbException))
+            return null;
+
+        return settingsRestored
+            ? "Import failed: the database refused the change. Nothing was imported."
+            : "Import failed: the database refused the change. Your modes and vocabulary were not changed, but some settings from the backup may still be applied.";
     }
 
     // =========================================================================
@@ -774,7 +804,24 @@ public class BackupService
     /// </summary>
     private static (UniversalBackup? Backup, string? Error) LoadValidatedBackup(string json)
     {
-        var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
+        UniversalBackup? backup;
+        try
+        {
+            backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            // The serializer throws the same exception for text that is not JSON and
+            // for a well-formed document with one wrong-typed field (issue #2095).
+            // Only the first is "not valid JSON". For the second, the shared core
+            // validator reads the raw text and names the field in its own words
+            // ("vocabulary[0].sortOrder: must be an integer"); a value only the
+            // serializer refuses (a malformed UUID or date) is named from the exception.
+            LoggingService.Error("BackupService: Backup JSON did not deserialize", ex);
+            if (!IsWellFormedJson(json))
+                return (null, NotValidJsonMessage);
+            return (null, ValidateBackupJsonText(json) ?? InvalidBackupFieldMessage(ex));
+        }
         if (backup == null)
             return (null, "Invalid backup file: could not parse JSON");
 
@@ -785,11 +832,99 @@ public class BackupService
         return structureError != null ? (null, structureError) : (backup, null);
     }
 
+    private const string NotValidJsonMessage = "Invalid backup file: not valid JSON";
+
+    private static bool IsWellFormedJson(string json)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(json);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The user-facing message for a well-formed JSON document the serializer refused
+    /// and the shared core validator did not (issue #2095), in the core's shape and
+    /// words ("&lt;path&gt;: must be ..."), e.g. "Invalid backup file: id: must be a UUID".
+    /// The serializer's own text names a .NET type, so it stays in the log only.
+    /// </summary>
+    private static string InvalidBackupFieldMessage(JsonException ex)
+    {
+        var path = ex.Path;
+        if (string.IsNullOrEmpty(path) || path == "$")
+            path = "$";
+        else if (path.StartsWith("$.", StringComparison.Ordinal))
+            path = path[2..];
+        else if (path.StartsWith('$'))
+            path = path[1..];
+
+        return $"Invalid backup file: {path}: {ExpectedTypeFromMessage(ex.Message)}";
+    }
+
+    private static string ExpectedTypeFromMessage(string message)
+    {
+        // IntegralInt32JsonConverter's own messages ("Expected a whole number ...").
+        if (message.StartsWith("Expected a whole number that fits", StringComparison.Ordinal))
+            return "must be an integer from -2147483648 to 2147483647";
+        if (message.StartsWith("Expected a whole number", StringComparison.Ordinal))
+            return "must be an integer";
+
+        // The default converters: "The JSON value could not be converted to <type>. Path: ...".
+        const string marker = "could not be converted to ";
+        var at = message.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0)
+            return "could not be read";
+
+        var type = message[(at + marker.Length)..];
+        var end = type.IndexOf(". Path:", StringComparison.Ordinal);
+        if (end >= 0)
+            type = type[..end];
+        type = type.TrimEnd('.');
+
+        // Nullable`1[System.Int32] reads as its inner type.
+        const string nullable = "System.Nullable`1[";
+        if (type.StartsWith(nullable, StringComparison.Ordinal) && type.EndsWith(']'))
+            type = type[nullable.Length..^1];
+
+        if (type.EndsWith("[]", StringComparison.Ordinal)
+            || type.StartsWith("System.Collections.Generic.List`1", StringComparison.Ordinal)
+            || type.StartsWith("System.Collections.Generic.IList`1", StringComparison.Ordinal))
+            return "must be an array";
+
+        return type switch
+        {
+            "System.Int16" or "System.Int32" or "System.Int64"
+                or "System.UInt16" or "System.UInt32" or "System.UInt64"
+                or "System.Byte" or "System.SByte" => "must be an integer",
+            "System.Double" or "System.Single" or "System.Decimal" => "must be a number",
+            "System.Boolean" => "must be a boolean",
+            "System.String" => "must be a string",
+            "System.DateTime" or "System.DateTimeOffset" => "must be a date",
+            "System.Guid" => "must be a UUID",
+            _ when type.StartsWith("HyperWhisper.", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.Generic.Dictionary`2", StringComparison.Ordinal)
+                => "must be an object",
+            _ => "could not be read"
+        };
+    }
+
     private static string? ValidateBackupStructure(UniversalBackup backup)
     {
         // Re-serialize the typed model so the core validates the exact shape we parsed.
-        string json = JsonSerializer.Serialize(backup, UniversalJsonOptions);
+        return ValidateBackupJsonText(JsonSerializer.Serialize(backup, UniversalJsonOptions));
+    }
 
+    /// <summary>
+    /// The shared core's structural validation of a backup JSON text: null when it is
+    /// valid, else "Invalid backup file: &lt;path&gt;: &lt;message&gt;" for the first error.
+    /// </summary>
+    private static string? ValidateBackupJsonText(string json)
+    {
         List<HwValidationError> errors = HyperwhisperCoreMethods.ValidateBackupJson(json);
         if (errors.Count == 0)
             return null; // structurally valid
