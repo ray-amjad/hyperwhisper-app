@@ -176,12 +176,13 @@ internal sealed partial class WindowsLocalApiBackend
             throw WindowsLocalApiFailure.Business(LocalApiErrorCode.InvalidRequest, validationError);
         }
 
+        // Save the mode first: a DB write that fails must leave the global
+        // StreamingEnabled setting as it was (issue #1694, sibling of #1614).
+        ModeService.Instance.SaveMode(mode);
         if (dto.UseStreamingTranscription.HasValue)
         {
             SettingsService.Instance.StreamingEnabled = dto.UseStreamingTranscription.Value;
         }
-
-        ModeService.Instance.SaveMode(mode);
         return ValueTask.FromResult(ToJson(ToDto(mode)));
     }
 
@@ -280,12 +281,13 @@ internal sealed partial class WindowsLocalApiBackend
         {
             throw WindowsLocalApiFailure.Business(LocalApiErrorCode.InvalidRequest, validationError);
         }
+        existing.ModifiedDate = DateTime.UtcNow;
+        // Save the mode first, as on create (issue #1694).
+        ModeService.Instance.UpdateMode(existing);
         if (patch.UseStreamingTranscription is { } useStreaming)
         {
             SettingsService.Instance.StreamingEnabled = useStreaming;
         }
-        existing.ModifiedDate = DateTime.UtcNow;
-        ModeService.Instance.UpdateMode(existing);
 
         // Re-read rather than echoing the entity we just sent in. Making
         // this mode the default clears the flag on another row, and the
