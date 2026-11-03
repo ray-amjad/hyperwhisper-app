@@ -75,7 +75,7 @@ while IFS= read -r name; do
     | grep -v '/bin/' | grep -v '/obj/' \
     | grep -vi 'Tests/' | grep -vi 'Tests\.cs' | grep -vi 'SmokeTests' \
     | grep -v 'Views/Onboarding/OnboardingSourceViews\.swift' \
-    | grep -v 'Services/Onboarding/OnboardingLiveDependencies\.cs' \
+    | grep -v 'Services/Onboarding/LiveOnboardingModelCatalog\.cs' \
     | grep -v 'Models/PostProcessingModels\.swift' \
     | grep -v 'PostProcessingModelCatalog\.cs' \
     | grep -v 'Models/LanguageModelInfo\.cs' \
