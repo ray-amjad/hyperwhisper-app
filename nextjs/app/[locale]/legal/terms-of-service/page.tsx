@@ -1,3 +1,5 @@
+import { setRequestLocale } from "next-intl/server";
+import LegalDocument from "@/components/legal/LegalDocument";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -6,22 +8,27 @@ export const generateMetadata = localizedPageMetadata({
   description: "HyperWhisper Terms of Service and User Agreement",
 });
 
-export default function TermsOfServicePage() {
+// LegalDocument reads translations, so the page sets its locale itself or it renders
+// dynamically on every request (#843).
+export default async function TermsOfServicePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  setRequestLocale((await params).locale);
+
+
   return (
-    <div className="prose prose-lg max-w-none prose-invert">
-      <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 6, 2026
-      </p>
-      <h1>Terms of Service</h1>
+    <LegalDocument title="Terms of Service" updated="Last Updated: October 6, 2026">
 
       <p>
-        These Terms are between you and Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
+        These Terms are between you and Ray Amjad LTD (<a href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
         incorporated in the United Kingdom). By installing or using
         HyperWhisper, you agree to these Terms. If you do not agree, do not use
         the app.
       </p>
 
-      <h2>License</h2>
+      <h2 id="license">License</h2>
       <ul>
         <li>
           <strong>Grant</strong>: We grant you a personal, limited,
@@ -38,12 +45,11 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Payments and Refunds</h2>
+      <h2 id="payments-and-refunds">Payments and Refunds</h2>
       <ul>
         <li>
           <strong>Payments</strong>: Purchases are handled by{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://stripe.com"
             target="_blank"
             rel="noopener noreferrer"
@@ -53,7 +59,6 @@ export default function TermsOfServicePage() {
           . Taxes may apply. Purchases made before December 2025 were processed
           by{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="https://polar.sh"
             target="_blank"
             rel="noopener noreferrer"
@@ -66,7 +71,6 @@ export default function TermsOfServicePage() {
           <strong>Refunds</strong>: Our 14-day money-back guarantee applies as
           described in our{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="/legal/refund-policy"
           >
             Refund Policy
@@ -75,7 +79,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Privacy and Data</h2>
+      <h2 id="privacy-and-data">Privacy and Data</h2>
       <ul>
         <li>
           <strong>Local-first</strong>: Recordings, transcripts, settings, and
@@ -105,7 +109,6 @@ export default function TermsOfServicePage() {
         <li>
           See our{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="/legal/privacy-policy"
           >
             Privacy Policy
@@ -114,7 +117,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>HyperWhisper Cloud Credits</h2>
+      <h2 id="hyperwhisper-cloud-credits">HyperWhisper Cloud Credits</h2>
       <ul>
         <li>
           <strong>Credits as balance</strong>: HyperWhisper Cloud is paid for
@@ -144,7 +147,6 @@ export default function TermsOfServicePage() {
           non-refundable, and the processing fee is non-refundable. Only unused,
           unexpired purchased credits may be refunded as described in our{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="/legal/refund-policy"
           >
             Refund Policy
@@ -153,7 +155,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>License Activation and Validation</h2>
+      <h2 id="license-activation-and-validation">License Activation and Validation</h2>
       <ul>
         <li>
           The app may contact our licensing service to activate, validate, or
@@ -165,7 +167,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Fair Usage Policy</h2>
+      <h2 id="fair-usage-policy">Fair Usage Policy</h2>
       <ul>
         <li>
           <strong>Device Usage</strong>: You may use your license on as many
@@ -192,7 +194,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Acceptable Use</h2>
+      <h2 id="acceptable-use">Acceptable Use</h2>
       <ul>
         <li>
           Do not use the app to violate laws, infringe rights, or distribute
@@ -204,7 +206,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Third‑Party Services</h2>
+      <h2 id="third-party-services">Third‑Party Services</h2>
       <p>
         HyperWhisper integrates with the following third-party services. Your
         use of these services may be subject to their own terms and policies.
@@ -212,7 +214,6 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Transcription providers</strong> (bring your own API key):{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://openai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -221,7 +222,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://deepgram.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -230,7 +230,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://elevenlabs.io"
           target="_blank"
           rel="noopener noreferrer"
@@ -239,7 +238,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://groq.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -248,7 +246,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.assemblyai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -257,7 +254,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://mistral.ai"
           target="_blank"
           rel="noopener noreferrer"
@@ -266,7 +262,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://dev.meta.ai/docs/speech-to-text/"
           target="_blank"
           rel="noopener noreferrer"
@@ -277,7 +272,6 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Post-processing providers</strong> (bring your own API key):{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://openai.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -286,7 +280,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://www.anthropic.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -295,7 +288,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://ai.google"
           target="_blank"
           rel="noopener noreferrer"
@@ -304,7 +296,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://groq.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -313,7 +304,6 @@ export default function TermsOfServicePage() {
         </a>
         ,{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://cerebras.ai"
           target="_blank"
           rel="noopener noreferrer"
@@ -324,7 +314,6 @@ export default function TermsOfServicePage() {
       <p>
         <strong>Billing</strong>:{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://stripe.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -334,7 +323,6 @@ export default function TermsOfServicePage() {
         {" · "}
         <strong>Analytics</strong>:{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="https://posthog.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -346,7 +334,6 @@ export default function TermsOfServicePage() {
         <li>
           See our{" "}
           <a
-            className="text-blue-400 hover:underline"
             href="/legal/privacy-policy"
           >
             Privacy Policy
@@ -359,7 +346,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Updates</h2>
+      <h2 id="updates">Updates</h2>
       <ul>
         <li>
           We may update the app automatically. Updates are part of the service
@@ -371,7 +358,7 @@ export default function TermsOfServicePage() {
         </li>
       </ul>
 
-      <h2>Disclaimers</h2>
+      <h2 id="disclaimers">Disclaimers</h2>
       <p>
         The app is provided “as is” and “as available” without warranties of any
         kind. To the maximum extent permitted by law, we disclaim all implied
@@ -380,7 +367,7 @@ export default function TermsOfServicePage() {
         error‑free or uninterrupted.
       </p>
 
-      <h2>Limitation of Liability</h2>
+      <h2 id="limitation-of-liability">Limitation of Liability</h2>
       <p>
         To the maximum extent permitted by law, we will not be liable for
         indirect, incidental, special, consequential, or punitive damages, or
@@ -389,7 +376,7 @@ export default function TermsOfServicePage() {
         the app in the 12 months before the event giving rise to the claim.
       </p>
 
-      <h2>Termination</h2>
+      <h2 id="termination">Termination</h2>
       <p>
         We may suspend or terminate access to the app (and deactivate licenses)
         if you materially breach these Terms. You may stop using the app at any
@@ -397,7 +384,7 @@ export default function TermsOfServicePage() {
         survive.
       </p>
 
-      <h2>Governing Law and Dispute Resolution</h2>
+      <h2 id="governing-law-and-dispute-resolution">Governing Law and Dispute Resolution</h2>
       <p>
         These Terms are governed by the laws of England and Wales, without
         regard to conflict of law principles, unless a different law is required
@@ -406,17 +393,16 @@ export default function TermsOfServicePage() {
         you with non-waivable consumer protections in your place of residence.
       </p>
 
-      <h2>Contact</h2>
+      <h2 id="contact">Contact</h2>
       <p>
-        Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>, United Kingdom). Questions about
+        Ray Amjad LTD (<a href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>, United Kingdom). Questions about
         these Terms:{" "}
         <a
-          className="text-blue-400 hover:underline"
           href="mailto:hi@support.hyperwhisper.com"
         >
           hi@support.hyperwhisper.com
         </a>
       </p>
-    </div>
+    </LegalDocument>
   );
 }

@@ -117,6 +117,9 @@ struct BackupImportSQLiteRefusalTests {
     /// `BEGIN IMMEDIATE;` in a `sqlite3` shell.
     private final class WriteLockHolder: @unchecked Sendable {
         private var db: OpaquePointer?
+        /// `release()` can run on the test's thread and on a `release(after:)`
+        /// thread; only one of them closes the connection.
+        private let lock = NSLock()
 
         init(url: URL) throws {
             guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
@@ -127,8 +130,15 @@ struct BackupImportSQLiteRefusalTests {
             }
         }
 
+        /// Ends a pending `release(after:)` early, so its thread does not
+        /// outlive the test.
+        private let releasedEarly = DispatchSemaphore(value: 0)
+
         func release() {
+            lock.lock()
+            defer { lock.unlock() }
             guard let db else { return }
+            releasedEarly.signal()
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
             sqlite3_close_v2(db)
             self.db = nil
@@ -138,10 +148,10 @@ struct BackupImportSQLiteRefusalTests {
         /// Not `DispatchQueue.global().asyncAfter`: a loaded CI runner can
         /// hold a global-queue block back for longer than the wait it is
         /// meant to end (issue #2345). A plain thread is scheduled like any
-        /// other.
+        /// other. A `release()` before then ends the thread at once.
         func release(after delay: TimeInterval) {
             Thread.detachNewThread {
-                Thread.sleep(forTimeInterval: delay)
+                _ = self.releasedEarly.wait(timeout: .now() + delay)
                 self.release()
             }
         }
@@ -176,6 +186,18 @@ struct BackupImportSQLiteRefusalTests {
     /// it sits far above any delay a loaded runner adds (issue #2345). The
     /// app's own 10 s is checked in `unlockedStorePasses`.
     private static let releasedLockWaitLimit: TimeInterval = 60
+
+    /// How long a test holds a lock that its wait must time out on. The lock
+    /// is let go after this, so a wait that ignored its 0.5 s timeout gets the
+    /// lock and returns instead of throwing, and the test fails rather than
+    /// hangs. It is not a bound on how long the wait may take: a loaded
+    /// runner can stall the process for 35 s (issue #2445), so no test
+    /// asserts a wall-clock ceiling on the timed-out wait.
+    private static let heldLockHangGuard: TimeInterval = 120
+
+    /// The most a wait on a FREE lock may take. Far above any stall a loaded
+    /// runner adds (#2445); a wait that sleeps its 600 s timeout crosses it.
+    private static let freeLockWaitCeiling: TimeInterval = 120
 
     // MARK: - Constraint
 
@@ -225,19 +247,20 @@ struct BackupImportSQLiteRefusalTests {
 
     // MARK: - Busy lock
 
-    @Test("A write lock held past the timeout throws within the timeout")
+    @Test("A write lock held past the timeout makes the wait throw")
     func heldWriteLockThrows() async throws {
         let store = try await MainActor.run { try Self.makeStore() }
         defer { store.remove() }
         let holder = try WriteLockHolder(url: store.url)
         defer { holder.release() }
+        holder.release(after: Self.heldLockHangGuard)
 
         let url = store.url
 
         let wait = await Self.offThePool { try PersistenceController.waitForStoreWriteLock(at: url, timeout: 0.5) }
         #expect(throws: PersistenceController.BackupImportStoreLockedError.self) { try wait.result.get() }
+        // It waited out the timeout, not less. A stall only makes this longer.
         #expect(wait.seconds >= 0.4)
-        #expect(wait.seconds < 5)
     }
 
     @Test("A write lock let go during the wait lets the save go ahead")
@@ -260,8 +283,8 @@ struct BackupImportSQLiteRefusalTests {
         defer { store.remove() }
 
         let started = Date()
-        try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 10)
-        #expect(Date().timeIntervalSince(started) < 1)
+        try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 600)
+        #expect(Date().timeIntervalSince(started) < Self.freeLockWaitCeiling)
         #expect(PersistenceController.backupImportWriteLockTimeout == 10)
     }
 
@@ -293,12 +316,14 @@ struct BackupImportSQLiteRefusalTests {
         }
         let holder = try WriteLockHolder(url: second.url)
         defer { holder.release() }
+        holder.release(after: Self.heldLockHangGuard)
 
         let urls = [first.url, second.url]
 
         let wait = await Self.offThePool { _ = try PersistenceController.acquireStoreWriteLocks(at: urls, timeout: 0.5) }
         #expect(throws: PersistenceController.BackupImportStoreLockedError.self) { try wait.result.get() }
-        #expect(wait.seconds < 5)
+        // It waited out the timeout on the held store, not less.
+        #expect(wait.seconds >= 0.4)
         // The first store's lock was let go when the second timed out.
         try WriteLockHolder(url: first.url).release()
     }

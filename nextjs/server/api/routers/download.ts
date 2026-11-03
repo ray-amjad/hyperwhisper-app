@@ -10,7 +10,7 @@
  *
  * INTEGRATIONS:
  * - Database: Email storage (emails table) via db-layer
- * - Resend: Welcome email sending
+ * - Cloudflare Email Service: welcome email sending
  * - appcast.xml: Version/download URL source
  */
 import { z } from "zod";

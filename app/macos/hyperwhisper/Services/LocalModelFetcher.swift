@@ -70,19 +70,29 @@ class LocalModelFetcher {
     // MARK: - Fetch Methods
 
     /// Fetch available models from Ollama
-    /// - Parameter baseURL: Ollama base URL (default: http://localhost:11434)
+    /// - Parameters:
+    ///   - baseURL: Ollama base URL (default: http://localhost:11434)
+    ///   - session: Session the request runs on; tests pass a stubbed one
     /// - Returns: Array of model names
-    func fetchOllamaModels(baseURL: String = "http://localhost:11434") async throws -> [String] {
-        try await fetchModels(baseURL: baseURL, path: "/api/tags", as: OllamaModelsResponse.self) {
+    func fetchOllamaModels(
+        baseURL: String = "http://localhost:11434",
+        session: URLSession = .shared
+    ) async throws -> [String] {
+        try await fetchModels(baseURL: baseURL, path: "/api/tags", session: session, as: OllamaModelsResponse.self) {
             $0.models.map(\.name)
         }
     }
 
     /// Fetch available models from LMStudio
-    /// - Parameter baseURL: LMStudio base URL (default: http://localhost:1234/v1)
+    /// - Parameters:
+    ///   - baseURL: LMStudio base URL (default: http://localhost:1234/v1)
+    ///   - session: Session the request runs on; tests pass a stubbed one
     /// - Returns: Array of model IDs
-    func fetchLMStudioModels(baseURL: String = "http://localhost:1234/v1") async throws -> [String] {
-        try await fetchModels(baseURL: baseURL, path: "/models", as: LMStudioModelsResponse.self) {
+    func fetchLMStudioModels(
+        baseURL: String = "http://localhost:1234/v1",
+        session: URLSession = .shared
+    ) async throws -> [String] {
+        try await fetchModels(baseURL: baseURL, path: "/models", session: session, as: LMStudioModelsResponse.self) {
             $0.data.map(\.id)
         }
     }
@@ -91,6 +101,7 @@ class LocalModelFetcher {
     private func fetchModels<R: Decodable>(
         baseURL: String,
         path: String,
+        session: URLSession,
         as responseType: R.Type,
         names: (R) -> [String]
     ) async throws -> [String] {
@@ -107,7 +118,7 @@ class LocalModelFetcher {
         request.timeoutInterval = 10
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw FetchError.serverNotRunning

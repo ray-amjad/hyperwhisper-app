@@ -6,7 +6,7 @@
  *
  * Both routes reach three collaborators at import time: the database layer
  * (`src/lib/db-layer.ts`), the Stripe client (`lib/clients/stripe.ts`) and the
- * Upstash rate limiters (`lib/rate-limit.ts`, #2010). All three are replaced
+ * Cloudflare rate limiters (`lib/rate-limit.ts`, #2010). All three are replaced
  * here with `mock.module`, so the tests run the REAL route
  * modules — the amount validation, the pricing arithmetic, the license-status
  * gate, the Stripe customer resolution and the reply shapes — with no
@@ -93,16 +93,14 @@ export const behaviour = {
   sessionUrl: "https://checkout.stripe.test/c/pay/cs_test_1" as string | null,
   /**
    * Requests each fake limiter allows per identifier before refusing — an
-   * in-memory fixed count standing in for the Upstash sliding window.
+   * in-memory fixed count standing in for the Cloudflare binding.
    * `Infinity` (the default) never refuses.
    */
   rateLimitMax: Number.POSITIVE_INFINITY,
   /** Milliseconds from now at which a refused window frees a slot. */
   rateLimitResetInMs: 42_000,
-  /** Thrown by every limiter when set — models Upstash being unreachable. */
+  /** Thrown by every limiter when set — models the binding failing. */
   rateLimitError: null as unknown,
-  /** Resolved by every limiter when set — models @upstash/ratelimit's timeout. */
-  rateLimitTimeout: false,
 };
 
 /** Requests counted so far, per `limiter|identifier`. */
@@ -152,7 +150,6 @@ export function resetHarness(): void {
   behaviour.rateLimitMax = Number.POSITIVE_INFINITY;
   behaviour.rateLimitResetInMs = 42_000;
   behaviour.rateLimitError = null;
-  behaviour.rateLimitTimeout = false;
 }
 
 /** Puts a row in the fake database under its own `key`. */
@@ -244,9 +241,6 @@ function fakeLimiter(name: RateLimitCall["limiter"]) {
       calls.rateLimit.push({ limiter: name, identifier });
       if (behaviour.rateLimitError) throw behaviour.rateLimitError;
       const reset = Date.now() + behaviour.rateLimitResetInMs;
-      if (behaviour.rateLimitTimeout) {
-        return { success: true, reset, reason: "timeout" };
-      }
       const key = `${name}|${identifier}`;
       const count = (rateLimitCounts.get(key) ?? 0) + 1;
       rateLimitCounts.set(key, count);

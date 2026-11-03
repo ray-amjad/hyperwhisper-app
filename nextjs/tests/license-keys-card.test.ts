@@ -19,6 +19,8 @@ import test, { afterEach, beforeEach, mock } from "node:test";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { moduleMock, moduleUrl } from "./module-mock";
+
 // A variable specifier: a literal `.tsx` specifier is TS5097 under this
 // tsconfig (the same rule the other component tests here document).
 const CARD_PATH = "../components/customer/dashboard/LicenseKeysCard.tsx";
@@ -334,4 +336,170 @@ test("a shown key wraps and a masked key truncates", async () => {
   assert.doesNotMatch(classOf(shown[0]), /\btruncate\b/);
   // No min-w-* on the key: that pushes the Active badge off a 320px card.
   assert.doesNotMatch(classOf(shown[0]), /\bmin-w-/);
+});
+
+// #1664: inactive keys sat between active ones, a 320px phone pushed the page
+// sideways or cut every key to a shared "HW-C…" prefix, and Credit Purchases
+// listed every grant.
+test("active keys come first, each group in the order the server sent", async () => {
+  const html = await renderMarkup([
+    { id: "a", key: ["HW", "AAAA", "1111", "1111", "1111"].join("-"), status: "granted" },
+    { id: "b", key: ["HW", "BBBB", "1111", "1111", "1111"].join("-"), status: "revoked" },
+    { id: "c", key: ["HW", "CCCC", "1111", "1111", "1111"].join("-"), status: "granted" },
+    { id: "d", key: ["HW", "DDDD", "1111", "1111", "1111"].join("-"), status: "refunded" },
+    { id: "e", key: ["HW", "EEEE", "1111", "1111", "1111"].join("-"), status: "granted" },
+  ]);
+
+  const order = Array.from(html.matchAll(/HW-([A-Z]{4})-/g)).map((m) => m[1]);
+  assert.deepEqual(order, ["AAAA", "CCCC", "EEEE", "BBBB", "DDDD"]);
+
+  const badges = Array.from(html.matchAll(/>(Active|Inactive)</g)).map((m) => m[1]);
+  assert.deepEqual(badges, ["Active", "Active", "Active", "Inactive", "Inactive"]);
+});
+
+test("the key row and the key's own group both wrap", async () => {
+  const tree = await renderCard();
+  const rows = findAll(
+    tree,
+    (element) => /\bflex\b/.test(classOf(element)) && findAll(element.props.children, isCode).length > 0,
+  );
+
+  // The outer row (key group + badge) and the key group (key + buttons).
+  assert.equal(rows.length, 2);
+  for (const row of rows) assert.match(classOf(row), /\bflex-wrap\b/);
+});
+
+/** A plain render: the shim is not installed, so React's own dispatcher runs. */
+async function renderMarkup(licenses: { id: string; key: string; status: string }[]) {
+  const { default: Card } = (await import(CARD_PATH)) as {
+    default: React.ComponentType<{ licenses: typeof licenses }>;
+  };
+
+  return renderToStaticMarkup(React.createElement(Card, { licenses }));
+}
+
+// ---- Credit Purchases (CreditHistoryCard) ----
+
+const HISTORY_PATH = "../components/customer/dashboard/CreditHistoryCard.tsx";
+
+interface Grant {
+  id: string;
+  createdAt: string;
+  expiresAt: string | null;
+  originalAmount: number;
+  remainingAmount: number;
+  expired: boolean;
+  status: string;
+}
+
+let history: { grants: Grant[] } = { grants: [] };
+
+moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
+  namedExports: {
+    api: {
+      customer: {
+        creditHistory: {
+          useQuery: () => ({ data: history, isLoading: false, error: null }),
+        },
+      },
+    },
+  },
+});
+
+/** Newest-first, as the server sends it; every third grant is expired. */
+function grants(count: number): Grant[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `g${i + 1}`,
+    createdAt: new Date(Date.UTC(2026, 9, 28 - i)).toISOString(),
+    expiresAt: new Date(Date.UTC(2027, 0, 1)).toISOString(),
+    // Distinct, so the markup says which grant is which.
+    originalAmount: (i + 1) * 1000 + 7,
+    remainingAmount: 1,
+    expired: (i + 1) % 3 === 0,
+    status: "active",
+  }));
+}
+
+/** Calls the real card under the shim and returns its element tree. */
+async function renderHistory(): Promise<Element> {
+  const { default: CreditHistoryCard } = (await import(HISTORY_PATH)) as {
+    default: (props: { gap?: string }) => Element;
+  };
+
+  cursor = 0;
+  internals.H = dispatcher;
+
+  try {
+    return CreditHistoryCard({});
+  } finally {
+    internals.H = null;
+  }
+}
+
+const isButton = (element: Element) => element.type === "button";
+const textOf = (node: unknown): string =>
+  Array.isArray(node)
+    ? node.map(textOf).join("")
+    : typeof node === "string" || typeof node === "number"
+      ? String(node)
+      : node && typeof node === "object" && "props" in node
+        ? textOf((node as Element).props.children)
+        : "";
+
+/** The grants on screen, by their distinct amount, in screen order. */
+function shownAmounts(tree: Element): number[] {
+  const html = renderToStaticMarkup(tree as unknown as React.ReactElement);
+  return Array.from(html.matchAll(/<bdi>([\d,]+) credits<\/bdi>/g)).map((m) =>
+    Number(m[1].replace(/,/g, "")),
+  );
+}
+
+test("Credit Purchases shows the 5 newest live grants and a Show all button", async () => {
+  history = { grants: grants(24) };
+
+  const tree = await renderHistory();
+  // g3, g6 are expired: the first five live ones are g1, g2, g4, g5, g7.
+  assert.deepEqual(shownAmounts(tree), [1007, 2007, 4007, 5007, 7007]);
+
+  const [button] = findAll(tree, isButton);
+  assert.ok(button, "no Show all button");
+  assert.equal(textOf(button.props.children), "Show all 24");
+  assert.equal((button.props as { "aria-expanded"?: boolean })["aria-expanded"], false);
+});
+
+test("Show all lists every grant, expired ones last, and Show fewer folds it", async () => {
+  history = { grants: grants(24) };
+
+  const [button] = findAll(await renderHistory(), isButton);
+  button.props.onClick?.();
+
+  const open = await renderHistory();
+  const amounts = shownAmounts(open);
+  const live = grants(24).filter((g) => !g.expired).map((g) => g.originalAmount);
+  const expired = grants(24).filter((g) => g.expired).map((g) => g.originalAmount);
+  assert.deepEqual(amounts, [...live, ...expired]);
+
+  const [fold] = findAll(open, isButton);
+  assert.equal(textOf(fold.props.children), "Show fewer");
+  assert.equal((fold.props as { "aria-expanded"?: boolean })["aria-expanded"], true);
+
+  fold.props.onClick?.();
+  assert.equal(shownAmounts(await renderHistory()).length, 5);
+});
+
+test("5 or fewer grants show in full with no button", async () => {
+  for (const count of [1, 5]) {
+    slots = [];
+    history = { grants: grants(count) };
+    const tree = await renderHistory();
+    assert.equal(shownAmounts(tree).length, count);
+    assert.deepEqual(findAll(tree, isButton), []);
+  }
+});
+
+test("6 grants fold to 5 behind Show all 6", async () => {
+  history = { grants: grants(6) };
+  const tree = await renderHistory();
+  assert.equal(shownAmounts(tree).length, 5);
+  assert.equal(textOf(findAll(tree, isButton)[0].props.children), "Show all 6");
 });

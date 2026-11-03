@@ -27,10 +27,9 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 
   // No [locale] layout above this file, so no "%s - HyperWhisper" template.
-  // robots: Vercel only, as in app/global-not-found.tsx (#815).
+  // No robots: Next injects its own noindex, as in app/global-not-found.tsx.
   return {
     title: `${t("title")} - HyperWhisper`,
-    ...(process.env.VERCEL ? { robots: { index: false } } : {}),
   };
 }
 

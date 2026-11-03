@@ -11,6 +11,9 @@ import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
 import { ErrorReveal, shake } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import { BTN_GLASS, BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
+import { INPUT, LABEL } from "@/components/landing/dusk-pages";
+import { SKIES } from "@/components/landing/DuskPage";
 
 type Tab = "license-key" | "email";
 
@@ -22,10 +25,27 @@ type Tab = "license-key" | "email";
  */
 const DEAD_MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN"]);
 
-// Shared by every submit button. The hover gradient is a ::before overlay that
-// fades in by opacity, because a gradient background-image cannot transition.
-const GRADIENT_CTA_CLASS_NAME =
-  "relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed";
+// Shared by every submit button: the Dusk white pill, full width.
+const PRIMARY_CTA_CLASS_NAME = `${BTN_WHITE} ${BTN_LG} w-full disabled:cursor-not-allowed disabled:opacity-50`;
+
+// "Use a Different Email": the dark glass pill.
+const SECONDARY_CTA_CLASS_NAME = `${BTN_GLASS} ${BTN_LG} w-full`;
+
+// "Back to Home": a quiet text button under the card's actions.
+const BACK_CLASS_NAME =
+  "mx-auto block rounded px-2 py-1 text-sm text-[var(--dusk-mute)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+
+const FIELD_LABEL_CLASS_NAME = `mb-2 block text-start ${LABEL}`;
+const FIELD_HELP_CLASS_NAME =
+  "mt-2 text-start text-[12.5px] text-[var(--dusk-dim)]";
+
+// Each sign-in method's toggle: white when chosen, muted otherwise.
+const tabClassName = (active: boolean) =>
+  `rounded-[9px] px-3 py-[9px] text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] ${
+    active
+      ? "bg-white text-[#0b0b14]"
+      : "text-[var(--dusk-mute)] hover:text-white"
+  }`;
 
 /**
  * User Sign-In form (client half of `page.tsx`).
@@ -134,6 +154,7 @@ export default function SignInClient() {
 
   function getCallbackURL() {
     const returnTo = searchParams.get("returnTo");
+
     return sanitizeReturnTo(returnTo, `/${locale}/user/dashboard`);
   }
 
@@ -162,7 +183,7 @@ export default function SignInClient() {
     setLicenseKey(licenseKeyParam);
     setAutoSigningIn(true);
     void handleLicenseKeySignInWithKey(licenseKeyParam);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleLicenseKeySignInWithKey(key: string) {
     setLicenseError(null);
@@ -225,7 +246,9 @@ export default function SignInClient() {
       });
 
       if (authError) {
-        setEmailError(authError.message ?? "Failed to send magic link. Please try again.");
+        setEmailError(
+          authError.message ?? "Failed to send magic link. Please try again.",
+        );
       } else {
         if (!magicLinkSent) rememberCardHeight();
         setMagicLinkSent(true);
@@ -260,7 +283,7 @@ export default function SignInClient() {
   // mounted at a time, so the id is still unique on the page.
   const emailErrorBanner = emailError ? (
     <div
-      className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+      className="rounded-xl border border-red-400/30 bg-red-500/[.12] p-4"
       role="alert"
     >
       <p className="text-red-300 text-sm text-center" id="email-error">
@@ -274,7 +297,7 @@ export default function SignInClient() {
   // `#email` points at it while it shows, since the field is where the fix is.
   const magicLinkErrorBanner = magicLinkError ? (
     <div
-      className="p-4 bg-amber-500/20 border border-amber-500/30 rounded-lg"
+      className="rounded-xl border border-amber-300/30 bg-amber-500/[.12] p-4"
       role="alert"
     >
       <p className="text-amber-200 text-sm text-center" id="magic-link-error">
@@ -284,16 +307,44 @@ export default function SignInClient() {
   ) : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
-      <div className="max-w-md w-full">
+    <main className="relative isolate flex min-h-[100svh] items-center justify-center overflow-hidden bg-[var(--dusk-night)] px-4 py-12 text-[var(--dusk-ink)]">
+      {/* The homepage's dusk sky behind the card. Absolutely placed, so the
+          card's position never depends on the image arriving. */}
+      <div aria-hidden="true" className="absolute inset-0 -z-20">
+        <img
+          alt=""
+          className="h-full w-full object-cover object-[center_60%] opacity-90"
+          decoding="async"
+          fetchPriority="high"
+          sizes="100vw"
+          src={SKIES.dusk.src}
+          srcSet={SKIES.dusk.srcSet}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[rgba(5,6,13,.25)]"
+      />
+      {/* The entrance is CSS (`dusk-enter`), on a wrapper so it never fights
+          the card's own height tween; Reduce motion turns it off. */}
+      <div className="dusk-enter w-full max-w-[420px]">
         <div
           ref={card}
-          className="t-resize overflow-clip bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20"
+          className="t-resize overflow-clip rounded-[22px] border border-white/[.14] bg-[rgba(10,12,28,.62)] p-6 text-center shadow-[0_40px_100px_rgba(0,0,0,.45)] backdrop-blur-[22px] sm:p-9"
         >
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">HyperWhisper</h1>
-            <p className="text-gray-400 text-sm">
+          <div className="mb-6 text-center">
+            <img
+              alt=""
+              className="mx-auto size-14 rounded-[15px] shadow-[0_0_0_1px_rgba(255,255,255,.1),0_10px_30px_rgba(0,0,0,.5)]"
+              height={56}
+              src="/icon/256.png"
+              width={56}
+            />
+            <h1 className="mt-4 text-[28px] font-semibold tracking-[-0.8px] text-white">
+              HyperWhisper
+            </h1>
+            <p className="mt-1.5 text-[15px] text-[var(--dusk-mute)]">
               Sign in to view your licenses and credits
             </p>
           </div>
@@ -301,238 +352,255 @@ export default function SignInClient() {
           {/* Auto sign-in loading overlay */}
           {autoSigningIn ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <Spinner className="h-8 w-8 text-emerald-400" />
-              <p className="text-gray-300 text-sm">Signing you in…</p>
+              <Spinner className="h-8 w-8 text-[var(--dusk-lav)]" />
+              <p className="text-sm text-[var(--dusk-mute)]">Signing you in…</p>
             </div>
           ) : (
-          <>
-
-          {/* Tab Switcher. A single-choice group of toggle buttons (#1311): the
+            <>
+              {/* Tab Switcher. A single-choice group of toggle buttons (#1311): the
               active method is exposed by aria-pressed, not only its colour.
               Not role="tablist", which would need arrow-key roving focus and
               aria-controls panels. */}
-          <div
-            aria-label="Sign-in method"
-            className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6"
-            role="group"
-          >
-            <button
-              aria-pressed={activeTab === "license-key"}
-              type="button"
-              onClick={() => setActiveTab("license-key")}
-              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
-                activeTab === "license-key"
-                  ? "bg-white/15 text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              Account Key
-            </button>
-            <button
-              aria-pressed={activeTab === "email"}
-              type="button"
-              onClick={() => setActiveTab("email")}
-              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
-                activeTab === "email"
-                  ? "bg-white/15 text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              Email
-            </button>
-          </div>
-
-          {/* License Key Tab */}
-          {activeTab === "license-key" && (
-            <form onSubmit={handleLicenseKeySignIn} className="space-y-6">
-              {/* #760: announced like `emailErrorBanner`, and described-by
-                  target of the `#license-key` input below. No focus move. */}
-              <ErrorReveal gap="pb-6">
-                {licenseError && (
-                  <div
-                    className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
-                    role="alert"
-                  >
-                    <p className="text-red-300 text-sm text-center" id="license-key-error">
-                      {licenseError}
-                    </p>
-                  </div>
-                )}
-              </ErrorReveal>
-
-              <div>
-                <label htmlFor="license-key" className="block text-sm font-medium text-gray-300 mb-2">
+              <div
+                aria-label="Sign-in method"
+                className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-white/[.05] p-1"
+                role="group"
+              >
+                <button
+                  aria-pressed={activeTab === "license-key"}
+                  className={tabClassName(activeTab === "license-key")}
+                  type="button"
+                  onClick={() => setActiveTab("license-key")}
+                >
                   Account Key
-                </label>
-                <input
-                  aria-describedby={licenseError ? "license-key-error" : undefined}
-                  aria-invalid={licenseError ? true : undefined}
-                  ref={licenseKeyInput}
-                  id="license-key"
-                  type="text"
-                  required
-                  value={licenseKey}
-                  onChange={(e) => setLicenseKey(e.target.value)}
-                  className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
-                  placeholder="HW-XXXX-XXXX-XXXX-XXXX"
-                  /*
+                </button>
+                <button
+                  aria-pressed={activeTab === "email"}
+                  className={tabClassName(activeTab === "email")}
+                  type="button"
+                  onClick={() => setActiveTab("email")}
+                >
+                  Email
+                </button>
+              </div>
+
+              {/* License Key Tab */}
+              {activeTab === "license-key" && (
+                <form className="space-y-6" onSubmit={handleLicenseKeySignIn}>
+                  {/* #760: announced like `emailErrorBanner`, and described-by
+                  target of the `#license-key` input below. No focus move. */}
+                  <ErrorReveal gap="pb-6">
+                    {licenseError && (
+                      <div
+                        className="rounded-xl border border-red-400/30 bg-red-500/[.12] p-4"
+                        role="alert"
+                      >
+                        <p
+                          className="text-red-300 text-sm text-center"
+                          id="license-key-error"
+                        >
+                          {licenseError}
+                        </p>
+                      </div>
+                    )}
+                  </ErrorReveal>
+
+                  <div>
+                    <label
+                      className={FIELD_LABEL_CLASS_NAME}
+                      htmlFor="license-key"
+                    >
+                      Account Key
+                    </label>
+                    <input
+                      ref={licenseKeyInput}
+                      required
+                      aria-describedby={
+                        licenseError ? "license-key-error" : undefined
+                      }
+                      aria-invalid={licenseError ? true : undefined}
+                      className={`t-input ${INPUT} text-start font-mono tracking-wide`}
+                      id="license-key"
+                      spellCheck={false}
+                      type="text"
+                      value={licenseKey}
+                      onChange={(e) => setLicenseKey(e.target.value)}
+                      placeholder="HW-XXXX-XXXX-XXXX-XXXX"
+                      /*
                     `off` is deliberate: the Account Key is a credential and we do not want a
                     browser to store it in its address/contact autofill. The email field below
                     does set `autoComplete="email"` — that one is an identity field and SC 1.3.5
                     asks for the token.
                   */
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <p className="text-gray-400 text-xs mt-2">
-                  Enter the Account Key from your purchase confirmation
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="submit"
-                  disabled={licenseSubmitting}
-                  className={GRADIENT_CTA_CLASS_NAME}
-                >
-                  {licenseSubmitting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Spinner className="h-5 w-5" />
-                      Signing in...
-                    </span>
-                  ) : (
-                    "Sign In"
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => router.push(`/${locale}`)}
-                  className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
-                >
-                  Back to Home
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Email Tab */}
-          {activeTab === "email" && (
-            <>
-              {!magicLinkSent ? (
-                <form onSubmit={handleSendMagicLink} className="space-y-6">
-                  {magicLinkErrorBanner}
-                  <ErrorReveal gap="pb-6">{emailErrorBanner}</ErrorReveal>
-
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                      Email address
-                    </label>
-                    <input
-                      aria-describedby={
-                        emailError
-                          ? "email-error"
-                          : magicLinkError
-                            ? "magic-link-error"
-                            : undefined
-                      }
-                      aria-invalid={emailError ? true : undefined}
-                      autoComplete="email"
-                      ref={emailInput}
-                      id="email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="t-input w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                      placeholder="your@email.com"
+                      autoComplete="off"
                     />
-                    <p className="text-gray-400 text-xs mt-2">
-                      Use the same email you used to purchase your license
+                    <p className={FIELD_HELP_CLASS_NAME}>
+                      Enter the Account Key from your purchase confirmation
                     </p>
                   </div>
 
                   <div className="space-y-3">
                     <button
+                      className={PRIMARY_CTA_CLASS_NAME}
+                      disabled={licenseSubmitting}
                       type="submit"
-                      disabled={emailSubmitting}
-                      className={GRADIENT_CTA_CLASS_NAME}
                     >
-                      {emailSubmitting ? (
+                      {licenseSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
                           <Spinner className="h-5 w-5" />
-                          Sending...
+                          Signing in...
                         </span>
                       ) : (
-                        "Send Magic Link"
+                        "Sign In"
                       )}
                     </button>
 
                     <button
+                      className={BACK_CLASS_NAME}
                       type="button"
                       onClick={() => router.push(`/${locale}`)}
-                      className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
                     >
                       Back to Home
                     </button>
                   </div>
                 </form>
-              ) : (
-                // Magic Link Sent confirmation
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <div className="mb-4">
-                      {/* #752: the one success moment on the page. The icon
+              )}
+
+              {/* Email Tab */}
+              {activeTab === "email" && (
+                <>
+                  {!magicLinkSent ? (
+                    <form className="space-y-6" onSubmit={handleSendMagicLink}>
+                      {magicLinkErrorBanner}
+                      <ErrorReveal gap="pb-6">{emailErrorBanner}</ErrorReveal>
+
+                      <div>
+                        <label
+                          className={FIELD_LABEL_CLASS_NAME}
+                          htmlFor="email"
+                        >
+                          Email address
+                        </label>
+                        <input
+                          ref={emailInput}
+                          required
+                          aria-describedby={
+                            emailError
+                              ? "email-error"
+                              : magicLinkError
+                                ? "magic-link-error"
+                                : undefined
+                          }
+                          aria-invalid={emailError ? true : undefined}
+                          autoComplete="email"
+                          className={`t-input ${INPUT} text-start`}
+                          id="email"
+                          placeholder="your@email.com"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                        <p className={FIELD_HELP_CLASS_NAME}>
+                          Use the same email you used to purchase your license
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <button
+                          className={PRIMARY_CTA_CLASS_NAME}
+                          disabled={emailSubmitting}
+                          type="submit"
+                        >
+                          {emailSubmitting ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <Spinner className="h-5 w-5" />
+                              Sending...
+                            </span>
+                          ) : (
+                            "Send Magic Link"
+                          )}
+                        </button>
+
+                        <button
+                          className={BACK_CLASS_NAME}
+                          type="button"
+                          onClick={() => router.push(`/${locale}`)}
+                        >
+                          Back to Home
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    // Magic Link Sent confirmation
+                    <div className="space-y-6">
+                      <div className="text-center">
+                        <div className="mb-4">
+                          {/* #752: the one success moment on the page. The icon
                           fades and rotates up out of a blur while its stroke
                           draws (.t-success-check); pathLength="1" lets the
                           dash length be 1 whatever the path's real length. */}
-                      <svg className="t-success-check mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path pathLength={1} strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-300 mb-1">We sent a magic link to</p>
-                    <p className="font-semibold text-white mb-4">{email}</p>
-                    <p className="text-gray-400 text-sm">
-                      Check your email and click the link to sign in. The link will expire in 10 minutes.
-                    </p>
-                  </div>
+                          <svg
+                            className="t-success-check mx-auto h-12 w-12 text-[var(--dusk-lav)]"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                              pathLength={1}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+                        <p className="mb-1 text-[var(--dusk-ink)]">
+                          We sent a magic link to
+                        </p>
+                        <p className="mb-4 font-semibold text-white [overflow-wrap:anywhere]">
+                          {email}
+                        </p>
+                        <p className="text-sm text-[var(--dusk-mute)]">
+                          Check your email and click the link to sign in. The
+                          link will expire in 10 minutes.
+                        </p>
+                      </div>
 
-                  {/* Above the button that produced it, not above the "we sent
+                      {/* Above the button that produced it, not above the "we sent
                       a magic link" text: the earlier send really did succeed,
                       and it is this resend that just failed. */}
-                  <div className="space-y-3">
-                    <ErrorReveal gap="pb-3">{emailErrorBanner}</ErrorReveal>
+                      <div className="space-y-3">
+                        <ErrorReveal gap="pb-3">{emailErrorBanner}</ErrorReveal>
 
-                    <button
-                      type="button"
-                      onClick={() => handleSendMagicLink()}
-                      disabled={emailSubmitting}
-                      className={GRADIENT_CTA_CLASS_NAME}
-                    >
-                      {emailSubmitting ? "Sending..." : "Resend Magic Link"}
-                    </button>
+                        <button
+                          className={PRIMARY_CTA_CLASS_NAME}
+                          disabled={emailSubmitting}
+                          type="button"
+                          onClick={() => handleSendMagicLink()}
+                        >
+                          {emailSubmitting ? "Sending..." : "Resend Magic Link"}
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        rememberCardHeight();
-                        setMagicLinkSent(false);
-                        setEmailError(null);
-                      }}
-                      className="w-full py-3 px-4 bg-white/5 border border-white/20 text-gray-400 font-medium rounded-lg hover:bg-white/10 hover:text-white transition-all duration-200"
-                    >
-                      Use a Different Email
-                    </button>
-                  </div>
-                </div>
+                        <button
+                          className={SECONDARY_CTA_CLASS_NAME}
+                          type="button"
+                          onClick={() => {
+                            rememberCardHeight();
+                            setMagicLinkSent(false);
+                            setEmailError(null);
+                          }}
+                        >
+                          Use a Different Email
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
-
-          </>
-          )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

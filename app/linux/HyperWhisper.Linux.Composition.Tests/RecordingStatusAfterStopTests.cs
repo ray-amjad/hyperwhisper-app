@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using HyperWhisper.Linux;
 using HyperWhisper.Linux.Overlay;
@@ -52,6 +53,122 @@ static class RecordingStatusAfterStopTests
             && LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.SecureFieldSkipped) == LinuxRecordingOverlayCompletion.SecureField,
             "the overlay completion mapping changed");
     });
+
+    // Issue #2599: the status bar appended "Press Ctrl+Alt to record" to every line, so a recording read
+    // "Recording… - Press Ctrl+Alt to record" while Ctrl+Alt would stop it. The rule now (the issue's
+    // Proposed fix): no hint while anything is in flight or on an error line; every other line keeps it.
+    // The line is composed by MainWindow.StatusBarLine from the real session and the real Home recorder
+    // of a real batch dictation, and re-composed through MainWindow.WatchStatusBarInputs, the same watch
+    // the window uses, so the line read here is the one the window would show after each change.
+    public static Task StatusHintDroppedWhileInFlightOrOnError() => RunAsync(new FakeTextInjection(), async (shell, session, _) =>
+    {
+        var line = "";
+        using var watch = WatchLine(shell, session, value => line = value);
+
+        shell.ShowReadyStatus();
+        Check(line == "Ready - Press Ctrl+Alt to record", $"at rest the status bar read '{line}'");
+
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+        Check(line == "Recording…", $"while recording the status bar read '{line}', not 'Recording…' (#2599)");
+
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        Check(line == "Ready - Press Ctrl+Alt to record", $"after the recording ended the status bar read '{line}'");
+
+        // A shell Busy line is in flight too: "Importing universal backup…" must not invite a recording.
+        shell.Status.Busy("Importing universal backup…");
+        Check(line == "Importing universal backup…", $"a Busy line read '{line}' (#2599)");
+        shell.Status.Success("Backup imported");
+        Check(line == "Backup imported - Press Ctrl+Alt to record", $"after the Busy line ended the status bar read '{line}'");
+
+        // Windows' status.failed carries no hint.
+        shell.Status.Failure("provider.credential_rejected", "The provider rejected the supplied credential.");
+        Check(line == "The provider rejected the supplied credential.", $"after a failure the status bar read '{line}' (#2599)");
+        // A failure with no message still names its code, and still no hint.
+        Check(MainWindow.ComposeStatusLine(null, true, "workflow.start_failed", "Ctrl+Alt", Hint, withHint: false) == "workflow.start_failed",
+            "an error with no message lost its code");
+        // No shortcut set: the line is the message alone.
+        Check(MainWindow.ComposeStatusLine("Ready", false, null, "", Hint, withHint: true) == "Ready", "an empty shortcut still added a hint");
+    });
+
+    // #2599: a stop that writes its own line while it is still finishing ("Transcription saved, but text
+    // injection failed", or a live stream's "… pasted and saved") changes nothing after it, so only the
+    // session's ActivityChanged at the end of StopAsync brings the hint back with that resting line.
+    public static Task HintReturnsAfterAStopThatWroteItsOwnLine() => RunAsync(new FailingTextInjection(), async (shell, session, _) =>
+    {
+        var line = "";
+        var lines = new List<string>();
+        using var watch = WatchLine(shell, session, value => { line = value; lines.Add(value); });
+
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        var expected = $"{LinuxInteractionRecordingSession.BatchInjectionFailedStatus} - Press Ctrl+Alt to record";
+        Check(lines.Contains(LinuxInteractionRecordingSession.BatchInjectionFailedStatus),
+            $"the stop's own line was never shown without the hint while it finished: {string.Join(" | ", lines)}");
+        Check(line == expected, $"after the stop finished the status bar read '{line}', not '{expected}' (#2599)");
+    });
+
+    // The live connect phase: the streaming overlay is up and connecting, but the session is neither
+    // active nor capturing yet. The status bar must drop the hint for it, recomposed when the start mark
+    // flips, and get the hint back once the start has returned. The start fails here (no provider key),
+    // which writes no shell line of its own, so the resting line is the one to read.
+    public static Task HintDroppedWhileALiveStartConnects() => RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+    {
+        shell.Settings.StreamingEnabled = true;
+        shell.ShowReadyStatus();
+        var line = "";
+        var lines = new List<string>();
+        using var watch = WatchLine(shell, session, value => { line = value; lines.Add(value); });
+        var resting = $"{shell.Status.Message} - Press Ctrl+Alt to record";
+        Check(line == resting, $"at rest the status bar read '{line}', not '{resting}'");
+        string? atOverlay = null;
+        overlay.StreamingStartedHook = () => atOverlay = line;
+
+        var started = await session.StartAsync(InteractionRecordingKind.Streaming);
+        Console.WriteLine($"  [en] live start {(started.IsSuccess ? "connected" : started.Error?.Code)}; status bar when the overlay showed "
+            + $"\"{atOverlay}\", after \"{line}\"");
+        Check(started.IsFailure, "the live start connected with no provider key in the profile");
+        Check(atOverlay == shell.Status.Message,
+            $"while the live start was connecting the status bar read '{atOverlay}', not '{shell.Status.Message}' with no hint (#2599)");
+        Check(line == resting, $"after the failed live start the status bar read '{line}', not '{resting}'");
+    });
+
+    // A held live stream (the worker ended, IsActive is false, only live capture keeps the session open):
+    // its stop clears live capture, which raises ActivityChanged. The stop must already be in flight
+    // then, or that recompose puts the hint back for the whole finalization (post-processing, paste,
+    // save), and nothing re-raises before the stop's finally.
+    public static Task HeldStreamStopKeepsTheHintOffWhileFinishing() => RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+    {
+        var line = "";
+        using var watch = WatchLine(shell, session, value => line = value);
+        typeof(LinuxInteractionRecordingSession).GetField("_streaming", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(session, true);
+        typeof(LinuxInteractionRecordingSession).GetMethod("SetLiveCapture", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(session, [true]);
+        shell.Status.Success("Live transcription recording…");
+        Check(!session.IsActive && session.HasOpenSession, "the stream is not held (IsActive false, session open)");
+        Check(line == "Live transcription recording…", $"the held stream's line read '{line}', with the hint");
+        string? whileFinishing = null;
+        overlay.TranscribingHook = () => whileFinishing = line;
+
+        try { await session.StopAsync(); } catch { }
+        Console.WriteLine($"  [en] held-stream stop: status bar while finishing \"{whileFinishing}\", after \"{line}\"");
+        Check(whileFinishing is not null && !whileFinishing.Contains("Press Ctrl+Alt", StringComparison.Ordinal),
+            $"while the held stream's stop was finishing the status bar read '{whileFinishing}', with the record hint (#2599)");
+        Check(line.EndsWith(" - Press Ctrl+Alt to record", StringComparison.Ordinal),
+            $"after the held stream's stop the status bar read '{line}', with no record hint");
+        Check(!session.IsRecordingOrFinishing, "the stop left the session finishing");
+    });
+
+    private const string Hint = "Press {0} to record";
+
+    private static IDisposable WatchLine(ApplicationShellViewModel shell, LinuxInteractionRecordingSession session, Action<string> show)
+    {
+        void Compose() => show(MainWindow.StatusBarLine(shell.Status, "Ctrl+Alt", Hint, session, shell.Recording));
+        Compose();
+        return MainWindow.WatchStatusBarInputs(shell.Status, shell.Recording, session, Compose);
+    }
 
     private static async Task RunAsync(ITextInjectionService textInjection,
         Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body)
@@ -152,10 +269,12 @@ sealed class StatusTestOverlay : ILinuxRecordingOverlayFeedback
     public bool Completed => Completion is not null;
     public LinuxRecordingOverlayCompletion? Completion { get; private set; }
     public void RecordingStarted(LinuxOverlayModeLabel mode) { }
-    public void StreamingStarted(LinuxOverlayModeLabel mode) { }
+    public Action? StreamingStartedHook { get; set; }
+    public void StreamingStarted(LinuxOverlayModeLabel mode) => StreamingStartedHook?.Invoke();
     public void StreamingConnectionChanged(LinuxStreamingOverlayConnectionState state) { }
     public void AudioLevelChanged(float level) { }
-    public void Transcribing() { }
+    public Action? TranscribingHook { get; set; }
+    public void Transcribing() => TranscribingHook?.Invoke();
     void ILinuxRecordingOverlayFeedback.Completed(LinuxRecordingOverlayCompletion completion) => Completion = completion;
     public void CancelConfirmationRequested() { }
     public void CancelConfirmationDismissed() { }

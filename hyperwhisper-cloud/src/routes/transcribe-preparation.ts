@@ -128,6 +128,13 @@ export async function prepareTranscriptionRequest(
   const mode = rawQuery(c.req.url, 'mode');
   if (provider === 'assemblyai' && model === 'dictation') {
     try { validateDictationOptions(language, domain); } catch (error) {
+      logEvent(requestId, startTime, 'transcribe.request_rejected', {
+        reason: 'invalid_dictation_options',
+        flyRequestId,
+        // Caller-supplied query value, so cap what reaches the log.
+        language: language?.slice(0, 35),
+        hasDomain: Boolean(domain),
+      });
       return errorResponse(400, 'Invalid Dictation options', (error as Error).message, { requestId });
     }
   }

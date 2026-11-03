@@ -28,6 +28,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("oversized response is rejected", TestOversizedResponse),
     ("stale model falls back deterministically", TestModelFallback),
     ("applied routes report the model that ran", TestResolvedModelIsReported),
+    ("applied routes report the provider id apart from the label", TestProviderIdIsReported),
     ("redirect does not replay credentials", TestRedirectFailure),
     ("saved dotted Mistral Medium 3.5 sends Mistral's API id", TestMistralMediumSendsApiId),
 };
@@ -477,6 +478,86 @@ static async Task TestModelFallback()
 // Issue #314: every applied route names the model that actually ran, and no
 // failed route names one at all — the invariant the Linux Local API endpoint
 // relies on instead of a `WasApplied` cross-check.
+// Issue #1158: the Linux Local API `provider` and the transcript row get a
+// provider id — the spelling a Mode stores and macOS/Windows emit — and the
+// display label stays a separate field for UI.
+static async Task TestProviderIdIsReported()
+{
+    using var openAi = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>")))),
+        ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
+    var openAiResult = await openAi.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
+    Assert(openAiResult.WasApplied && openAiResult.ProviderId == "openai",
+        $"OpenAI run reported provider id '{openAiResult.ProviderId}', not 'openai'");
+    Assert(openAiResult.ProviderLabel == "OpenAI · gpt-5.4-mini" && openAiResult.Provider == openAiResult.ProviderLabel,
+        $"OpenAI run lost its display label: '{openAiResult.ProviderLabel}'");
+
+    var byok = new Dictionary<CloudPostProcessingProvider, string>
+    {
+        [CloudPostProcessingProvider.Anthropic] = "anthropic",
+        [CloudPostProcessingProvider.Groq] = "groq",
+        [CloudPostProcessingProvider.Grok] = "grok",
+        [CloudPostProcessingProvider.Gemini] = "gemini",
+        [CloudPostProcessingProvider.Cerebras] = "cerebras",
+        [CloudPostProcessingProvider.Mistral] = "mistral",
+    };
+    foreach (var (provider, id) in byok)
+    {
+        var body = provider == CloudPostProcessingProvider.Anthropic
+            ? "{\"content\":[{\"type\":\"text\",\"text\":\"done\"}],\"stop_reason\":\"end_turn\"}"
+            : OpenAiResponse("done");
+        using var service = Service(
+            new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, body))),
+            ApiKey(provider, "provider-secret"));
+        var result = await service.ProcessAsync(Request(provider));
+        Assert(result.WasApplied && result.ProviderId == id,
+            $"{provider} run reported provider id '{result.ProviderId}', not '{id}'");
+        Assert(result.ProviderLabel?.Contains(" · ", StringComparison.Ordinal) == true,
+            $"{provider} run lost its display label");
+    }
+
+    var endpointId = Guid.NewGuid();
+    var customCredentials = new MemoryCredentialSource();
+    customCredentials.Set(CloudPostProcessingProvider.Custom, "custom-secret", endpointId);
+    using var custom = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("custom result")))),
+        customCredentials);
+    var customResult = await custom.ProcessAsync(Request(CloudPostProcessingProvider.Custom) with
+    {
+        CustomEndpoint = new(endpointId, "https://endpoint.invalid/v1/chat/completions", "private-model"),
+    });
+    Assert(customResult.WasApplied && customResult.ProviderId == $"custom:{endpointId:D}",
+        $"custom run reported provider id '{customResult.ProviderId}'");
+    Assert(customResult.ProviderLabel == "Custom endpoint · private-model", "custom run lost its display label");
+
+    var cloudCredentials = new MemoryCredentialSource();
+    cloudCredentials.SetLicense("license-secret", "device-safe");
+    using var cloud = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}"))),
+        cloudCredentials);
+    var cloudResult = await cloud.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    {
+        HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
+    });
+    Assert(cloudResult.WasApplied && cloudResult.ProviderId == "hyperwhispercloud",
+        $"cloud run reported provider id '{cloudResult.ProviderId}'");
+    Assert(cloudResult.ProviderLabel?.StartsWith("HyperWhisper Cloud · ", StringComparison.Ordinal) == true,
+        "cloud run lost its display label");
+
+    // A failed run names no provider at all, so nothing downstream can store one.
+    using var failing = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.InternalServerError, "{}"))),
+        ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
+    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi));
+    Assert(!failed.WasApplied && failed.ProviderId is null && failed.Provider is null,
+        "a failed run reported a provider");
+
+    // A custom endpoint with no id has no stored spelling to report.
+    Assert(CloudPostProcessingResult.IdFor(CloudPostProcessingProvider.Custom) is null
+        && CloudPostProcessingResult.IdFor(CloudPostProcessingProvider.Custom, Guid.Empty) is null,
+        "a custom endpoint with no id produced a provider id");
+}
+
 static async Task TestResolvedModelIsReported()
 {
     using var byok = Service(

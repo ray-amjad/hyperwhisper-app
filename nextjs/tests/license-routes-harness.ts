@@ -4,7 +4,7 @@
  * `app/api/license/deactivate`.
  *
  * Those routes reach two collaborators at import time: the database layer
- * (`src/lib/db-layer.ts`) and the Upstash-backed rate limiter
+ * (`src/lib/db-layer.ts`) and the Cloudflare rate limiter
  * (`lib/rate-limit.ts`). Both are replaced here with `mock.module`, so the
  * tests run the REAL route modules — the rate-limit gate, the body parsing,
  * the entitlement check in `src/lib/license-validation.ts` and the reply
@@ -44,7 +44,7 @@ export const calls = {
 export const behaviour = {
   /** `false` makes the limiter reject the next request. */
   rateLimitSuccess: true,
-  /** Thrown by the limiter when set — models Upstash being unreachable. */
+  /** Thrown by the limiter when set — models the binding failing. */
   rateLimitError: null as unknown,
   /** Rows the fake database holds, keyed by the exact stored key string. */
   rows: new Map<string, AccountKeyRow>(),

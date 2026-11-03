@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup. Like /validate, this endpoint is
   // unauthenticated, so it shares the same limiter.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),
@@ -84,6 +84,16 @@ export async function POST(req: NextRequest) {
       : undefined;
 
   if (!license_key) {
+    // A client and this route disagree about the wire format (#1299). The
+    // body may still carry the key under another name, so log only the
+    // pathname and the TYPE of `license_key`, never a body value.
+    console.warn("License activate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body)
+        ? typeof body.license_key
+        : "no-body-object",
+    });
+
     return invalidLicenseResponse({
       valid: false,
       error: "License key is required",

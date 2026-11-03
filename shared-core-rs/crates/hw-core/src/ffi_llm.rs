@@ -286,13 +286,6 @@ pub fn llm_build_request(params: HwLlmParams) -> Result<HttpRequest, HwLlmError>
         .map_err(Into::into)
 }
 
-/// The URL a request would go to, without building the body. For logging and
-/// for the health checker.
-#[uniffi::export]
-pub fn llm_endpoint_for(params: HwLlmParams) -> Result<String, HwLlmError> {
-    l::endpoint_for(&params.into()).map_err(Into::into)
-}
-
 /// Which parser handles this provider's 200 response.
 #[uniffi::export]
 pub fn llm_wire_protocol_for(provider: HwLlmProvider) -> HwLlmWireProtocol {
@@ -406,24 +399,6 @@ pub fn llm_groq_max_completion_tokens() -> u32 {
     l::GROQ_MAX_COMPLETION_TOKENS
 }
 
-/// Port the embedded llama-server listens on.
-#[uniffi::export]
-pub fn llm_default_local_llama_port() -> u16 {
-    l::DEFAULT_LOCAL_LLAMA_PORT
-}
-
-/// Max custom endpoint URL length, for a UI character counter.
-#[uniffi::export]
-pub fn llm_max_custom_endpoint_url_chars() -> u32 {
-    l::MAX_CUSTOM_ENDPOINT_URL_CHARS as u32
-}
-
-/// Max custom endpoint model-name length, for a UI character counter.
-#[uniffi::export]
-pub fn llm_max_custom_endpoint_model_chars() -> u32 {
-    l::MAX_CUSTOM_ENDPOINT_MODEL_CHARS as u32
-}
-
 // ===========================================================================
 // Tests
 // ===========================================================================
@@ -512,7 +487,7 @@ mod tests {
             ),
         ];
         for (provider, expected) in cases {
-            assert_eq!(llm_endpoint_for(params(provider)).unwrap(), expected);
+            assert_eq!(llm_build_request(params(provider)).unwrap().url, expected);
         }
     }
 
@@ -554,7 +529,7 @@ mod tests {
         p.device_id = Some("dev-1".to_string());
         p.base_url = Some(llm_hw_cloud_staging_base());
         assert_eq!(
-            llm_endpoint_for(p).unwrap(),
+            llm_build_request(p).unwrap().url,
             "https://transcribe-staging-v2.hyperwhisper.com/post-process"
         );
     }
@@ -662,9 +637,6 @@ mod tests {
     fn the_exported_constants_match_the_leaf_crate() {
         assert_eq!(llm_max_output_tokens(), 8192);
         assert_eq!(llm_groq_max_completion_tokens(), 4096);
-        assert_eq!(llm_default_local_llama_port(), 37219);
-        assert_eq!(llm_max_custom_endpoint_url_chars(), 2048);
-        assert_eq!(llm_max_custom_endpoint_model_chars(), 256);
         assert_eq!(
             llm_hw_cloud_prod_base(),
             "https://transcribe-prod-v2.hyperwhisper.com"

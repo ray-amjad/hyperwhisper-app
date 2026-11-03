@@ -54,11 +54,12 @@ HyperWhisper Cloud needs no API key. It is the best option for most users. It us
 
 ## Model Downloads
 
-If you use **local transcription** with any on-device model (Whisper, Parakeet, Nemotron 3.5, or Qwen3 ASR), or local Gemma post-processing, whitelist this domain. All on-device models download from the same host:
+If you use **local transcription** with any on-device model (Whisper, Parakeet, Nemotron 3.5, or Qwen3 ASR), or local Gemma post-processing, whitelist these domains. All on-device models download from Hugging Face. `huggingface.co` sends each file download on to a Hugging Face CDN server under `hf.co` (for example `us.aws.cdn.hf.co`):
 
 | Domain | Purpose |
 |--------|---------|
 | `huggingface.co` | Download Whisper.cpp and Gemma models |
+| `*.hf.co` | The file downloads that `huggingface.co` redirects to (Hugging Face CDN) |
 
 HyperWhisper downloads the models from these URLs:
 - `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/*` - Whisper models

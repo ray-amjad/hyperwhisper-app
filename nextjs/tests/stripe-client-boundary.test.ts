@@ -163,7 +163,7 @@ function valueUses(source: ts.SourceFile): string[] {
 }
 
 /** Generated or installed, never authored: the walk does not enter them. */
-const SKIP_DIRS = new Set(["node_modules", ".next", ".vercel", "out", "build", "coverage"]);
+const SKIP_DIRS = new Set(["node_modules", ".next", ".open-next", ".wrangler", ".vercel", "out", "build", "coverage"]);
 
 /**
  * `tests/mutate-stripe-client.mjs` is the mutation tool for the boundary

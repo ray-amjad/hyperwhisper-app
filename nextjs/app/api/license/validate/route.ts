@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup, capping what an unauthenticated
   // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),
@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
   const probe_only = payload.probe_only === true;
 
   if (!license_key) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("License validate: license key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: isRecord(body)
+        ? typeof body.license_key
+        : "no-body-object",
+    });
+
     return invalidLicenseResponse({
       valid: false,
       error: "License key is required",

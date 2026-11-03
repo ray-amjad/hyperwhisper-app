@@ -327,7 +327,9 @@ test("#1147: the custom-amount field is hidden until Custom is chosen", async ()
 test("#1147: the custom-amount field is named by the visible amount heading and Custom title", async () => {
   const input = await renderCustomInput();
   const amountId = idOfText("span", "buyCredits.amountLabel");
-  const customId = idOfText("div", "buyCredits.custom");
+  // A <span>: the Custom title sits inside its <button>, which takes
+  // phrasing content only.
+  const customId = idOfText("span", "buyCredits.custom");
 
   assert.ok(amountId, "the Choose an amount heading has no id");
   assert.ok(customId, "the Custom tile title has no id");

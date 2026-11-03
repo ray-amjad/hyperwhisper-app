@@ -47,21 +47,35 @@ export const revalidatedPaths: string[] = [];
 /** Every `console.error` call the route made, with its raw arguments. */
 export const errorCalls: unknown[][] = [];
 
-const realConsoleError = console.error;
+/**
+ * Every `console.warn` call the route made, with its raw arguments. A refused
+ * delivery writes its one `[add-blog-post] delivery rejected` line here (#3003).
+ */
+export const warnCalls: unknown[][] = [];
 
+const realConsoleError = console.error;
+const realConsoleWarn = console.warn;
+
+/** Record `console.error` and `console.warn` instead of printing them. */
 export function captureRouteErrors(): void {
   console.error = (...args: unknown[]): void => {
     errorCalls.push(args);
+  };
+  console.warn = (...args: unknown[]): void => {
+    warnCalls.push(args);
   };
 }
 
 export function restoreRouteErrors(): void {
   console.error = realConsoleError;
+  console.warn = realConsoleWarn;
 }
 
 export function resetHarness(): void {
   dbCalls.length = 0;
   errorCalls.length = 0;
+  warnCalls.length = 0;
+  fakeEnv.OUTRANK_WEBHOOK_SIGNING_SECRET = undefined;
   revalidatedPaths.length = 0;
   delete dbHandlers.select;
   delete dbHandlers.insert;

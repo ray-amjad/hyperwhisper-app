@@ -54,6 +54,12 @@ export async function GET(req: NextRequest) {
   const licenseKey = searchParams.get("license_key")?.trim();
 
   if (!licenseKey) {
+    // Same wire-format event as activate (#1299): pathname and type only.
+    console.warn("Credits balance: license_key missing", {
+      path: req.nextUrl.pathname,
+      licenseKeyType: searchParams.has("license_key") ? "string" : "undefined",
+    });
+
     return NextResponse.json(
       { error: "license_key is required" },
       { status: 400 }
@@ -139,6 +145,14 @@ export async function POST(req: NextRequest) {
       typeof rawLicenseKey === "string" ? rawLicenseKey.trim() : undefined;
 
     if (!license_key) {
+      // Same wire-format event as activate (#1299): pathname and type only.
+      console.warn("Credits deduction: license_key missing", {
+        path: req.nextUrl.pathname,
+        licenseKeyType: isRecord(body)
+          ? typeof rawLicenseKey
+          : "no-body-object",
+      });
+
       return NextResponse.json(
         { error: "license_key is required" },
         { status: 400 }

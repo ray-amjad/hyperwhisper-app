@@ -185,7 +185,7 @@ describe("lib/clients/stripe — the shared Stripe client", () => {
     const script = `
       const { mock } = await import("node:test");
       const keys = [];
-      class RecordingStripe { constructor(key) { keys.push(key === undefined ? "<undefined>" : key); } }
+      class RecordingStripe { static createFetchHttpClient() { return {}; } constructor(key) { keys.push(key === undefined ? "<undefined>" : key); } }
       mock.module(${JSON.stringify(stripeEntry)}, { defaultExport: RecordingStripe });
       await import(${JSON.stringify(modulePath)});
       console.log("KEYS:" + JSON.stringify(keys));

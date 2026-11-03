@@ -27,7 +27,7 @@ import { reachableFromRegion } from '../providers/geo-availability';
 // The providers layer's own answer to "what is the worst USD/min this request
 // could be billed at", so the route never needs a provider's add-on eligibility
 // or an adapter's internal routing gate. See providers/reservation.ts.
-import { errorResponse } from '../lib/responses';
+import { errorResponse, sizeLimitFields, sizeLimitWords } from '../lib/responses';
 import { logEvent } from '../lib/logging';
 import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
@@ -439,9 +439,10 @@ async function handleTranscribe(c: Context) {
             actualBytes: error.actualBytes,
             maxBytes: error.maxBytes,
           });
+          const words = sizeLimitWords(error.actualBytes, error.maxBytes);
           return errorResponse(413, 'Audio too large for provider',
-            `${servedNameFor(current)} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
-            { requestId, provider: current, max_size_mb: Math.round(error.maxBytes / (1024 * 1024)), actual_size_mb: parseFloat((error.actualBytes / (1024 * 1024)).toFixed(2)) },
+            `${servedNameFor(current)} accepts at most ${words.max} inline. Your audio is ${words.actual}.`,
+            { requestId, provider: current, ...sizeLimitFields(error.actualBytes, error.maxBytes) },
           );
         }
         if (error instanceof UnsupportedAudioFormatError) {
