@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>ยังไม่มีอะไร เริ่มการบันทึกเพื่อดูข้อความปรากฏที่นี่</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} คำ · {1}</value>
+    <value>จำนวนคำ: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>แสดงที่นี่เท่านั้น — ไม่ได้วางลงในแอปอื่น</value>

@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Все още нищо. Започни запис, за да видиш текста тук.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} думи · {1}</value>
+    <value>Думи: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Показва се само тук — не се поставя в други приложения</value>

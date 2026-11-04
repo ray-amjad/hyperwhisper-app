@@ -2621,7 +2621,7 @@ Je kunt het later opnieuw downloaden.</value>
     <value>Nog niets. Start een opname om de tekst hier te zien verschijnen.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} woorden · {1}</value>
+    <value>Woorden: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Alleen hier weergegeven — niet geplakt in andere apps.</value>

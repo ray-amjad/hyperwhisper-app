@@ -2621,7 +2621,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Noch nichts. Starte eine Aufnahme, um den Text hier zu sehen.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} Wörter · {1}</value>
+    <value>Wörter: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Wird nur hier angezeigt — wird nicht in andere Apps eingefügt</value>

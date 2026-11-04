@@ -2641,7 +2641,7 @@ You can re-download it later.</value>
     <value>Nothing yet. Start a recording to see the text land here.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>Words: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Shown here only, not pasted into other apps</value>

@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Še nič. Začni snemanje, da vidiš besedilo tukaj.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} besed · {1}</value>
+    <value>Besede: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Prikazano samo tukaj — ni prilepljeno v druge aplikacije.</value>

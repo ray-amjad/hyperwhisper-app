@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Ei vielä mitään. Aloita tallennus nähdäksesi tekstin ilmestyvän tähän.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} sanaa · {1}</value>
+    <value>Sanoja: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Näytetään vain tässä — ei liitetä muihin sovelluksiin</value>

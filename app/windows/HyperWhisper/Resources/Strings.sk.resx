@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Zatiaľ nič. Spustite nahrávanie a text sa objaví tu.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} slov · {1}</value>
+    <value>Slová: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Zobrazené len tu — nevkladá sa do iných aplikácií.</value>
