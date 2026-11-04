@@ -790,16 +790,27 @@ async function pollOperation(
   startedAt: number,
   context: ProviderRequestContext,
 ): Promise<BatchOperationResponse> {
-  const response = await fetchWithTimeout(
-    provider,
-    url,
-    {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    },
-    context,
-    BATCH_POLL_FETCH_TIMEOUT_MS,
-  );
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      provider,
+      url,
+      {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      },
+      context,
+      BATCH_POLL_FETCH_TIMEOUT_MS,
+    );
+  } catch (error) {
+    // A network error or per-request timeout on ONE poll is as transient as a
+    // 5xx poll: the operation is already running and billed, so retry next
+    // tick until the deadline rather than abandoning it (#2923).
+    // fetchWithTimeout already logged the transport_error detail.
+    if (!(error instanceof ProviderUnavailableError)) throw error;
+    logProviderEvent(provider, 'batch_poll_transient', { kind: error.kind }, context);
+    return { done: false };
+  }
 
   if (!response.ok) {
     // 429 / 5xx on poll → retry next tick. Any other failure surfaces via
