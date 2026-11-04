@@ -748,7 +748,7 @@ if (Test-Path -LiteralPath $GatewayPath) {
 # SettingsService.SelectedModeId raised nothing, so the running app kept dictating
 # with the onboarding-staged Mode for the rest of the session. The restore path has
 # to be as loud as the apply path.
-$CommitterPath = Join-Path $AdaptersDir "OnboardingLiveDependencies.cs"
+$CommitterPath = Join-Path $AdaptersDir "LiveOnboardingSourceCommitter.cs"
 if (Test-Path -LiteralPath $CommitterPath) {
     $committerSource = Read-Text $CommitterPath
     $restoreIndex = $committerSource.IndexOf("public bool Restore(IOnboardingRestorePoint point)")
@@ -764,7 +764,7 @@ if (Test-Path -LiteralPath $CommitterPath) {
         Write-Fail "could not locate LiveOnboardingSourceCommitter.Restore in $(Get-RelativePath $CommitterPath)"
     }
 } else {
-    Write-Fail "OnboardingLiveDependencies.cs not found at $(Get-RelativePath $CommitterPath)"
+    Write-Fail "LiveOnboardingSourceCommitter.cs not found at $(Get-RelativePath $CommitterPath)"
 }
 
 if (Test-Path -LiteralPath $OnboardingWindowCode) {
@@ -1118,19 +1118,27 @@ if ((Test-Path -LiteralPath $ProviderEnumPath) -and (Test-Path -LiteralPath $Hea
         "and the health service reads it rather than hard-coding Meta a second time"
 }
 
-$CatalogAdapter = Join-Path $AdaptersDir "OnboardingLiveDependencies.cs"
+# #941 split the live adapters into one file each: the model shortlist and its
+# logo key live in LiveOnboardingModelCatalog.cs, the Mode rollback in
+# LiveOnboardingSourceCommitter.cs ($CommitterPath above).
+if (Test-Path -LiteralPath $CommitterPath) {
+    Assert-Wired (Read-Text $CommitterPath) "DeleteLeftNothingBehind" `
+        "the Mode rollback is judged on whether the row is gone, not on DeleteMode's three-way false"
+}
+
+$CatalogAdapter = Join-Path $AdaptersDir "LiveOnboardingModelCatalog.cs"
 if (Test-Path -LiteralPath $CatalogAdapter) {
     $adapterSource = Read-Text $CatalogAdapter
     Assert-Wired $adapterSource "PlatformHelper.SupportsParakeetTranscription" `
         "the on-device shortlist is filtered by the same predicate ModeService and ModelLibraryManager use"
-    Assert-Wired $adapterSource "DeleteLeftNothingBehind" `
-        "the Mode rollback is judged on whether the row is gone, not on DeleteMode's three-way false"
 
     if ($adapterSource.Contains("providerLocalParakeet")) {
         Write-Fail "the onboarding local-model row still uses providerLocalParakeet, which is not a file"
     } else {
         Write-Pass "the onboarding local-model row no longer names a logo that does not exist"
     }
+} else {
+    Write-Fail "LiveOnboardingModelCatalog.cs not found at $(Get-RelativePath $CatalogAdapter)"
 }
 
 # ===========================================================================
