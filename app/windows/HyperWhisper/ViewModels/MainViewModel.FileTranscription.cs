@@ -217,6 +217,14 @@ public partial class MainViewModel
             }
         }
 
+        // A Parakeet job counts as busy from before its load until it ends, so a Local API
+        // or History Retry idle reload waits instead of swapping the model it loads, or
+        // the one it is about to use after the WAV conversion (#1618). Disposed in the
+        // finally below; the using covers the early return.
+        using var parakeetJobLease = UsesLocalParakeet(mode)
+            ? _parakeetTranscriptionService.ReserveForJob()
+            : null;
+
         if (!await EnsureLocalProviderReadyForFileAsync(mode))
         {
             return;
@@ -507,6 +515,7 @@ public partial class MainViewModel
             var jobLeftResult = EndJobStatus();
 
             // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
+            parakeetJobLease?.Dispose();
             _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
@@ -528,6 +537,11 @@ public partial class MainViewModel
             Path.GetFullPath(pathForTranscription),
             Path.GetFullPath(historyPath),
             StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The mode transcribes on the local Parakeet daemon, as EnsureLocalProviderReadyForFileAsync reads it.</summary>
+    private static bool UsesLocalParakeet(Mode mode) =>
+        mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) != true
+        && mode.LocalEngine == "parakeet";
 
     internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
         sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
