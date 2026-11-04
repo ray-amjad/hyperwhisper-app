@@ -8,6 +8,11 @@
 //   credit_holds:<pool>         HASH  holdId -> held milli-credits
 //   credit_holds_expiry:<pool>  ZSET  holdId -> expiry (epoch ms)
 //
+// A provisional hold (`ReserveHoldRequest.provisional`) is stored in the same
+// hash and set under the field `p:<holdId>`, so the expiry sweep covers it and
+// a machine still on an older script counts it as an ordinary hold (stricter,
+// never looser).
+//
 // `<pool>` is the credit pool the key spends from: `pool:<credit_pool_id>` when
 // the licence API named one (credits belong to the USER, and one user can own
 // several keys, #2026), else the Account Key itself.
@@ -62,6 +67,15 @@ export interface ReserveHoldRequest {
   nowMs: number;
   /** How long the hold outlives this call if nothing releases or renews it. */
   ttlMs: number;
+  /**
+   * A provisional hold (#2483): taken before a request's exact cost is known,
+   * to bound how many requests one balance can have in flight. It is counted
+   * against every other hold, so it can only take what is truly free, but a
+   * firm hold never counts OTHER requests' provisional ones, so two requests
+   * each holding a provisional floor cannot starve each other's firm hold. A
+   * firm reservation on the same hold id replaces its provisional entry.
+   */
+  provisional?: boolean;
 }
 
 export interface ReserveHoldResult {
@@ -165,7 +179,7 @@ export function holdKeys(
 }
 
 // KEYS: holds hash, expiry zset, license cache, pool balance cache
-// ARGV: holdId, minMilli, maxMilli, balanceMilli, nowMs, ttlMs
+// ARGV: holdId, minMilli, maxMilli, balanceMilli, nowMs, ttlMs, provisional ('1'|'0')
 // Returns {granted 0|1, holdMilli, availableMilli}.
 //
 // The balance is the LOWEST of the caller's, the key's cached one and the
@@ -186,6 +200,8 @@ local maxMilli = tonumber(ARGV[3])
 local balance = tonumber(ARGV[4])
 local now = tonumber(ARGV[5])
 local ttl = tonumber(ARGV[6])
+local provisional = ARGV[7] == '1'
+local provisionalId = 'p:' .. holdId
 
 local expired = redis.call('ZRANGEBYSCORE', expiry, '-inf', now)
 for i = 1, #expired do
@@ -206,13 +222,19 @@ for k = 3, 4 do
   end
 end
 
+-- A firm hold counts only other firm holds; a provisional one counts them all.
 local own = 0
+local ownProvisional = 0
 local others = 0
 local entries = redis.call('HGETALL', holds)
 for i = 1, #entries, 2 do
+  local field = entries[i]
   local amount = tonumber(entries[i + 1]) or 0
-  if entries[i] == holdId then own = amount else others = others + amount end
+  if field == holdId then own = amount
+  elseif field == provisionalId then ownProvisional = amount
+  elseif provisional or string.sub(field, 1, 2) ~= 'p:' then others = others + amount end
 end
+if own == 0 then own = ownProvisional end
 
 local available = balance - others
 if available < 0 then available = 0 end
@@ -224,18 +246,25 @@ if grant < minMilli or grant <= 0 then
   return {0, own, available}
 end
 
-redis.call('HSET', holds, holdId, grant)
-redis.call('ZADD', expiry, now + ttl, holdId)
+local field = holdId
+if provisional then
+  field = provisionalId
+else
+  redis.call('HDEL', holds, provisionalId)
+  redis.call('ZREM', expiry, provisionalId)
+end
+redis.call('HSET', holds, field, grant)
+redis.call('ZADD', expiry, now + ttl, field)
 local keyTtl = math.ceil(ttl / 1000) + 60
 if redis.call('TTL', holds) < keyTtl then redis.call('EXPIRE', holds, keyTtl) end
 if redis.call('TTL', expiry) < keyTtl then redis.call('EXPIRE', expiry, keyTtl) end
 return {1, grant, available}
 `;
 
-// KEYS: holds hash, expiry zset. ARGV: holdId.
+// KEYS: holds hash, expiry zset. ARGV: holdId. Frees its provisional entry too.
 export const RELEASE_HOLD_SCRIPT = `
-redis.call('HDEL', KEYS[1], ARGV[1])
-redis.call('ZREM', KEYS[2], ARGV[1])
+redis.call('HDEL', KEYS[1], ARGV[1], 'p:' .. ARGV[1])
+redis.call('ZREM', KEYS[2], ARGV[1], 'p:' .. ARGV[1])
 return 1
 `;
 
@@ -273,6 +302,7 @@ export function createUpstashCreditHoldStore(client: () => EvalClient): CreditHo
           String(Math.round(request.balanceMilli)),
           String(Math.round(request.nowMs)),
           String(Math.round(request.ttlMs)),
+          request.provisional ? '1' : '0',
         ],
       );
       return parseReserveReply(reply);

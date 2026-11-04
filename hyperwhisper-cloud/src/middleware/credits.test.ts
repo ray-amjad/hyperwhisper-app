@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import {
-  BYTES_PER_MINUTE_ESTIMATE,
   CREDITS_PER_MINUTE,
   DEFAULT_API_BASE_URL,
+  RESERVATION_FALLBACK_BYTES_PER_SECOND,
 } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
@@ -122,21 +122,32 @@ afterEach(async () => {
   restoreLicenseApiUrl();
 });
 
+// One minute at the size-only reservation rate (8 kbps).
+const ONE_MINUTE_BYTES = 60 * RESERVATION_FALLBACK_BYTES_PER_SECOND;
+
 describe('estimateAudioSecondsFromSize', () => {
-  test('converts bytes to seconds using the encoded-bitrate estimate', () => {
-    expect(estimateAudioSecondsFromSize(BYTES_PER_MINUTE_ESTIMATE)).toBe(60);
-    expect(estimateAudioSecondsFromSize(BYTES_PER_MINUTE_ESTIMATE / 2)).toBe(30);
+  test('converts bytes to seconds at the 8 kbps reservation rate', () => {
+    expect(estimateAudioSecondsFromSize(ONE_MINUTE_BYTES)).toBe(60);
+    expect(estimateAudioSecondsFromSize(ONE_MINUTE_BYTES / 2)).toBe(30);
   });
 
   test('floors at the 10-second minimum for tiny or zero uploads', () => {
     expect(estimateAudioSecondsFromSize(0)).toBe(10);
     expect(estimateAudioSecondsFromSize(1_000)).toBe(10);
   });
+
+  // #2483: at the old 64 kbps an hour of 8 kbps Opus (3.6 MB) reserved 450 s,
+  // so a 30-credit balance passed the preflight for ~100 credits of audio.
+  test('an hour of 8 kbps audio is estimated as at least an hour', () => {
+    const oneHourAt8kbps = (8_000 / 8) * 3600;
+    expect(estimateAudioSecondsFromSize(oneHourAt8kbps)).toBeGreaterThanOrEqual(3600);
+    expect(estimateCreditsFromSize(oneHourAt8kbps)).toBeGreaterThanOrEqual(60 * CREDITS_PER_MINUTE);
+  });
 });
 
 describe('estimateCreditsFromSize', () => {
   test('applies the default-route per-minute rate by default', () => {
-    const estimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
+    const estimate = estimateCreditsFromSize(ONE_MINUTE_BYTES);
     // One minute at CREDITS_PER_MINUTE (1.67), rounded up to a tenth like every estimate.
     expect(estimate).toBe(Math.ceil(CREDITS_PER_MINUTE * 10) / 10);
     expect(estimate).toBe(1.7);
@@ -148,7 +159,7 @@ describe('estimateCreditsFromSize', () => {
 
   test('when cost estimators are provided, bills off the most expensive fallback provider', () => {
     // Sized so estimateAudioSecondsFromSize resolves to exactly 100s (well above the 10s floor).
-    const sizeBytes = (100 / 60) * BYTES_PER_MINUTE_ESTIMATE;
+    const sizeBytes = 100 * RESERVATION_FALLBACK_BYTES_PER_SECOND;
     const cheapEstimator = (durationSeconds: number) => 0.001 * durationSeconds;
     const expensiveEstimator = (durationSeconds: number) => 0.01 * durationSeconds;
 
@@ -160,8 +171,8 @@ describe('estimateCreditsFromSize', () => {
   });
 
   test('ignores an empty costEstimators list and falls back to the default-route rate', () => {
-    const withEmptyList = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE, { costEstimators: [] });
-    const withNoOptions = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
+    const withEmptyList = estimateCreditsFromSize(ONE_MINUTE_BYTES, { costEstimators: [] });
+    const withNoOptions = estimateCreditsFromSize(ONE_MINUTE_BYTES);
     expect(withEmptyList).toBe(withNoOptions);
   });
 });

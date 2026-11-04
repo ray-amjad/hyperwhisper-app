@@ -16,7 +16,7 @@ interface MemoryHold {
 }
 
 export interface MemoryCreditHoldStore extends CreditHoldStore {
-  /** Live holds on one account, by id, in milli-credits. */
+  /** Live holds on one account, by id (a provisional one as `p:<id>`), in milli-credits. */
   holds(account: string): Map<string, number>;
   /** Sum of live holds on one account, in milli-credits. */
   outstandingMilli(account: string): number;
@@ -65,12 +65,17 @@ export function createMemoryCreditHoldStore(
         if (cached < balance) balance = cached;
       }
 
+      // A firm hold counts only other firm holds; a provisional one counts them all.
+      const provisionalId = `p:${request.holdId}`;
       let own = 0;
+      let ownProvisional = 0;
       let others = 0;
       for (const [id, hold] of holds) {
         if (id === request.holdId) own = hold.milli;
-        else others += hold.milli;
+        else if (id === provisionalId) ownProvisional = hold.milli;
+        else if (request.provisional || !id.startsWith('p:')) others += hold.milli;
       }
+      if (own === 0) own = ownProvisional;
 
       let available = Math.max(0, balance - others);
       available -= available % 100;
@@ -79,12 +84,14 @@ export function createMemoryCreditHoldStore(
       if (grant < request.minMilli || grant <= 0) {
         return { granted: false, holdMilli: own, availableMilli: available };
       }
-      holds.set(request.holdId, { milli: grant, expiresAtMs: request.nowMs + request.ttlMs });
+      if (!request.provisional) holds.delete(provisionalId);
+      holds.set(request.provisional ? provisionalId : request.holdId, { milli: grant, expiresAtMs: request.nowMs + request.ttlMs });
       return { granted: true, holdMilli: grant, availableMilli: available };
     },
     async release(account: string, holdId: string): Promise<void> {
       calls.push({ op: 'release', account, holdId });
       accounts.get(account)?.delete(holdId);
+      accounts.get(account)?.delete(`p:${holdId}`);
     },
     holds(account: string): Map<string, number> {
       return new Map([...(accounts.get(account) ?? new Map<string, MemoryHold>())].map(([id, hold]) => [id, hold.milli]));
