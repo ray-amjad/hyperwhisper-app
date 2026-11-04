@@ -24,6 +24,15 @@ public sealed partial class StreamingTranscriptionClient : IStreamingTranscripti
 {
     private const int ReceiveBufferSize = 8192;
     private const int MaxReconnectAttempts = 3;
+    // Session-wide cap on SUCCESSFUL reconnects with no transcript frame between them (issue
+    // #2784). MaxReconnectAttempts restarts with every reconnect that lands, so a server that
+    // accepts each upgrade and then drops it would otherwise be reconnected forever. Any
+    // transcript frame (even empty text, which proves the server is processing audio) resets
+    // the count, so this only bounds a run of dead connections. 5 is deliberately lenient: a
+    // user pausing in silence on a flaky network can lose several connections before speaking
+    // again, while a server that drops every connection still ends in Error after 6
+    // connections (1 + 5 reconnects, about 2.5 s of first-attempt backoff).
+    private const int MaxReconnectsWithoutTranscript = 5;
     private static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IStreamingProviderStrategy _strategy;
@@ -39,6 +48,10 @@ public sealed partial class StreamingTranscriptionClient : IStreamingTranscripti
     private TaskCompletionSource? _sessionStartedTcs;
     private TaskCompletionSource? _sessionCompletedTcs;
     private bool _receivedTerminalClose;
+    // Reconnects since the last transcript frame (see MaxReconnectsWithoutTranscript). A plain
+    // int: StartAsync writes it before the receive loop starts, and after that only the
+    // receive-loop task (ReceiveLoopAsync, TryReconnectAsync) reads or writes it.
+    private int _reconnectsWithoutTranscript;
     private bool _disposed;
     // Set only by the synchronous Dispose() path. When true, every event raise is suppressed so
     // teardown cannot re-enter the calling thread via a subscriber that marshals back to it with a
@@ -84,6 +97,7 @@ public sealed partial class StreamingTranscriptionClient : IStreamingTranscripti
         ClearFinalTranscript();
         CurrentPartial = string.Empty;
         _receivedTerminalClose = false;
+        _reconnectsWithoutTranscript = 0;
         _sessionStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _sessionCompletedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
