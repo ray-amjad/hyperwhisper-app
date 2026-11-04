@@ -2,37 +2,6 @@
 
 @config "../tailwind.config.js";
 
-/* Custom animations */
-@keyframes scroll {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes scroll-x {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-/* Animation classes */
-.animate-scroll {
-  animation: scroll 2s ease-in-out infinite;
-}
-
-.animate-scroll-x {
-  animation: scroll-x 30s linear infinite;
-}
-
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
@@ -81,16 +50,11 @@ body {
   background: rgba(128, 128, 128, 0.7);
 }
 
-/* Honour the OS "Reduce motion" setting (#701): no smooth scroll, no looping
-   decorative keyframes, and every other CSS animation/transition ends at once. */
+/* Honour the OS "Reduce motion" setting (#701): no smooth scroll, and every
+   CSS animation/transition ends at once. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-
-  .animate-scroll,
-  .animate-scroll-x {
-    animation: none;
   }
 }
 
@@ -99,7 +63,7 @@ body {
    later one, and any layer beats unlayered CSS. Tailwind declares
    "theme, base, components, utilities", so HeroUI's !duration-* utilities
    (@layer utilities, !important) beat an unlayered guard but lose to this one.
-   The two normal rules above stay unlayered, where a normal rule wins. */
+   The normal rule above stays unlayered, where a normal rule wins. */
 @layer base {
   @media (prefers-reduced-motion: reduce) {
     *,
