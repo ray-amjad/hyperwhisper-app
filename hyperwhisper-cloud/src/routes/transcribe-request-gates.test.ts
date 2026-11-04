@@ -288,6 +288,9 @@ describe('transcribeRoute request gates', () => {
 
       expect(status).toBe(400);
       expect(body.error).toBe('Invalid Dictation options');
+      // #1290: the same message the route built from the vendor error before
+      // the check moved behind providers/request-options.ts.
+      expect(body.message).toBe('AssemblyAI Dictation rejected input (400): Select an explicit supported language instead of Auto for Dictation.');
       expect(providerCalls).toEqual([]);
 
       const rejections = logSpy.mock.calls
@@ -301,6 +304,28 @@ describe('transcribeRoute request gates', () => {
         hasDomain: false,
       });
       expect(JSON.stringify(rejections[0])).not.toContain('test-account-key');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  // #1290: the option rule moved behind providers/request-options.ts. A
+  // Dictation request with no language at all still gets today's 400, title
+  // and message unchanged, before any provider is called.
+  test('a Dictation request with no language param gets the same 400 title and message', async () => {
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const { status, body } = await send(gateRequest({
+        query: '?account_key=test-account-key',
+        headers: { 'X-STT-Provider': 'assemblyai', 'X-STT-Model': 'dictation' },
+      }));
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        error: 'Invalid Dictation options',
+        message: 'AssemblyAI Dictation rejected input (400): Select an explicit supported language instead of Auto for Dictation.',
+      });
+      expect(providerCalls).toEqual([]);
     } finally {
       logSpy.mockRestore();
     }
