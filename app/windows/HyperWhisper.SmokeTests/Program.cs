@@ -1297,6 +1297,7 @@ internal static class Program
                     !debugEvidence.Contains("private-user", StringComparison.Ordinal),
                     "exception content entered the debug evidence");
             });
+            ReconcileClassificationChecks.RunAll(Run);
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
