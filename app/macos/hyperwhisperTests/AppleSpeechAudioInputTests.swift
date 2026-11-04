@@ -23,8 +23,6 @@ import os
 
 struct AppleSpeechAudioInputTests {
 
-    private struct FixtureError: Error {}
-
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "AppleSpeechAudioInputTests")
 
     // MARK: - Fixtures
@@ -36,31 +34,7 @@ struct AppleSpeechAudioInputTests {
 
     /// A real mono 16-bit PCM WAV holding a 440 Hz tone, closed on return.
     private func writeToneWAV(frames: AVAudioFrameCount) throws -> URL {
-        let url = temporaryURL()
-        let sampleRate = 16000.0
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        // The scope releases the writer, which is what finalises the RIFF
-        // header (AVAudioFile.close() is macOS 15 only).
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames),
-                  let channel = buffer.floatChannelData?[0] else {
-                throw FixtureError()
-            }
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(to: temporaryURL(), frames: frames)
     }
 
     private func expectRefusedAsInvalidAudioFormat(_ url: URL, _ label: String) {
