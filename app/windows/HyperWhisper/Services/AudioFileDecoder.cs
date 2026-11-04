@@ -256,10 +256,11 @@ internal sealed class MonoFoldSampleProvider : ISampleProvider
         }
 
         var required = count * _channels;
-        if (_sourceBuffer.Length < required)
+        if (_sourceBuffer.Length < required + _channels)
         {
             // Resize, not reallocate: the carried partial frame lives at the start of it.
-            Array.Resize(ref _sourceBuffer, required);
+            // One frame of headroom: every request is rounded up to whole frames (below).
+            Array.Resize(ref _sourceBuffer, required + _channels);
         }
 
         // Returning fewer than `count` frames is legal; returning 0 while the source still
@@ -270,7 +271,12 @@ internal sealed class MonoFoldSampleProvider : ISampleProvider
         var available = _pending;
         while (available < _channels)
         {
-            var read = _source.Read(_sourceBuffer, available, required - available);
+            // Ask in whole frames: WaveFileReader throws "Must read complete blocks" on any
+            // other count, and after a carried partial frame (a data chunk that ends
+            // mid-frame) required - available is not one. Fewer than count + 1 frames are
+            // ever available, so at most `count` whole frames come out.
+            var want = (required - available + _channels - 1) / _channels * _channels;
+            var read = _source.Read(_sourceBuffer, available, want);
             if (read <= 0)
             {
                 break;
