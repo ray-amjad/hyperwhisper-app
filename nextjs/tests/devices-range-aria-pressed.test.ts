@@ -27,11 +27,11 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
       admin: {
         devices: {
           list: {
-            useQuery: (input: { days: number }) => {
+            useInfiniteQuery: (input: { days: number }) => {
               queryInputs.push(input);
 
               return {
-                data: { devices: [] },
+                data: { pages: [{ devices: [], total: 0, nextCursor: null }] },
                 isLoading: false,
                 error: null,
                 refetch: () => undefined,

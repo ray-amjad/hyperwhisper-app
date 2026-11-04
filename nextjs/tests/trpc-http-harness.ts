@@ -116,11 +116,25 @@ function unexpectedDb(name: string) {
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
-    getDeviceCountsPerLicense: async (sinceDays?: number) => {
+    // A fake of the #1948 page: `search` keeps the rows whose email or key
+    // holds it (any case), then `offset` / `limit` slice what is left.
+    getDeviceCountsPerLicense: async (
+      sinceDays?: number,
+      page: { limit?: number; offset?: number; search?: string } = {},
+    ) => {
       calls.deviceCounts.push(sinceDays);
       if (behaviour.dbError) throw behaviour.dbError;
-      return behaviour.deviceCounts;
+      const needle = page.search?.trim().toLowerCase() ?? "";
+      const matched = behaviour.deviceCounts.filter((r) =>
+        `${r.email}\n${r.licenseKey}`.toLowerCase().includes(needle),
+      );
+      const offset = page.offset ?? 0;
+      return {
+        rows: matched.slice(offset, offset + (page.limit ?? matched.length)),
+        total: matched.length,
+      };
     },
+    ACCOUNT_KEYS_PAGE_SIZE: 50,
     DEVICES_PAGE_SIZE: 50,
     getDevicesForLicense: async (
       licenseKeyId: string,

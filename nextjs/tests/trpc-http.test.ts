@@ -208,7 +208,12 @@ describe("admin.devices.list", () => {
 
     assert.equal(result.status, 200);
     assert.deepEqual(calls.deviceCounts, [30]);
-    assert.deepEqual(result.data, { devices: behaviour.deviceCounts, days: 30 });
+    assert.deepEqual(result.data, {
+      devices: behaviour.deviceCounts,
+      total: 1,
+      nextCursor: null,
+      days: 30,
+    });
   });
 
   test("passes an explicit window through and echoes it back", async () => {
@@ -216,8 +221,63 @@ describe("admin.devices.list", () => {
 
     assert.equal(result.status, 200);
     assert.deepEqual(calls.deviceCounts, [7]);
-    assert.deepEqual(result.data, { devices: [], days: 7 });
+    assert.deepEqual(result.data, { devices: [], total: 0, nextCursor: null, days: 7 });
   });
+
+  // #1948: the table asks for one page of keys at a time.
+  function seedKeys(n: number) {
+    behaviour.deviceCounts = Array.from({ length: n }, (_, i) => ({
+      licenseKeyId: `key-${i}`,
+      email: `buyer${i}@example.com`,
+      licenseKey: `HW-FAKE-${String(i).padStart(4, "0")}`,
+      deviceCount: 1,
+    }));
+  }
+
+  test("pages 50 keys by default and points nextCursor at the next page", async () => {
+    seedKeys(120);
+
+    const first = await httpQuery("admin.devices.list", { days: 30 });
+    const data = first.data as { devices: unknown[]; total: number; nextCursor: number | null };
+    assert.equal(first.status, 200);
+    assert.equal(data.devices.length, 50);
+    assert.equal(data.total, 120);
+    assert.equal(data.nextCursor, 50);
+
+    const last = await httpQuery("admin.devices.list", { days: 30, cursor: 100 });
+    const lastData = last.data as typeof data;
+    assert.equal(lastData.devices.length, 20);
+    assert.equal(lastData.nextCursor, null);
+  });
+
+  test("passes limit and search through, and the total counts the matches", async () => {
+    seedKeys(30);
+
+    const result = await httpQuery("admin.devices.list", {
+      days: 30,
+      search: "BUYER1",
+      limit: 5,
+    });
+    const data = result.data as { devices: Array<{ licenseKeyId: string }>; total: number; nextCursor: number | null };
+    assert.equal(result.status, 200);
+    // buyer1, buyer10 to buyer19: 11 matches, the first 5 on this page.
+    assert.equal(data.total, 11);
+    assert.deepEqual(
+      data.devices.map((d) => d.licenseKeyId),
+      ["key-1", "key-10", "key-11", "key-12", "key-13"],
+    );
+    assert.equal(data.nextCursor, 5);
+  });
+
+  for (const input of [{ limit: 0 }, { limit: 101 }, { cursor: -1 }, { search: "x".repeat(201) }]) {
+    test(`refuses ${JSON.stringify(input).slice(0, 40)} before it reaches the database`, async () => {
+      const result = await httpQuery("admin.devices.list", input);
+
+      assert.equal(result.status, 400);
+      assert.equal(result.error?.data.code, "BAD_REQUEST");
+      assert.deepEqual(calls.deviceCounts, []);
+    });
+  }
 
   for (const days of [0, -5]) {
     test(`refuses a window of ${days} days before it reaches the database`, async () => {
