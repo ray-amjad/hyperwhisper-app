@@ -10,13 +10,18 @@ import {
   jsonResponse,
   licenseRequiredResponse,
   missingContentLengthResponse,
+  sizeLimitFields,
   sizeLimitWords,
 } from './responses';
 import {
+  AZURE_MAI_MAX_BYTES,
+  BYTES_PER_MINUTE_ESTIMATE,
   CREDITS_PER_MINUTE,
   GEMINI_INLINE_MAX_BYTES,
+  GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   MAX_AUDIO_SIZE_BYTES,
+  META_MUSE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
 } from './constants';
 
@@ -193,6 +198,45 @@ describe('size refusals', () => {
       const body = await bodyOf(fileTooLargeResponse(maxBytes + 1, maxBytes));
 
       expect((body['max_size_mb'] as number) * MB).toBeLessThanOrEqual(maxBytes);
+    }
+  });
+});
+
+// #2704: the provider adapters throw AudioTooLargeError with their own cap, and
+// routes/transcribe.ts sends `sizeLimitFields` of it. Every cap an adapter
+// throws with, in bytes. Soniox's is private to providers/soniox.ts
+// (`SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE`), so it is restated.
+const SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE;
+const ADAPTER_CAPS: Record<string, number> = {
+  'Azure MAI': AZURE_MAI_MAX_BYTES,
+  Gemini: GEMINI_INLINE_MAX_BYTES,
+  'Gemini 3.5 Transcribe': GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
+  'Google Chirp': GOOGLE_CHIRP_INLINE_MAX_BYTES,
+  'Meta Muse': META_MUSE_MAX_BYTES,
+  OpenAI: OPENAI_INLINE_MAX_BYTES,
+  Soniox: SONIOX_MAX_BYTES,
+};
+
+describe('adapter 413s never advertise more than they enforce (#2704)', () => {
+  test('Soniox 14.4 MB cap reads back as 13 MiB, not 14', () => {
+    expect(SONIOX_MAX_BYTES).toBe(14_400_000);
+    expect(sizeLimitFields(15_000_000, SONIOX_MAX_BYTES).max_size_mb).toBe(13);
+  });
+
+  for (const [provider, maxBytes] of Object.entries(ADAPTER_CAPS)) {
+    test(`${provider}: max_size_mb × 1_048_576 ≤ ${maxBytes}`, () => {
+      const { max_size_mb } = sizeLimitFields(maxBytes + 1, maxBytes);
+
+      expect(Number.isInteger(max_size_mb)).toBe(true);
+      // 0 reads as "no limit known" on both clients, so a real cap never says 0.
+      expect(max_size_mb).toBeGreaterThan(0);
+      expect(max_size_mb * MB).toBeLessThanOrEqual(maxBytes);
+    });
+  }
+
+  test('a whole-MiB cap is unchanged by rounding down', () => {
+    for (const maxBytes of [MAX_AUDIO_SIZE_BYTES, OPENAI_INLINE_MAX_BYTES, AZURE_MAI_MAX_BYTES, META_MUSE_MAX_BYTES]) {
+      expect(sizeLimitFields(maxBytes + 1, maxBytes).max_size_mb).toBe(maxBytes / MB);
     }
   });
 });
