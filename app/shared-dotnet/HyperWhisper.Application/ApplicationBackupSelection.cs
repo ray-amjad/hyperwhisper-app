@@ -265,6 +265,12 @@ public sealed partial class ApplicationBackupService
             var existing = current.FirstOrDefault(candidate => string.Equals(candidate.Word, item.Word, StringComparison.OrdinalIgnoreCase));
             if (existing is null)
             {
+                // A word renamed since the export keeps its row id (UpsertAsync matches by id), so
+                // the backup's old spelling can carry an id that is already a row. Re-adding that id
+                // threw an EF identity conflict and rolled back the whole import (#2929). The old
+                // word comes back as a new row with a fresh id, as Windows inserts every new word;
+                // the renamed row is left as the user edited it.
+                if (current.Any(candidate => candidate.Id == item.Id)) item.Id = Guid.NewGuid();
                 context.Add(item);
                 current.Add(item);
             }
