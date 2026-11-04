@@ -322,6 +322,25 @@ public sealed partial class ModesViewModel
     public void RestoreEditorState(ModeEditorSnapshot state)
     {
         ArgumentNullException.ThrowIfNull(state);
+        // The captured mode can be gone: another writer deleted it while the editor was open, and a
+        // save or delete refused as modes.not_found reloaded Items without it (issues #2748, #2667).
+        // Putting it back would select a mode no card shows, and the page would read "Mode: None"
+        // while settings name the fallback. Fall back as after a delete instead, with the fallback's
+        // own values in the editor; nothing the snapshot holds belongs to that mode.
+        if (state.Selected is { } captured && Items.All(item => item.Id != captured.Id))
+        {
+            var fallback = FallbackSelection();
+            if (ReferenceEquals(_selected, fallback))
+            {
+                // The setter would short-circuit, so reload the fields and persist explicitly.
+                ReloadSelected();
+                if (fallback is not null) PersistSelectedMode(fallback.Id);
+            }
+            else Selected = fallback;
+            IsCreating = false;
+            Notify(nameof(IsDefaultModeSelected));
+            return;
+        }
         // A Cancel puts back values the user already had; it is not a user picking a new vendor,
         // so the same flag LoadEditorFrom sets holds NormalizeCloudModel off for the whole restore.
         // Without it the CloudProvider assignment below would move the model onto the restored
