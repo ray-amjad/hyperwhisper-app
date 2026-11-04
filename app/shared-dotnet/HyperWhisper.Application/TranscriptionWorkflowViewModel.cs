@@ -240,9 +240,11 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             }
             if (imported is null) return;
             if (imported.IsFailure) { ReportInputFailure(imported.Error!.Code, imported.Error.Message); return; }
+            // FilePath keeps the user's own file. The imported copy is the workflow's to delete
+            // on failure, so writing its path here made a retry fail with "no longer exists"
+            // (issue #2911).
             path = imported.Value!;
             ownsImportedAudio = true;
-            FilePath = path;
         }
         _ = ownsImportedAudio
             ? await _workflow.TranscribeOwnedFileAsync(path, request, cancellationToken)
