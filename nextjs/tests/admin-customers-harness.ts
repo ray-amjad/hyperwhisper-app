@@ -28,6 +28,7 @@ import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { moduleMock, moduleUrl } from "./module-mock";
 
 export type LicenseWithCredits = AccountKeyRow & { credits: number };
@@ -100,23 +101,13 @@ export const behaviour = {
   paymentIntent: "pi_1" as string | { id: string } | null,
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "11111111-1111-4111-8111-111111111111",
-    key: "HW-FAKE-0000-0001",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "active",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  id: "11111111-1111-4111-8111-111111111111",
+  key: "HW-FAKE-0000-0001",
+  // Production writes account keys as "granted"; "active" is a credit-grant
+  // status. Kept here so the admin tests keep their exact data (#1086).
+  status: "active",
+});
 
 export function licenseRow(
   overrides: Partial<LicenseWithCredits> = {},
