@@ -4,13 +4,16 @@ import LatencyMatrix from "@/components/latency/LatencyMatrix";
 import { getAllLatencyMatrices } from "@/src/content/latency";
 import { DEFAULT_BUCKET, WINDOW_DAYS } from "@/lib/latency/types";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
+import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { WRAP } from "@/components/landing/dusk";
+import { GLASS, LABEL, SECTION } from "@/components/landing/dusk-pages";
+import Reveal from "@/components/landing/Reveal";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
 
 const TITLE = "Speech-to-text latency, measured";
-const DESCRIPTION =
-  `How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region and by model, over the last ${WINDOW_DAYS} days.`;
+const DESCRIPTION = `How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region and by model, over the last ${WINDOW_DAYS} days.`;
 
 // #815: the English-only check runs here too. A notFound() thrown only from the
 // page left this English metadata (and the layout's "index, follow") in the RSC
@@ -18,6 +21,7 @@ const DESCRIPTION =
 // resolves the [locale] 404's metadata instead.
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }
@@ -43,6 +47,7 @@ type Props = {
  */
 export default async function LatencyPage({ params }: Props) {
   const { locale } = await params;
+
   if (locale !== "en") {
     notFound();
   }
@@ -54,126 +59,145 @@ export default async function LatencyPage({ params }: Props) {
   );
 
   return (
-    <div className="w-full py-16 md:py-24">
-      <header className="mx-auto max-w-3xl text-center">
-        <h1 className="text-4xl font-bold text-white md:text-5xl">{TITLE}</h1>
-        <p className="mx-auto mt-6 text-lg text-gray-400">
-          Every transcription we run times the provider that answered it. These
-          are those timings — {totalSamples.toLocaleString()} provider attempts
-          over the last {WINDOW_DAYS} days, grouped by the region that made the
-          call.
-        </p>
-      </header>
+    <DuskPage>
+      <PageHero
+        eyebrow="Latency"
+        lead={
+          <>
+            Every transcription we run times the provider that answered it.
+            These are those timings — {totalSamples.toLocaleString()} provider
+            attempts over the last {WINDOW_DAYS} days, grouped by the region
+            that made the call.
+          </>
+        }
+        sky="night"
+        title={TITLE}
+      />
 
-      <LatencyMatrix defaultBucket={DEFAULT_BUCKET} matrices={matrices} />
-
-      <section className="mx-auto mt-16 max-w-3xl border-t border-gray-800 pt-10">
-        <h2 className="text-xl font-semibold text-white">How this is measured</h2>
-        <dl className="mt-6 space-y-6 text-sm leading-6 text-gray-400">
-          <div>
-            <dt className="font-medium text-gray-200">What the number is</dt>
-            <dd className="mt-1">
-              The time one provider took to answer one call, measured at the edge
-              machine that made it — everything that attempt spent, including
-              handing the audio to the provider and waiting on a long-running
-              job. Your upload to us, authentication, and our own credit checks
-              are excluded. So is the network between you and us — this is the
-              provider&apos;s time, not your round trip.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">Failed attempts count</dt>
-            <dd className="mt-1">
-              A provider that times out still spent your time, so its attempt is
-              in the latency numbers. When one provider fails we fall back to
-              another, and both attempts are recorded separately. The error-rate
-              metric shows how often that happens. What is never counted is a
-              request we turn away ourselves before calling anyone — audio past
-              a provider&apos;s size cap, or in a format it does not accept:
-              that provider never received the call, so it is not charged for it
-              here.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">
-              A row is a provider, until you open it
-            </dt>
-            <dd className="mt-1">
-              Most of these providers offer several models, and HyperWhisper
-              lets you pin the one you want. A provider row covers whichever
-              model of that provider actually ran — its default for most people,
-              plus whatever anyone else picked — so read it as &ldquo;how fast
-              this provider answers us&rdquo;. <span className="text-gray-200">Break
-              down by model</span> splits each one into its models. Those rows
-              count only the attempts that ran on that model, so they fill in
-              more slowly and a young model may show nothing but dashes for a
-              while.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">
-              The names match the app
-            </dt>
-            <dd className="mt-1">
-              Provider and model names here are the same ones the app&apos;s
-              Provider and Model menus show, read from the same shared catalog.
-              Google covers both Chirp and Gemini in one row, exactly as the app
-              does — the model you pick under it is what decides which of the two
-              runs.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">Why clip length matters</dt>
-            <dd className="mt-1">
-              Longer audio takes longer to transcribe, so comparing a provider
-              handed 5-second clips against one handed 5-minute files would say
-              nothing. Every cell compares clips of similar length, grouped by
-              an estimate taken from the audio&apos;s size and format — the same
-              estimate for every provider, so no cell is flattered by a provider
-              that measures its own audio differently.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">What it covers</dt>
-            <dd className="mt-1">
-              The batch transcription endpoint. Live streaming transcription is
-              not measured here.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">What we store</dt>
-            <dd className="mt-1">
-              A timing row carries the provider, the model, the region, which
-              clip-length group the audio fell in, which attempt in the chain it
-              was, and whether the call worked. It carries no account, no key,
-              no request id, and no audio or text. The clip&apos;s own length is
-              not kept, and the timestamp is stored only to the hour, so nothing
-              ties a row to a person or reassembles one transcription.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">Who is counted</dt>
-            <dd className="mt-1">
-              Only the HyperWhisper apps, from the versions that carry the
-              setting below — macOS 2.43.0 and Windows 1.10.0 onward. Sharing is
-              on by default, and a default is only fair if you could have
-              changed it, so builds that shipped before the setting existed are
-              not measured at all. Neither is anything calling the API directly.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-200">How to opt out</dt>
-            <dd className="mt-1">
-              In the HyperWhisper app, turn off{" "}
-              <span className="text-gray-200">Share anonymous speed data</span>{" "}
-              under Settings → General. Your transcriptions work exactly the
-              same — the same providers, the same speed, the same result — we
-              just stop keeping the timing. Local models never send a timing at
-              all.
-            </dd>
-          </div>
-        </dl>
+      <section className={`${WRAP} ${SECTION}`}>
+        <LatencyMatrix defaultBucket={DEFAULT_BUCKET} matrices={matrices} />
       </section>
-    </div>
+
+      <section className={`${WRAP} pb-20 md:pb-[110px]`}>
+        <Reveal className="mx-auto max-w-[900px]">
+          <p className={LABEL}>Method</p>
+          <h2 className="mt-2.5 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-white md:text-[34px]">
+            How this is measured
+          </h2>
+          <dl
+            className={`mt-6 divide-y divide-[var(--dusk-line)] text-[15px] leading-[1.65] text-[var(--dusk-mute)] ${GLASS}`}
+          >
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">What the number is</dt>
+              <dd className="mt-1">
+                The time one provider took to answer one call, measured at the
+                edge machine that made it — everything that attempt spent,
+                including handing the audio to the provider and waiting on a
+                long-running job. Your upload to us, authentication, and our own
+                credit checks are excluded. So is the network between you and us
+                — this is the provider&apos;s time, not your round trip.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">
+                Failed attempts count
+              </dt>
+              <dd className="mt-1">
+                A provider that times out still spent your time, so its attempt
+                is in the latency numbers. When one provider fails we fall back
+                to another, and both attempts are recorded separately. The
+                error-rate metric shows how often that happens. What is never
+                counted is a request we turn away ourselves before calling
+                anyone — audio past a provider&apos;s size cap, or in a format
+                it does not accept: that provider never received the call, so it
+                is not charged for it here.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">
+                A row is a provider, until you open it
+              </dt>
+              <dd className="mt-1">
+                Most of these providers offer several models, and HyperWhisper
+                lets you pin the one you want. A provider row covers whichever
+                model of that provider actually ran — its default for most
+                people, plus whatever anyone else picked — so read it as
+                &ldquo;how fast this provider answers us&rdquo;.{" "}
+                <span className="text-white">Break down by model</span> splits
+                each one into its models. Those rows count only the attempts
+                that ran on that model, so they fill in more slowly and a young
+                model may show nothing but dashes for a while.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">
+                The names match the app
+              </dt>
+              <dd className="mt-1">
+                Provider and model names here are the same ones the app&apos;s
+                Provider and Model menus show, read from the same shared
+                catalog. Google covers both Chirp and Gemini in one row, exactly
+                as the app does — the model you pick under it is what decides
+                which of the two runs.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">
+                Why clip length matters
+              </dt>
+              <dd className="mt-1">
+                Longer audio takes longer to transcribe, so comparing a provider
+                handed 5-second clips against one handed 5-minute files would
+                say nothing. Every cell compares clips of similar length,
+                grouped by an estimate taken from the audio&apos;s size and
+                format — the same estimate for every provider, so no cell is
+                flattered by a provider that measures its own audio differently.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">What it covers</dt>
+              <dd className="mt-1">
+                The batch transcription endpoint. Live streaming transcription
+                is not measured here.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">What we store</dt>
+              <dd className="mt-1">
+                A timing row carries the provider, the model, the region, which
+                clip-length group the audio fell in, which attempt in the chain
+                it was, and whether the call worked. It carries no account, no
+                key, no request id, and no audio or text. The clip&apos;s own
+                length is not kept, and the timestamp is stored only to the
+                hour, so nothing ties a row to a person or reassembles one
+                transcription.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">Who is counted</dt>
+              <dd className="mt-1">
+                Only the HyperWhisper apps, from the versions that carry the
+                setting below — macOS 2.43.0 and Windows 1.10.0 onward. Sharing
+                is on by default, and a default is only fair if you could have
+                changed it, so builds that shipped before the setting existed
+                are not measured at all. Neither is anything calling the API
+                directly.
+              </dd>
+            </div>
+            <div className="p-6 md:px-[26px]">
+              <dt className="font-semibold text-white">How to opt out</dt>
+              <dd className="mt-1">
+                In the HyperWhisper app, turn off{" "}
+                <span className="text-white">Share anonymous speed data</span>{" "}
+                under Settings → General. Your transcriptions work exactly the
+                same — the same providers, the same speed, the same result — we
+                just stop keeping the timing. Local models never send a timing
+                at all.
+              </dd>
+            </div>
+          </dl>
+        </Reveal>
+      </section>
+    </DuskPage>
   );
 }

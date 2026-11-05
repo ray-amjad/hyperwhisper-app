@@ -90,6 +90,11 @@ pub struct ValidationOutcome {
     pub customer_email: Option<String>,
     pub expires_at: Option<String>,
     pub error_message: Option<String>,
+    /// Whether the server stated a verdict about the key. `false` for a 200
+    /// that is not the validate JSON (#2916), the offline fallback and the
+    /// empty-key outcome: a head must not persist such an outcome, and takes
+    /// its network-failure path instead.
+    pub is_verdict: bool,
 }
 
 impl From<hw_license::validate::ValidationOutcome> for ValidationOutcome {
@@ -101,6 +106,7 @@ impl From<hw_license::validate::ValidationOutcome> for ValidationOutcome {
             customer_email: o.customer_email,
             expires_at: o.expires_at,
             error_message: o.error_message,
+            is_verdict: o.is_verdict,
         }
     }
 }
@@ -152,6 +158,10 @@ pub fn license_stored_license_key(store: Arc<dyn KeyValueStore>) -> Option<Strin
 /// only FFI write path for a validate response: it prevents a rejected
 /// *replacement* key from clobbering the stored key's cached status (a 24h
 /// lockout for a valid user).
+///
+/// Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+/// a 200 that is not the validate JSON) goes to the offline fallback instead,
+/// so its `Invalid` is never cached.
 #[uniffi::export]
 pub fn license_persist_validation_verdict(
     store: Arc<dyn KeyValueStore>,
@@ -377,6 +387,7 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("License key cannot be empty")
         );
+        assert!(!outcome.is_verdict);
     }
 
     #[test]
@@ -388,6 +399,7 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("Server error (HTTP 503)")
         );
+        assert!(outcome.is_verdict);
     }
 
     #[test]
@@ -412,6 +424,7 @@ mod tests {
             let outcome = license_parse_validate_response(body(json));
             assert_eq!(status_tag(&outcome.status), expected, "{json}");
             assert_eq!(outcome.is_valid, expected_valid, "{json}");
+            assert!(outcome.is_verdict, "{json}");
         }
     }
 
@@ -427,6 +440,7 @@ mod tests {
 
         let neither = license_parse_validate_response(body(r#"{"valid":false}"#));
         assert_eq!(status_tag(&neither.status), "invalid");
+        assert!(neither.is_verdict);
     }
 
     #[test]
@@ -463,6 +477,23 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("Invalid server response")
         );
+        // #2916: not the server's word on the key, so the bridge must carry
+        // `is_verdict == false` across.
+        assert!(!outcome.is_verdict);
+    }
+
+    #[test]
+    fn parse_validate_response_carries_is_verdict_across_the_bridge() {
+        // Both values of the flag, so a bridge that hard-codes it fails.
+        for (json, expected) in [
+            ("", false),
+            ("{}", false),
+            (r#"{"valid":true}"#, true),
+            (r#"{"status":"revoked"}"#, true),
+        ] {
+            let outcome = license_parse_validate_response(body(json));
+            assert_eq!(outcome.is_verdict, expected, "{json:?}");
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -682,6 +713,7 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("Using cached license (offline)")
         );
+        assert!(!outcome.is_verdict);
     }
 
     #[test]
@@ -714,5 +746,6 @@ mod tests {
             outcome.error_message.as_deref(),
             Some("Offline and no cached license")
         );
+        assert!(!outcome.is_verdict);
     }
 }

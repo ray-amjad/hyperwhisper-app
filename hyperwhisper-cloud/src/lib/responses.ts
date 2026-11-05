@@ -64,15 +64,45 @@ export function missingContentLengthResponse(): Response {
   return errorResponse(400, 'Missing Content-Length', 'Content-Length header is required for streaming transcription');
 }
 
+const MIB = 1024 * 1024;
+
+/**
+ * The size words of a 413 message, in the unit the cap is written in (#2607).
+ * Most caps are whole MiB (`128 * 1024 * 1024`), but Google Chirp's inline cap
+ * is 9_500_000 bytes, the "9.5 MB" every client and doc names. Dividing that by
+ * MiB and rounding said "9 MB", and called a 9.6 MB file 9.16 MB. A cap that is
+ * not a whole number of MiB is spoken in decimal MB, and the file size in the
+ * same unit, so the two numbers in one sentence compare.
+ *
+ * Only the human message uses this. The numeric `max_size_mb` /
+ * `actual_size_mb` fields stay in MiB with a whole-number limit: macOS and
+ * Windows parse `max_size_mb` as an integer and multiply both by 1_048_576.
+ */
+export function sizeLimitWords(actualBytes: number, maxBytes: number): { max: string; actual: string } {
+  const unit = maxBytes % MIB === 0 ? MIB : 1_000_000;
+  return {
+    // Cap rounded DOWN and file rounded UP, on whole bytes (`bytes * 100 / unit`
+    // is exact for a decimal unit, unlike `bytes / unit * 100`), so a file a
+    // few bytes over the cap never reads as equal to it ("must be 9.5 MB or
+    // smaller. Your file is 9.50 MB.").
+    max: `${Math.floor((maxBytes * 100) / unit) / 100} MB`,
+    actual: `${(Math.ceil((actualBytes * 100) / unit) / 100).toFixed(2)} MB`,
+  };
+}
+
+/** The wire fields the native clients read; see `sizeLimitWords`. */
+export function sizeLimitFields(actualBytes: number, maxBytes: number): { max_size_mb: number; actual_size_mb: number } {
+  return {
+    max_size_mb: Math.round(maxBytes / MIB),
+    actual_size_mb: parseFloat((actualBytes / MIB).toFixed(2)),
+  };
+}
+
 export function fileTooLargeResponse(actualBytes: number, maxBytes: number): Response {
-  const actualMB = actualBytes / (1024 * 1024);
-  const maxMB = maxBytes / (1024 * 1024);
+  const words = sizeLimitWords(actualBytes, maxBytes);
 
   return errorResponse(413, 'File too large',
-    `Audio file must be ${maxMB.toFixed(0)} MB or smaller. Your file is ${actualMB.toFixed(2)} MB.`,
-    {
-      max_size_mb: Math.round(maxMB),
-      actual_size_mb: parseFloat(actualMB.toFixed(2)),
-    }
+    `Audio file must be ${words.max} or smaller. Your file is ${words.actual}.`,
+    sizeLimitFields(actualBytes, maxBytes),
   );
 }

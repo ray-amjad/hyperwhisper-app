@@ -72,7 +72,7 @@ On **macOS**, two more local engines use vocabulary. Local Whisper sends your en
 
 ### Text replacements
 
-The app applies entries with a replacement by regex. This step runs after transcription, and after AI post-processing. The match ignores letter case and holds to word boundaries. Therefore, "eta" matches only the separate abbreviation, and not a word such as "metadata". The app also removes the spaces at the start and at the end of the word and the replacement.
+The app applies entries with a replacement by regex. This step runs after transcription, and after AI post-processing. The match ignores letter case and holds to word boundaries. Therefore, "eta" matches only the separate abbreviation, and not a word such as "metadata". A word that starts or ends with a symbol, such as "C++", "C#", ".NET" or "5%", also matches as a whole word. On the symbol side, the next character must not be a letter, a digit, or the same symbol. Therefore, "C#" does not match inside "C##", and an entry of only "+" does not match inside "C++". The app also removes the spaces at the start and at the end of the word and the replacement.
 
 On-device engines use the same word-boundary pass, one time, on macOS, Windows, and Linux. An on-device engine applies no replacement inside a longer word. The **Original** text in [History](/history) keeps the text of the on-device engine, before the replacements.
 

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Console harness for MicrophoneKeepWarmService (issue #2501). The app
+       project is net10.0-windows WPF, so this compiles the one service file
+       directly (with a LoggingService stand-in) instead of referencing it.
+       Plain net10.0, so it builds and runs on Linux too. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\HyperWhisper\Services\MicrophoneKeepWarmService.cs" Link="MicrophoneKeepWarmService.cs" />
+  </ItemGroup>
+
+</Project>

@@ -31,6 +31,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("an explicit refresh ignores the validation cache", ForcedRefreshIgnoresTheCache),
     ("the validation cache expires after 24 hours", ValidationCacheExpires),
     ("a transient server failure falls back to the cached verdict", TransientFailuresUseTheCache),
+    ("a 200 that is not the validate JSON falls back to the cached verdict (#2916)", NonVerdict200UsesTheCache),
+    ("a 200 that is not the validate JSON with no cache is a failure, not a verdict (#2916)", NonVerdict200WithoutACacheIsAFailure),
+    ("a real 200 valid:false for the stored key is still cached (#2916)", RealInvalid200IsStillCached),
     ("an offline status with no cached verdict reports the failure", OfflineWithoutACacheReportsTheFailure),
     ("the offline grace expires after seven days", OfflineGraceExpires),
     ("a cached verdict is not honoured for a different key", CachedVerdictIsKeyBound),
@@ -417,6 +420,80 @@ static async Task TransientFailuresUseTheCache()
         Assert(offline.IsSuccess && offline.Value?.Status == CloudAccountStatus.Active,
             "a transient failure did not fall back to the cached verdict");
     }
+}
+
+static async Task NonVerdict200UsesTheCache()
+{
+    // A captive portal or proxy answers 200 with its own page. That says nothing
+    // about the account: the cached verdict must stand in, and nothing may be
+    // cached, so the next status goes back to the server.
+    foreach (var body in new[] { "<html><body>Please log in to Hotel WiFi</body></html>", "", "{}", "[]", "null" })
+    {
+        var store = new MemoryCredentialStore("stored-key");
+        var state = LicenseState(store);
+        var clock = new TestClock();
+        var portal = false;
+        var handler = new StubHandler((_, _) => Task.FromResult(portal
+            ? Json(HttpStatusCode.OK, body)
+            : Json(HttpStatusCode.OK, "{\"status\":\"active\"}")));
+        using var service = ServiceWith(store, handler, state, clock);
+
+        await service.GetStatusAsync("device", "host");
+        portal = true;
+        clock.Advance(TimeSpan.FromDays(2));
+
+        var behindPortal = await service.GetStatusAsync("device", "host");
+        Assert(behindPortal.IsSuccess && behindPortal.Value?.Status == CloudAccountStatus.Active,
+            $"'{body}': a non-verdict 200 downgraded the account ({behindPortal.Value?.Status}, {behindPortal.Failure?.Code})");
+        Assert(store.StoredText == "stored-key", $"'{body}': the stored key changed");
+
+        var callsBefore = handler.CallCount;
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await service.GetStatusAsync("device", "host");
+        Assert(handler.CallCount == callsBefore + 1,
+            $"'{body}': the non-verdict was cached, so the next status did not re-check");
+    }
+}
+
+static async Task NonVerdict200WithoutACacheIsAFailure()
+{
+    // Activation has no cached verdict to fall back on: the user must hear that
+    // the reply was unusable, not that the key is invalid, and nothing is stored.
+    var store = new MemoryCredentialStore();
+    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK, "<html>login</html>")));
+    using var service = Service(store, handler);
+
+    var result = await service.ActivateAsync(new("fresh-key", "device", "host"));
+    Assert(result.Failure?.Code == CloudAccountFailureCode.InvalidResponse,
+        $"a non-verdict 200 was reported as {result.Failure?.Code}");
+    Assert(store.StoredText is null, "a non-verdict 200 stored the key");
+}
+
+static async Task RealInvalid200IsStillCached()
+{
+    // Guard against over-fixing: the server's own valid:false is a verdict.
+    var store = new MemoryCredentialStore("stored-key");
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var rejected = false;
+    var handler = new StubHandler((_, _) => Task.FromResult(rejected
+        ? Json(HttpStatusCode.OK, "{\"valid\":false}")
+        : Json(HttpStatusCode.OK, "{\"status\":\"active\"}")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.GetStatusAsync("device", "host");
+    rejected = true;
+    clock.Advance(TimeSpan.FromDays(2));
+
+    var verdict = await service.GetStatusAsync("device", "host");
+    Assert(verdict.IsSuccess && verdict.Value?.Status == CloudAccountStatus.Invalid,
+        "a real valid:false was not an Invalid verdict");
+
+    var callsBefore = handler.CallCount;
+    clock.Advance(TimeSpan.FromMinutes(1));
+    var cached = await service.GetStatusAsync("device", "host");
+    Assert(cached.Value?.Status == CloudAccountStatus.Invalid && handler.CallCount == callsBefore,
+        "a real valid:false was not cached for the validation window");
 }
 
 static async Task OfflineWithoutACacheReportsTheFailure()

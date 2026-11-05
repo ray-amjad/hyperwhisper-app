@@ -42,6 +42,9 @@ struct PostProcessingModelResolutionTests {
             ("gpt-4.1", .openai, "gpt-6-luna"),
             ("gemini-3.5-flash", .gemini, "gemini-3.6-flash"),
             ("gemini-3.7-flash", .gemini, "gemini-3.8-flash"),
+            // Google deprecated 2.5 Pro / 2.5 Flash 2026-11-02, auto-routed 2026-12-01.
+            ("gemini-2.5-pro", .gemini, "gemini-3.8-flash"),
+            ("gemini-2.5-flash", .gemini, "gemini-3.5-flash-lite"),
             // #1907: OpenAI removes gpt-4.1-mini 2027-01-14 too, and names gpt-6-luna.
             ("gpt-4.1-mini", .openai, "gpt-6-luna"),
             // Gemma hosted models left the Gemini API 2026-03-08 (#1019, matches Windows).
@@ -104,10 +107,13 @@ struct PostProcessingModelResolutionTests {
         // pickers resolve as `models(for:).first`.
         #expect(PostProcessingModels.defaultModel(for: .cerebras)?.id == "gpt-oss-120b")
         // #1019: Google gates the 2.5 models to past users, so a new BYOK Gemini key
-        // defaults to 3.8 Flash. The 2.5 rows stay selectable for existing users.
+        // defaults to 3.8 Flash. Google deprecated 2.5 Flash / 2.5 Pro 2026-11-02, so those
+        // rows are gone (redirected); 2.5 Flash Lite is not deprecated and stays selectable.
         #expect(PostProcessingProvider.gemini.defaultModel == "gemini-3.8-flash")
         #expect(PostProcessingModels.defaultModel(for: .gemini)?.id == "gemini-3.8-flash")
-        #expect(PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash" }))
+        #expect(PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash-lite" }))
+        #expect(!PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash" }))
+        #expect(!PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-pro" }))
     }
 
     struct RedirectDocument: Decodable {

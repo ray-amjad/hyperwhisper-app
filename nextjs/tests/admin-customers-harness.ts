@@ -92,6 +92,8 @@ export const behaviour = {
   updateEmailError: null as unknown,
   customerPageError: null as unknown,
   refundCreditGrantError: null as unknown,
+  /** What `revokeAccountKey` answers: false for a key the owner deleted. */
+  revokeRevoked: true,
   /** Charges per Stripe customer id. An Error value makes the list throw. */
   charges: new Map<string, ChargeFixture[] | Error>(),
   disputeStatus: new Map<string, string>(),
@@ -142,6 +144,7 @@ export function resetHarness(): void {
   behaviour.updateEmailError = null;
   behaviour.customerPageError = null;
   behaviour.refundCreditGrantError = null;
+  behaviour.revokeRevoked = true;
   behaviour.charges = new Map();
   behaviour.disputeStatus = new Map();
   behaviour.paymentIntent = "pi_1";
@@ -219,6 +222,7 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       options: { actingUserId?: string } = {},
     ) => {
       calls.revokeAccountKey.push({ id, userId, options });
+      return { revoked: behaviour.revokeRevoked };
     },
     getUserById: async (id: string) => {
       calls.getUserById.push(id);

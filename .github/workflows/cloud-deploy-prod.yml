@@ -4,7 +4,7 @@
 #
 # The staging hop is a real pre-prod gate: the exact image/config is exercised
 # on the staging app against live providers before any prod machine is touched.
-# main is the production branch — but it is now shared with Vercel/macOS/Windows,
+# main is the production branch — but it is now shared with the website (Cloudflare Workers)/macOS/Windows,
 # so the path filter ensures only cloud-folder changes trigger a Fly deploy.
 name: cloud-deploy-prod
 
