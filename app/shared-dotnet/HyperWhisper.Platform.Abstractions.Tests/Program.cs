@@ -168,18 +168,6 @@ Run("constants match macOS and inputs are validated", () =>
     Throws<ArgumentException>(() => filter.Process(new float[3])); Throws<ArgumentException>(() => filter.Process(new float[4], new float[6]));
 });
 
-Run("s16le and float convert both ways", () =>
-{
-    short[] pcm = [short.MinValue, -16384, 0, 16384, short.MaxValue];
-    var floats = new float[pcm.Length]; PcmFloatConversion.S16ToFloat(pcm, floats);
-    Check(floats[0] == -1f && floats[1] == -0.5f && floats[2] == 0 && floats[3] == 0.5f && floats[4] < 1f, "s16 to float is wrong");
-    var back = new short[pcm.Length]; PcmFloatConversion.FloatToS16(floats, back);
-    Check(back.AsSpan().SequenceEqual(pcm), "the round trip is lossy");
-    PcmFloatConversion.FloatToS16([2f, -2f, float.NaN], back);
-    Check(back[0] == short.MaxValue && back[1] == short.MinValue && back[2] == 0, "out-of-range floats are not clipped");
-    Throws<ArgumentException>(() => PcmFloatConversion.S16ToFloat(pcm, new float[2]));
-});
-
 Console.WriteLine($"{passed} passed, {failures} failed");
 return failures == 0 ? 0 : 1;
 

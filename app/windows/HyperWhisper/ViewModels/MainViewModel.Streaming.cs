@@ -20,6 +20,11 @@ namespace HyperWhisper.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    // The mode the streaming session started on (#2533). The History row is
+    // labelled with it, so a mode switch mid-stream does not relabel the row,
+    // as _activeRecordingMode does for batch dictation (#2241).
+    private Mode? _streamingMode;
+
     private bool IsStreamingActive() => _isStreamingSession || _isStreamingStarting || _isStoppingStreaming;
 
     private bool IsActiveStreamingGeneration(int generation) =>
@@ -89,6 +94,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingDurationLimitReached = false;
         _streamingLastPasteResult = SmartPasteResult.Failed;
         _streamingPendingFinalFallbackText = string.Empty;
+        _streamingMode = SelectedMode;
 
         _streamingClient = clientResult.Value!;
         _streamingClient.ErrorReceived += OnStreamingErrorReceived;
@@ -270,7 +276,7 @@ public partial class MainViewModel : ViewModelBase
             // Off the UI thread (#1589): a locked database makes the insert wait 30 s.
             transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 durationSeconds,
-                SelectedMode?.Name,
+                _streamingMode?.Name,
                 audioFilePath: null);
 
             transcript.Text = finalText;
@@ -731,6 +737,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingSessionGeneration++;
         _streamingFailureMessage = null;
         _streamingTargetLost = false;
+        _streamingMode = null;
 
         if (_streamingAudioCapture != null)
         {

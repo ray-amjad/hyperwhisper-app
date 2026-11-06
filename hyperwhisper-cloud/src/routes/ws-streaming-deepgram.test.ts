@@ -12,6 +12,7 @@ import {
   textMessage,
 } from './ws-streaming-test-support';
 import { stubEnv } from '../test-support/env';
+import { neverFetch } from '../test-support/fetch-stubs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -45,12 +46,6 @@ const originalWebSocket = globalThis.WebSocket;
 let restoreApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
-
-function neverFetch() {
-  return mock(async () => {
-    throw new Error('no license API call was expected here');
-  }) as unknown as typeof fetch;
-}
 
 describe('durationSecondsForLinear16AudioBytes', () => {
   test('calculates duration from the mono 16 kHz linear16 audio forwarded to Deepgram', () => {
@@ -103,7 +98,7 @@ describe('wsStreamingPreflight', () => {
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('no license API call was expected here');
   });
 
   afterEach(() => {

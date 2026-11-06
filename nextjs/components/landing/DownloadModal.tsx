@@ -20,7 +20,7 @@ import { isInputValidationError } from "@/lib/trpc/input-error";
 import { ErrorReveal, shake } from "@/components/ErrorReveal";
 
 export default function DownloadModal() {
-  const { isOpen, closeModal } = useDownloadModal();
+  const { isOpen, platform, closeModal } = useDownloadModal();
   const t = useTranslations("downloadModal");
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -30,10 +30,16 @@ export default function DownloadModal() {
   const errorId = useId();
   // #2286: the field shakes when the address itself is what was refused.
   const field = useRef<HTMLDivElement>(null);
+  // A homepage platform button carries its platform through to /download,
+  // which still resolves the download URL from the appcast. A plain Download
+  // button leaves the OS detection on /download in charge.
+  const downloadPath = platform
+    ? `/download?platform=${platform}`
+    : "/download";
 
   const recordDownload = api.download.recordDownload.useMutation({
     onSuccess: () => {
-      router.push("/download");
+      router.push(downloadPath);
       closeModal();
     },
     onError: (err) => {
@@ -62,17 +68,17 @@ export default function DownloadModal() {
 
   const handleSkipAndDownload = () => {
     setError(null);
-    router.push("/download");
+    router.push(downloadPath);
     closeModal();
   };
 
   return (
     <Modal
       classNames={{
-        base: "bg-gray-900 border border-gray-800",
-        header: "border-b border-gray-800",
+        base: "bg-[#0a0c1d] border border-[var(--dusk-line)]",
+        header: "border-b border-[var(--dusk-line)]",
         body: "py-6",
-        footer: "border-t border-gray-800",
+        footer: "border-t border-[var(--dusk-line)]",
       }}
       isOpen={isOpen}
       size="lg"
@@ -103,8 +109,8 @@ export default function DownloadModal() {
               classNames={{
                 base: "w-full",
                 inputWrapper:
-                  "bg-black border-2 border-blue-500/50 hover:border-blue-500 focus-within:!border-blue-500",
-                input: "text-white placeholder:text-gray-400",
+                  "bg-[var(--dusk-night)] border-2 border-[#c4b5fd]/40 hover:border-[#c4b5fd]/70 focus-within:!border-[#c4b5fd]",
+                input: "text-white placeholder:text-[var(--dusk-dim)]",
               }}
               placeholder={t("emailPlaceholder")}
               size="lg"
@@ -136,7 +142,7 @@ export default function DownloadModal() {
               ) : null}
             </ErrorReveal>
             {error ? null : (
-              <p className="text-sm text-gray-400" id={descriptionId}>
+              <p className="text-sm text-[var(--dusk-mute)]" id={descriptionId}>
                 {t("description")}
               </p>
             )}
@@ -146,7 +152,7 @@ export default function DownloadModal() {
         <ModalFooter className="pt-4 pb-6 flex-col gap-3">
           <Button
             fullWidth
-            className="bg-gray-200 text-black font-semibold hover:bg-white transition-colors"
+            className="rounded-full bg-white text-[#0b0b14] font-semibold hover:bg-[#ececf5] transition-colors"
             isDisabled={!email}
             isLoading={recordDownload.isPending}
             size="lg"
@@ -156,7 +162,7 @@ export default function DownloadModal() {
           </Button>
           <Button
             fullWidth
-            className="text-gray-300 hover:text-white transition-colors"
+            className="rounded-full text-[var(--dusk-mute)] hover:text-white transition-colors"
             isDisabled={recordDownload.isPending}
             size="lg"
             variant="light"

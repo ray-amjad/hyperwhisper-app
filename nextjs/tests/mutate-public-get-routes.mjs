@@ -30,8 +30,8 @@ const MUTANTS = [
   {
     file: NEAREST,
     name: "read a blank header as 0 (Null Island)",
-    from: "if (raw === null || raw.trim() === \"\") {",
-    to: "if (raw === null) {",
+    from: "if (typeof raw !== \"string\" || raw.trim() === \"\") {",
+    to: "if (typeof raw !== \"string\") {",
   },
   {
     file: NEAREST,
@@ -42,8 +42,8 @@ const MUTANTS = [
   {
     file: NEAREST,
     name: "read the wrong latitude header",
-    from: "coordinateHeader(request, \"x-vercel-ip-latitude\")",
-    to: "coordinateHeader(request, \"x-vercel-ip-longitude\")",
+    from: "coordinateHeader(request, \"cf-iplatitude\")",
+    to: "coordinateHeader(request, \"cf-iplongitude\")",
   },
   {
     file: NEAREST,

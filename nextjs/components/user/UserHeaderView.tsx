@@ -1,6 +1,7 @@
 "use client";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
+import { BTN_SECONDARY_XS, CHIP, CHIP_LAV, FOCUS_RING } from "@/components/user/panel-styles";
 
 export interface UserHeaderViewProps {
   user: { email?: string | null };
@@ -40,18 +41,27 @@ export default function UserHeaderView({
   onSignOut,
 }: UserHeaderViewProps) {
   return (
-    <header className="h-14 border-b border-white/10 bg-slate-900/50 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 h-14 border-b border-[var(--dusk-line)] bg-[rgba(5,6,13,.72)] backdrop-blur-[16px]">
       <div
-        className={`h-full px-6 flex items-center justify-between gap-4 ${
+        className={`h-full px-4 sm:px-6 flex items-center justify-between gap-4 ${
           isAdmin ? "" : "max-w-4xl mx-auto"
         }`}
       >
         {/* Left side - Logo (only shown when no sidebar, i.e., non-admin) */}
         {!isAdmin && (
           <LocaleLink
-            className="shrink-0 whitespace-nowrap text-lg font-semibold text-white hover:text-gray-200 transition-colors"
+            className={`shrink-0 whitespace-nowrap flex items-center gap-2.5 rounded-lg text-[17px] font-semibold text-white transition-opacity hover:opacity-85 ${FOCUS_RING}`}
             href="/"
           >
+            {/* Decorative: the link is named by the word beside it. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- images are unoptimized on this site */}
+            <img
+              alt=""
+              className="size-[26px] rounded-[7px]"
+              height={26}
+              src="/icon/128.png"
+              width={26}
+            />
             HyperWhisper
           </LocaleLink>
         )}
@@ -64,13 +74,13 @@ export default function UserHeaderView({
         <div className="flex min-w-0 items-center gap-4">
           {/* Admin badge */}
           {isAdmin && (
-            <span className="shrink-0 px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded">
+            <span className={`shrink-0 ${CHIP} ${CHIP_LAV}`}>
               Admin
             </span>
           )}
 
           <span
-            className="min-w-0 truncate text-sm text-gray-400 hidden sm:block"
+            className="min-w-0 truncate text-sm text-[var(--dusk-mute)] hidden sm:block"
             title={user.email ?? undefined}
           >
             {user.email}
@@ -82,7 +92,7 @@ export default function UserHeaderView({
               the text mid-tween. */}
           {signOutError && (
             <span
-              className="text-red-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
+              className="text-rose-300 text-sm transition-opacity duration-[280ms] ease-[var(--motion-ease-smooth-out)] starting:opacity-0 motion-reduce:transition-none"
               role="alert"
             >
               {signOutError}
@@ -90,7 +100,7 @@ export default function UserHeaderView({
           )}
 
           <button
-            className="shrink-0 whitespace-nowrap px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`shrink-0 whitespace-nowrap ${BTN_SECONDARY_XS}`}
             disabled={signingOut}
             onClick={onSignOut}
           >

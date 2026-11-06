@@ -11,7 +11,7 @@
  * It needs a build, which `npm test` does not make, so with no `.next/BUILD_ID`
  * it skips. To run it:
  *
- *   NODE_OPTIONS=--max-old-space-size=3072 SKIP_ENV_VALIDATION=1 RESEND_API_KEY=re_x \
+ *   NODE_OPTIONS=--max-old-space-size=3072 SKIP_ENV_VALIDATION=1 \
  *     STRIPE_SECRET_KEY=sk_test_x npx next build
  *   node --import tsx --test tests/static-routes-e2e.test.ts
  */
@@ -96,7 +96,6 @@ before(async () => {
       env: {
         ...process.env,
         SKIP_ENV_VALIDATION: "1",
-        RESEND_API_KEY: process.env.RESEND_API_KEY || "re_e2e_dummy",
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "sk_test_e2e_dummy",
       },
       stdio: "ignore",

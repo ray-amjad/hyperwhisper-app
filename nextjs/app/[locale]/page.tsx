@@ -1,8 +1,13 @@
-import HeroSection from "@/components/landing/HeroSection";
-import VideoDemo from "@/components/landing/VideoDemo";
-import FeaturesGrid from "@/components/landing/FeaturesGrid";
-import PricingSection from "@/components/landing/PricingSection";
+import ClosingSection from "@/components/landing/ClosingSection";
 import FAQSection from "@/components/landing/FAQSection";
+import FeaturesGrid from "@/components/landing/FeaturesGrid";
+import HeroSection from "@/components/landing/HeroSection";
+import HowItWorks from "@/components/landing/HowItWorks";
+import LogoMarquee from "@/components/landing/LogoMarquee";
+import ModesShowcase from "@/components/landing/ModesShowcase";
+import PricingSection from "@/components/landing/PricingSection";
+import StatsRow from "@/components/landing/StatsRow";
+import { fontMono } from "@/config/fonts-mono";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 export const generateMetadata = localizedPageMetadata({
@@ -11,12 +16,29 @@ export const generateMetadata = localizedPageMetadata({
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black">
+    // fontMono only defines --font-mono-keys (the key caps in "How it works"),
+    // so its file loads on this page alone.
+    <div
+      className={`min-h-screen overflow-x-clip bg-[var(--dusk-night)] text-[var(--dusk-ink)] ${fontMono.variable}`}
+    >
+      {/* JavaScript off: show every scroll reveal at once (they are
+          server-rendered at their hidden start; see globals.css). */}
+      <noscript>
+        <style>
+          {
+            "[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}"
+          }
+        </style>
+      </noscript>
       <HeroSection />
-      <VideoDemo />
+      <LogoMarquee />
+      <HowItWorks />
+      <StatsRow />
       <FeaturesGrid />
+      <ModesShowcase />
       <PricingSection />
       <FAQSection />
-    </main>
+      <ClosingSection />
+    </div>
   );
 }

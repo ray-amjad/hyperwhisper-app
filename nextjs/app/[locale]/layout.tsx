@@ -137,7 +137,10 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages({ locale });
 
   return (
-    <HtmlDocument locale={locale}>
+    <HtmlDocument
+      bodyClassName={clsx("font-sans antialiased", fontSans.variable)}
+      locale={locale}
+    >
       {/* The locale is passed, not inferred: app/not-found.tsx renders this
           layout with "en" on every page, its setRequestLocale("en") shares the
           render's cache, and the inferred locale then hydrated as "en", so
