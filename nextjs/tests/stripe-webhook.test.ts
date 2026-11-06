@@ -378,7 +378,12 @@ test("a 100%-off credit checkout (no_payment_required) mints a key and grants th
 
 test("a guest credit purchase pools into the buyer's existing granted key", async () => {
   behaviour.byEmail.set("buyer@example.com", [
-    accountKeyRow({ key: "HW-LIVE-0002", userId: "user_live", status: "granted" }),
+    accountKeyRow({
+      key: "HW-LIVE-0002",
+      userId: "user_live",
+      status: "granted",
+      stripeSessionId: "cs_earlier",
+    }),
   ]);
   behaviour.creditBalance = 9_000;
 
@@ -417,6 +422,34 @@ test("a buyer whose only key is revoked gets a freshly minted key", async () => 
   assert.equal(calls.insertAccountKey.length, 1);
   assert.equal(calls.insertAccountKey[0].key, "HW-MINT-0003");
   assert.equal(calls.emails[0].kind, "mint");
+});
+
+test("a key minted earlier by email but with no stripe session id gets a top-up receipt", async () => {
+  behaviour.byEmail.set("buyer@example.com", [
+    accountKeyRow({ key: "HW-POLAR-0001", userId: "user_polar", stripeSessionId: null }),
+  ]);
+
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+
+  assert.equal(calls.emails.length, 1);
+  assert.equal(calls.emails[0].kind, "topup");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-POLAR-0001");
+});
+
+test("a concurrent delivery that finds this session's new key by email still sends the mint email (#2947)", async () => {
+  // The session lookup ran before the other delivery inserted the key, the
+  // email lookup after: the row it pools into was minted by THIS session.
+  behaviour.byEmail.set("buyer@example.com", [
+    accountKeyRow({ key: "HW-MINT-0009", userId: "user_9", stripeSessionId: "cs_1" }),
+  ]);
+
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+
+  assert.deepEqual(calls.insertAccountKey, []);
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_9");
+  assert.equal(calls.emails.length, 1);
+  assert.equal(calls.emails[0].kind, "mint");
+  assert.equal(calls.emails[0].payload.licenseKey, "HW-MINT-0009");
 });
 
 test("a redelivered mint reuses the session's key and sends no second email", async () => {
@@ -562,7 +595,7 @@ test("a failed top-up receipt does not fail the webhook", async () => {
 
 test("a failed pooled receipt does not fail the webhook", async () => {
   behaviour.byEmail.set("buyer@example.com", [
-    accountKeyRow({ key: "HW-LIVE-0002", userId: "user_live" }),
+    accountKeyRow({ key: "HW-LIVE-0002", userId: "user_live", stripeSessionId: "cs_earlier" }),
   ]);
   behaviour.emailSuccess = false;
 
