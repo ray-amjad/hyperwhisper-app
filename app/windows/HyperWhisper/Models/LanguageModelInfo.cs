@@ -94,10 +94,10 @@ public class LanguageModelInfo
         // because the first row is the provider default (matches macOS).
         new("gemini-3.8-flash", "Gemini 3.8 Flash", PostProcessingProvider.Gemini, "Latest flash model, frontier performance for agentic tasks"),
         new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
-        new("gemini-2.5-flash", "Gemini 2.5 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
+        // gemini-2.5-flash / gemini-2.5-pro rows removed: Google deprecated both 2026-11-02 and
+        // routes them to 3.5 Flash Lite / 3.8 Flash from 2026-12-01; MigrateModelId does too.
         new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", PostProcessingProvider.Gemini, "Latest lightweight flash, fast and cost-efficient"),
-        new("gemini-2.5-pro", "Gemini 2.5 Pro", PostProcessingProvider.Gemini, "High quality, advanced reasoning"),
         new("gemini-3.1-pro-preview", "Gemini 3.1 Pro", PostProcessingProvider.Gemini, "Latest pro-level intelligence"),
         // gemini-3.1-flash-lite row removed (#798): Google shuts it down 2027-05-07,
         // and MigrateModelId sends it to gemini-3.5-flash-lite.
@@ -225,6 +225,10 @@ public class LanguageModelInfo
         // successors (Gemini API changelog). No shutdown date yet. Matches macOS.
         "gemini-3.5-flash" => "gemini-3.6-flash",
         "gemini-3.7-flash" => "gemini-3.8-flash",
+        // Google deprecated both 2026-11-02 and auto-routes their API requests to these
+        // successors from 2026-12-01 (Gemini API deprecations page). Matches macOS.
+        "gemini-2.5-pro" => "gemini-3.8-flash",
+        "gemini-2.5-flash" => "gemini-3.5-flash-lite",
         // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
         // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, macOS, shared-dotnet Migrate).
         "gemini-3-flash-preview" => "gemini-3.8-flash",

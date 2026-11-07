@@ -128,6 +128,13 @@ pub fn update_validation_cache(
 ///
 /// `attempted_key` is trimmed before comparison, matching the trim the
 /// platforms apply before building the validate request.
+///
+/// Call this only for an outcome whose
+/// [`ValidationOutcome::is_verdict`](crate::validate::ValidationOutcome::is_verdict)
+/// is `true`. A non-verdict (a 200 that is not the validate JSON, #2916) must
+/// not reach here: its `Invalid` status would be cached with a fresh timestamp
+/// and trusted for 24h. Heads route a non-verdict to their network-failure
+/// path ([`offline_fallback_outcome`]) instead, which leaves the cache alone.
 pub fn persist_validation_verdict(
     store: &dyn KeyValueStore,
     status: LicenseStatus,
@@ -199,6 +206,8 @@ pub fn offline_fallback_outcome(
             customer_email: None,
             expires_at: None,
             error_message: Some("Using cached license (offline)".to_string()),
+            // A replay of the cache, not the server's word: never re-persist it.
+            is_verdict: false,
         }
     } else {
         ValidationOutcome {
@@ -208,6 +217,7 @@ pub fn offline_fallback_outcome(
             customer_email: None,
             expires_at: None,
             error_message: Some("Offline and no cached license".to_string()),
+            is_verdict: false,
         }
     }
 }
@@ -359,6 +369,7 @@ mod tests {
         assert_eq!(out.status, LicenseStatus::Active);
         assert!(out.is_valid);
         assert_eq!(out.customer_id.as_deref(), Some("cust_9"));
+        assert!(!out.is_verdict);
     }
 
     #[test]
@@ -369,6 +380,7 @@ mod tests {
         let out = offline_fallback_outcome(&s, t0 + OFFLINE_GRACE_SECS + 10);
         assert_eq!(out.status, LicenseStatus::Invalid);
         assert!(!out.is_valid);
+        assert!(!out.is_verdict);
     }
 
     #[test]

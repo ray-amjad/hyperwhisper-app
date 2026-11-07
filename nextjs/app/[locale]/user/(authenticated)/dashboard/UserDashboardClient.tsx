@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   LicenseKeysCard,
   CloudCreditsCard,
@@ -9,8 +10,23 @@ import {
   DashboardCardsSkeleton,
 } from "@/components/customer/dashboard";
 import RotateAccountKeyControl from "@/components/customer/dashboard/RotateAccountKeyControl";
+import DeleteAccountKeyControl from "@/components/customer/dashboard/DeleteAccountKeyControl";
+import IssueAccountKeyControl from "@/components/customer/dashboard/IssueAccountKeyControl";
+import {
+  NOTICE_AT,
+  keyCardNoticeAt,
+  postKeyCardNotice,
+  type KeyCardNoticeState,
+} from "@/components/customer/dashboard/key-card-notice";
 import { api } from "@/lib/trpc/client";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import {
+  ALERT_ERROR,
+  BTN_PRIMARY,
+  CARD,
+  PAGE_SUB,
+  PAGE_TITLE,
+} from "@/components/user/panel-styles";
 
 interface UserDashboardClientProps {
   user: {
@@ -18,7 +34,10 @@ interface UserDashboardClientProps {
     id: string;
   };
   isAdmin: boolean;
-  /** This session was proven by email, so it may rotate an Account Key. */
+  /**
+   * This session was proven by email, so it may rotate, add or delete an
+   * Account Key.
+   */
   canRotateKeys: boolean;
 }
 
@@ -49,13 +68,26 @@ export default function UserDashboardClient({
   const totalCredits = data?.totalCredits ?? 0;
   const totalMinutesRemaining = data?.totalMinutesRemaining ?? 0;
   const activeLicenseKey = data?.licenses?.find((l) => l.status === "granted")?.key ?? null;
+  // Live keys: the server refuses to delete the last one, and to add one past
+  // MAX_LIVE_ACCOUNT_KEYS or to an account with none, and so do the controls.
+  const liveKeyCount =
+    data?.licenses?.filter((l) => l.status === "granted").length ?? 0;
+  const t = useTranslations("licenseKeysCard");
+  // The Account Keys card's ONE success line: the latest add, delete, rotate
+  // or sent link replaces any earlier one (`key-card-notice.ts`).
+  const [keyNotice, setKeyNotice] = useState<KeyCardNoticeState>(null);
+  const noticeProps = (at: string) => ({
+    notice: keyCardNoticeAt(keyNotice, at),
+    onNotice: (text: string | null) =>
+      setKeyNotice((prev) => postKeyCardNotice(prev, at, text)),
+  });
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">{user.email}</p>
+        <h1 className={PAGE_TITLE}>Dashboard</h1>
+        <p className={`${PAGE_SUB} [overflow-wrap:anywhere]`}>{user.email}</p>
       </div>
 
       {/* The load error reveals (#2286) instead of arriving at full height in
@@ -65,10 +97,10 @@ export default function UserDashboardClient({
       <ErrorReveal gap="pb-6">
         {isLoading ? null : error ? (
           <div
-            className="bg-white/5 rounded-xl border border-white/10 p-5"
+            className={`${ALERT_ERROR} p-5`}
             role="alert"
           >
-            <p className="text-red-400 text-sm">{error.message}</p>
+            <p className="text-rose-300 text-sm">{error.message}</p>
           </div>
         ) : null}
       </ErrorReveal>
@@ -134,17 +166,62 @@ export default function UserDashboardClient({
             {data?.licenses && data.licenses.length > 0 ? (
               <>
                 <LicenseKeysCard
+                  // Only an account that already holds a live key may add one
+                  // (never a way to a first key); the server enforces it too.
+                  footer={
+                    liveKeyCount > 0 ? (
+                      <>
+                        <p
+                          aria-live="polite"
+                          className="pt-2 text-xs text-emerald-300 empty:hidden"
+                          role="status"
+                        >
+                          {/* After a delete: its row and control are gone. */}
+                          {keyCardNoticeAt(keyNotice, NOTICE_AT.card)}
+                        </p>
+                        <IssueAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          liveKeyCount={liveKeyCount}
+                          {...noticeProps(NOTICE_AT.issue)}
+                        />
+                      </>
+                    ) : null
+                  }
                   licenses={data.licenses}
                   // Only a granted key rotates (a revoked or refunded one is already
                   // dead); the server enforces the same rule.
                   renderActions={(license, reveal) =>
                     license.status === "granted" ? (
-                      <RotateAccountKeyControl
-                        email={user.email}
-                        emailProven={canRotateKeys}
-                        license={license}
-                        onRotated={reveal}
-                      />
+                      // Stacked, not side by side: an open confirmation
+                      // takes the row's full width.
+                      <div>
+                        <RotateAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          license={license}
+                          onRotated={reveal}
+                          {...noticeProps(NOTICE_AT.rotate(license.id))}
+                        />
+                        <DeleteAccountKeyControl
+                          email={user.email}
+                          emailProven={canRotateKeys}
+                          isLastLiveKey={liveKeyCount <= 1}
+                          license={license}
+                          onDeleted={({ cloudCleared }) =>
+                            setKeyNotice((prev) =>
+                              postKeyCardNotice(
+                                prev,
+                                NOTICE_AT.card,
+                                cloudCleared
+                                  ? t("deleted")
+                                  : `${t("deleted")} ${t("deleteCloudPurgePending")}`,
+                              ),
+                            )
+                          }
+                          {...noticeProps(NOTICE_AT.deleteKey(license.id))}
+                        />
+                      </div>
                     ) : null
                   }
                 />
@@ -161,11 +238,11 @@ export default function UserDashboardClient({
                 <CreditHistoryCard gap="pt-6" />
               </>
             ) : (
-              <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
-                <p className="text-gray-400">No Account Keys found</p>
+              <div className={`${CARD} px-6 py-10 text-center`}>
+                <p className="text-[var(--dusk-mute)]">No Account Keys found</p>
                 <a
                   href="/"
-                  className="text-emerald-400 hover:text-emerald-300 transition-colors text-sm mt-2 inline-block"
+                  className={`${BTN_PRIMARY} mt-5`}
                 >
                   Get an Account Key →
                 </a>
@@ -179,9 +256,9 @@ export default function UserDashboardClient({
       <BillingCard />
 
       {/* Help */}
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-[var(--dusk-dim)]">
         Need help?{" "}
-        <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white transition-colors">
+        <a href="mailto:hi@support.hyperwhisper.com" className="text-[var(--dusk-mute)] underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50">
           hi@support.hyperwhisper.com
         </a>
       </p>

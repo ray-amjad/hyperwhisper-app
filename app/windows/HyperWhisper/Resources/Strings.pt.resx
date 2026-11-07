@@ -949,15 +949,6 @@ Esta ação não pode ser desfeita.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>O vocabulário personalizado não é suportado pelos modelos Parakeet.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelo ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelos modelos Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>O vocabulário personalizado não é suportado pelos modelos Deepgram Whisper.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>O vocabulário personalizado é desativado quando usa a deteção automática com modelos Nova. Defina um idioma específico para ativar o reforço de vocabulário.</value>
   </data>
@@ -2189,7 +2180,7 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Selecione pelo menos uma secção para importar.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Adicionar {0} novas palavras, {1} conflitos com palavras existentes. Continuar?</value>
+    <value>Novas palavras: {0}. Conflitos com palavras existentes: {1}. Continuar?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Importar vocabulário?</value>
