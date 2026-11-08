@@ -59,7 +59,7 @@ internal sealed partial class LinuxErrorToastWindow : Window
     // Resolved by name rather than through generated fields, the way every other window in this
     // project does it (see ConfirmWindow and LinuxRecordingOverlayWindow).
     private readonly Border? _border;
-    private readonly TextBlock? _message;
+    private readonly SelectableTextBlock? _message;
     private readonly TextBlock? _countdownText;
     private readonly TextBlock? _guidance;
     private readonly Button? _settingsButton;
@@ -124,7 +124,7 @@ internal sealed partial class LinuxErrorToastWindow : Window
         Focusable = LinuxOverlayInteractionPolicy.Focusable;
 
         _border = this.FindControl<Border>("ToastBorder");
-        _message = this.FindControl<TextBlock>("ToastMessage");
+        _message = this.FindControl<SelectableTextBlock>("ToastMessage");
         _countdownText = this.FindControl<TextBlock>("ToastCountdown");
         _guidance = this.FindControl<TextBlock>("ToastGuidance");
         _settingsButton = this.FindControl<Button>("ToastSettingsButton");
@@ -161,7 +161,12 @@ internal sealed partial class LinuxErrorToastWindow : Window
         try
         {
             _action = action;
-            if (_message is not null) _message.Text = message;
+            if (_message is not null)
+            {
+                // The window is reused: a selection made in the last message must not carry over (#2632).
+                _message.ClearSelection();
+                _message.Text = message;
+            }
             if (_settingsButton is not null) _settingsButton.IsVisible = action != LinuxErrorToastAction.None;
 
             if (!string.IsNullOrEmpty(guidanceText))

@@ -3,7 +3,7 @@
  * fresh `HW-XXXX-XXXX-XXXX-XXXX` string.
  *
  * Kept out of `customer.ts` and loaded on first use, because it pulls in the
- * email client, the Upstash limiter and the cloud purge, which the router's
+ * email client, the rate limiter and the cloud purge, which the router's
  * read procedures (and the suites that drive them) do not need.
  *
  * Order of work:
@@ -18,6 +18,10 @@
  *      cache (awaited, bounded by its 3 s timeout), and, after the response
  *      is sent, email the owner a notice that names only the new key's prefix.
  *
+ * Every outcome past the email check writes one JSON line (`logRotate`), so a
+ * refused rotation, above all a key-only session trying to rotate (a leaked
+ * key), leaves a server record: the tRPC `onError` logs only 5xx.
+ *
  * No log line here carries a key.
  */
 import { TRPCError } from "@trpc/server";
@@ -27,7 +31,11 @@ import { accountKeyRotateRateLimiter } from "@/lib/rate-limit";
 import { countFailOpen } from "@/lib/rate-limit-gate";
 import { emailService } from "@/lib/services/email";
 import { afterResponse } from "@/lib/shared/after-response";
-import { purgeCloudLicenseCache } from "@/lib/services/cloud-license-cache";
+import {
+  cloudPurgeConfirmed,
+  logCloudPurge,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
 import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
 
 /** The copy for each refusal. Owner-facing; never echoes the key. */
@@ -40,6 +48,52 @@ export const ROTATE_KEY_ERRORS = {
   stale:
     "This Account Key has already been rotated. Refresh to see the current key.",
 } as const;
+
+type RotateOutcome = "ok" | "rejected";
+
+type RotateRejectReason =
+  | "needs_email_sign_in"
+  | "rate_limited"
+  | "not_found"
+  | "not_granted"
+  | "stale";
+
+/**
+ * One JSON line per rotation outcome, the shape of `logSignIn` in
+ * `src/lib/auth-license-key-plugin.ts`. `userId` and `licenseId` are opaque
+ * row ids (`licenseId` is the caller's `input.id`, a validated uuid). Never
+ * logs `currentKey`, the new key, the email or the name.
+ */
+function logRotate(
+  outcome: RotateOutcome,
+  fields: {
+    reason?: RotateRejectReason;
+    userId: string;
+    licenseId?: string;
+    devicesCleared?: number;
+  },
+): void {
+  const line = JSON.stringify({
+    event: "account_key.rotate",
+    outcome,
+    ...(fields.reason ? { reason: fields.reason } : {}),
+    userId: fields.userId,
+    ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
+    ...(fields.devicesCleared !== undefined
+      ? { devicesCleared: fields.devicesCleared }
+      : {}),
+  });
+
+  // The website's console output is its server log (Workers Logs), so this is the
+  // sink, not leftover debugging.
+  /* eslint-disable no-console */
+  if (outcome === "ok") {
+    console.log(line);
+  } else {
+    console.warn(line);
+  }
+  /* eslint-enable no-console */
+}
 
 export interface RotateKeyCaller {
   user: { id: string; email?: string | null; name?: string | null };
@@ -55,7 +109,7 @@ export interface RotateKeyInput {
 export async function rotateKeyForCaller(
   ctx: RotateKeyCaller,
   input: RotateKeyInput,
-): Promise<{ id: string; key: string }> {
+): Promise<{ id: string; key: string; cloudCleared: boolean }> {
   const userEmail = ctx.user.email?.toLowerCase();
 
   if (!userEmail) {
@@ -71,6 +125,11 @@ export async function rotateKeyForCaller(
   // key. Only a session proven by the account's inbox may. Checked before the
   // limiter, so a refused session does not spend the owner's budget.
   if (!canRotateAccountKeys(ctx.signInMethod)) {
+    logRotate("rejected", {
+      reason: "needs_email_sign_in",
+      userId: ctx.user.id,
+      licenseId: input.id,
+    });
     throw new TRPCError({
       code: "FORBIDDEN",
       message: ROTATE_KEY_ERRORS.needsEmailSignIn,
@@ -84,6 +143,11 @@ export async function rotateKeyForCaller(
   );
 
   if (limit.limited) {
+    logRotate("rejected", {
+      reason: "rate_limited",
+      userId: ctx.user.id,
+      licenseId: input.id,
+    });
     throw new TRPCError({
       code: "TOO_MANY_REQUESTS",
       message: ROTATE_KEY_ERRORS.rateLimited,
@@ -100,16 +164,31 @@ export async function rotateKeyForCaller(
 
   switch (result.status) {
     case "not_found":
+      logRotate("rejected", {
+        reason: "not_found",
+        userId: ctx.user.id,
+        licenseId: input.id,
+      });
       throw new TRPCError({
         code: "NOT_FOUND",
         message: ROTATE_KEY_ERRORS.notFound,
       });
     case "not_granted":
+      logRotate("rejected", {
+        reason: "not_granted",
+        userId: ctx.user.id,
+        licenseId: input.id,
+      });
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message: ROTATE_KEY_ERRORS.notGranted,
       });
     case "stale":
+      logRotate("rejected", {
+        reason: "stale",
+        userId: ctx.user.id,
+        licenseId: input.id,
+      });
       throw new TRPCError({
         code: "CONFLICT",
         message: ROTATE_KEY_ERRORS.stale,
@@ -120,9 +199,11 @@ export async function rotateKeyForCaller(
 
   const { license, previousKey, devicesCleared } = result;
 
-  console.log(
-    `Account Key rotated: license ${license.id}, ${devicesCleared} device row(s) cleared`,
-  );
+  logRotate("ok", {
+    userId: ctx.user.id,
+    licenseId: license.id,
+    devicesCleared,
+  });
 
   // Committed: from here a failure cannot bring the old key back.
   //
@@ -154,7 +235,18 @@ export async function rotateKeyForCaller(
   // The purge stays in the request: it is what makes the cloud stop
   // accepting the old key before it expires from the cache, so "rotated"
   // is shown once it was tried. It is bounded (3 s) and never throws.
-  await purgeCloudLicenseCache(previousKey);
+  // When not every cloud app confirmed, the owner is told the old key may
+  // keep working in HyperWhisper Cloud for up to an hour.
+  const purge = await purgeCloudLicenseCache(previousKey);
 
-  return { id: license.id, key: license.key };
+  logCloudPurge("rotate", purge, {
+    userId: ctx.user.id,
+    licenseId: license.id,
+  });
+
+  return {
+    id: license.id,
+    key: license.key,
+    cloudCleared: cloudPurgeConfirmed(purge),
+  };
 }

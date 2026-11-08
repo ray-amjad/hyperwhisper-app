@@ -9009,16 +9009,30 @@ public struct ValidationOutcome {
     public var customerEmail: String?
     public var expiresAt: String?
     public var errorMessage: String?
+    /**
+     * Whether the server stated a verdict about the key. `false` for a 200
+     * that is not the validate JSON (#2916), the offline fallback and the
+     * empty-key outcome: a head must not persist such an outcome, and takes
+     * its network-failure path instead.
+     */
+    public var isVerdict: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?) {
+    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?, 
+        /**
+         * Whether the server stated a verdict about the key. `false` for a 200
+         * that is not the validate JSON (#2916), the offline fallback and the
+         * empty-key outcome: a head must not persist such an outcome, and takes
+         * its network-failure path instead.
+         */isVerdict: Bool) {
         self.isValid = isValid
         self.status = status
         self.customerId = customerId
         self.customerEmail = customerEmail
         self.expiresAt = expiresAt
         self.errorMessage = errorMessage
+        self.isVerdict = isVerdict
     }
 }
 
@@ -9044,6 +9058,9 @@ extension ValidationOutcome: Equatable, Hashable {
         if lhs.errorMessage != rhs.errorMessage {
             return false
         }
+        if lhs.isVerdict != rhs.isVerdict {
+            return false
+        }
         return true
     }
 
@@ -9054,6 +9071,7 @@ extension ValidationOutcome: Equatable, Hashable {
         hasher.combine(customerEmail)
         hasher.combine(expiresAt)
         hasher.combine(errorMessage)
+        hasher.combine(isVerdict)
     }
 }
 
@@ -9070,7 +9088,8 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
                 customerId: FfiConverterOptionString.read(from: &buf), 
                 customerEmail: FfiConverterOptionString.read(from: &buf), 
                 expiresAt: FfiConverterOptionString.read(from: &buf), 
-                errorMessage: FfiConverterOptionString.read(from: &buf)
+                errorMessage: FfiConverterOptionString.read(from: &buf), 
+                isVerdict: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -9081,6 +9100,7 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.customerEmail, into: &buf)
         FfiConverterOptionString.write(value.expiresAt, into: &buf)
         FfiConverterOptionString.write(value.errorMessage, into: &buf)
+        FfiConverterBool.write(value.isVerdict, into: &buf)
     }
 }
 
@@ -16850,6 +16870,10 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
  * only FFI write path for a validate response: it prevents a rejected
  * *replacement* key from clobbering the stored key's cached status (a 24h
  * lockout for a valid user).
+ *
+ * Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+ * a 200 that is not the validate JSON) goes to the offline fallback instead,
+ * so its `Invalid` is never cached.
  */
 public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
@@ -18807,7 +18831,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 1585) {
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 36115) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_should_revalidate() != 37174) {

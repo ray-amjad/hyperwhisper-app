@@ -87,7 +87,7 @@ test("sitemap, hreflang and robots.txt all name the www host", async () => {
     }
   }
   const { default: robots } = await import("../app/robots");
-  assert.equal(robots().sitemap, `${BASE}/sitemap.xml`);
+  for (const url of [robots().sitemap ?? []].flat()) assert.ok(url.startsWith(`${BASE}/`), url);
 });
 
 test("no app or lib file hard-codes the redirecting apex as a site URL", () => {

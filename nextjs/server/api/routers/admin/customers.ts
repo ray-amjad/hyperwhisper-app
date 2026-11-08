@@ -28,6 +28,10 @@ import {
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import {
+  cloudPurgeConfirmed,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
+import {
   dbErrorCode,
   dbErrorConstraint,
   describeDbError,
@@ -603,14 +607,57 @@ export const customersRouter = createTRPCRouter({
         // mid-mutation is never the intent. The key is still revoked; only the
         // session sweep is skipped, and only for the one account we know is
         // legitimately in use right now.
-        if (revokeLicense) {
-          await revokeAccountKey(licenseKeyId, license.userId, {
-            actingUserId: ctx.user.id,
-          });
-        }
-        log.revoked = revokeLicense;
+        //
+        // A key the owner already deleted stays `deleted` (it is dead
+        // everywhere already): the refund above still lands, and `revoked`
+        // reports false.
+        //
+        // A key revoked here must also be purged from HyperWhisper Cloud's
+        // licence cache (#2915). The cloud caches each key's verdict for an
+        // hour, so without the purge it keeps admitting the revoked key until
+        // that hour runs out, as a rotated or deleted key would. Only a key
+        // revoked by THIS call is purged: an owner-deleted key was purged when
+        // it was deleted. The purge is best effort and never throws, so the
+        // refund and the revoke above stand whatever the cloud answers; an
+        // unconfirmed purge is recorded on this mutation's log line (never
+        // the key) and the cached verdict expires on its own.
+        let revoked = false;
 
-        return { success: true, revoked: revokeLicense };
+        if (revokeLicense) {
+          ({ revoked } = await revokeAccountKey(licenseKeyId, license.userId, {
+            actingUserId: ctx.user.id,
+          }));
+        }
+        log.revoked = revoked;
+
+        if (revoked) {
+          // Purge the string the row holds NOW, not the one read before the
+          // refund: the owner can rotate a `granted` key while the refund is
+          // in flight, and the revoke is by row id. A revoked row can no
+          // longer be rotated, so this re-read names the string just revoked.
+          // A failed re-read must not fail the committed refund: fall back to
+          // the string read before it. That string may not be the one revoked
+          // (a rotation may have replaced it), so the purge is then never
+          // reported as confirmed, whatever the cloud answers.
+          const revokedRow = await findAccountById(licenseKeyId).catch(
+            () => null,
+          );
+          const keyReread = Boolean(revokedRow);
+          const purge = await purgeCloudLicenseCache(
+            revokedRow?.key ?? license.key,
+          );
+
+          log.cloudPurgeKeyReread = keyReread;
+          log.cloudPurge =
+            keyReread && cloudPurgeConfirmed(purge)
+              ? "confirmed"
+              : "unconfirmed";
+          log.cloudPurged = purge.purged;
+          log.cloudPurgeFailed = purge.failed;
+          log.cloudPurgeSkipped = purge.skipped;
+        }
+
+        return { success: true, revoked };
       });
     }),
 });

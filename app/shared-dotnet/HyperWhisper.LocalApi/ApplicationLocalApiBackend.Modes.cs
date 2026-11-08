@@ -71,15 +71,18 @@ public sealed partial class ApplicationLocalApiBackend
     public async ValueTask<bool> DeleteModeAsync(string id, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(id, out var modeId)) return false;
-        var existing = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
-        var mode = existing.SingleOrDefault(item => item.Id == modeId);
-        if (mode is null) return false;
-        if (existing.Count == 1) throw new ArgumentException("Cannot delete the last remaining mode.");
-        if (!await _modes.DeleteAsync(modeId, cancellationToken).ConfigureAwait(false)) return false;
-        // Deleting the default moves the flag rather than leaving none (#536).
-        var remaining = existing.Where(item => item.Id != modeId).ToList();
-        await SaveDefaultModeRepairAsync(remaining, null, null, cancellationToken).ConfigureAwait(false);
-        return true;
+        // One atomic rule for every caller (issue #2663): the repository checks "last mode",
+        // deletes, and moves the default flag (#536) in one transaction, so this delete and the
+        // Modes page's cannot both pass the check. The wire contract is unchanged: a missing mode
+        // answers false, and the last-mode refusal is still an ArgumentException with this text.
+        try
+        {
+            return await _modes.DeleteSafelyAsync(modeId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ModeRuleViolationException rule)
+        {
+            throw new ArgumentException(rule.Message, rule);
+        }
     }
 
     /// <summary>

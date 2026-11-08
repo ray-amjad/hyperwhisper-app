@@ -6,6 +6,9 @@ import { localeDirection } from "@/src/i18n/locales";
 type Props = {
   locale: string;
   children: ReactNode;
+  /** Classes for <body>. The locale layout passes the font variable here because HeroUI modals
+   * portal straight into <body> and would otherwise fall back to the system font. */
+  bodyClassName?: string;
 };
 
 // The single <html>/<body> shell, rendered by app/[locale]/layout.tsx with the
@@ -21,7 +24,7 @@ type Props = {
 // (#849). It reads no cookie or header, so every route stays static (#843).
 const BANNER_DISMISSED_SCRIPT = `try{if(localStorage.getItem("os-banner-dismissed")==="1")document.documentElement.dataset.osBanner="dismissed"}catch(e){}`;
 
-export default function HtmlDocument({ locale, children }: Props) {
+export default function HtmlDocument({ locale, children, bodyClassName }: Props) {
   return (
     <html
       suppressHydrationWarning
@@ -32,7 +35,7 @@ export default function HtmlDocument({ locale, children }: Props) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: BANNER_DISMISSED_SCRIPT }} />
       </head>
-      <body>
+      <body className={bodyClassName}>
         {children}
         <Script id="agentstack-init" strategy="lazyOnload">
           {`window.agentstack=new Proxy({_q:[]},{get(t,p){if(p==='_q')return t._q;return(...a)=>t._q.push([p,...a]);}});`}

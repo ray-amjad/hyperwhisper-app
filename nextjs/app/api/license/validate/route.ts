@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup, capping what an unauthenticated
   // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),

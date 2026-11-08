@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { useUser } from "./UserContext";
+import { FOCUS_RING } from "@/components/user/panel-styles";
 
 interface UserSidebarProps {
   locale: string;
@@ -124,16 +125,21 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
   const logo = (
     <Link
       href={`/${locale}/user/dashboard`}
-      className="flex items-center gap-3"
+      className={`flex items-center gap-3 rounded-lg ${FOCUS_RING}`}
       // A tap on the logo while already on the dashboard moves no path.
       onNavigate={() => setMenuOpenOn(null)}
     >
-      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-        <span className="text-white font-bold text-lg">H</span>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element -- images are unoptimized on this site */}
+      <img
+        alt=""
+        className="size-8 rounded-[8px] shadow-[0_0_0_1px_rgba(255,255,255,.1),0_6px_18px_rgba(0,0,0,.45)]"
+        height={32}
+        src="/icon/128.png"
+        width={32}
+      />
       <div>
-        <h1 className="text-white font-semibold">HyperWhisper</h1>
-        <p className="text-gray-400 text-xs">
+        <h1 className="text-[15.5px] font-semibold tracking-[-0.01em] text-white">HyperWhisper</h1>
+        <p className="text-[11px] uppercase tracking-[1.4px] text-[var(--dusk-dim)]">
           {isAdmin ? "Admin Dashboard" : "Dashboard"}
         </p>
       </div>
@@ -141,17 +147,21 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
   );
 
   const navList = (
-    <ul className="space-y-2">
+    <ul className="space-y-1">
       {visibleItems.map((item) => {
         const isActive = activeHref === item.href;
         return (
           <li key={item.name}>
             <Link
+              // Colour alone does not tell a screen reader which page is
+              // open (#1314). Read from the committed path, not the pending
+              // click: a stalled navigation must not name a page not shown.
+              aria-current={pathname === item.href ? "page" : undefined}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-[background-color,color,border-color] duration-200 motion-reduce:transition-none ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-[14.5px] transition-[background-color,color,border-color] duration-200 ease-[cubic-bezier(.2,0,0,1)] ${FOCUS_RING} motion-reduce:transition-none ${
                 isActive
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                  : "border-transparent text-gray-400 hover:bg-white/5 hover:text-white"
+                  ? "bg-[rgba(196,181,253,.1)] text-white border-[rgba(196,181,253,.24)] [&_svg]:text-[var(--dusk-lav)]"
+                  : "border-transparent text-[var(--dusk-mute)] hover:bg-white/[.05] hover:text-white"
               }`}
               // Fires only for an in-app navigation, never for a
               // modifier, middle or new-tab click.
@@ -173,7 +183,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
     <>
       {/* Phone bar (#1330): below md the sidebar folds behind a menu button,
           so the main column gets the full viewport width. */}
-      <div className="md:hidden bg-slate-900/50 border-b border-white/10">
+      <div className="md:hidden bg-[rgba(5,6,13,.6)] border-b border-[var(--dusk-line)] backdrop-blur-[16px]">
         <div className="flex items-center justify-between px-4 py-3">
           {logo}
           <button
@@ -182,7 +192,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
             aria-expanded={menuOpen}
             aria-controls="user-sidebar-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="p-2 rounded-lg text-gray-300 hover:bg-white/5 hover:text-white"
+            className={`p-2 rounded-lg text-[var(--dusk-mute)] hover:bg-white/[.06] hover:text-white ${FOCUS_RING}`}
           >
             <svg
               className="w-6 h-6"
@@ -208,12 +218,14 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
         )}
       </div>
 
-      <aside className="hidden md:block w-64 shrink-0 bg-slate-900/50 border-r border-white/10 min-h-screen">
+      {/* Sticky beside the sticky header (review round 1), so the logo row
+          and the header stay level on a long Customers list. */}
+      <aside className="hidden md:block md:sticky md:top-0 md:h-screen md:self-start overflow-y-auto w-64 shrink-0 bg-[rgba(5,6,13,.45)] border-r border-[var(--dusk-line)]">
         {/* Logo */}
-        <div className="p-6 border-b border-white/10">{logo}</div>
+        <div className="px-5 h-14 flex items-center border-b border-[var(--dusk-line)]">{logo}</div>
 
         {/* Navigation */}
-        <nav className="p-4">{navList}</nav>
+        <nav className="p-3">{navList}</nav>
       </aside>
     </>
   );

@@ -1,24 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardBody } from "@heroui/card";
-import { Button } from "@heroui/button";
-import { m } from "framer-motion";
-import { Check, X, Sparkles, Building2, Cloud, KeyRound } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
+import { BTN_GLASS, BTN_WHITE, EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import EnterpriseContactModal from "./EnterpriseContactModal";
+import Reveal from "./Reveal";
 
-import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
+import { Link } from "@/src/i18n/navigation";
+
+const PLAN =
+  "relative flex h-full flex-col rounded-[26px] border p-7 text-start md:p-[34px]";
+const PLAN_BTN = "mt-auto w-full px-[22px] py-[13px] text-[15px]";
 
 /**
- * "Two ways to go cloud" pricing section.
- *
- * Replaces the old lifetime-license pricing table. Two paths: bring your own
- * API keys (free, but you do the legwork) or HyperWhisper Cloud Credits
- * (pay-as-you-go, zero setup) which routes to /credits. Copy lives under the
- * `cloudSection` namespace in messages/*.json.
+ * "Two ways to go cloud". Bring your own API keys (free, opens the download
+ * dialog) or HyperWhisper Cloud Credits (pay as you go, goes to /credits),
+ * plus the Enterprise contact form. Copy lives under `cloudSection`.
  */
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
@@ -42,162 +42,114 @@ export default function PricingSection() {
   ];
 
   return (
-    <section className="py-20" id="cloud">
-      <m.div
-        className="max-w-6xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
-      >
-        <div className="text-center mb-14">
-          <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-            {t("eyebrow")}
-          </span>
-          <h2 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
-          </h2>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+    <section className="pb-24 pt-5 md:pb-[120px]" id="cloud">
+      <div className={WRAP}>
+        <div className="mx-auto max-w-[640px] text-center">
+          <Reveal className={EYEBROW}>{t("eyebrow")}</Reveal>
+          <Reveal delay={80}>
+            <h2 className={`${H2} mt-3`}>{t("title")}</h2>
+          </Reveal>
+          <Reveal as="p" className={LEAD} delay={160}>
             {t("subtitle")}
-          </p>
+          </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {/* Bring your own keys */}
-          <m.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
+        <div className="mt-12 grid gap-[18px] md:mt-[52px] md:grid-cols-2">
+          <Reveal
+            className={`${PLAN} border-[var(--dusk-line)] bg-[var(--dusk-glass)]`}
           >
-            <Card className="h-full bg-gray-900/50 border-gray-800 backdrop-blur-xl">
-              {/* text-start overrides the physical `text-left` baked into
-                  HeroUI's CardBody slot, which would otherwise leave the
-                  heading and body copy flush left under dir="rtl". */}
-              <CardBody className="p-8 flex flex-col text-start">
-                <div className="flex items-center gap-2 mb-1">
-                  <KeyRound className="w-5 h-5 text-gray-400" strokeWidth={2.5} />
-                  <h3 className="text-xl font-bold text-white">
-                    {t("byo.title")}
-                  </h3>
-                </div>
-                <p className="text-sm text-gray-400 mb-6">
-                  {t("byo.subtitle")}
-                </p>
-                <ul className="space-y-3 mb-8">
-                  {byoFeatures.map((feature) => (
-                    <li
-                      key={feature.text}
-                      className="flex items-start gap-3 text-sm"
-                    >
-                      {feature.included ? (
-                        <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                      ) : (
-                        <X className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                      )}
-                      <span
-                        className={
-                          feature.included ? "text-gray-300" : "text-gray-400"
-                        }
-                      >
-                        {feature.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 mt-auto"
-                  size="lg"
-                  onPress={openModal}
-                >
-                  {t("byo.cta")}
-                </Button>
-              </CardBody>
-            </Card>
-          </m.div>
+            <h3 className="text-[22px] font-semibold">{t("byo.title")}</h3>
+            <p className="mt-1 text-[var(--dusk-mute)]">{t("byo.subtitle")}</p>
+            <ul className="mb-7 mt-6 grid gap-[11px] text-[15px]">
+              {byoFeatures.map((feature) => (
+                <li key={feature.text} className="flex items-start gap-2.5">
+                  {feature.included ? (
+                    <Check
+                      aria-hidden="true"
+                      className="mt-[3px] size-4 flex-none text-[var(--dusk-lav)]"
+                      strokeWidth={2.4}
+                    />
+                  ) : (
+                    <Minus
+                      aria-hidden="true"
+                      className="mt-[3px] size-4 flex-none text-[var(--dusk-dim)]"
+                      strokeWidth={2.4}
+                    />
+                  )}
+                  <span
+                    className={
+                      feature.included
+                        ? "text-[#d6d8ea]"
+                        : "text-[var(--dusk-mute)]"
+                    }
+                  >
+                    {feature.text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <button
+              className={`${BTN_GLASS} ${PLAN_BTN}`}
+              type="button"
+              onClick={openModal}
+            >
+              {t("byo.cta")}
+            </button>
+          </Reveal>
 
-          {/* HyperWhisper Cloud Credits */}
-          <m.div
-            className="relative"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
+          <Reveal
+            className={`${PLAN} border-[rgba(196,181,253,.35)] bg-[linear-gradient(180deg,rgba(129,90,220,.18),rgba(255,255,255,.03))]`}
+            delay={100}
           >
-            <div className="absolute -top-3 left-8 z-10">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                {t("credits.badge")}
-              </div>
-            </div>
-            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
-              <CardBody className="p-8 flex flex-col text-start">
-                <div className="flex items-center gap-2 mb-1">
-                  <Cloud className="w-5 h-5 text-purple-300" strokeWidth={2.5} />
-                  <h3 className="text-xl font-bold text-white">
-                    {t("credits.title")}
-                  </h3>
-                </div>
-                <p className="text-sm text-gray-400 mb-6">
-                  {t("credits.subtitle")}
-                </p>
-                <ul className="space-y-3 mb-8">
-                  {cloudFeatures.map((text) => (
-                    <li key={text} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                      <span className="text-gray-200">{text}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  as={Link}
-                  href="/credits"
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-auto"
-                  size="lg"
-                >
-                  {t("credits.cta")}
-                </Button>
-              </CardBody>
-            </Card>
-          </m.div>
+            <span className="absolute end-6 top-6 rounded-full bg-white px-2.5 py-[5px] text-xs font-semibold text-[#111]">
+              {t("credits.badge")}
+            </span>
+            <h3 className="pe-24 text-[22px] font-semibold">
+              {t("credits.title")}
+            </h3>
+            <p className="mt-1 text-[var(--dusk-mute)]">
+              {t("credits.subtitle")}
+            </p>
+            <ul className="mb-7 mt-6 grid gap-[11px] text-[15px] text-[#d6d8ea]">
+              {cloudFeatures.map((text) => (
+                <li key={text} className="flex items-start gap-2.5">
+                  <Check
+                    aria-hidden="true"
+                    className="mt-[3px] size-4 flex-none text-[var(--dusk-lav)]"
+                    strokeWidth={2.4}
+                  />
+                  <span>{text}</span>
+                </li>
+              ))}
+            </ul>
+            <Link className={`${BTN_WHITE} ${PLAN_BTN}`} href="/credits">
+              {t("credits.cta")}
+            </Link>
+          </Reveal>
         </div>
 
-        {/* Enterprise */}
-        <m.div
-          className="max-w-4xl mx-auto mt-12"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0 }}
+        <Reveal
+          className="mt-[18px] flex flex-col items-start gap-4 rounded-[20px] border border-[var(--dusk-line)] bg-white/[.025] px-6 py-[22px] text-start sm:flex-row sm:items-center sm:justify-between md:px-7"
+          delay={200}
         >
-          <Card className="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border-orange-700/50 backdrop-blur-xl">
-            <CardBody className="p-6 text-start">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <Building2 className="w-8 h-8 text-orange-400 flex-shrink-0" />
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-1">
-                      {t("enterprise.title")}
-                    </h3>
-                    <p className="text-gray-300 text-sm">
-                      {t("enterprise.description")}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  className="bg-gradient-to-r from-orange-600 to-amber-600 text-white flex-shrink-0"
-                  size="lg"
-                  onPress={() => setShowEnterpriseModal(true)}
-                >
-                  {t("enterprise.cta")}
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        </m.div>
-      </m.div>
+          <div className="min-w-0">
+            <h3 className="inline text-[17px] font-semibold">
+              {t("enterprise.title")}
+            </h3>
+            <p className="mt-1 text-[15px] text-[var(--dusk-mute)] sm:ms-3 sm:mt-0 sm:inline">
+              {t("enterprise.description")}
+            </p>
+          </div>
+          <button
+            className={`${BTN_GLASS} flex-none px-5 py-[11px] text-sm`}
+            type="button"
+            onClick={() => setShowEnterpriseModal(true)}
+          >
+            {t("enterprise.cta")}
+          </button>
+        </Reveal>
+      </div>
 
-      {/* Enterprise Contact Modal */}
       <EnterpriseContactModal
         isOpen={showEnterpriseModal}
         onClose={() => setShowEnterpriseModal(false)}

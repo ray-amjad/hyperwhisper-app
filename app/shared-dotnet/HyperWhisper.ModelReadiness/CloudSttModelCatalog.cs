@@ -1,3 +1,4 @@
+using HyperWhisper.SharedCore;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.ModelReadiness;
@@ -23,9 +24,31 @@ public static class CloudSttModelCatalog
     public static IReadOnlyList<Entry> ForProvider(string sttProvider)
         => ByProvider().TryGetValue(sttProvider, out var entries) ? entries : [];
 
-    /// <summary>A model id to its display name, across every vendor. First vendor wins a tie.</summary>
-    public static string Label(string modelId)
-        => Labels().TryGetValue(modelId, out var label) ? label : modelId;
+    /// <summary>
+    /// A model id to its display name, across every vendor. First vendor wins a tie.
+    ///
+    /// A retired id the catalog no longer lists (Grok <c>grok-voice-transcribe-1.0</c>, #1908) is
+    /// named by its successor, the model the editor shows and the request sends, through the one
+    /// alias table in the core (<see cref="SharedCoreBridge.ResolveCloudSttModelAlias"/>).
+    /// <paramref name="providerIdentifier"/> is the mode's stored <c>cloudProvider</c>; null lets
+    /// the core chain every table. An id that is neither listed nor aliased comes back unchanged.
+    /// </summary>
+    public static string Label(string modelId, string? providerIdentifier = null)
+    {
+        var labels = Labels();
+        if (labels.TryGetValue(modelId, out var label)) return label;
+        string resolved;
+        try
+        {
+            resolved = SharedCoreBridge.ResolveCloudSttModelAlias(modelId, providerIdentifier);
+        }
+        catch (Exception)
+        {
+            // A core fault draws the stored id rather than taking the caller down.
+            return modelId;
+        }
+        return labels.TryGetValue(resolved, out var aliased) ? aliased : modelId;
+    }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<Entry>> ByProvider()
     {

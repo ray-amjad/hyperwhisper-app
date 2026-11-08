@@ -571,7 +571,6 @@ public partial class HistoryViewModel : ViewModelBase
         OnPropertyChanged(nameof(CurrentDisplayText));
     }
 
-    [RelayCommand]
     private void ClearSelection()
     {
         SelectedTranscript = null;

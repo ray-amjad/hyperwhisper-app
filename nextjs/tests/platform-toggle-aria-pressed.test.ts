@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const require = createRequire(import.meta.url);
 
@@ -50,6 +50,15 @@ moduleMock.module("next-intl", {
 
 moduleMock.module("next/navigation", {
   namedExports: { useSearchParams: () => new URLSearchParams() },
+});
+
+// The download page links to /older-versions through the locale-aware Link,
+// which needs a next-intl provider; a plain anchor stands in for it here.
+moduleMock.module(moduleUrl("../src/i18n/navigation.ts"), {
+  namedExports: {
+    Link: ({ href, ...props }: { href: string } & Record<string, unknown>) =>
+      realReact.createElement("a", { href, ...props }),
+  },
 });
 
 // Variable specifiers, and deferred: a static import would bind before the
