@@ -314,8 +314,15 @@ public static class UpdateService
     /// check and our launch-time re-verification, so the two can never diverge.
     /// Production embeds a public key (OnlyVerifySoftwareDownloads); development with
     /// no key configured falls back to Unsafe so updates can still be tested locally.
+    ///
+    /// NOTE: in OnlyVerifySoftwareDownloads NetSparkle answers
+    /// <see cref="ValidationResult.Unchecked"/> (not Invalid) for a missing or blank
+    /// signature, so the result alone does not refuse an unsigned installer. The
+    /// launch gate is <see cref="IsInstallerLaunchAllowed"/> (issue #2903).
+    /// Internal so the smoke tests can pin that NetSparkle behaviour against the
+    /// real production verifier.
     /// </summary>
-    private static Ed25519Checker CreateSignatureVerifier()
+    internal static Ed25519Checker CreateSignatureVerifier()
     {
         SecurityMode securityMode;
         string publicKey;
@@ -334,6 +341,39 @@ public static class UpdateService
 
         return new Ed25519Checker(securityMode, publicKey);
     }
+
+    /// <summary>
+    /// True when this build embeds the production Ed25519 public key. With a key,
+    /// every installer must carry a valid signature; without one (development) the
+    /// verifier runs in Unsafe mode and unsigned installers are allowed.
+    /// </summary>
+    internal static bool HasPublicKey => !string.IsNullOrWhiteSpace(Ed25519PublicKey);
+
+    /// <summary>
+    /// The launch decision for a re-verification result (issue #2903).
+    /// <see cref="ValidationResult.Valid"/> launches; <see cref="ValidationResult.Invalid"/>
+    /// never does. <see cref="ValidationResult.Unchecked"/> launches ONLY when no public
+    /// key is configured (development build): with the production key set, NetSparkle's
+    /// OnlyVerifySoftwareDownloads mode reports a missing signature as Unchecked, and
+    /// launching on that would let anyone who can edit the appcast ship an arbitrary
+    /// .exe just by deleting <c>sparkle:edSignature</c>. Any other value is refused.
+    /// </summary>
+    internal static bool IsInstallerLaunchAllowed(ValidationResult result, bool hasPublicKey) => result switch
+    {
+        ValidationResult.Valid => true,
+        ValidationResult.Invalid => false,
+        ValidationResult.Unchecked => !hasPublicKey,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Early gate in <see cref="OnDownloadFinished"/>: with a public key configured,
+    /// an appcast item whose <c>sparkle:edSignature</c> is missing or blank cannot be
+    /// verified and must not be launched (issue #2903). Without a key (development)
+    /// the signature is not required.
+    /// </summary>
+    internal static bool IsDownloadSignaturePresentOrNotRequired(string? downloadSignature, bool hasPublicKey) =>
+        !hasPublicKey || !string.IsNullOrWhiteSpace(downloadSignature);
 
     // =========================================================================
     // EVENT HANDLERS
@@ -379,6 +419,24 @@ public static class UpdateService
                 LoggingService.Warn($"UpdateService: Installer launch already in progress, ignoring duplicate download: {path}");
                 if (!IsSameInstallerPath(path, activeInstallerPath))
                     TryDeleteInstaller(path);
+                return;
+            }
+
+            // SECURITY (issue #2903): with the production key set, an appcast item
+            // with no sparkle:edSignature reaches here as "Unchecked" from NetSparkle,
+            // not "Invalid". Refuse it before anything is prepared or launched.
+            // Release the launch slot so a later (signed) update can still proceed,
+            // and delete the unverified temp installer: it must never be run, and
+            // leaving it would only let NetSparkle hand the same unsigned file back
+            // on the next check.
+            if (!IsDownloadSignaturePresentOrNotRequired(item?.DownloadSignature, HasPublicKey))
+            {
+                LoggingService.Error($"UpdateService: Appcast item v{item?.Version ?? "unknown"} has no Ed25519 signature - refusing to launch unsigned installer");
+                SentryService.Capture(
+                    new InvalidOperationException("Appcast item has no Ed25519 signature; installer launch refused"),
+                    "Unsigned installer refused");
+                ResetInstallerLaunchState();
+                TryDeleteInstaller(path);
                 return;
             }
 
@@ -687,7 +745,8 @@ public static class UpdateService
 
     /// <summary>
     /// Best-effort deletion of a downloaded installer file. Used to clean up a duplicate
-    /// download once another download has already started launching the installer.
+    /// download once another download has already started launching the installer, and
+    /// to remove an unsigned installer that was refused before launch.
     /// </summary>
     private static void TryDeleteInstaller(string path)
     {
@@ -701,7 +760,7 @@ public static class UpdateService
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"UpdateService: Failed to delete duplicate installer '{path}': {ex.Message}");
+            LoggingService.Warn($"UpdateService: Failed to delete downloaded installer '{path}': {ex.Message}");
         }
     }
 
@@ -712,11 +771,11 @@ public static class UpdateService
     /// verified here cannot be swapped before the installer is launched.
     /// Returns true if the file is safe to launch.
     ///
-    /// Mirrors NetSparkle's own security mode: when a public key is embedded
-    /// (production), a tampered file yields <see cref="ValidationResult.Invalid"/>
-    /// and is rejected. When no key is configured (development) the verifier returns
-    /// <see cref="ValidationResult.Unchecked"/>, matching the download-time behavior,
-    /// so local update testing is not broken.
+    /// The decision is <see cref="IsInstallerLaunchAllowed"/>: when a public key is
+    /// embedded (production), a tampered file yields <see cref="ValidationResult.Invalid"/>
+    /// and a missing/blank signature yields <see cref="ValidationResult.Unchecked"/>;
+    /// both are rejected (issue #2903). Only when no key is configured (development)
+    /// is Unchecked allowed, so local update testing is not broken.
     /// </summary>
     private static bool ReVerifyInstallerSignature()
     {
@@ -740,9 +799,22 @@ public static class UpdateService
                 return false;
             }
 
+            var hasPublicKey = HasPublicKey;
+            if (!IsInstallerLaunchAllowed(result, hasPublicKey))
+            {
+                // Production key set but nothing was verified (missing/blank
+                // signature), or an unexpected result: refuse (issue #2903).
+                LoggingService.Error($"UpdateService: Installer signature re-verification returned {result} with a public key configured - refusing to launch unverified installer");
+                SentryService.Capture(
+                    new InvalidOperationException($"Installer Ed25519 re-verification returned {result} with a public key configured"),
+                    "Unverified installer refused");
+                return false;
+            }
+
             if (result == ValidationResult.Unchecked)
             {
-                LoggingService.Warn("UpdateService: Installer signature not re-verified (no public key/signature) - launching unverified");
+                // Only reachable without a public key (development build).
+                LoggingService.Warn("UpdateService: Installer signature not re-verified (no public key configured, development build) - launching unverified");
             }
 
             return true;

@@ -7,9 +7,12 @@
 // press reuses the open dialog, a closed dialog is not reused, and the dialog is
 // owned by the main window only while it is on screen.
 
+using System.IO;
 using System.Windows;
 using HyperWhisper.Services;
 using HyperWhisper.Views.Windows;
+using NetSparkleUpdater;
+using NetSparkleUpdater.Enums;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -108,6 +111,71 @@ internal static class UpdateMessageWindowChecks
                 host.Close();
                 app.ShutdownMode = shutdownMode;
             }
+        });
+
+        // UNSIGNED INSTALLER REFUSED (issue #2903). With the production key set,
+        // NetSparkle's OnlyVerifySoftwareDownloads mode reports a missing signature
+        // as Unchecked, not Invalid; the launch gate must refuse it. None of these
+        // cases launch a process or touch the updater's launch state.
+        run("updater: launch gate refuses Unchecked with a public key, allows it only without one (#2903)", () =>
+        {
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Unchecked, hasPublicKey: true),
+                "Unchecked with a public key was allowed to launch");
+            Assert(UpdateService.IsInstallerLaunchAllowed(ValidationResult.Valid, hasPublicKey: true),
+                "Valid with a public key was refused");
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Invalid, hasPublicKey: true),
+                "Invalid with a public key was allowed to launch");
+            Assert(UpdateService.IsInstallerLaunchAllowed(ValidationResult.Unchecked, hasPublicKey: false),
+                "Unchecked without a public key (development) was refused");
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Invalid, hasPublicKey: false),
+                "Invalid without a public key was allowed to launch");
+            Assert(!UpdateService.IsInstallerLaunchAllowed((ValidationResult)999, hasPublicKey: true),
+                "an unknown ValidationResult was allowed to launch");
+        });
+
+        run("updater: real production verifier answers Unchecked for a blank signature, and the gate refuses it (#2903)", () =>
+        {
+            Assert(UpdateService.HasPublicKey, "this build has no Ed25519 public key; the production path is not under test");
+            var verifier = UpdateService.CreateSignatureVerifier();
+            Assert(verifier.SecurityMode == SecurityMode.OnlyVerifySoftwareDownloads,
+                $"production verifier runs in {verifier.SecurityMode}, expected OnlyVerifySoftwareDownloads");
+
+            var installer = Path.Combine(Path.GetTempPath(), $"hw-smoke-unsigned-{Guid.NewGuid():N}.exe");
+            File.WriteAllBytes(installer, new byte[] { 0x4D, 0x5A, 0x00, 0x01, 0x02, 0x03 });
+            try
+            {
+                foreach (var signature in new[] { "", "   " })
+                {
+                    var result = verifier.VerifySignatureOfFile(signature, installer);
+                    Assert(result == ValidationResult.Unchecked,
+                        $"blank signature '{signature}' verified as {result}, expected Unchecked (NetSparkle behaviour changed?)");
+                    Assert(!UpdateService.IsInstallerLaunchAllowed(result, UpdateService.HasPublicKey),
+                        $"the gate allowed a {result} installer with the production key");
+                }
+            }
+            finally
+            {
+                try { File.Delete(installer); } catch (IOException) { }
+            }
+        });
+
+        run("updater: an appcast item with no signature is refused before launch when a key is set (#2903)", () =>
+        {
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired(null, hasPublicKey: true),
+                "a null DownloadSignature passed the early gate with a public key");
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired("", hasPublicKey: true),
+                "an empty DownloadSignature passed the early gate with a public key");
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired("  \t", hasPublicKey: true),
+                "a whitespace DownloadSignature passed the early gate with a public key");
+            Assert(UpdateService.IsDownloadSignaturePresentOrNotRequired("c2lnbmF0dXJl", hasPublicKey: true),
+                "a present DownloadSignature was refused by the early gate");
+            Assert(UpdateService.IsDownloadSignaturePresentOrNotRequired(null, hasPublicKey: false),
+                "a missing DownloadSignature was refused without a public key (development)");
+
+            // A real appcast item with sparkle:edSignature removed has a null signature.
+            var item = new AppCastItem { Version = "99.0.0" };
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired(item.DownloadSignature, UpdateService.HasPublicKey),
+                "an unsigned AppCastItem passed the early gate in this (production-key) build");
         });
     }
 
