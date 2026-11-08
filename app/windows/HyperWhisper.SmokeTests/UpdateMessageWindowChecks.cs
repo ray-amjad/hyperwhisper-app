@@ -7,9 +7,12 @@
 // press reuses the open dialog, a closed dialog is not reused, and the dialog is
 // owned by the main window only while it is on screen.
 
+using System.IO;
 using System.Windows;
 using HyperWhisper.Services;
 using HyperWhisper.Views.Windows;
+using NetSparkleUpdater;
+using NetSparkleUpdater.Enums;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -107,6 +110,133 @@ internal static class UpdateMessageWindowChecks
                 app.MainWindow = previousMain;
                 host.Close();
                 app.ShutdownMode = shutdownMode;
+            }
+        });
+
+        // UNSIGNED INSTALLER REFUSED (issue #2903). With the production key set,
+        // NetSparkle's OnlyVerifySoftwareDownloads mode reports a missing signature
+        // as Unchecked, not Invalid; the launch gate must refuse it. None of these
+        // cases launch a process or touch the updater's launch state.
+        run("updater: launch gate refuses Unchecked with a public key, allows it only without one (#2903)", () =>
+        {
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Unchecked, hasPublicKey: true),
+                "Unchecked with a public key was allowed to launch");
+            Assert(UpdateService.IsInstallerLaunchAllowed(ValidationResult.Valid, hasPublicKey: true),
+                "Valid with a public key was refused");
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Invalid, hasPublicKey: true),
+                "Invalid with a public key was allowed to launch");
+            Assert(UpdateService.IsInstallerLaunchAllowed(ValidationResult.Unchecked, hasPublicKey: false),
+                "Unchecked without a public key (development) was refused");
+            Assert(!UpdateService.IsInstallerLaunchAllowed(ValidationResult.Invalid, hasPublicKey: false),
+                "Invalid without a public key was allowed to launch");
+            Assert(!UpdateService.IsInstallerLaunchAllowed((ValidationResult)999, hasPublicKey: true),
+                "an unknown ValidationResult was allowed to launch");
+        });
+
+        run("updater: real production verifier answers Unchecked for a blank signature, and the gate refuses it (#2903)", () =>
+        {
+            Assert(UpdateService.HasPublicKey, "this build has no Ed25519 public key; the production path is not under test");
+            var verifier = UpdateService.CreateSignatureVerifier();
+            Assert(verifier.SecurityMode == SecurityMode.OnlyVerifySoftwareDownloads,
+                $"production verifier runs in {verifier.SecurityMode}, expected OnlyVerifySoftwareDownloads");
+
+            var installer = Path.Combine(Path.GetTempPath(), $"hw-smoke-unsigned-{Guid.NewGuid():N}.exe");
+            File.WriteAllBytes(installer, new byte[] { 0x4D, 0x5A, 0x00, 0x01, 0x02, 0x03 });
+            try
+            {
+                foreach (var signature in new[] { "", "   " })
+                {
+                    var result = verifier.VerifySignatureOfFile(signature, installer);
+                    Assert(result == ValidationResult.Unchecked,
+                        $"blank signature '{signature}' verified as {result}, expected Unchecked (NetSparkle behaviour changed?)");
+                    Assert(!UpdateService.IsInstallerLaunchAllowed(result, UpdateService.HasPublicKey),
+                        $"the gate allowed a {result} installer with the production key");
+                }
+            }
+            finally
+            {
+                try { File.Delete(installer); } catch (IOException) { }
+            }
+        });
+
+        run("updater: an appcast item with no signature is refused before launch when a key is set (#2903)", () =>
+        {
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired(null, hasPublicKey: true),
+                "a null DownloadSignature passed the early gate with a public key");
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired("", hasPublicKey: true),
+                "an empty DownloadSignature passed the early gate with a public key");
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired("  \t", hasPublicKey: true),
+                "a whitespace DownloadSignature passed the early gate with a public key");
+            Assert(UpdateService.IsDownloadSignaturePresentOrNotRequired("c2lnbmF0dXJl", hasPublicKey: true),
+                "a present DownloadSignature was refused by the early gate");
+            Assert(UpdateService.IsDownloadSignaturePresentOrNotRequired(null, hasPublicKey: false),
+                "a missing DownloadSignature was refused without a public key (development)");
+
+            // A real appcast item with sparkle:edSignature removed has a null signature.
+            var item = new AppCastItem { Version = "99.0.0" };
+            Assert(!UpdateService.IsDownloadSignaturePresentOrNotRequired(item.DownloadSignature, UpdateService.HasPublicKey),
+                "an unsigned AppCastItem passed the early gate in this (production-key) build");
+        });
+
+        // NETSPARKLE'S OWN "INSTALL" PATH (issue #2903 verify). The progress window's
+        // Install button and SparkleUpdater.InstallUpdate run a .cmd that starts the
+        // download with no checks of ours unless PreparingToExit is cancelled. Our own
+        // launch path owns every install, so NetSparkle's must always be cancelled.
+        run("updater: NetSparkle's own installer run is never allowed, whatever the verdict (#2903)", () =>
+        {
+            foreach (var verdict in Enum.GetValues<UpdateService.InstallerVerdict>())
+            {
+                Assert(!UpdateService.IsSparkleInstallerRunAllowed(verdict),
+                    $"NetSparkle's own installer run was allowed with verdict {verdict}");
+            }
+            Assert(UpdateService.ShouldReportSparkleInstallAttempt(UpdateService.InstallerVerdict.Refused),
+                "a NetSparkle install of a refused file is not reported");
+            Assert(UpdateService.ShouldReportSparkleInstallAttempt(UpdateService.InstallerVerdict.None),
+                "a NetSparkle install of a file our path never saw is not reported");
+            Assert(!UpdateService.ShouldReportSparkleInstallAttempt(UpdateService.InstallerVerdict.LaunchPrepared),
+                "a NetSparkle install while our own verified launch is pending is reported as an error");
+        });
+
+        run("updater: an unsigned download is refused, deleted, leaves the launch slot free, and NetSparkle's Install is cancelled (#2903)", () =>
+        {
+            // Without the production key the handler would go on to launch: never run it then.
+            Assert(UpdateService.HasPublicKey, "this build has no Ed25519 public key; refusing to drive OnDownloadFinished");
+            Assert(UpdateService.ActiveLaunchInstallerPath == null, "a launch slot is already reserved before the case");
+
+            var installer = Path.Combine(Path.GetTempPath(), $"hw-smoke-unsigned-{Guid.NewGuid():N}.exe");
+            File.WriteAllBytes(installer, new byte[] { 0x4D, 0x5A, 0x00, 0x01 });
+            try
+            {
+                UpdateService.OnDownloadStarted(new AppCastItem { Version = "99.0.0" }, installer);
+                Assert(UpdateService.CurrentInstallerVerdict == UpdateService.InstallerVerdict.None,
+                    $"a new download did not clear the verdict ({UpdateService.CurrentInstallerVerdict})");
+
+                UpdateService.OnDownloadFinished(new AppCastItem { Version = "99.0.0", DownloadSignature = null }, installer);
+                Assert(UpdateService.CurrentInstallerVerdict == UpdateService.InstallerVerdict.Refused,
+                    $"an unsigned download left verdict {UpdateService.CurrentInstallerVerdict}, expected Refused");
+                Assert(!File.Exists(installer), "the refused unsigned installer was left on disk");
+                Assert(UpdateService.ActiveLaunchInstallerPath == null,
+                    "the unsigned refusal reserved the launch slot (a concurrent signed download would be dropped)");
+                Assert(!UpdateService.IsUpdateShutdownRequested, "an unsigned download requested an update shutdown");
+
+                // The progress window's Install button: NetSparkle asks PreparingToExit first.
+                var args = new System.ComponentModel.CancelEventArgs();
+                UpdateService.OnPreparingToExit(null, args);
+                Assert(args.Cancel, "PreparingToExit was not cancelled after the unsigned refusal");
+
+                // The second guard, at the .cmd's Process.Start (the Process is never started).
+                using var process = new System.Diagnostics.Process();
+                Assert(!UpdateService.OnInstallerProcessAboutToStart(process, installer),
+                    "InstallerProcessAboutToStart let NetSparkle start the refused installer");
+
+                // A later download starts clean, so a signed update is not blocked by the flag.
+                UpdateService.OnDownloadStarted(new AppCastItem { Version = "99.0.1" }, installer);
+                Assert(UpdateService.CurrentInstallerVerdict == UpdateService.InstallerVerdict.None,
+                    "the refusal verdict survived a new download");
+            }
+            finally
+            {
+                try { File.Delete(installer); } catch (IOException) { }
             }
         });
     }
