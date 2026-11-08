@@ -69,18 +69,18 @@ const MUTANTS = [
   },
   {
     name: "revokeAccountKey writes no revoked status",
-    from: '      .set({ status: "revoked" })\n      .where(eq(accountKeys.id, id));',
-    to: '      .set({ status: "granted" })\n      .where(eq(accountKeys.id, id));',
+    from: '      .set({ status: "revoked" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
+    to: '      .set({ status: "granted" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
   },
   {
     name: "revokeAccountKey revokes every key",
-    from: '      .set({ status: "revoked" })\n      .where(eq(accountKeys.id, id));',
-    to: '      .set({ status: "revoked" });',
+    from: '      .set({ status: "revoked" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
+    to: '      .set({ status: "revoked" })\n      .where(\n        and(\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
   },
   {
     name: "revokeAccountKey drops the acting user",
-    from: "      .where(eq(accountKeys.id, id));\n\n    await revokeWebAccess(userId, { ...options, tx });",
-    to: "      .where(eq(accountKeys.id, id));\n\n    await revokeWebAccess(userId, { tx });",
+    from: "    if (updated.length === 0) return { revoked: false };\n\n    await revokeWebAccess(userId, { ...options, tx });",
+    to: "    if (updated.length === 0) return { revoked: false };\n\n    await revokeWebAccess(userId, { tx });",
   },
   {
     name: "findAccountByKey does not trim",
