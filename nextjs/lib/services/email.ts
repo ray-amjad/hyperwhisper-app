@@ -1,4 +1,9 @@
-import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
+import {
+  DEFAULT_FROM_EMAIL,
+  sendEmail,
+  type EmailPayload,
+  type EmailSendOutcome,
+} from "@/lib/clients/email";
 import { emailTag, redactRecipient } from "@/lib/shared/redact";
 import { describeDbError } from "@/lib/shared/db-error";
 import {
@@ -26,109 +31,72 @@ import {
   keyRotatedEmailText,
   type KeyRotatedEmailData,
 } from "@/lib/templates/key-rotated-email";
+import {
+  keyIssuedEmailHtml,
+  keyIssuedEmailText,
+  type KeyIssuedEmailData,
+} from "@/lib/templates/key-issued-email";
+import {
+  keyDeletedEmailHtml,
+  keyDeletedEmailText,
+  type KeyDeletedEmailData,
+} from "@/lib/templates/key-deleted-email";
 import { logSentEmail } from "@/src/lib/db-layer";
 
 interface EmailResult {
   success: boolean;
-  /** The provider's raw success payload. Shape is Resend's, so it stays
-   * `unknown` and callers must narrow it rather than dot into it. */
-  data?: unknown;
+  /** The provider's success payload: `{ id }`, the Cloudflare message id. */
+  data?: { id: string };
   error?: string;
 }
 
 /**
- * Read the provider message id off Resend's success payload, accepting it only
- * when it really is a string. The payload comes from the SDK as `unknown`, so
- * the shape is checked rather than asserted.
+ * Error thrown when a send comes back with an error. Carries Cloudflare's
+ * error code so we can decide whether the failure is worth retrying.
  */
-function providerMessageIdOf(data: unknown): string | null {
-  if (typeof data !== "object" || data === null || !("id" in data)) return null;
-
-  return typeof data.id === "string" ? data.id : null;
-}
-
-function resendErrorDetailsOf(error: unknown): {
-  message?: string;
-  name?: string;
-  statusCode?: number | null;
-} {
-  if (typeof error !== "object" || error === null) return {};
-
-  return {
-    ...("message" in error && typeof error.message === "string"
-      ? { message: error.message }
-      : {}),
-    ...("name" in error && typeof error.name === "string"
-      ? { name: error.name }
-      : {}),
-    ...("statusCode" in error &&
-    (typeof error.statusCode === "number" || error.statusCode === null)
-      ? { statusCode: error.statusCode }
-      : {}),
-  };
-}
-
-/**
- * Error thrown when the Resend API resolves with an error object instead of
- * throwing. Carries the Resend error name/statusCode so we can decide whether
- * the failure is worth retrying.
- */
-class ResendSendError extends Error {
+class EmailSendError extends Error {
   readonly retryable: boolean;
 
-  constructor(message: string, name: string, statusCode: number | null) {
+  constructor(message: string, code: string) {
     super(message);
-    this.name = "ResendSendError";
-    this.retryable = isRetryableResendError(name, statusCode);
+    this.name = "EmailSendError";
+    this.retryable = isRetryableEmailError(code);
   }
 }
 
 /**
- * Decide whether a Resend failure is transient (worth retrying) or permanent.
+ * Decide whether a Cloudflare Email Service failure is transient (worth
+ * retrying) or permanent.
  *
- * Permanent failures (invalid recipient/domain, validation errors, auth errors,
- * suppressed recipients) will never succeed on retry, so we fail fast instead of
- * burning the webhook request thread on backoff sleeps.
+ * Permanent failures (invalid recipient, unverified sender, suppressed
+ * recipient, daily quota, a rejected delivery) will never succeed on retry, so
+ * we fail fast instead of burning the webhook request thread on backoff sleeps.
  */
-function isRetryableResendError(
-  name: string | undefined,
-  statusCode: number | null,
-): boolean {
-  // Rate limits and server-side errors are transient.
-  if (
-    name === "rate_limit_exceeded" ||
-    name === "internal_server_error" ||
-    name === "application_error"
-  ) {
+function isRetryableEmailError(code: string): boolean {
+  // Rate limits and service-side errors are transient.
+  if (code === "E_RATE_LIMIT_EXCEEDED" || code === "E_INTERNAL_SERVER_ERROR") {
     return true;
   }
 
-  // Any 5xx (or unknown/missing status) is treated as transient.
-  if (statusCode == null) return true;
-  return statusCode >= 500;
+  // Every other documented code starts with `E_` and is permanent. Anything
+  // else (`unknown`: the call failed without a code) is treated as transient.
+  return !code.startsWith("E_");
 }
 
-/** One message, as every sender hands it to the provider. */
-export interface EmailPayload {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-}
+export type { EmailPayload };
 
 /**
  * The service's three edges: the provider, the audit log and the backoff
  * clock. Production uses the defaults; a test builds its own instance (#769).
  */
 export interface EmailDeps {
-  send: (payload: EmailPayload) => Promise<{ data: unknown; error: unknown }>;
+  send: (payload: EmailPayload) => Promise<EmailSendOutcome>;
   logSentEmail: (data: Parameters<typeof logSentEmail>[0]) => Promise<void>;
   sleep: (ms: number) => Promise<void>;
 }
 
 const defaultDeps: EmailDeps = {
-  send: (payload) => resend.emails.send(payload),
+  send: sendEmail,
   logSentEmail,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
@@ -225,19 +193,59 @@ export class EmailService {
   }
 
   /**
+   * Send the notice that a new Account Key was issued from the dashboard. It
+   * carries only a short prefix of the new key, never the full key.
+   */
+  async sendKeyIssued(data: KeyIssuedEmailData): Promise<EmailResult> {
+    const subject = "A new HyperWhisper Account Key was added";
+    return this.sendWithRetry("key-issued", data.customerEmail, subject, () =>
+      this.deps.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject,
+        html: keyIssuedEmailHtml(data),
+        text: keyIssuedEmailText(data),
+      }),
+    );
+  }
+
+  /**
+   * Send the notice that an Account Key was deleted from the dashboard. It
+   * carries only a short prefix of the deleted key, never the full key.
+   */
+  async sendKeyDeleted(data: KeyDeletedEmailData): Promise<EmailResult> {
+    const subject = "A HyperWhisper Account Key was deleted";
+    return this.sendWithRetry("key-deleted", data.customerEmail, subject, () =>
+      this.deps.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject,
+        html: keyDeletedEmailHtml(data),
+        text: keyDeletedEmailText(data),
+      }),
+    );
+  }
+
+  /**
    * Shared send-with-retry loop.
    *
-   * Treats a resolved `{ error }` object from the Resend SDK as a failure (the
-   * SDK does NOT throw on API-level errors), so transient failures actually
-   * retry and permanent failures surface as `{ success: false }` instead of a
-   * false positive. Permanent (non-retryable) errors abort immediately so the
+   * Treats a resolved `{ error }` from `sendEmail` as a failure (it never
+   * throws), so transient failures actually retry and permanent failures
+   * surface as `{ success: false }` instead of a false positive. Permanent (non-retryable) errors abort immediately so the
    * caller's request thread is not blocked on backoff sleeps.
    */
   private async sendWithRetry(
-    kind: "license" | "welcome" | "credit-mint" | "credit-topup" | "key-rotated",
+    kind:
+      | "license"
+      | "welcome"
+      | "credit-mint"
+      | "credit-topup"
+      | "key-rotated"
+      | "key-issued"
+      | "key-deleted",
     customerEmail: string,
     subject: string,
-    send: () => Promise<{ data: unknown; error: unknown }>,
+    send: () => Promise<EmailSendOutcome>,
   ): Promise<EmailResult> {
     // A `catch` binding is `unknown`: `throw` can carry any value, so the
     // failure is kept as-is and its message is read behind an `instanceof`
@@ -254,21 +262,17 @@ export class EmailService {
 
         const result = await send();
 
-        // The Resend SDK resolves to { data, error } and does NOT throw on
-        // API-level failures, so an error object must be inspected explicitly.
         if (result.error) {
-          const err = resendErrorDetailsOf(result.error);
-          // Resend's message can echo the recipient ("alice@corp.com is not a
-          // valid recipient"). Redacted HERE, before it becomes the error's
+          // A provider message can echo the recipient ("alice@corp.com is not
+          // a valid recipient"). Redacted HERE, before it becomes the error's
           // message, so the catch-block log below and `EmailResult.error` —
           // which the webhook and download callers log — never carry it (#717).
-          throw new ResendSendError(
+          throw new EmailSendError(
             redactRecipient(
-              err.message || `Resend returned an error sending ${kind} email`,
+              result.error.message || `${result.error.code} sending ${kind} email`,
               customerEmail,
             ),
-            err.name ?? "",
-            err.statusCode ?? null,
+            result.error.code,
           );
         }
 
@@ -278,7 +282,7 @@ export class EmailService {
           recipient: customerEmail,
           emailType: kind,
           subject,
-          providerMessageId: providerMessageIdOf(result.data),
+          providerMessageId: result.data.id,
           status: "sent",
         });
 
@@ -292,7 +296,7 @@ export class EmailService {
 
         // Don't retry permanent failures (bad recipient/domain, validation,
         // auth) — they will never succeed and would only block on backoff.
-        if (error instanceof ResendSendError && !error.retryable) {
+        if (error instanceof EmailSendError && !error.retryable) {
           break;
         }
 

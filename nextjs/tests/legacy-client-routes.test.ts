@@ -14,7 +14,7 @@
  * same deploy and keep every parameter, or the purchase lands on no wallet.
  *
  * Both routes are the real modules driven with real Requests. The checkout
- * redirect's one collaborator, its Upstash rate limiter (#2010), is replaced
+ * redirect's one collaborator, its rate limiter (#2010), is replaced
  * with an always-allow stub so the run needs no network; its 429 is covered in
  * tests/route-rate-limits.test.ts.
  */

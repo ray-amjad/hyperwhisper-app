@@ -324,7 +324,10 @@ public sealed class PortableCloudAccountService : IDisposable
         /// <summary>The server stated a verdict; the core mapped it.</summary>
         Verdict,
 
-        /// <summary>Nothing was decided. The cached verdict may stand in.</summary>
+        /// <summary>
+        /// Nothing was decided (timeout, network failure, 429/5xx, or a 200 that
+        /// is not the validate JSON). The cached verdict may stand in.
+        /// </summary>
         Transient,
 
         /// <summary>The request cannot be answered and must not be retried here.</summary>
@@ -364,10 +367,24 @@ public sealed class PortableCloudAccountService : IDisposable
 
         var response = transport.Value;
         if (response.IsSuccess)
-            return new ValidateAttempt(
-                ValidateAttemptKind.Verdict,
-                PortableLicenseCore.ParseValidateResponse(response.Body),
-                null);
+        {
+            var parsed = PortableLicenseCore.ParseValidateResponse(response.Body);
+
+            // A 200 that is not the validate JSON (a captive-portal or proxy
+            // login page, an empty body) is not a verdict about the key (#2916).
+            // Caching the Invalid the core maps it to would lock a paying user
+            // out for the 24-hour cache window, so it is transient like a
+            // timeout: the cached verdict stands in and nothing is persisted.
+            if (!parsed.IsVerdict)
+                return new ValidateAttempt(
+                    ValidateAttemptKind.Transient,
+                    null,
+                    new CloudAccountFailure(
+                        CloudAccountFailureCode.InvalidResponse,
+                        "The account service returned an unexpected response. Check the network connection and try again."));
+
+            return new ValidateAttempt(ValidateAttemptKind.Verdict, parsed, null);
+        }
 
         var code = (int)response.StatusCode;
 

@@ -32,7 +32,7 @@ export const creditGrants = pgTable(
     // lazy filter (`expires_at IS NULL OR expires_at > now()`) in the read/spend
     // queries — there is no cron, so an expired row stays status='active' but is
     // excluded from balance and spend. New paid/minted grants are stamped
-    // created_at + 365 days; see grantCreditLotInTransaction in db-layer.ts.
+    // created_at + 365 days; see grantCreditLotInTransaction in credit-ledger.ts.
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

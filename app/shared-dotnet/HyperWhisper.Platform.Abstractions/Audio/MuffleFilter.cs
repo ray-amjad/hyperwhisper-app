@@ -125,24 +125,3 @@ public sealed class MuffleFilter
         _a1 = (float)(-2 * cosW0 / a0); _a2 = (float)((1 - a) / a0);
     }
 }
-
-/// <summary>Allocation-free conversions between 16-bit little-endian PCM and float samples in [-1, 1).</summary>
-public static class PcmFloatConversion
-{
-    public static void S16ToFloat(ReadOnlySpan<short> source, Span<float> destination)
-    {
-        if (destination.Length < source.Length) throw new ArgumentException("The destination is too short.", nameof(destination));
-        for (var i = 0; i < source.Length; i++) destination[i] = source[i] * (1f / 32768f);
-    }
-
-    /// <summary>Rounds to nearest and clips to the 16-bit range.</summary>
-    public static void FloatToS16(ReadOnlySpan<float> source, Span<short> destination)
-    {
-        if (destination.Length < source.Length) throw new ArgumentException("The destination is too short.", nameof(destination));
-        for (var i = 0; i < source.Length; i++)
-        {
-            var scaled = source[i] * 32768f;
-            destination[i] = float.IsNaN(scaled) ? (short)0 : (short)Math.Clamp(MathF.Round(scaled), short.MinValue, short.MaxValue);
-        }
-    }
-}

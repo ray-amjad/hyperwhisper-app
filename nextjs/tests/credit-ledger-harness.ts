@@ -1,5 +1,5 @@
 /**
- * Test harness for the credit ledger in `src/lib/db-layer.ts`: granting a
+ * Test harness for the credit ledger in `src/lib/credit-ledger.ts`: granting a
  * credit lot, the Stripe event dedup, spending oldest-first, the refund
  * clawback, and the balance reads that heal the `credit_balances` cache.
  *
@@ -11,8 +11,9 @@
  * migrations in `nextjs/drizzle`, applied by the real Drizzle migrator.
  *
  * The mock is installed when this module is evaluated, and `loadDbLayer()`
- * is the only way the tests reach the module. A test file that imports
- * `src/lib/db-layer.ts` itself would bind to the real `pg` pool, so do not.
+ * is the only way the tests reach the ledger (through the re-exports in
+ * `src/lib/db-layer.ts`). A test file that imports `src/lib/credit-ledger.ts`
+ * or `src/lib/db-layer.ts` itself would bind to the real `pg` pool, so do not.
  */
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";

@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextRequest, NextResponse } from "next/server";
 
 import { nearestRegion } from "@/lib/latency/fly-regions";
@@ -7,19 +8,48 @@ export const dynamic = "force-dynamic";
 const MAX_CANDIDATES = 60;
 
 /**
- * Reads one edge coordinate header. Returns null when the header is absent or
- * blank — `Number(null)` and `Number("")` are both 0, which is a real, finite
+ * Parses one coordinate. Returns null when it is absent or blank —
+ * `Number(null)` and `Number("")` are both 0, which is a real, finite
  * coordinate in the Atlantic, so converting first would send every visitor
- * without geo headers into a distance contest from Null Island.
+ * without geo data into a distance contest from Null Island.
  */
-function coordinateHeader(request: NextRequest, name: string): number | null {
-  const raw = request.headers.get(name);
-  if (raw === null || raw.trim() === "") {
+function parseCoordinate(raw: unknown): number | null {
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) ? raw : null;
+  }
+  if (typeof raw !== "string" || raw.trim() === "") {
     return null;
   }
 
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;
+}
+
+/** Cloudflare's `request.cf`, or undefined off Workers (node tests, next dev). */
+function requestCf(): Record<string, unknown> | undefined {
+  try {
+    return getCloudflareContext().cf as Record<string, unknown> | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Reads one visitor coordinate: Cloudflare's `request.cf` first, then the
+ * `cf-iplatitude` / `cf-iplongitude` headers (the zone's "Add visitor location
+ * headers" managed transform), which is also how the tests feed it.
+ */
+function coordinateHeader(
+  request: NextRequest,
+  name: "cf-iplatitude" | "cf-iplongitude",
+): number | null {
+  const cfKey = name === "cf-iplatitude" ? "latitude" : "longitude";
+  const fromCf = parseCoordinate(requestCf()?.[cfKey]);
+
+  if (fromCf !== null) {
+    return fromCf;
+  }
+  return parseCoordinate(request.headers.get(name));
 }
 
 /**
@@ -28,14 +58,14 @@ function coordinateHeader(request: NextRequest, name: string): number | null {
  * The page itself is static (revalidated hourly), so it cannot know who is
  * reading it. The client calls this one small dynamic endpoint after paint and
  * highlights the answer. Nothing about the visitor is stored or logged — the
- * coordinates are read from Vercel's edge headers, used once, and dropped.
+ * coordinates are read from Cloudflare's request.cf data, used once, and dropped.
  *
  * Candidates are the region codes the matrix actually holds data for, passed by
  * the client, so the highlight can never point at an empty column.
  */
 export function GET(request: NextRequest) {
-  const latitude = coordinateHeader(request, "x-vercel-ip-latitude");
-  const longitude = coordinateHeader(request, "x-vercel-ip-longitude");
+  const latitude = coordinateHeader(request, "cf-iplatitude");
+  const longitude = coordinateHeader(request, "cf-iplongitude");
 
   const candidates = (request.nextUrl.searchParams.get("regions") ?? "")
     .split(",")
@@ -43,8 +73,8 @@ export function GET(request: NextRequest) {
     .filter((code) => /^[a-z]{3,12}$/.test(code))
     .slice(0, MAX_CANDIDATES);
 
-  // Off Vercel (local dev) the headers are absent. Say so plainly rather than
-  // highlighting a wrong column.
+  // Off Cloudflare (local dev) there is no location data. Say so plainly
+  // rather than highlighting a wrong column.
   if (latitude === null || longitude === null || candidates.length === 0) {
     return NextResponse.json(
       { region: null, city: null },

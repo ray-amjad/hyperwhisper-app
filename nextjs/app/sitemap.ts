@@ -6,6 +6,14 @@ import {
   locales,
 } from "@/src/i18n/locales";
 
+// Rebuilt hourly from the database, like the pages it lists. Without this the
+// sitemap is rendered once and never again, and the build has
+// no database, so it would hold only the code blog posts until the next
+// revalidatePath from the add-blog-post webhook. scripts/cf-build.mjs also
+// keeps that build-time render out of the deployed cache. A failed
+// revalidation throws (src/content/blog.ts) and keeps the last good copy.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL;
 
@@ -61,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   });
 
-  // A vercel.json rewrite with no locale form, so it is listed once, unprefixed.
+  // A Mintlify rewrite (config/mintlify-rewrites.mjs) with no locale form, so it is listed once, unprefixed.
   sitemap.push({
     url: `${baseUrl}/docs`,
     lastModified: new Date(),

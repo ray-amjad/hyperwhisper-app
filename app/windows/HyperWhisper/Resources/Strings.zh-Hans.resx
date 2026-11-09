@@ -1040,15 +1040,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet 模型不支持自定义词汇。</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 不支持自定义词汇。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base 模型不支持自定义词汇。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper 模型不支持自定义词汇。</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>使用 Nova 模型的自动检测时自定义词汇已禁用。设置特定语言以启用词汇增强。</value>
   </data>
@@ -2193,7 +2184,7 @@
     <value>请至少选择一个要导入的部分。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>添加 {0} 个新词，{1} 个与现有词冲突。是否继续？</value>
+    <value>新词：{0} 个。与现有词冲突：{1} 个。是否继续？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>导入词汇？</value>

@@ -28,7 +28,7 @@ export const blogLinkRedirects = [
     destination: "/:locale/legal/privacy-policy",
     permanent: true,
   },
-  // The docs are the Mintlify rewrite at bare /docs (vercel.json), which has
+  // The docs are the Mintlify rewrite at bare /docs (config/mintlify-rewrites.mjs), which has
   // no locale prefix. `:path*` also matches zero segments, so /en/docs lands
   // on /docs and /en/docs/x on /docs/x.
   {
