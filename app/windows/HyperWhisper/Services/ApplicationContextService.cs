@@ -385,50 +385,10 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
             var focusedElementType = focusedInfo?.ElementType;
             var focusedContent = focusedInfo?.Content;
 
-            // -----------------------------------------------------------------
-            // Step 8: Infer text format from category
-            // -----------------------------------------------------------------
-            var textFormat = InferTextFormat(category);
-
-            // Override text format if webmail detected in browser tab
-            if (string.Equals(category, "Web Browser", StringComparison.OrdinalIgnoreCase)
-                && browserTabTitle != null
-                && IsWebmail(browserTabTitle))
-            {
-                textFormat = "email";
-            }
-
-            // The title the classifier sees is the browser tab first, then the
-            // window title. Windows has always composed it this way; the shared
-            // core takes an already-composed string so each head keeps that
-            // choice (issue #279).
-            var classifierTitle = string.Join(" ", new[] { browserTabTitle, windowTitle }
-                .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-            var appClassification = AppTypeClassifier.Classify(new AppClassificationRequest(
-                ProcessName: processName,
-                Host: browserHost,
-                HostConfidence: browserHost == null ? "unknown" : "medium",
-                Title: classifierTitle,
-                FocusedPieces: [focusedElementType ?? string.Empty, focusedContent ?? string.Empty]));
-
-            if (appClassification.AppType == AppType.Other
-                && string.Equals(category, "Web Browser", StringComparison.OrdinalIgnoreCase)
-                && browserTabTitle != null
-                && IsWebmail(browserTabTitle))
-            {
-                appClassification = new AppClassificationResult(
-                    AppType.Email,
-                    "weak",
-                    "webmailTitleFallback",
-                    null);
-            }
-
-            if (appClassification.AppType != AppType.Other)
-            {
-                category = appClassification.AppType.ToCategory();
-                textFormat = appClassification.AppType.ToTextFormat();
-            }
+            // Step 8: infer the text format and reconcile it with the classifier (pure, #887)
+            (category, var textFormat, var appClassification) = ReconcileClassification(
+                processName, windowTitle, browserTabTitle, browserHost,
+                focusedElementType, focusedContent, category, InferTextFormat(category));
 
             var context = new ApplicationContext
             {
@@ -586,6 +546,67 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
 
         return resolvedName;
+    }
+
+    /// <summary>
+    /// The pure half of <see cref="GatherContext"/>: given what the probes saw,
+    /// decide the app type, category and text format. It reads no window, so the
+    /// webmail fallbacks and the classifier reconciliation can be tested without
+    /// a real foreground app (issue #887). <paramref name="textFormat"/> is the
+    /// <see cref="InferTextFormat"/> value for <paramref name="category"/>.
+    /// </summary>
+    internal static (string Category, string TextFormat, AppClassificationResult Classification)
+        ReconcileClassification(
+            string processName,
+            string? windowTitle,
+            string? browserTabTitle,
+            string? browserHost,
+            string? focusedElementType,
+            string? focusedContent,
+            string category,
+            string textFormat)
+    {
+        // Override text format if webmail detected in browser tab
+        if (string.Equals(category, "Web Browser", StringComparison.OrdinalIgnoreCase)
+            && browserTabTitle != null
+            && IsWebmail(browserTabTitle))
+        {
+            textFormat = "email";
+        }
+
+        // The title the classifier sees is the browser tab first, then the
+        // window title. Windows has always composed it this way; the shared
+        // core takes an already-composed string so each head keeps that
+        // choice (issue #279).
+        var classifierTitle = string.Join(" ", new[] { browserTabTitle, windowTitle }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        var appClassification = AppTypeClassifier.Classify(new AppClassificationRequest(
+            ProcessName: processName,
+            Host: browserHost,
+            HostConfidence: browserHost == null ? "unknown" : "medium",
+            Title: classifierTitle,
+            FocusedPieces: [focusedElementType ?? string.Empty, focusedContent ?? string.Empty]));
+
+        if (appClassification.AppType == AppType.Other
+            && string.Equals(category, "Web Browser", StringComparison.OrdinalIgnoreCase)
+            && browserTabTitle != null
+            && IsWebmail(browserTabTitle))
+        {
+            appClassification = new AppClassificationResult(
+                AppType.Email,
+                "weak",
+                "webmailTitleFallback",
+                null);
+        }
+
+        if (appClassification.AppType != AppType.Other)
+        {
+            category = appClassification.AppType.ToCategory();
+            textFormat = appClassification.AppType.ToTextFormat();
+        }
+
+        return (category, textFormat, appClassification);
     }
 
     // =========================================================================
