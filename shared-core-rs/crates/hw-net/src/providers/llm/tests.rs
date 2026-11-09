@@ -298,6 +298,8 @@ fn local_llama_body_carries_sampling_and_max_tokens() {
     // `top_k` is an integer parameter — `40.0` makes llama-server reject it.
     assert!(body["top_k"].is_i64(), "top_k must be an integer");
     assert_eq!(body["top_k"], 40);
+    // Gemma 4 thinks by default; clean-up must not pay for hidden reasoning.
+    assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
 }
 
 #[test]
@@ -311,6 +313,7 @@ fn only_the_local_llama_arm_gets_sampling_parameters() {
         let body = body_json(&build_llm_request(&params(provider)).unwrap());
         assert!(body.get("temperature").is_none(), "provider={provider:?}");
         assert!(body.get("max_tokens").is_none(), "provider={provider:?}");
+        assert!(body.get("chat_template_kwargs").is_none(), "provider={provider:?}");
     }
 }
 
