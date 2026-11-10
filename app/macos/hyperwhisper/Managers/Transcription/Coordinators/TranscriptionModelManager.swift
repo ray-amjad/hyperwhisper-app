@@ -366,6 +366,11 @@ class TranscriptionModelManager: ObservableObject {
                 modelReadyState = .ready(name: displayName)
             } catch is CancellationError {
                 AppLogger.models.info("Qwen3 ASR preparation cancelled")
+            } catch TranscriptionError.modelNotDownloaded {
+                // Missing weights are an expected state, not a load fault: show
+                // the Download prompt and send no Sentry event (#1988).
+                AppLogger.models.warning("Qwen3 ASR \(modelId, privacy: .public) is not downloaded")
+                modelReadyState = .unavailable(name: displayName)
             } catch {
                 AppLogger.models.error("Failed to prepare Qwen3 ASR provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none
@@ -404,6 +409,11 @@ class TranscriptionModelManager: ObservableObject {
                 modelReadyState = .ready(name: displayName)
             } catch is CancellationError {
                 AppLogger.models.info("Nemotron preparation cancelled")
+            } catch TranscriptionError.modelNotDownloaded {
+                // Missing weights are an expected state, not a load fault: show
+                // the Download prompt (#1988).
+                AppLogger.models.warning("Nemotron \(modelId, privacy: .public) is not downloaded")
+                modelReadyState = .unavailable(name: displayName)
             } catch {
                 AppLogger.models.error("Failed to prepare Nemotron: \(error.localizedDescription, privacy: .public)")
                 // A failed load (a broken variant, #1632) must not leave the status

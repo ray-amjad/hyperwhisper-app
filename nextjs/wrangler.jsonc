@@ -1,0 +1,97 @@
+// Cloudflare Worker for the website (nextjs/), built with @opennextjs/cloudflare.
+// Runbook: DEPLOY-CLOUDFLARE.md. This repo is public: no secret values here.
+// Secrets are authored in Infisical and synced to this Worker.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must equal the Worker that nextjs-deploy.yml deploys (and the Infisical sync).
+  "name": "hyperwhisper-web-prod",
+  // Custom entry: wraps .open-next/worker.js to add the cron handler.
+  "main": "worker.ts",
+  // Must not be newer than the workerd bundled with the pinned wrangler.
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // esbuild keep_names wraps functions in a __name() helper. Next stringifies
+  // some of them into inline <script>s (the next-themes init script), where
+  // __name does not exist: "ReferenceError: __name is not defined" in the
+  // browser on every dynamically rendered page, e.g. /en/user/dashboard.
+  "keep_names": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // *.workers.dev stays on for smoke tests before and after cutover.
+  "workers_dev": true,
+  // Production only: no per-version preview URLs.
+  "preview_urls": false,
+  // The live hostnames are attached in the dashboard (Settings -> Domains &
+  // Routes), not here.
+  "vars": {
+    // Read at runtime: cloud licence-cache purge defaults
+    // (lib/services/cloud-license-cache.ts) and the Sentry environment.
+    "DEPLOY_ENV": "production"
+  },
+  // PlanetScale Postgres through Hyperdrive, caching disabled (see
+  // DEPLOY-CLOUDFLARE.md).
+  // Local dev: set CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in
+  // the shell; never add localConnectionString here.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "88898df7eb564ef7bcb3efc3a6c6ad34"
+    }
+  ],
+  // OpenNext ISR cache: blog (60s), latency and choosing-a-model (1h) pages,
+  // plus revalidatePath from the add-blog-post webhook.
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "hyperwhisper-web-opennext-cache"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+      { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"]
+    }
+  ],
+  // Rate limits (lib/rate-limit.ts, src/lib/auth-rate-limit-storage.ts).
+  // Approximate and per Cloudflare location; a period is 10 or 60 seconds.
+  // namespace_id is unique per limiter across the Cloudflare account (the
+  // school's playback Worker uses 1001-1003). tests/rate-limit.test.ts pins
+  // these numbers.
+  "ratelimits": [
+    { "name": "RATE_LIMIT_DOWNLOAD_EMAIL", "namespace_id": "4101", "simple": { "limit": 2, "period": 60 } },
+    { "name": "RATE_LIMIT_LICENSE_VALIDATE", "namespace_id": "4102", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RATE_LIMIT_LICENSE_CREDITS", "namespace_id": "4103", "simple": { "limit": 300, "period": 60 } },
+    { "name": "RATE_LIMIT_LATENCY_INGEST", "namespace_id": "4104", "simple": { "limit": 6000, "period": 60 } },
+    { "name": "RATE_LIMIT_CHECKOUT", "namespace_id": "4105", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RATE_LIMIT_ACCOUNT_KEY_ROTATE", "namespace_id": "4106", "simple": { "limit": 1, "period": 60 } },
+    { "name": "RATE_LIMIT_ACCOUNT_KEY_MANAGE", "namespace_id": "4107", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH_10S_100", "namespace_id": "4111", "simple": { "limit": 100, "period": 10 } },
+    { "name": "RATE_LIMIT_AUTH_10S_3", "namespace_id": "4112", "simple": { "limit": 3, "period": 10 } },
+    { "name": "RATE_LIMIT_AUTH_60S_3", "namespace_id": "4113", "simple": { "limit": 3, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH_60S_5", "namespace_id": "4114", "simple": { "limit": 5, "period": 60 } }
+  ],
+  // Cloudflare Email Service (lib/clients/email.ts). hyperwhisper.com is
+  // onboarded for Email Sending in the dashboard.
+  "send_email": [{ "name": "EMAIL" }],
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "hyperwhisper-web-prod" }
+  ],
+  // UTC. Keep in step with config/cron-jobs.mjs (tests/cron-jobs.test.ts).
+  "triggers": {
+    "crons": ["17 4 * * *", "37 4 * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "invocation_logs": true }
+  },
+  "upload_source_maps": true
+}

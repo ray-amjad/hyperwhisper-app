@@ -332,7 +332,7 @@ public partial class ParakeetTranscriptionService
     private async Task WriteRequestAsync(string audioPath)
     {
         var request = JsonSerializer.Serialize(new { audio_path = audioPath }, s_requestJsonOptions);
-        LoggingService.Debug($"ParakeetTranscriptionService: Sending request: {request}");
+        LoggingService.Debug($"ParakeetTranscriptionService: Sending request: audio_path={LoggingService.DescribePath(audioPath)}");
 
         await _stdinWriter!.WriteLineAsync(request).ConfigureAwait(false);
         await _stdinWriter.FlushAsync().ConfigureAwait(false);

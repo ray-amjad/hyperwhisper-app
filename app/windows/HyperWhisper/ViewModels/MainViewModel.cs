@@ -1488,7 +1488,6 @@ public partial class MainViewModel : ViewModelBase
     public bool HasDictationInFlight =>
         IsRecording || IsTranscribing || IsModelLoading || IsStreamingActive();
 
-    [RelayCommand]
     private async Task LoadModelAsync()
     {
         if (!PlatformHelper.SupportsLocalTranscription)
@@ -2154,7 +2153,6 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
     public async Task StartRecordingAsync()
     {
         // ONBOARDING EXCLUSIVITY. The global toggle shortcut is a process-wide
