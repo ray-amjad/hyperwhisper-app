@@ -632,7 +632,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     /// - The app is not a browser
     /// - The window title is empty
     /// - The entire title is just the browser suffix (no actual tab title)
-    /// Edge writes a zero-width space inside its suffix ("Microsoft​ Edge"), so the
+    /// Edge writes a zero-width space inside its suffix ("Microsoft\u200B Edge"), so the
     /// suffix match ignores zero-width characters inside the suffix span (issue #3022).
     /// Edge's profile segment (" - Profile 1") is deliberately left in the tab title: the
     /// name is user-chosen, and a trailing " - X" segment cannot be told apart from part of
@@ -668,7 +668,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     /// ZERO WIDTH SPACE, ZERO WIDTH NON-JOINER, ZERO WIDTH JOINER, WORD JOINER, BOM / ZWNBSP.
     /// </summary>
     private static bool IsZeroWidth(char c) =>
-        c is '​' or '‌' or '‍' or '⁠' or '﻿';
+        c is '\u200B' or '\u200C' or '\u200D' or '\u2060' or '\uFEFF';
 
     /// <summary>
     /// Matches <paramref name="suffix"/> against the end of <paramref name="title"/>
