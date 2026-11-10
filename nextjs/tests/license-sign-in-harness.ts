@@ -21,6 +21,7 @@
  */
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface SessionRow {
@@ -71,23 +72,9 @@ export const behaviour = {
   createSessionResult: "ok" as "ok" | "null",
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-AAAA-BBBB-CCCC-DDDD",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  key: "HW-AAAA-BBBB-CCCC-DDDD",
+});
 
 export function userRow(overrides: Partial<UserRow> = {}): UserRow {
   return {

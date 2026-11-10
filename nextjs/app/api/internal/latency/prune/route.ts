@@ -6,7 +6,7 @@ import { db } from "@/src/db";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// No maxDuration: a Cloudflare cron invocation gets 15 minutes of wall time.
 
 /** Retention promised on the public privacy page. */
 const RETENTION_DAYS = 365;
@@ -18,7 +18,7 @@ const MAX_BATCHES = 20;
 /**
  * Deletes latency samples past the 1-year retention window.
  *
- * Runs daily from a Vercel cron (see vercel.json). Without this, "we keep these
+ * Runs daily from a Cloudflare cron trigger (wrangler.jsonc, worker.ts). Without this, "we keep these
  * rows for a year" would be a hope rather than a policy — and the privacy page
  * states it as a fact.
  *

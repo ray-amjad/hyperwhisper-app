@@ -183,8 +183,14 @@ On Windows, a `.hwbackup.json` export can contain settings, modes, and API keys 
 
 Both platforms read and write the same `.hwbackup.json` vocabulary format. A move of your vocabulary from one platform to the other needs no conversion:
 
-1. **Export** a vocabulary-only backup on the source platform (see above).
-2. **Import** the `.hwbackup.json` file on the destination platform.
+<Steps>
+  <Step title="Export on the source platform">
+    **Export** a vocabulary-only backup on the source platform (see above).
+  </Step>
+  <Step title="Import on the destination platform">
+    **Import** the `.hwbackup.json` file on the destination platform.
+  </Step>
+</Steps>
 
 An import only adds. The app does not delete the existing entries on the destination platform. The app writes only the new words and the words that you chose to replace.
 

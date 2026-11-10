@@ -55,7 +55,7 @@ export function AnimatedDialog({
       />
       <m.div
         {...DIALOG_PANEL}
-        className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+        className="relative w-full max-w-md mx-4 p-6 space-y-5 rounded-[22px] border border-white/[.14] bg-[rgba(10,12,28,.86)] shadow-[0_24px_80px_rgba(0,0,0,.6)] backdrop-blur-[22px]"
       >
         {children}
       </m.div>

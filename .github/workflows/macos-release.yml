@@ -28,6 +28,7 @@ on:
 permissions:
   contents: write
   pull-requests: write   # release commit lands via an auto-merged PR (gh pr create/merge)
+  actions: write         # starts nextjs-deploy.yml after the merge (gh workflow run)
 
 concurrency:
   group: release-push
@@ -260,6 +261,15 @@ jobs:
       # ----------------------------------------------------------------
       # 6. Build (xcodebuild archive)
       # ----------------------------------------------------------------
+      # The macos-26 image 20261028.624 arrives with a SwiftPM artifacts
+      # cache that makes the binary-target download fail with "... already
+      # exists in file system" (Sparkle 2.10.0, run 42570330715, twice). The
+      # release is meant to resolve from nothing anyway, so start clean.
+      - name: Clear SwiftPM artifact cache
+        run: |
+          ls -la ~/Library/Caches/org.swift.swiftpm/artifacts 2>/dev/null || echo "no SwiftPM artifact cache"
+          rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+
       - name: Archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -660,6 +670,11 @@ jobs:
             echo "merge attempt $i failed, retrying..."
             sleep 5
           done
+
+          # A merge made with github.token triggers no other workflow, so start the
+          # website deploy (nextjs-deploy.yml) explicitly; workflow_dispatch is the
+          # exception GitHub allows for that token. It deploys only from main.
+          gh workflow run nextjs-deploy.yml --ref "$BASE"
 
           # Ensure the release step below tags the merged commit on the base.
           git fetch origin "$BASE"

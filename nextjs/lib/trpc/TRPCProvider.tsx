@@ -21,6 +21,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { httpLink, loggerLink } from "@trpc/client";
 import { useState } from "react";
 import superjson from "superjson";
+import { env } from "@env/client.mjs";
 
 import { api } from "./client";
 import { makeQueryClient } from "./query-client";
@@ -30,7 +31,7 @@ import { makeQueryClient } from "./query-client";
  *
  * ENVIRONMENTS:
  * - Browser: Empty string (relative URL /api/trpc)
- * - Vercel SSR: Uses NEXT_PUBLIC_VERCEL_URL
+ * - Deployed SSR (Cloudflare Workers): NEXT_PUBLIC_SITE_URL, inlined at build
  * - Local dev: Uses localhost with PORT env var
  */
 function getBaseUrl(): string {
@@ -38,9 +39,9 @@ function getBaseUrl(): string {
     // Browser: use relative URL
     return "";
   }
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    // Vercel deployment
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  if (env.NEXT_PUBLIC_SITE_URL) {
+    // Deployed site (set at build in nextjs-deploy.yml)
+    return env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
   }
   // Local development
   return `http://localhost:${process.env.PORT ?? 3000}`;

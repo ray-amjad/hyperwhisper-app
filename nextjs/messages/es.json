@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funciones",
+    "modes": "Modos",
     "faq": "FAQ",
     "support": "Soporte",
     "download": "Descargar",
@@ -16,26 +17,36 @@
       "switchTo": "Cambiar idioma"
     },
     "cloud": "Cloud",
-    "githubAria": "Ver HyperWhisper en GitHub"
+    "githubAria": "Ver HyperWhisper en GitHub",
+    "skipToContent": "Saltar al contenido"
   },
   "hero": {
-    "logoAlt": "Logo de HyperWhisper",
-    "headline": "Escribe, compón y crea",
-    "headlineAccent": "5x más rápido con IA",
-    "subheadline": "HyperWhisper transcribe tu voz con una precisión increíble. Solo habla con naturalidad y ve tus palabras aparecer al instante.",
-    "downloadCta": "Descargar ahora",
-    "demoCta": "Ver demo",
-    "availableOn": "Disponible en",
+    "badge": "Nuevo",
+    "headline": "Solo habla.",
+    "headlineAccent": "Nosotros escribimos.",
+    "subheadline": "Texto pulido en cualquier app.",
+    "downloadMac": "Descargar para Mac",
+    "freeForever": "Gratis para siempre",
+    "worksOffline": "Funciona offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Desplázate",
+    "closing": {
+      "line1": "Deja de teclear.",
+      "line2": "Empieza a hablar.",
+      "meta": "Gratis y de código abierto. Sin necesidad de cuenta."
+    }
   },
   "features": {
-    "title": "Hecho para profesionales",
-    "subtitle": "Cada función está diseñada para ayudarte a trabajar más rápido y con más eficiencia",
+    "title": "Hecho para quienes escriben todo el día.",
     "customVocabulary": {
       "title": "Vocabulario personalizado",
       "description": "Agrega nombres, siglas y términos especiales para una precisión perfecta en todo momento."
+    },
+    "realTime": {
+      "title": "Transcripción en tiempo real",
+      "description": "Ve tus palabras al instante mientras hablas. Precisión líder en la industria con latencia inferior a 700 ms."
     },
     "languages": {
       "title": "Más de 100 idiomas",
@@ -45,25 +56,9 @@
       "title": "Soporte sin conexión",
       "description": "Funciona completamente offline. Tus datos nunca salen del dispositivo."
     },
-    "privacy": {
-      "title": "Privacidad ante todo",
-      "description": "Sin cuenta. Sin rastreo. Tus datos de voz se quedan en tu Mac o PC."
-    },
-    "hybridProcessing": {
-      "title": "Procesamiento híbrido",
-      "description": "Elige modelos locales para privacidad o APIs en la nube para velocidad. Lo mejor de ambos mundos."
-    },
-    "customizable": {
-      "title": "Altamente configurable",
-      "description": "Elige entre más de 9 proveedores de API y 30+ modelos de transcripción."
-    },
-    "realTime": {
-      "title": "Transcripción en tiempo real",
-      "description": "Ve tus palabras al instante mientras hablas. Precisión líder en la industria con latencia inferior a 700 ms."
-    },
-    "fileImport": {
-      "title": "Importación de archivos",
-      "description": "Importa audio o video para transcribir. Compatible con formatos principales y detección automática de silencios."
+    "openSource": {
+      "title": "Código abierto",
+      "description": "Con licencia Apache-2.0. Inspecciona cada línea, haz un fork o aloja tu propia copia. Sin cajas negras, sin dependencia forzada."
     },
     "screenOcr": {
       "title": "OCR de pantalla",
@@ -73,28 +68,57 @@
       "title": "API local y servidor MCP",
       "description": "El servidor MCP integrado permite que Claude, Cursor y otros agentes de IA controlen HyperWhisper. API HTTP solo local para scripts y automatizaciones."
     },
+    "fileImport": {
+      "title": "Importación de archivos",
+      "description": "Importa audio o video para transcribir. Compatible con formatos principales y detección automática de silencios."
+    },
     "modes": {
-      "title": "Modos para cada situación",
-      "description": "Cambia entre distintos modos optimizados para reuniones, notas, emails, programación y más. Cada modo usa prompts personalizados para dar formato perfecto a tu texto.",
-      "meeting": "Reunión",
+      "heading": "Una voz. Todos los formatos.",
+      "lead": "Cada modo reescribe lo que dijiste según su destino.",
       "email": "Email",
       "note": "Nota",
       "code": "Código",
+      "meeting": "Reunión",
       "legal": "Legal",
       "medical": "Médico",
-      "presetModes": "Modos predefinidos",
-      "customModes": "Modos personalizados"
-    },
-    "openSource": {
-      "title": "Código abierto",
-      "description": "Con licencia Apache-2.0. Inspecciona cada línea, haz un fork o aloja tu propia copia. Sin cajas negras, sin dependencia forzada."
+      "youSaid": "Dijiste",
+      "hyperWhisperWrote": "HyperWhisper escribió",
+      "sample": "eh bueno dile a john que el lanzamiento pasa al jueves porque el QA de linux todavía no está terminado y em gracias por la paciencia",
+      "output": {
+        "email": "Hola, John:\n\nEl lanzamiento se pasa al jueves mientras terminamos el QA de Linux. Gracias por tu paciencia.\n\nUn saludo,",
+        "note": "• Lanzamiento → jueves\n• Bloqueo: QA de Linux sin terminar\n• Avisar a John",
+        "code": "// TODO(john): lanzamiento movido al jueves, QA de Linux aún en curso",
+        "meeting": "Decisión: el lanzamiento pasa al jueves.\nMotivo: QA de Linux incompleto.\nResponsable: avisar a John.",
+        "legal": "Por medio de la presente se informa que la fecha de lanzamiento se ha reprogramado al jueves, a la espera de que concluya el control de calidad de Linux.",
+        "medical": "Plan: aplazar el lanzamiento al jueves. Estado: QA de Linux pendiente. Seguimiento: informar a John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Funciona dondequiera que escribas",
+    "eyebrow": "Cómo funciona",
+    "titleLine1": "Pulsa una tecla.",
+    "titleLine2": "Dilo.",
+    "titleAccent": "Listo.",
+    "lead": "Tus palabras aparecen, ya limpias, donde está tu cursor.",
+    "step1": "Pulsa tu atajo",
+    "step2Key": "Habla",
+    "step2": "Habla como lo harías normalmente",
+    "step3Key": "Pulsa otra vez",
+    "step3": "Texto limpio, pegado en su sitio",
+    "watchVideo": "Ver la demo completa",
+    "closeVideo": "Cerrar vídeo",
+    "exampleLabel": "Ejemplo animado: una respuesta hablada se escribe en un mensaje de Slack",
+    "message1": "¿Seguimos bien para publicar la build de Linux el jueves?",
+    "message2": "QA superado por mi parte 👍",
+    "composePlaceholder": "Mensaje en #launch",
+    "typed": "Sí, el QA de Linux pasó esta mañana, así que vamos bien para el jueves. Publicaré las notas de la versión antes del mediodía.",
+    "listening": "Escuchando",
+    "cleaningUp": "Limpiando…",
     "fasterThanTyping": "Más rápido que escribir",
     "accuracyRate": "Tasa de precisión",
     "languagesSupported": "Idiomas compatibles",
-    "providersSupported": "Proveedores compatibles"
+    "modelsSupported": "Modelos de transcripción"
   },
   "faq": {
     "title": "Preguntas frecuentes",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "¿Qué modelos sin conexión están disponibles?",
-        "answer": "Para transcripción sin conexión ofrecemos varios tamaños del modelo Whisper (de OpenAI, compatible con 99+ idiomas). También ofrecemos los modelos Parakeet de NVIDIA (compatible con 25+ idiomas).\n      \n      Para el postprocesamiento sin conexión ofrecemos varios tamaños del modelo Gemma 3 (de Google)."
+        "answer": "Para transcripción sin conexión ofrecemos varios tamaños del modelo Whisper (de OpenAI, compatible con 99+ idiomas). También ofrecemos los modelos Parakeet de NVIDIA (compatible con 25+ idiomas).\n      \n      Para el postprocesamiento sin conexión ofrecemos varios tamaños del modelo Gemma 4 (de Google)."
       },
       "compatibility": {
         "question": "¿Funciona con todas mis apps?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Solicitud de soporte de HyperWhisper",
       "body": "Hola,\n\nVersión: \n[puedes verificarla en Configuración > Acerca de]\n\nProblema: \n[Describe tu problema]\n\nDetalles: \n[Proporciona los detalles relevantes, qué estabas haciendo antes del fallo]\n\n[Tu mensaje aquí]\n\nSaludos,"
-    }
+    },
+    "helpCenterHint": "Configuración, atajos y modelos.",
+    "chooseModelHint": "Ordena los modelos según cómo trabajas.",
+    "accountHint": "Inicia sesión con tu clave de cuenta.",
+    "chooseModelTitle": "Elige un modelo"
   },
   "downloadModal": {
     "logoAlt": "Logo de HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Cierra sesión y vuelve a iniciarla después de unirte al grupo input. Ser miembro es opcional, pero los atajos globales y el pegado automático lo necesitan.",
     "aptTitle": "Aloja tu propio repositorio APT",
     "aptBody": "Las versiones de Linux también incluyen un archivo de repositorio APT estático. Actualmente HyperWhisper no ofrece un endpoint APT público; consulta la guía de instalación de Linux para la configuración firmada y autoalojada, los complementos de escritorio, los detalles de privacidad y la desinstalación.",
-    "linuxGuideCta": "Leer la guía de instalación de Linux"
+    "linuxGuideCta": "Leer la guía de instalación de Linux",
+    "heroLead": "Gratis y de código abierto. Elige tu plataforma.",
+    "releaseNotes": "Notas de la versión",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon e Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 e ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versiones anteriores",
@@ -280,6 +313,7 @@
       "dataTraining": "Privacidad de datos"
     },
     "copyright": "© 2026 HyperWhisper. Todos los derechos reservados.",
+    "madeBy": "Creado por Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Sigue a HyperWhisper en X (Twitter)",
     "githubAria": "HyperWhisper en GitHub"
@@ -373,7 +407,33 @@
     "sendingLink": "Enviando…",
     "linkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego regenera la clave.",
     "linkFailed": "No se pudo enviar el enlace de inicio de sesión. Inténtalo de nuevo.",
-    "errorUnavailable": "Esta clave ya no se puede regenerar. Su estado actual se muestra arriba."
+    "errorUnavailable": "Esta clave ya no se puede regenerar. Su estado actual se muestra arriba.",
+    "delete": "Eliminar clave",
+    "deleteConfirmTitle": "¿Eliminar esta clave de cuenta?",
+    "deleteConfirmBody": "Esta clave dejará de funcionar de inmediato en todos los dispositivos. Los dispositivos que la usen necesitarán una de tus otras claves: introdúcela en HyperWhisper en cada dispositivo. Tus créditos y tu historial de compras se mantienen en tu cuenta. También se cerrará tu sesión en este sitio web en tus otros navegadores.",
+    "deleteConfirm": "Eliminar clave",
+    "deleting": "Eliminando…",
+    "deleted": "Clave eliminada. Los dispositivos que la usaban necesitan una de tus otras claves.",
+    "deleteLastKey": "Esta es tu única clave activa, así que no se puede eliminar.",
+    "deleteVerifyBody": "Para eliminar una clave, primero confirma que eres tú por correo. Te enviaremos un enlace de inicio de sesión a la dirección de correo de tu cuenta. Ábrelo y luego elimina la clave desde esta página.",
+    "deleteLinkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego elimina la clave.",
+    "deleteErrorStale": "Esta clave cambió desde que se cargó la página. La clave actual se muestra arriba.",
+    "deleteErrorUnavailable": "Esta clave ya no se puede eliminar.",
+    "deleteErrorGeneric": "No se pudo eliminar la clave. Inténtalo de nuevo.",
+    "issue": "Añadir una clave nueva",
+    "issueConfirmTitle": "¿Añadir una nueva clave de cuenta?",
+    "issueConfirmBody": "Recibirás una clave más para esta cuenta. Usa los mismos créditos que tus otras claves, que siguen funcionando.",
+    "issueConfirm": "Añadir clave",
+    "issuing": "Añadiendo…",
+    "issued": "Clave nueva añadida. Usa 'Mostrar' para verla y copiarla.",
+    "issueCap": "Tienes {max} claves activas, el máximo que puede tener una cuenta. Elimina una para añadir otra.",
+    "issueVerifyBody": "Para añadir una clave, primero confirma que eres tú por correo. Te enviaremos un enlace de inicio de sesión a la dirección de correo de tu cuenta. Ábrelo y luego añade la clave desde esta página.",
+    "issueLinkSent": "Enlace de inicio de sesión enviado. Ábrelo desde tu bandeja de entrada y luego añade la clave.",
+    "issueErrorUnavailable": "Solo una cuenta con una clave activa puede añadir otra.",
+    "issueErrorGeneric": "No se pudo añadir la clave. Inténtalo de nuevo.",
+    "manageErrorRateLimited": "Demasiados cambios de claves. Inténtalo de nuevo en un minuto.",
+    "cloudPurgePending": "Es posible que la clave antigua siga funcionando en HyperWhisper Cloud durante una hora como máximo.",
+    "deleteCloudPurgePending": "Es posible que esta clave siga funcionando en HyperWhisper Cloud durante una hora como máximo."
   },
   "openSource": {
     "heading": "Código abierto. Nada que ocultar.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Este enlace de inicio de sesión ha caducado o ya se ha usado. Introduce tu correo para recibir uno nuevo.",
     "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo."
+  },
+  "legal": {
+    "onThisPage": "En esta página"
   }
 }

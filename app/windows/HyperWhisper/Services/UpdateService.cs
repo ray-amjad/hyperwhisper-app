@@ -75,6 +75,9 @@ public static class UpdateService
     private static int _installerLaunched = 0;
     private static string? _launchingInstallerPath;
 
+    /// <summary>The download path that currently owns the launch slot, or null (smoke tests).</summary>
+    internal static string? ActiveLaunchInstallerPath => Volatile.Read(ref _launchingInstallerPath);
+
     // Set by PrepareInstallerLaunch (pre-shutdown) and consumed by
     // StartInstallerProcess (exit-time). The lock stream is held OPEN across the
     // shutdown so the verified installer bytes stay immutable until launch
@@ -135,6 +138,8 @@ public static class UpdateService
             _sparkle.DownloadFinished += OnDownloadFinished;
             _sparkle.DownloadHadError += OnDownloadError;
             _sparkle.PreparingToExit += OnPreparingToExit;
+            // Second guard on NetSparkle's own installer path (issue #2903).
+            _sparkle.InstallerProcessAboutToStart += OnInstallerProcessAboutToStart;
 
             _isInitialized = true;
             LoggingService.Info("UpdateService: Initialization complete");
@@ -314,8 +319,15 @@ public static class UpdateService
     /// check and our launch-time re-verification, so the two can never diverge.
     /// Production embeds a public key (OnlyVerifySoftwareDownloads); development with
     /// no key configured falls back to Unsafe so updates can still be tested locally.
+    ///
+    /// NOTE: in OnlyVerifySoftwareDownloads NetSparkle answers
+    /// <see cref="ValidationResult.Unchecked"/> (not Invalid) for a missing or blank
+    /// signature, so the result alone does not refuse an unsigned installer. The
+    /// launch gate is <see cref="IsInstallerLaunchAllowed"/> (issue #2903).
+    /// Internal so the smoke tests can pin that NetSparkle behaviour against the
+    /// real production verifier.
     /// </summary>
-    private static Ed25519Checker CreateSignatureVerifier()
+    internal static Ed25519Checker CreateSignatureVerifier()
     {
         SecurityMode securityMode;
         string publicKey;
@@ -335,6 +347,39 @@ public static class UpdateService
         return new Ed25519Checker(securityMode, publicKey);
     }
 
+    /// <summary>
+    /// True when this build embeds the production Ed25519 public key. With a key,
+    /// every installer must carry a valid signature; without one (development) the
+    /// verifier runs in Unsafe mode and unsigned installers are allowed.
+    /// </summary>
+    internal static bool HasPublicKey => !string.IsNullOrWhiteSpace(Ed25519PublicKey);
+
+    /// <summary>
+    /// The launch decision for a re-verification result (issue #2903).
+    /// <see cref="ValidationResult.Valid"/> launches; <see cref="ValidationResult.Invalid"/>
+    /// never does. <see cref="ValidationResult.Unchecked"/> launches ONLY when no public
+    /// key is configured (development build): with the production key set, NetSparkle's
+    /// OnlyVerifySoftwareDownloads mode reports a missing signature as Unchecked, and
+    /// launching on that would let anyone who can edit the appcast ship an arbitrary
+    /// .exe just by deleting <c>sparkle:edSignature</c>. Any other value is refused.
+    /// </summary>
+    internal static bool IsInstallerLaunchAllowed(ValidationResult result, bool hasPublicKey) => result switch
+    {
+        ValidationResult.Valid => true,
+        ValidationResult.Invalid => false,
+        ValidationResult.Unchecked => !hasPublicKey,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Early gate in <see cref="OnDownloadFinished"/>: with a public key configured,
+    /// an appcast item whose <c>sparkle:edSignature</c> is missing or blank cannot be
+    /// verified and must not be launched (issue #2903). Without a key (development)
+    /// the signature is not required.
+    /// </summary>
+    internal static bool IsDownloadSignaturePresentOrNotRequired(string? downloadSignature, bool hasPublicKey) =>
+        !hasPublicKey || !string.IsNullOrWhiteSpace(downloadSignature);
+
     // =========================================================================
     // EVENT HANDLERS
     // =========================================================================
@@ -351,9 +396,13 @@ public static class UpdateService
     /// <summary>
     /// Called when update download begins.
     /// </summary>
-    private static void OnDownloadStarted(AppCastItem? item, string path)
+    internal static void OnDownloadStarted(AppCastItem? item, string path)
     {
         LoggingService.Info($"UpdateService: Download started - v{item?.Version ?? "unknown"} to {path}");
+        // A new download starts with no verdict. Our own launch path does not read
+        // the verdict, so a refusal never blocks a later signed update; it only
+        // decides how a NetSparkle install request is reported (OnPreparingToExit).
+        RecordInstallerVerdict(InstallerVerdict.None);
     }
 
     /// <summary>
@@ -363,11 +412,35 @@ public static class UpdateService
     /// unhandled exception tears down the WPF dispatcher context mid-callback,
     /// causing NullReferenceException (HYPERWHISPER-M0, 15 users).
     /// </summary>
-    private static void OnDownloadFinished(AppCastItem? item, string path)
+    internal static void OnDownloadFinished(AppCastItem? item, string path)
     {
         try
         {
             LoggingService.Info($"UpdateService: Download completed - v{item?.Version ?? "unknown"}");
+
+            // SECURITY (issue #2903): with the production key set, an appcast item
+            // with no sparkle:edSignature reaches here as "Unchecked" from NetSparkle,
+            // not "Invalid". Refuse it before anything is prepared or launched, and
+            // BEFORE reserving the launch slot below, so an unsigned callback can never
+            // make a concurrent signed download be dropped as a duplicate. It must not
+            // touch the launch state either (that may belong to a concurrent signed
+            // launch). Delete the unverified temp installer, unless it is the very file
+            // a concurrent launch owns: it must never be run, and leaving it would only
+            // let NetSparkle hand the same unsigned file back on the next check. If the
+            // delete fails (antivirus holding it), OnPreparingToExit and
+            // OnInstallerProcessAboutToStart still stop NetSparkle from running it.
+            if (!IsDownloadSignaturePresentOrNotRequired(item?.DownloadSignature, HasPublicKey))
+            {
+                LoggingService.Error($"UpdateService: Appcast item v{item?.Version ?? "unknown"} has no Ed25519 signature - refusing to launch unsigned installer");
+                SentryService.Capture(
+                    new InvalidOperationException("Appcast item has no Ed25519 signature; installer launch refused"),
+                    "Unsigned installer refused");
+                RecordInstallerVerdict(InstallerVerdict.Refused);
+                var ownedPath = Volatile.Read(ref _launchingInstallerPath);
+                if (ownedPath == null || !IsSameInstallerPath(path, ownedPath))
+                    TryDeleteInstaller(path);
+                return;
+            }
 
             // A manual check and the background loop can both finish a download and
             // arrive here. Only the first completed download owns the pending launch;
@@ -417,9 +490,14 @@ public static class UpdateService
         if (!PrepareInstallerLaunch())
         {
             // Preparation failed and already logged/reset — do NOT register the
-            // Exit handler or shut down; the app stays alive.
+            // Exit handler or shut down; the app stays alive. Any refusal here
+            // (missing file, lock failure, Invalid/Unchecked re-verify) is recorded
+            // so a later NetSparkle "Install" click is reported as a refused file.
+            RecordInstallerVerdict(InstallerVerdict.Refused);
             return;
         }
+
+        RecordInstallerVerdict(InstallerVerdict.LaunchPrepared);
 
         var app = System.Windows.Application.Current;
         var dispatcher = app?.Dispatcher;
@@ -687,7 +765,8 @@ public static class UpdateService
 
     /// <summary>
     /// Best-effort deletion of a downloaded installer file. Used to clean up a duplicate
-    /// download once another download has already started launching the installer.
+    /// download once another download has already started launching the installer, and
+    /// to remove an unsigned installer that was refused before launch.
     /// </summary>
     private static void TryDeleteInstaller(string path)
     {
@@ -701,7 +780,7 @@ public static class UpdateService
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"UpdateService: Failed to delete duplicate installer '{path}': {ex.Message}");
+            LoggingService.Warn($"UpdateService: Failed to delete downloaded installer '{path}': {ex.Message}");
         }
     }
 
@@ -712,11 +791,11 @@ public static class UpdateService
     /// verified here cannot be swapped before the installer is launched.
     /// Returns true if the file is safe to launch.
     ///
-    /// Mirrors NetSparkle's own security mode: when a public key is embedded
-    /// (production), a tampered file yields <see cref="ValidationResult.Invalid"/>
-    /// and is rejected. When no key is configured (development) the verifier returns
-    /// <see cref="ValidationResult.Unchecked"/>, matching the download-time behavior,
-    /// so local update testing is not broken.
+    /// The decision is <see cref="IsInstallerLaunchAllowed"/>: when a public key is
+    /// embedded (production), a tampered file yields <see cref="ValidationResult.Invalid"/>
+    /// and a missing/blank signature yields <see cref="ValidationResult.Unchecked"/>;
+    /// both are rejected (issue #2903). Only when no key is configured (development)
+    /// is Unchecked allowed, so local update testing is not broken.
     /// </summary>
     private static bool ReVerifyInstallerSignature()
     {
@@ -740,9 +819,22 @@ public static class UpdateService
                 return false;
             }
 
+            var hasPublicKey = HasPublicKey;
+            if (!IsInstallerLaunchAllowed(result, hasPublicKey))
+            {
+                // Production key set but nothing was verified (missing/blank
+                // signature), or an unexpected result: refuse (issue #2903).
+                LoggingService.Error($"UpdateService: Installer signature re-verification returned {result} with a public key configured - refusing to launch unverified installer");
+                SentryService.Capture(
+                    new InvalidOperationException($"Installer Ed25519 re-verification returned {result} with a public key configured"),
+                    "Unverified installer refused");
+                return false;
+            }
+
             if (result == ValidationResult.Unchecked)
             {
-                LoggingService.Warn("UpdateService: Installer signature not re-verified (no public key/signature) - launching unverified");
+                // Only reachable without a public key (development build).
+                LoggingService.Warn("UpdateService: Installer signature not re-verified (no public key configured, development build) - launching unverified");
             }
 
             return true;
@@ -930,15 +1022,107 @@ public static class UpdateService
     }
 
     /// <summary>
-    /// Called when app is about to exit for update installation.
-    /// Allows app to save state before exit.
+    /// NetSparkle raises this before running ITS OWN installer path: the progress
+    /// window's "Install" button (SparkleUpdater.ProgressWindowCompleted) and
+    /// SparkleUpdater.InstallUpdate both call AskApplicationToSafelyCloseUp, and only
+    /// run RunDownloadedInstaller (which writes a %TEMP%\&lt;guid&gt;.cmd that waits for
+    /// this app to exit and then runs the download with no arguments) when this is
+    /// not cancelled. That path bypasses everything our own launch does: the
+    /// signature gate (#2903), the TOCTOU lock + re-verify, the install-scope flags
+    /// and elevation. Our own path (OnDownloadFinished → LaunchInstallerAndExit) owns
+    /// every install, so NetSparkle's is ALWAYS cancelled (see
+    /// <see cref="IsSparkleInstallerRunAllowed"/>). The verdict only picks how loudly
+    /// to report it.
     /// </summary>
-    private static void OnPreparingToExit(object? sender, CancelEventArgs e)
+    internal static void OnPreparingToExit(object? sender, CancelEventArgs e)
     {
-        LoggingService.Info("UpdateService: Preparing to exit for update installation");
-        // Allow app to save state before exit
-        // Do NOT cancel (e.Cancel = true) or update won't install
+        // Cancel FIRST: NetSparkle treats an exception thrown from this handler as
+        // "OK to close" (AskApplicationToSafelyCloseUp catches and returns true).
+        var verdict = CurrentInstallerVerdict;
+        e.Cancel = !IsSparkleInstallerRunAllowed(verdict);
+        try
+        {
+            ReportBlockedSparkleInstall("PreparingToExit", verdict);
+        }
+        catch
+        {
+            // Logging must never undo the cancel.
+        }
     }
+
+    /// <summary>
+    /// Second guard on NetSparkle's own installer path, at the point it would start
+    /// the .cmd (SparkleUpdater.RunDownloadedInstaller). Only reached if the
+    /// PreparingToExit cancel was somehow skipped. Returning false makes NetSparkle
+    /// skip Process.Start and raise InstallUpdateFailed(CanceledByUserViaEvent).
+    /// </summary>
+    internal static bool OnInstallerProcessAboutToStart(Process process, string downloadFilePath)
+    {
+        var verdict = CurrentInstallerVerdict;
+        var allowed = IsSparkleInstallerRunAllowed(verdict);
+        try
+        {
+            ReportBlockedSparkleInstall("InstallerProcessAboutToStart", verdict);
+        }
+        catch
+        {
+            // Logging must never undo the refusal.
+        }
+        return allowed;
+    }
+
+    private static void ReportBlockedSparkleInstall(string stage, InstallerVerdict verdict)
+    {
+        if (!ShouldReportSparkleInstallAttempt(verdict))
+        {
+            LoggingService.Info($"UpdateService: {stage} - our own installer launch is in progress; NetSparkle's installer run cancelled to avoid a second, unverified launch");
+            return;
+        }
+
+        LoggingService.Error($"UpdateService: {stage} - NetSparkle tried to run an installer our launch path did not verify (verdict {verdict}) - cancelled");
+        SentryService.Capture(
+            new InvalidOperationException($"NetSparkle installer run blocked at {stage}; installer verdict {verdict}"),
+            "NetSparkle installer run blocked");
+    }
+
+    // =========================================================================
+    // INSTALLER VERDICT (issue #2903)
+    // =========================================================================
+
+    /// <summary>
+    /// What our own launch path decided about the current download.
+    /// </summary>
+    internal enum InstallerVerdict
+    {
+        /// <summary>No download has reached our launch path yet (or a new one started).</summary>
+        None = 0,
+        /// <summary>Refused: unsigned, missing, lock failure, Invalid/Unchecked re-verify, or prep failure.</summary>
+        Refused = 1,
+        /// <summary>Verified and locked; our own launch runs it at app exit.</summary>
+        LaunchPrepared = 2,
+    }
+
+    private static int _installerVerdict = (int)InstallerVerdict.None;
+
+    internal static InstallerVerdict CurrentInstallerVerdict =>
+        (InstallerVerdict)Volatile.Read(ref _installerVerdict);
+
+    private static void RecordInstallerVerdict(InstallerVerdict verdict) =>
+        Interlocked.Exchange(ref _installerVerdict, (int)verdict);
+
+    /// <summary>
+    /// Whether NetSparkle may run its own installer path. Never: a refused file must
+    /// not run (#2903), a prepared launch would run twice (once unverified, with no
+    /// scope flags or elevation), and a file our path never saw is unverified.
+    /// </summary>
+    internal static bool IsSparkleInstallerRunAllowed(InstallerVerdict verdict) => false;
+
+    /// <summary>
+    /// Whether a blocked NetSparkle install request is an error worth a Sentry event.
+    /// Only the benign case (our own verified launch is already pending) is not.
+    /// </summary>
+    internal static bool ShouldReportSparkleInstallAttempt(InstallerVerdict verdict) =>
+        verdict != InstallerVerdict.LaunchPrepared;
 
     // =========================================================================
     // APPCAST FILTER

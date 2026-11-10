@@ -151,16 +151,68 @@ pub fn remove_trailing_period(text: &str) -> String {
 fn filler_re() -> &'static Regex {
     // No lookbehind/lookahead (unsupported by the `regex` crate): the surrounding
     // boundary is captured and partially restored in the replacement closure.
-    //   g1 = preceding boundary (start "" or a whitespace run)
+    //   g1 = preceding boundary (start: leading whitespace, possibly "";
+    //        otherwise the whole whitespace run before the filler)
     //   g2 = filler word     g3 = optional comma
     //   g4 = following boundary (whitespace run or end "")
+    // g1 takes the whole run (not one `\s`) so a line break before the filler
+    // is seen whole — a lone `\n` of a `\r\n` pair can't be split off (#2941).
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(^\s*|\s)(uh|um|er)(,?)(\s+|$)").unwrap())
+    RE.get_or_init(|| Regex::new(r"(?i)(^\s*|\s+)(uh|um|er)(,?)(\s+|$)").unwrap())
 }
 
 fn leading_filler_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)^\s*\b(uh|um|er)\b").unwrap())
+}
+
+/// What a removed filler (with its boundaries) is replaced by.
+///
+/// Horizontal whitespace keeps the pre-#2941 result exactly: the boundary
+/// used to be one `\s` char, so all but the last char of the run before the
+/// filler survived, plus one space between words ("a  um b" -> "a  b"), and
+/// nothing at the text edges.
+///
+/// #2941: when either boundary holds a line break, the line break survives
+/// instead of collapsing to a space. The side with more `\n`s wins (ties go to
+/// the preceding side), reduced to its `\r`/`\n` chars, so a paragraph break
+/// stays a paragraph break and a filler alone on its own line leaves one line
+/// break ("a\num\nb" -> "a\nb"). At the end of the text a dangling break
+/// before the filler is dropped ("a\r\num" -> "a", never a lone "\r").
+fn filler_replacement(preceding: &str, following: &str, at_start: bool) -> String {
+    let line_breaks = |s: &str| s.matches('\n').count();
+    let (before, after) = (line_breaks(preceding), line_breaks(following));
+
+    // Text edges: the filler opens or closes the text.
+    if at_start && (preceding.is_empty() || following.is_empty()) {
+        return String::new();
+    }
+    if following.is_empty() {
+        if before > 0 {
+            return String::new();
+        }
+        let mut kept = preceding.to_string();
+        kept.pop();
+        return kept;
+    }
+
+    if before == 0 && after == 0 {
+        // Between words, horizontal whitespace only.
+        if at_start {
+            return " ".to_string();
+        }
+        let mut kept = preceding.to_string();
+        kept.pop();
+        kept.push(' ');
+        return kept;
+    }
+
+    let wider = if before >= after {
+        preceding
+    } else {
+        following
+    };
+    wider.chars().filter(|c| matches!(c, '\r' | '\n')).collect()
 }
 
 /// Remove the filler words "uh", "um", "er" (with an optional trailing comma)
@@ -179,15 +231,7 @@ pub fn remove_filler_words(text: &str, language: Option<&str>) -> String {
     loop {
         let next = re
             .replace_all(&current, |caps: &regex::Captures| {
-                let preceding = &caps[1];
-                let following = &caps[4];
-                // Keep a single preceding space only when the filler is bounded by
-                // whitespace on both sides; drop everything otherwise (start/end).
-                if !preceding.is_empty() && !following.is_empty() {
-                    " ".to_string()
-                } else {
-                    String::new()
-                }
+                filler_replacement(&caps[1], &caps[4], caps.get(0).unwrap().start() == 0)
             })
             .into_owned();
         if next == current {
