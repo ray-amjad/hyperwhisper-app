@@ -103,6 +103,58 @@ internal static class ReconcileClassificationChecks
             Assert(category == "Email Client", $"category '{category}', want Email Client");
             Assert(textFormat == "email", $"text format '{textFormat}', want email");
         });
+
+        // Edge puts a ZERO WIDTH SPACE inside its suffix ("Microsoft​ Edge") and the
+        // profile name before it. The suffix goes; the profile segment stays (see
+        // ParseBrowserTabTitle's summary for why).
+        run("app context: ParseBrowserTabTitle strips Edge's zero-width-space hyphen suffix (#3022)", () =>
+        {
+            var tab = ApplicationContextService.ParseBrowserTabTitle("Inbox - Profile 1 - Microsoft​ Edge", "Web Browser");
+            Assert(tab == "Inbox - Profile 1", $"tab '{tab}', want 'Inbox - Profile 1'");
+
+            var webmail = ApplicationContextService.ParseBrowserTabTitle(
+                WebmailTab + " - Profile 1 - Microsoft​ Edge", "Web Browser");
+            Assert(webmail == WebmailTab + " - Profile 1", $"tab '{webmail}', want '{WebmailTab} - Profile 1'");
+        });
+
+        run("app context: ParseBrowserTabTitle strips Edge's zero-width-space em-dash suffix (#3022)", () =>
+        {
+            var tab = ApplicationContextService.ParseBrowserTabTitle("Inbox — Microsoft​ Edge", "Web Browser");
+            Assert(tab == "Inbox", $"tab '{tab}', want 'Inbox'");
+
+            var otherZeroWidth = ApplicationContextService.ParseBrowserTabTitle("Inbox - Microsoft⁠ Edge﻿", "Web Browser");
+            Assert(otherZeroWidth == "Inbox", $"tab '{otherZeroWidth}', want 'Inbox' (word joiner + trailing BOM)");
+        });
+
+        run("app context: ParseBrowserTabTitle still strips a plain Edge suffix and leaves Chrome as before (#3022)", () =>
+        {
+            var edge = ApplicationContextService.ParseBrowserTabTitle("Inbox - Microsoft Edge", "Web Browser");
+            Assert(edge == "Inbox", $"edge tab '{edge}', want 'Inbox'");
+
+            var chrome = ApplicationContextService.ParseBrowserTabTitle(WebmailTab + " - Google Chrome", "Web Browser");
+            Assert(chrome == WebmailTab, $"chrome tab '{chrome}', want '{WebmailTab}'");
+
+            var unknown = ApplicationContextService.ParseBrowserTabTitle("Some page - Unknown Browser", "Web Browser");
+            Assert(unknown == "Some page - Unknown Browser", $"unknown tab '{unknown}', want the full title");
+        });
+
+        run("app context: ParseBrowserTabTitle returns null for a bare suffix or a non-browser (#3022)", () =>
+        {
+            var bare = ApplicationContextService.ParseBrowserTabTitle(" - Microsoft​ Edge", "Web Browser");
+            Assert(bare == null, $"bare suffix gave '{bare}', want null");
+
+            var notBrowser = ApplicationContextService.ParseBrowserTabTitle("Inbox - Microsoft​ Edge", "Code Editor");
+            Assert(notBrowser == null, $"non-browser gave '{notBrowser}', want null");
+        });
+
+        run("app context: ParseBrowserTabTitle keeps a zero-width space that is part of the page title (#3022)", () =>
+        {
+            var tab = ApplicationContextService.ParseBrowserTabTitle("Q3​ report​ - Microsoft​ Edge", "Web Browser");
+            Assert(tab == "Q3​ report​", $"tab '{tab}', want 'Q3\\u200B report\\u200B'");
+
+            var chrome = ApplicationContextService.ParseBrowserTabTitle("Q3​ report - Google Chrome", "Web Browser");
+            Assert(chrome == "Q3​ report", $"chrome tab '{chrome}', want 'Q3\\u200B report'");
+        });
     }
 
     private static void Assert(bool condition, string message)
