@@ -127,31 +127,7 @@ struct BackupUniversalV2RoundTripTests {
 
     /// A mode with every optional field absent.
     private static func plainMode() -> BackupMode {
-        BackupMode(
-            id: plainModeId,
-            name: "Percy 732 Plain",
-            preset: "custom",
-            language: "en",
-            model: "base",
-            punctuation: true,
-            capitalization: true,
-            profanityFilter: false,
-            customInstructions: nil,
-            languageModel: nil,
-            cloudProvider: nil,
-            cloudTranscriptionModel: nil,
-            postProcessingMode: 0,
-            postProcessingProvider: nil,
-            englishSpelling: nil,
-            userSystemPrompt: nil,
-            isDefault: false,
-            sortOrder: 1,
-            cloudAccuracyTier: nil,
-            removeTrailingPeriod: nil,
-            geminiCustomPrompt: nil,
-            cloudPostProcessingModel: nil,
-            cloudTranscriptionDomain: nil
-        )
+        BackupTestFixtures.backupMode(id: plainModeId, name: "Percy 732 Plain", preset: "custom", sortOrder: 1)
     }
 
     private static func vocabulary() -> [UniversalVocabularyItem] {
