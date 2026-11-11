@@ -1,3 +1,5 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 const USER_AGENT = "HyperWhisper-ModelSync/1.0";
 
 const OPENAI_EXCLUDE = [
@@ -120,7 +122,116 @@ function parseGeminiResponse(value: unknown): GeminiResponse {
   };
 }
 
-function makeApiGet(fetchImpl: typeof fetch): ApiGet {
+// A 403 body is read only to pull out its error code, so it is bounded: a
+// provider error object is a few hundred bytes, and a body that is larger or
+// slower than this is dropped rather than allowed to stall the fan-out.
+const ERROR_BODY_MAX_BYTES = 8 * 1024;
+const ERROR_BODY_TIMEOUT_MS = 2_000;
+// What a logged field may look like: a short identifier such as
+// `invalid_api_key` or `NRT`. Anything else is dropped, never truncated.
+const SAFE_LOG_TOKEN = /^[A-Za-z0-9_.\-]{1,64}$/;
+
+function safeLogToken(value: unknown): string | undefined {
+  return typeof value === "string" && SAFE_LOG_TOKEN.test(value) ? value : undefined;
+}
+
+/**
+ * The upstream body as text, or undefined when it is missing, larger than
+ * ERROR_BODY_MAX_BYTES, slower than ERROR_BODY_TIMEOUT_MS, or unreadable.
+ * Never throws.
+ */
+async function readBoundedText(res: Response): Promise<string | undefined> {
+  const body = res.body;
+  if (!body) return undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try {
+    reader = body.getReader();
+  } catch {
+    return undefined;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), ERROR_BODY_TIMEOUT_MS);
+  });
+  const decoder = new TextDecoder();
+  let text = "";
+  let size = 0;
+  try {
+    for (;;) {
+      const next = await Promise.race([reader.read(), timedOut]);
+      if (next === "timeout") return undefined;
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > ERROR_BODY_MAX_BYTES) return undefined;
+      text += decoder.decode(next.value, { stream: true });
+    }
+    return text + decoder.decode();
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+    // Release the connection; a stream that already ended or errored rejects.
+    reader.cancel().catch(() => {});
+  }
+}
+
+/**
+ * The provider's error code from a JSON error body, e.g. `invalid_api_key` or
+ * `unsupported_country_region_territory`. Only the code is returned, and only
+ * when it is a short safe token: the body itself is never logged, because a
+ * provider could echo the request URL or key back in it.
+ *
+ * Shapes: OpenAI / Groq / xAI `{ error: { code, type } }`, Anthropic
+ * `{ type: "error", error: { type } }`, Gemini `{ error: { code: 403, status } }`
+ * (its numeric code is skipped for `status`), Cerebras top-level `{ code, type }`.
+ */
+async function readErrorCode(res: Response): Promise<string | undefined> {
+  const text = await readBoundedText(res);
+  if (text === undefined) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(parsed)) return undefined;
+  const nested = isRecord(parsed.error) ? parsed.error : {};
+  for (const candidate of [nested.code, parsed.code, nested.type, nested.status, parsed.type]) {
+    const code = safeLogToken(candidate);
+    if (code) return code;
+  }
+  return undefined;
+}
+
+/**
+ * A non-OK provider response. `message` is `HTTP <status>` and nothing else,
+ * because the public /models route returns it to clients as `error`.
+ * `diagnostics` holds the log-only fields (` colo=… code=…`).
+ */
+class UpstreamHttpError extends Error {
+  constructor(
+    status: number,
+    readonly diagnostics: string,
+  ) {
+    super(`HTTP ${status}`);
+    this.name = "UpstreamHttpError";
+  }
+}
+
+/**
+ * ` colo=<colo>` and, when known, ` code=<code>`: enough to tell a bad key
+ * (`code=invalid_api_key` from every colo) from an egress block (a region code,
+ * or several providers failing at once from one colo).
+ */
+function diagnosticFields(colo: string | undefined, code?: string): string {
+  return ` colo=${colo ?? "unknown"}${code ? ` code=${code}` : ""}`;
+}
+
+function makeApiGet(
+  fetchImpl: typeof fetch,
+  readColo: () => string | undefined,
+  redact: (text: string) => string,
+): ApiGet {
   return async function apiGet(url, headers = {}) {
     const res = await fetchImpl(url, {
       headers: { "User-Agent": USER_AGENT, ...headers },
@@ -131,6 +242,8 @@ function makeApiGet(fetchImpl: typeof fetch): ApiGet {
       // endpoint embeds the API key in its query string) and never log the
       // upstream body (a provider could echo the request URL/key back in its
       // error payload). Clients receive only the status code, never the body.
+      // A 403 is ambiguous (revoked key, or the Worker's egress blocked by
+      // region), so for it alone the body's error code is logged (#3029).
       let target = "upstream";
       try {
         const { host, pathname } = new URL(url);
@@ -138,8 +251,10 @@ function makeApiGet(fetchImpl: typeof fetch): ApiGet {
       } catch {
         // keep generic label if url is unparseable
       }
-      console.error(`[model-list] ${target} -> HTTP ${res.status}`);
-      throw new Error(`HTTP ${res.status}`);
+      const code = res.status === 403 ? await readErrorCode(res) : undefined;
+      const diagnostics = diagnosticFields(readColo(), code);
+      console.error(redact(`[model-list] ${target} -> HTTP ${res.status}${diagnostics}`));
+      throw new UpstreamHttpError(res.status, diagnostics);
     }
     return res.json();
   };
@@ -269,15 +384,32 @@ const CACHE_TTL_MS = 60 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 60 * 1000;
 
 /**
- * The three ambient dependencies of the model list: the HTTP client, the API
- * keys, and the clock. Each one defaults to the real thing, so production code
- * calls `fetchAvailableModels()` with no arguments and behaves as before.
+ * The four ambient dependencies of the model list: the HTTP client, the API
+ * keys, the clock, and the Cloudflare colo the Worker runs in. Each one defaults
+ * to the real thing, so production code calls `fetchAvailableModels()` with no
+ * arguments and behaves as before.
  */
 export type ModelListDeps = {
   fetch: typeof fetch;
   env: Record<string, string | undefined>;
   now: () => number;
+  /** The colo (e.g. `NRT`) serving the current request; undefined when unknown. Log-only. */
+  colo: () => string | undefined;
 };
+
+/**
+ * `request.cf.colo` of the Worker request in progress. `getCloudflareContext()`
+ * throws outside a Worker request (node tests, `next dev`), which reads as
+ * unknown.
+ */
+function workerColo(): string | undefined {
+  try {
+    const cf = getCloudflareContext().cf as Record<string, unknown> | undefined;
+    return typeof cf?.colo === "string" ? cf.colo : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Strip an API key from text, raw and URL-encoded (fetchGemini encodes it). */
 function redactKey(text: string, key: string): string {
@@ -313,7 +445,16 @@ export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
   const fetchImpl: typeof fetch = deps.fetch ?? ((...args) => globalThis.fetch(...args));
   const env = deps.env ?? process.env;
   const now = deps.now ?? Date.now;
-  const apiGet = makeApiGet(fetchImpl);
+  const coloSource = deps.colo ?? workerColo;
+  // Diagnostics must never break the fan-out: a throwing or odd colo source,
+  // or a value that is not a short token, reads as unknown.
+  const readColo = (): string | undefined => {
+    try {
+      return safeLogToken(coloSource());
+    } catch {
+      return undefined;
+    }
+  };
 
   let cache: { value: AvailableModels; expiresAt: number } | null = null;
   let inFlight: Promise<AvailableModels> | null = null;
@@ -323,8 +464,9 @@ export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
       PROVIDERS.map(async ({ name, envKey, fetcher }): Promise<[string, ProviderResult]> => {
         const key = env[envKey];
         if (!key) return [name, { ok: false, error: `missing ${envKey}` }];
+        const redact = (text: string) => redactKey(text, key);
         try {
-          const models = await fetcher(key, apiGet);
+          const models = await fetcher(key, makeApiGet(fetchImpl, readColo, redact));
           return [name, { ok: true, models }];
         } catch (e) {
           // The Gemini URL carries the key in its query string, and an error
@@ -334,7 +476,11 @@ export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
           // Node puts the real reason for a network failure in `cause`.
           const cause =
             e instanceof Error && e.cause ? ` (cause: ${describeCause(e.cause)})` : "";
-          console.error(redactKey(`[model-list] ${name} fetch failed: ${reason}${cause}`, key));
+          // Log-only colo/code fields, appended after the leading text the
+          // Workers Observability query matches. Never part of `error`.
+          const diagnostics =
+            e instanceof UpstreamHttpError ? e.diagnostics : diagnosticFields(readColo());
+          console.error(redact(`[model-list] ${name} fetch failed: ${reason}${cause}${diagnostics}`));
           return [name, { ok: false, error: reason }];
         }
       })
