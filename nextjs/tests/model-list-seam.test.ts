@@ -280,3 +280,268 @@ test("an AggregateError cause logs each inner error message", async () => {
   assert.ok(line.includes("connect ECONNREFUSED 10.0.0.1:443"), line);
   assert.ok(line.includes("connect ENETUNREACH 2001:db8::1:443"), line);
 });
+
+// #3029: a 403 log line must tell a bad key from a Worker egress block, so it
+// carries the colo and the upstream error code. It never carries the key, the
+// body or the query string, and the public `error` stays `HTTP 403`.
+
+/** Answers every provider healthily except the ones `failing` matches. */
+function failingUpstream(
+  failing: (url: string) => boolean,
+  respond: () => Response,
+) {
+  const { fetchImpl: healthy } = fakeUpstream();
+  const seen: string[] = [];
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input);
+    seen.push(url);
+    return failing(url) ? respond() : healthy(input);
+  };
+  return { fetchImpl, seen };
+}
+
+// Distinct, longer keys: redactKey would blank every "k" in a line if the key were "k".
+const DIAG_ENV = Object.fromEntries(
+  Object.keys(ENV).map((name) => [name, `test-${name.toLowerCase()}-3029`]),
+);
+
+async function runUncached(deps: Record<string, unknown>) {
+  const { createModelList } = await load();
+  const list = createModelList({ env: DIAG_ENV, now: () => 0, ...deps });
+  const captured = captureConsoleError();
+  try {
+    const result = await list.fetchAvailableModelsUncached();
+    return { result, lines: captured.lines };
+  } finally {
+    captured.restore();
+  }
+}
+
+const linesFor = (lines: string[], needle: string) => lines.filter((l) => l.includes(needle));
+
+test("a 403 with a JSON error code logs the code and the colo, never the key or the body", async () => {
+  const plantedKey = "csk-planted-cerebras-3029";
+  const bodyText = "Your request was blocked from this location, see https://example.invalid/?k=1";
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.cerebras.ai"),
+    () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: `${bodyText} ${plantedKey}`,
+            type: "invalid_request_error",
+            code: "unsupported_country_region_territory",
+          },
+        }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      ),
+  );
+  const { result, lines } = await runUncached({
+    fetch: fetchImpl,
+    env: { ...DIAG_ENV, CEREBRAS_API_KEY: plantedKey },
+    colo: () => "NRT",
+  });
+
+  // The client-facing value is unchanged.
+  assert.deepEqual(result.providers.cerebras, { ok: false, error: "HTTP 403" });
+
+  const [statusLine] = linesFor(lines, "api.cerebras.ai");
+  assert.equal(
+    statusLine,
+    "[model-list] api.cerebras.ai/v1/models -> HTTP 403 colo=NRT code=unsupported_country_region_territory",
+  );
+  const [failLine] = linesFor(lines, "cerebras fetch failed");
+  assert.equal(
+    failLine,
+    "[model-list] cerebras fetch failed: HTTP 403 colo=NRT code=unsupported_country_region_territory",
+  );
+  for (const l of lines) {
+    assert.ok(!l.includes(plantedKey), l);
+    assert.ok(!l.includes("blocked from this location"), l);
+    assert.ok(!l.includes("example.invalid"), l);
+  }
+});
+
+test("a 403 with a non-JSON body logs no code and does not crash", async () => {
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.openai.com"),
+    () => new Response("<html>403 Forbidden by edge policy</html>", { status: 403 }),
+  );
+  const { result, lines } = await runUncached({ fetch: fetchImpl, colo: () => "SIN" });
+
+  assert.deepEqual(result.providers.openai, { ok: false, error: "HTTP 403" });
+  assert.equal((result.providers.anthropic as { ok: boolean }).ok, true);
+  const [statusLine] = linesFor(lines, "api.openai.com");
+  assert.equal(statusLine, "[model-list] api.openai.com/v1/models -> HTTP 403 colo=SIN");
+  for (const l of lines) {
+    assert.ok(!l.includes("code="), l);
+    assert.ok(!l.includes("Forbidden by edge policy"), l);
+  }
+});
+
+test("a 403 from Gemini never logs the key in its URL, and reads Gemini's status code", async () => {
+  const plantedKey = "AIza-planted-gemini-3029";
+  const { fetchImpl, seen } = failingUpstream(
+    (url) => url.includes("generativelanguage"),
+    () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 403,
+            message: `Method doesn't allow unregistered callers. key=${plantedKey}`,
+            status: "PERMISSION_DENIED",
+          },
+        }),
+        { status: 403 },
+      ),
+  );
+  const { result, lines } = await runUncached({
+    fetch: fetchImpl,
+    env: { ...DIAG_ENV, GEMINI_API_KEY: plantedKey },
+    colo: () => "FRA",
+  });
+
+  assert.ok(seen.some((u) => u.includes(plantedKey)), "the planted key never reached the URL");
+  assert.deepEqual(result.providers.gemini, { ok: false, error: "HTTP 403" });
+  const [statusLine] = linesFor(lines, "generativelanguage");
+  assert.equal(
+    statusLine,
+    "[model-list] generativelanguage.googleapis.com/v1beta/models -> HTTP 403 colo=FRA code=PERMISSION_DENIED",
+  );
+  for (const l of lines) {
+    assert.ok(!l.includes(plantedKey), l);
+    assert.ok(!l.includes("pageSize"), l);
+    assert.ok(!l.includes("unregistered callers"), l);
+  }
+});
+
+test("an Anthropic-shaped 403 logs its nested error type", async () => {
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.anthropic.com"),
+    () =>
+      new Response(
+        JSON.stringify({ type: "error", error: { type: "permission_error", message: "no" } }),
+        { status: 403 },
+      ),
+  );
+  const { lines } = await runUncached({ fetch: fetchImpl, colo: () => "LHR" });
+  const [statusLine] = linesFor(lines, "api.anthropic.com");
+  assert.equal(statusLine, "[model-list] api.anthropic.com/v1/models -> HTTP 403 colo=LHR code=permission_error");
+});
+
+test("an error code that is not a short safe token is dropped, not logged", async () => {
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.x.ai"),
+    () =>
+      new Response(JSON.stringify({ error: { code: "bad key: sk-123 /v1?key=x", type: "x".repeat(65) } }), {
+        status: 403,
+      }),
+  );
+  const { result, lines } = await runUncached({ fetch: fetchImpl, colo: () => "NRT" });
+  assert.deepEqual(result.providers.grok, { ok: false, error: "HTTP 403" });
+  const [statusLine] = linesFor(lines, "api.x.ai");
+  assert.equal(statusLine, "[model-list] api.x.ai/v1/models -> HTTP 403 colo=NRT");
+});
+
+test("with no colo dep (outside a Worker) the log says colo=unknown and nothing breaks", async () => {
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.groq.com"),
+    () => new Response(JSON.stringify({ error: { code: "invalid_api_key" } }), { status: 403 }),
+  );
+  // No `colo` dep: the default reads getCloudflareContext(), which throws here.
+  const { result, lines } = await runUncached({ fetch: fetchImpl });
+  assert.deepEqual(result.providers.groq, { ok: false, error: "HTTP 403" });
+  const [statusLine] = linesFor(lines, "api.groq.com");
+  assert.equal(statusLine, "[model-list] api.groq.com/openai/v1/models -> HTTP 403 colo=unknown code=invalid_api_key");
+});
+
+test("a colo dep that throws or returns junk reads as unknown", async () => {
+  for (const colo of [
+    () => {
+      throw new Error("no context");
+    },
+    () => "N R T <script>",
+  ]) {
+    const { fetchImpl } = failingUpstream(
+      (url) => url.includes("api.groq.com"),
+      () => new Response("nope", { status: 403 }),
+    );
+    const { result, lines } = await runUncached({ fetch: fetchImpl, colo });
+    assert.deepEqual(result.providers.groq, { ok: false, error: "HTTP 403" });
+    assert.equal((result.providers.openai as { ok: boolean }).ok, true);
+    const [statusLine] = linesFor(lines, "api.groq.com");
+    assert.equal(statusLine, "[model-list] api.groq.com/openai/v1/models -> HTTP 403 colo=unknown");
+  }
+});
+
+test("a network failure line carries the colo too", async () => {
+  const { fetchImpl: healthy } = fakeUpstream();
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    if (String(input).includes("api.openai.com")) throw new TypeError("fetch failed");
+    return healthy(input);
+  };
+  const { lines } = await runUncached({ fetch: fetchImpl, colo: () => "NRT" });
+  const [failLine] = linesFor(lines, "openai fetch failed");
+  assert.equal(failLine, "[model-list] openai fetch failed: fetch failed colo=NRT");
+});
+
+test("an oversized 403 body is not parsed", async () => {
+  const big = JSON.stringify({ error: { code: "invalid_api_key" }, pad: "x".repeat(16 * 1024) });
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.cerebras.ai"),
+    () => new Response(big, { status: 403 }),
+  );
+  const { result, lines } = await runUncached({ fetch: fetchImpl, colo: () => "NRT" });
+  assert.deepEqual(result.providers.cerebras, { ok: false, error: "HTTP 403" });
+  const [statusLine] = linesFor(lines, "api.cerebras.ai");
+  assert.equal(statusLine, "[model-list] api.cerebras.ai/v1/models -> HTTP 403 colo=NRT");
+});
+
+test("a 403 body that never ends is abandoned and the fan-out still returns", async () => {
+  let cancelled = false;
+  const stalled = () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"error":{"code":"inv'));
+          // never closes
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { status: 403 },
+    );
+  const { fetchImpl } = failingUpstream((url) => url.includes("api.cerebras.ai"), stalled);
+  const started = Date.now();
+  const { result, lines } = await runUncached({ fetch: fetchImpl, colo: () => "NRT" });
+  assert.ok(Date.now() - started < 10_000, "the stalled body held the fan-out");
+  assert.deepEqual(result.providers.cerebras, { ok: false, error: "HTTP 403" });
+  assert.equal((result.providers.openai as { ok: boolean }).ok, true);
+  const [statusLine] = linesFor(lines, "api.cerebras.ai");
+  assert.equal(statusLine, "[model-list] api.cerebras.ai/v1/models -> HTTP 403 colo=NRT");
+  assert.ok(cancelled, "the stalled body was not cancelled");
+});
+
+test("a non-403 failure does not read the body", async () => {
+  let bodyRead = false;
+  const { fetchImpl } = failingUpstream(
+    (url) => url.includes("api.openai.com"),
+    () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            bodyRead = true;
+            controller.enqueue(new TextEncoder().encode('{"error":{"code":"server_error"}}'));
+            controller.close();
+          },
+        }, { highWaterMark: 0 }), // pull only when someone reads
+        { status: 500 },
+      ),
+  );
+  const { result, lines } = await runUncached({ fetch: fetchImpl, colo: () => "NRT" });
+  assert.deepEqual(result.providers.openai, { ok: false, error: "HTTP 500" });
+  const [statusLine] = linesFor(lines, "api.openai.com");
+  assert.equal(statusLine, "[model-list] api.openai.com/v1/models -> HTTP 500 colo=NRT");
+  assert.ok(!bodyRead, "a 500 body was read");
+});
