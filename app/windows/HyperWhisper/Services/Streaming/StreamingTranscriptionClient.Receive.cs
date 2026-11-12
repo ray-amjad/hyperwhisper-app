@@ -28,7 +28,18 @@ public sealed partial class StreamingTranscriptionClient
             if (message == null)
                 break;
 
-            HandleProviderEvent(_strategy.ParseMessage(message));
+            var providerEvent = _strategy.ParseMessage(message);
+
+            // Any transcript frame, even empty text, proves this connection reaches a server
+            // that processes audio, so the no-transcript reconnect budget starts over (#2784).
+            if (providerEvent is StreamingProviderEvent.PartialTranscript
+                or StreamingProviderEvent.FinalTranscript
+                or StreamingProviderEvent.FinalTranscriptAndSessionComplete)
+            {
+                _reconnectsWithoutTranscript = 0;
+            }
+
+            HandleProviderEvent(providerEvent);
         }
     }
 
