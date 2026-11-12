@@ -67,40 +67,104 @@ public sealed class ModeRepository(ApplicationDb database)
         return true;
     }
 
-    public async Task UpsertSafelyAsync(Mode mode, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// The Modes page's create. Refused with a <see cref="ModeRuleViolationException"/> when a mode
+    /// rule forbids it.
+    /// </summary>
+    public Task CreateSafelyAsync(Mode mode, CancellationToken cancellationToken = default)
+        => SaveSafelyAsync(mode, update: false, cancellationToken);
+
+    /// <summary>
+    /// The Modes page's update of a stored mode. A mode another writer deleted is refused as
+    /// <c>modes.not_found</c>, never written back (issue #2748).
+    /// </summary>
+    public Task UpdateSafelyAsync(Mode mode, CancellationToken cancellationToken = default)
+        => SaveSafelyAsync(mode, update: true, cancellationToken);
+
+    private async Task SaveSafelyAsync(Mode mode, bool update, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(mode);
         mode.Name = mode.Name.Trim();
         if (mode.Name.Length == 0) throw new ArgumentException("A mode name is required.", nameof(mode));
+        var saved = await SaveAtomicallyAsync(update ? mode.Id : null, (all, stored) =>
+        {
+            if (all.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
+                throw new ModeRuleViolationException("modes.name_taken", "A mode with that name already exists.");
+            // Both checks read the row as it stands BEFORE the write (issue #536).
+            if (stored is not null
+                && DefaultModePolicy.CheckRename(stored, mode.Name)
+                    == PortableModeNameChange.RejectedDefaultIsFixed)
+                throw new ModeRuleViolationException("modes.default_name_fixed", "The default mode's name cannot be changed.");
+            if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)
+                == PortableDefaultFlagChange.RejectedLastDefault)
+                throw new ModeRuleViolationException("modes.last_default", "At least one mode must remain the default.");
+            return mode;
+        }, cancellationToken);
+        if (saved is null) throw new ModeRuleViolationException("modes.not_found", "The mode no longer exists.");
+    }
+
+    /// <summary>
+    /// Reads every mode, lets <paramref name="prepare"/> check them and build the row to write, makes
+    /// exactly one mode the default, and writes, as one unit (issue #2748). Both save paths, the Modes
+    /// page and the Local API's create and patch, go through here.
+    /// </summary>
+    /// <param name="updateId">
+    /// The mode being updated, or <c>null</c> for a create. An update of a mode that is not stored
+    /// when the transaction reads writes nothing and answers <c>null</c>: a row another writer
+    /// deleted is never re-inserted.
+    /// </param>
+    /// <param name="prepare">
+    /// Gets every stored row in <see cref="ListAsync"/> order and, for an update, a separate copy of
+    /// the stored row to change (<c>null</c> for a create), both untracked. It returns the row to
+    /// write, whose id must be <paramref name="updateId"/> for an update, and throws to refuse; the
+    /// caller keeps its own exception types and messages, and nothing is written.
+    /// </param>
+    /// <returns>The row written, or <c>null</c> when the mode to update was gone.</returns>
+    public async Task<Mode?> SaveAtomicallyAsync(
+        Guid? updateId,
+        Func<IReadOnlyList<Mode>, Mode?, Mode> prepare,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(prepare);
         await using var context = _database.CreateContext();
-        var all = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
-        if (all.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new ModeRuleViolationException("modes.name_taken", "A mode with that name already exists.");
-        var existing = all.SingleOrDefault(item => item.Id == mode.Id);
-        // Both checks read the row as it stands BEFORE the write (issue #536).
-        if (existing is not null
-            && DefaultModePolicy.CheckRename(existing, mode.Name)
-                == PortableModeNameChange.RejectedDefaultIsFixed)
-            throw new ModeRuleViolationException("modes.default_name_fixed", "The default mode's name cannot be changed.");
-        if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)
-            == PortableDefaultFlagChange.RejectedLastDefault)
-            throw new ModeRuleViolationException("modes.last_default", "At least one mode must remain the default.");
-        if (existing is null)
+        // Same transaction shape as DeleteSafelyAsync (issue #2663). Without it a save read the rows,
+        // checked them and wrote in separate steps, so a delete or another save that committed in
+        // between left two modes with one name, no default, or a deleted mode written back. A
+        // non-deferred SQLite transaction is BEGIN IMMEDIATE: the write lock is taken before the read,
+        // so every check below sees the rows the write lands on.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var all = await context.Modes.AsNoTracking()
+            .OrderBy(item => item.SortOrder).ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
+        Mode? stored = null;
+        if (updateId is { } id)
         {
-            context.Modes.Add(mode);
-            all.Add(mode);
+            if (all.All(item => item.Id != id)) return null;
+            stored = await context.Modes.AsNoTracking().SingleAsync(item => item.Id == id, cancellationToken);
         }
-        else
+        var pending = prepare(all, stored) ?? throw new InvalidOperationException("No mode was prepared to save.");
+        if (updateId is not null && pending.Id != updateId)
+            throw new InvalidOperationException("An update must write the mode it read.");
+        // Exactly one default across every row that exists after the write. Which one is the shared
+        // core's decision (issue #536); the other rows it moved are written with this save.
+        var after = all.Where(item => item.Id != pending.Id).Append(pending)
+            .OrderBy(item => item.SortOrder).ToList();
+        var moved = DefaultModePolicy.ApplyAndReport(after, pending.IsDefault ? pending.Id : null);
+        foreach (var row in after.Where(row => row.Id != pending.Id && moved.Contains(row.Id)))
         {
-            context.Entry(existing).CurrentValues.SetValues(mode);
+            row.ModifiedDate = DateTime.UtcNow;
+            context.Modes.Update(row);
         }
-        DefaultModePolicy.Apply(all, mode.IsDefault ? mode.Id : null);
+        if (updateId is null) context.Modes.Add(pending);
+        else context.Modes.Update(pending);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return pending;
     }
 }
 
 /// <summary>
-/// A save <see cref="ModeRepository.UpsertSafelyAsync"/> or a delete
+/// A save <see cref="ModeRepository.CreateSafelyAsync"/> / <see cref="ModeRepository.UpdateSafelyAsync"/> or a delete
 /// <see cref="ModeRepository.DeleteSafelyAsync"/> refused on a mode rule, not on a storage fault.
 /// <see cref="Code"/> is the status code the editor shows it under (issues #2551, #2561).
 /// </summary>
