@@ -32,7 +32,7 @@ A health probe retries with backoff (3 attempts maximum) before HyperWhisper mar
     The provider key sheet opens when you click **Add** or **Edit**. In this sheet, a status banner below the key input field gives a short explanation of the current state.
   </Tab>
   <Tab title="Windows">
-    The API Keys page (Model Library → API Keys) shows a status label next to each provider. A green label shows that the key is configured. A gray label shows that no key is saved. The Model Library shows the health status for each provider entry. `CloudProviderHealthService` controls the health probes separately. When you save or remove a key on the API Keys page, the label changes between configured and not configured. This action does not start a new health probe.
+    The API Keys page (**Model Library → API Keys**) shows a status label next to each provider. A green label shows that the key is configured. A gray label shows that no key is saved. The Model Library shows the health status for each provider entry. `CloudProviderHealthService` controls the health probes separately. When you save or remove a key on the API Keys page, the label changes between configured and not configured. This action does not start a new health probe.
   </Tab>
   <Tab title="iOS">
     The iOS app reads the provider health from the Local API of the macOS app (`GET /health`). It caches the result for 60 seconds, then reads the Local API again. iOS does not run its own probes. The macOS app must be reachable on your local network.
