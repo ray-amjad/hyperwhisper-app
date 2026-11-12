@@ -632,8 +632,14 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     /// - The app is not a browser
     /// - The window title is empty
     /// - The entire title is just the browser suffix (no actual tab title)
+    /// Edge writes a zero-width space inside its suffix ("Microsoft\u200B Edge"), so the
+    /// suffix match ignores zero-width characters inside the suffix span (issue #3022).
+    /// Edge's profile segment (" - Profile 1") is deliberately left in the tab title: the
+    /// name is user-chosen, and a trailing " - X" segment cannot be told apart from part of
+    /// the page title ("Quarterly numbers - alice@example.com"), so stripping it would eat
+    /// real page text whenever Edge shows no profile.
     /// </summary>
-    private static string? ParseBrowserTabTitle(string windowTitle, string category)
+    internal static string? ParseBrowserTabTitle(string windowTitle, string category)
     {
         if (!category.Equals("Web Browser", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -643,9 +649,10 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
 
         foreach (var suffix in BrowserSuffixes)
         {
-            if (windowTitle.EndsWith(suffix, StringComparison.Ordinal))
+            var suffixStart = MatchSuffixIgnoringZeroWidth(windowTitle, suffix);
+            if (suffixStart >= 0)
             {
-                var tabTitle = windowTitle[..^suffix.Length];
+                var tabTitle = windowTitle[..suffixStart];
 
                 // If the title equals the suffix exactly (no tab title), return null
                 return string.IsNullOrWhiteSpace(tabTitle) ? null : tabTitle;
@@ -654,6 +661,35 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
 
         // No known suffix found — return the full title as a fallback
         return windowTitle;
+    }
+
+    /// <summary>
+    /// Zero-width / invisible format characters a browser may put inside its title suffix:
+    /// ZERO WIDTH SPACE, ZERO WIDTH NON-JOINER, ZERO WIDTH JOINER, WORD JOINER, BOM / ZWNBSP.
+    /// </summary>
+    private static bool IsZeroWidth(char c) =>
+        c is '\u200B' or '\u200C' or '\u200D' or '\u2060' or '\uFEFF';
+
+    /// <summary>
+    /// Matches <paramref name="suffix"/> against the end of <paramref name="title"/>
+    /// ordinally, walking backwards and skipping zero-width characters in the title only
+    /// while inside the suffix span (including any trailing ones). Returns the index where
+    /// the suffix starts, or -1. Zero-width characters before the suffix's first character
+    /// are never consumed, so they stay in the tab title; a title with none matches exactly
+    /// as <c>EndsWith(suffix, Ordinal)</c> did.
+    /// </summary>
+    private static int MatchSuffixIgnoringZeroWidth(string title, string suffix)
+    {
+        var t = title.Length - 1;
+        for (var s = suffix.Length - 1; s >= 0; s--)
+        {
+            while (t >= 0 && IsZeroWidth(title[t]))
+                t--;
+            if (t < 0 || title[t] != suffix[s])
+                return -1;
+            t--;
+        }
+        return t + 1;
     }
 
     /// <summary>
