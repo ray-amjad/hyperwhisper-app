@@ -2,8 +2,9 @@
  * Mutation proof for tests/latency-routes.test.ts.
  *
  * Each entry below does ONE exact string replace in one of the two latency
- * route sources, runs the one test file, then puts the source back. A mutant
- * that still PASSES means the tests are hollow there.
+ * route sources (or the prune route's shared cron auth gate), runs the one
+ * test file, then puts the source back. A mutant that still PASSES means the
+ * tests are hollow there.
  *
  * This file is a tool, not a test. `npm test` globs `tests/*.test.ts`, so it
  * is never picked up by the suite.
@@ -17,6 +18,8 @@ const TEST = "tests/latency-routes.test.ts";
 
 const INGEST = "app/api/internal/latency/route.ts";
 const PRUNE = "app/api/internal/latency/prune/route.ts";
+// The prune route's auth gate, shared with the other daily cron routes.
+const CRON_AUTH = "lib/security/internal-cron-auth.ts";
 
 const MUTANTS = [
   {
@@ -82,7 +85,7 @@ const MUTANTS = [
   {
     file: INGEST,
     name: "ignore the rate limiter",
-    from: "  if (!success) {\n    return NextResponse.json({ error: \"Rate limit exceeded\" }, { status: 429 });",
+    from: "  if (rateLimit.limited) {\n    return NextResponse.json({ error: \"Rate limit exceeded\" }, { status: 429 });",
     to: "  if (false) {\n    return NextResponse.json({ error: \"Rate limit exceeded\" }, { status: 429 });",
   },
   {
@@ -128,55 +131,55 @@ const MUTANTS = [
     to: "    inserted: result.samples.length + result.skipped.length,\n    skipped: result.skipped,\n    max",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "accept the scheme case-insensitively",
     from: 'if (!header || !header.startsWith("Bearer ")) return null;',
     to: 'if (!header || !header.toLowerCase().startsWith("bearer ")) return null;',
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "accept a bare secret with no scheme",
     from: 'if (!header || !header.startsWith("Bearer ")) return null;',
     to: 'if (!header) return null;\n  if (!header.startsWith("Bearer ")) return header;',
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "stop trimming the bearer",
     from: 'return header.slice("Bearer ".length).trim();',
     to: 'return header.slice("Bearer ".length);',
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "drop the x-internal-secret branch",
     from: "    timingSafeEqualSecret(headerSecret, expected) ||\n",
     to: "",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "drop the internal-secret bearer branch",
     from: "    timingSafeEqualSecret(bearer, expected) ||\n",
     to: "",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "drop the cron-secret bearer branch",
     from: "    timingSafeEqualSecret(bearer, expected) ||\n    timingSafeEqualSecret(bearer, cronSecret);",
     to: "    timingSafeEqualSecret(bearer, expected);",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "accept the cron secret in x-internal-secret too",
     from: "    timingSafeEqualSecret(bearer, cronSecret);",
     to: "    timingSafeEqualSecret(bearer, cronSecret) ||\n    timingSafeEqualSecret(headerSecret, cronSecret);",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "log the bearer itself on a refusal",
     from: "      hasBearer: bearer !== null,",
     to: "      hasBearer: bearer,",
   },
   {
-    file: PRUNE,
+    file: CRON_AUTH,
     name: "report the cron secret as always configured",
     from: "      cronSecretConfigured: Boolean(cronSecret),",
     to: "      cronSecretConfigured: true,",

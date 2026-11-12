@@ -83,7 +83,7 @@ const MUTANTS = [
     source: PLUGIN,
     test: PLUGIN_TEST,
     name: "drop the re-read and trust the first lookup",
-    from: "const current = await findAccountByKey(licenseKey);",
+    from: "const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
     to: "const current = license;",
   },
   {
@@ -114,8 +114,8 @@ const MUTANTS = [
     from: "await setSessionCookie(ctx, { session, user: foundUser });",
     to: "",
     extra: {
-      from: "const current = await findAccountByKey(licenseKey);",
-      to: "await setSessionCookie(ctx, { session, user: foundUser });\n        const current = await findAccountByKey(licenseKey);",
+      from: "const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
+      to: "await setSessionCookie(ctx, { session, user: foundUser });\n        const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
     },
   },
 
