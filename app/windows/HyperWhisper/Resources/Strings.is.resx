@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Ekkert ennþá. Byrjaðu upptöku til að sjá textann birtast hér.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} orð · {1}</value>
+    <value>Orð: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Aðeins sýnt hér — ekki límt inn í önnur forrit</value>

@@ -2621,7 +2621,7 @@ Daha sonra yeniden indirebilirsiniz.</value>
     <value>Henüz bir şey yok. Metnin burada belirdiğini görmek için bir kayıt başlatın.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} kelime · {1}</value>
+    <value>Kelime sayısı: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Sadece burada gösterilir — diğer uygulamalara yapıştırılmaz.</value>

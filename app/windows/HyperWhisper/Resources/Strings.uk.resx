@@ -2620,7 +2620,7 @@ You can re-download it later.</value>
     <value>Поки що нічого немає. Почніть запис, щоб побачити текст тут.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} слів · {1}</value>
+    <value>Слова: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Показано лише тут — не вставляється в інші застосунки.</value>

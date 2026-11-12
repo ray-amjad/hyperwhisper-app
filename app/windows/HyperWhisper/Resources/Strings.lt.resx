@@ -2621,7 +2621,7 @@ You can re-download it later.</value>
     <value>Kol kas nieko nėra. Pradėkite įrašymą, kad tekstas atsirastų čia.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} žodžiai · {1}</value>
+    <value>Žodžiai: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Rodoma tik čia — neįklijuojama į kitas programas.</value>

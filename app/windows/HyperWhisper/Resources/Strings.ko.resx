@@ -2621,7 +2621,7 @@
     <value>아직 아무것도 없어요. 녹음을 시작하면 여기에 텍스트가 표시됩니다.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0}단어 · {1}</value>
+    <value>단어 수: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>여기에만 표시됨 — 다른 앱에는 붙여넣어지지 않음</value>
