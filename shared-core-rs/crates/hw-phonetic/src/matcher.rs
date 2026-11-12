@@ -42,9 +42,13 @@
 //!    `CharacterSet.whitespaces`, which excludes newlines — so on a two-line
 //!    transcript every correction after the first line was silently lost. That
 //!    is the bug; Windows was right, and Windows wins.
-//! 6. Skip a token of 2 characters or fewer (scalars again), then strip trailing
-//!    punctuation (Unicode general category `P`, matching both
-//!    `Character.isPunctuation` and `char.IsPunctuation`).
+//! 6. Skip a token of 2 characters or fewer (scalars again), then strip leading
+//!    and trailing punctuation (Unicode general category `P`, matching both
+//!    `Character.isPunctuation` and `char.IsPunctuation`). Both native copies
+//!    stripped only the trailing run, so a quoted or parenthesised word
+//!    (`"wisper"`, `(wisper)`) kept its opening mark, built a `\b"wisper\b`
+//!    pattern that can never match, and was still reported as corrected
+//!    (issue #2928).
 //! 7. **Exact-hit guard.** If the token already equals ANY vocabulary word
 //!    case-insensitively, leave it alone. Both copies checked this inside the
 //!    entry loop and `break`ed, which only protected the token when the entry it
@@ -53,7 +57,9 @@
 //!    platforms, one fix — the guard now runs over every entry before any entry
 //!    is tried.
 //! 8. Otherwise, first entry that shares a phonetic code wins. Replace with a
-//!    `\b`-anchored, case-insensitive, literal replacement, and record the match.
+//!    `\b`-anchored, case-insensitive, literal replacement, and record the match
+//!    **only if the replacement changed the text** — so `matches` is non-empty
+//!    exactly when the matcher changed something.
 //!
 //! # NFC, and case folding without a locale
 //!
@@ -116,7 +122,8 @@ impl VocabularyEntry {
 /// One correction the matcher made, for the host to log.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppliedMatch {
-    /// The transcript token as it appeared, trailing punctuation included —
+    /// The transcript token as it appeared, leading and trailing punctuation
+    /// included —
     /// the left-hand side of both platforms' "Phonetic match: 'x' → 'y'" line.
     pub token: String,
     /// The vocabulary spelling it was replaced with.
@@ -186,7 +193,7 @@ pub fn apply_vocabulary(text: &str, entries: &[VocabularyEntry]) -> PhoneticAppl
             continue;
         }
 
-        let clean = strip_trailing_punctuation(token);
+        let clean = strip_punctuation(token);
         if clean.is_empty() {
             continue;
         }
@@ -215,13 +222,20 @@ pub fn apply_vocabulary(text: &str, entries: &[VocabularyEntry]) -> PhoneticAppl
             let Some(pattern) = boundary_regex(clean) else {
                 break;
             };
-            corrected = pattern
+            let replaced = pattern
                 .replace_all(&corrected, NoExpand(&entry.word))
                 .into_owned();
-            matches.push(AppliedMatch {
-                token: token.to_string(),
-                replacement: entry.word.clone(),
-            });
+            // A token whose boundary pattern finds nothing (a symbol-ended
+            // token such as `wisper+`, where `\b` cannot sit after the `+`)
+            // is not a correction, so it is not reported as one. The entry
+            // still wins: the token is not retried against later entries.
+            if replaced != corrected {
+                corrected = replaced;
+                matches.push(AppliedMatch {
+                    token: token.to_string(),
+                    replacement: entry.word.clone(),
+                });
+            }
             break;
         }
     }
@@ -268,13 +282,21 @@ fn encode_entries(entries: &[VocabularyEntry]) -> Vec<EncodedEntry> {
     encoded
 }
 
-/// The `\p{P}+` run at the end of a token, matching `Character.isPunctuation`
-/// (Swift) and `char.IsPunctuation` (.NET) — both are Unicode general category
-/// `P`, and neither includes symbols such as `+` or `$`.
+/// The `\p{P}+` runs at the start and at the end of a token, matching
+/// `Character.isPunctuation` (Swift) and `char.IsPunctuation` (.NET) — both
+/// are Unicode general category `P`, and neither includes symbols such as `+`
+/// or `$`.
 ///
 /// Built once. A `None` here would mean the crate shipped a pattern `regex`
 /// cannot compile, which the unit tests below would catch; at runtime it
 /// degrades to "strip nothing" rather than panicking.
+fn leading_punctuation() -> Option<&'static Regex> {
+    static PATTERN: OnceLock<Option<Regex>> = OnceLock::new();
+    PATTERN
+        .get_or_init(|| Regex::new(r"\A\p{P}+").ok())
+        .as_ref()
+}
+
 fn trailing_punctuation() -> Option<&'static Regex> {
     static PATTERN: OnceLock<Option<Regex>> = OnceLock::new();
     PATTERN
@@ -282,11 +304,17 @@ fn trailing_punctuation() -> Option<&'static Regex> {
         .as_ref()
 }
 
-fn strip_trailing_punctuation(token: &str) -> &str {
-    let Some(pattern) = trailing_punctuation() else {
-        return token;
+/// Strip the leading and the trailing run of Unicode general-category `P`
+/// punctuation from a token, so `"wisper"`, `(wisper)` and `“wisper”`
+/// all become `wisper`. Punctuation inside the token (`don't`) and symbols at
+/// either end (`c++`, `$5`) are kept. A token that is all punctuation strips to
+/// the empty string.
+fn strip_punctuation(token: &str) -> &str {
+    let token = match leading_punctuation().and_then(|pattern| pattern.find(token)) {
+        Some(found) => token.get(found.end()..).unwrap_or(token),
+        None => token,
     };
-    match pattern.find(token) {
+    match trailing_punctuation().and_then(|pattern| pattern.find(token)) {
         Some(found) => token.get(..found.start()).unwrap_or(token),
         None => token,
     }
@@ -427,12 +455,100 @@ mod tests {
     }
 
     #[test]
-    fn strips_only_trailing_punctuation() {
-        assert_eq!(strip_trailing_punctuation("word.,!"), "word");
-        assert_eq!(strip_trailing_punctuation("word"), "word");
-        assert_eq!(strip_trailing_punctuation("..."), "");
-        // `+` is a symbol (Sm), not punctuation — neither native call stripped it.
-        assert_eq!(strip_trailing_punctuation("c++"), "c++");
+    fn strips_trailing_punctuation() {
+        assert_eq!(strip_punctuation("word.,!"), "word");
+        assert_eq!(strip_punctuation("word"), "word");
+    }
+
+    #[test]
+    fn strips_leading_punctuation() {
+        assert_eq!(strip_punctuation("\"word"), "word");
+        assert_eq!(strip_punctuation("(word"), "word");
+        assert_eq!(strip_punctuation("\u{201C}word"), "word");
+    }
+
+    #[test]
+    fn strips_punctuation_on_both_sides() {
+        assert_eq!(strip_punctuation("\"word\""), "word");
+        assert_eq!(strip_punctuation("(word),"), "word");
+        assert_eq!(strip_punctuation("\u{201C}word\u{201D}"), "word");
+        // Punctuation inside the token is not touched.
+        assert_eq!(strip_punctuation("'don't'"), "don't");
+    }
+
+    #[test]
+    fn an_all_punctuation_token_strips_to_empty() {
+        assert_eq!(strip_punctuation("..."), "");
+        assert_eq!(strip_punctuation("\"(...)\""), "");
+    }
+
+    #[test]
+    fn symbols_are_not_stripped() {
+        // `+` and `$` are symbols (Sm, Sc), not punctuation — neither native
+        // call stripped them.
+        assert_eq!(strip_punctuation("c++"), "c++");
+        assert_eq!(strip_punctuation("$5"), "$5");
+    }
+
+    #[test]
+    fn a_quoted_or_parenthesized_token_is_corrected_or_not_reported() {
+        // Issue #2928: only the trailing mark was stripped, so `"wisper"`
+        // built `\b"wisper\b`, matched nothing, and was still reported.
+        let cases = [
+            ("he said \"wisper\" twice", "he said \"Whisper\" twice"),
+            ("the app (wisper) works", "the app (Whisper) works"),
+            (
+                "\u{201C}wisper\u{201D} rocks",
+                "\u{201C}Whisper\u{201D} rocks",
+            ),
+        ];
+        for (text, expected) in cases {
+            let result = apply(text, &["Whisper"]);
+            let changed = result.text != text;
+            // Invariant: every AppliedMatch is a correction that was made.
+            assert_eq!(
+                result.matches.is_empty(),
+                !changed,
+                "{text:?}: matches={:?} but text={:?}",
+                result.matches,
+                result.text
+            );
+            assert!(
+                result.text.contains("Whisper"),
+                "{text:?} was not corrected: {:?}",
+                result.text
+            );
+            assert_eq!(result.text, expected);
+            // The logged token is the raw token, punctuation included.
+            assert_eq!(result.matches.len(), 1);
+            assert_eq!(
+                result.matches[0].token,
+                text.split(' ')
+                    .find(|t| t.contains("wisper"))
+                    .unwrap_or_default()
+            );
+            assert_eq!(result.matches[0].replacement, "Whisper");
+        }
+    }
+
+    #[test]
+    fn a_token_the_boundary_pattern_cannot_match_is_not_reported() {
+        // `+` is a symbol, so it survives the strip: the pattern is
+        // `\bwisper\+\b`, and no `\b` can follow the final `+`. The token
+        // still shares a code with "Whisper", so the old code reported a
+        // correction that never happened.
+        let text = "try wisper+ now";
+        let result = apply(text, &["Whisper"]);
+        assert_eq!(result.text, text);
+        assert!(result.matches.is_empty(), "{:?}", result.matches);
+    }
+
+    #[test]
+    fn a_quoted_exact_hit_is_protected_and_not_reported() {
+        let text = "he said \"Whisper\" twice";
+        let result = apply(text, &["Whisper"]);
+        assert_eq!(result.text, text);
+        assert!(result.matches.is_empty(), "{:?}", result.matches);
     }
 
     #[test]

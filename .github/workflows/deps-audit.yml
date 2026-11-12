@@ -15,9 +15,10 @@
 #
 # Dependency update PRs are .github/dependabot.yml's job, not this file's.
 #
-# nextjs/ commits no lockfile (nextjs/.gitignore drops all of them, and Vercel
-# runs `pnpm install` against package.json). So the nextjs job resolves a
-# lockfile fresh, the way the Vercel install does, and audits that. A new
+# nextjs/ commits no lockfile (nextjs/.gitignore drops all of them, and the
+# nextjs-deploy workflow runs `pnpm install` against package.json). So the
+# nextjs job resolves a lockfile fresh, the way that install does, and audits
+# that. A new
 # advisory against a transitive range can therefore turn this job red without
 # any change in the repo; the weekly run is there to catch exactly that.
 
@@ -59,7 +60,7 @@ jobs:
         working-directory: nextjs
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # Same pnpm as nextjs/package.json `packageManager` and vercel.json.
+      # Same pnpm as nextjs/package.json `packageManager` and nextjs-deploy.yml.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
         with:
           version: 10.33.0

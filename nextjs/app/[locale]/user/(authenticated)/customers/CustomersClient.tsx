@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
@@ -17,7 +10,37 @@ import { ICON_SWAP } from "@/lib/icon-swap";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { AnimatedDialog } from "@/components/AnimatedDialog";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { HeightTween } from "@/components/ui/HeightTween";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  ALERT_ERROR,
+  ALERT_OK,
+  BTN_DANGER,
+  BTN_PRIMARY,
+  BTN_PRIMARY_XS,
+  BTN_SECONDARY,
+  BTN_SECONDARY_XS,
+  CARD,
+  CHIP,
+  CHIP_LAV,
+  CHIP_MUTE,
+  CHIP_PEACH,
+  CHIP_ROSE,
+  CODE_BOX,
+  FOCUS_RING,
+  ICON_BTN,
+  INPUT,
+  LABEL,
+  PAGE_SUB,
+  PAGE_TITLE,
+  SKEL,
+  TBODY,
+  TH,
+  TR_HOVER,
+} from "@/components/user/panel-styles";
+
+/** A small inline row action (Refund, Add credits), as a pill chip. */
+const ROW_ACTION = `${CHIP} ring-1 ring-inset transition-colors ${FOCUS_RING} disabled:opacity-40 disabled:cursor-not-allowed`;
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -106,7 +129,8 @@ function PopCredits({ text }: { text: string }) {
   );
 }
 
-// #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
+// #1663: account_keys.status is "granted", "revoked", or "deleted" (the owner
+// deleted it from the dashboard); show a word, not the enum.
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
   if (status === "revoked") return "Revoked";
@@ -121,175 +145,6 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function formatCurrency(cents: number) {
   return currencyFormatter.format(cents / 100);
-}
-
-// The height tween: 300 ms on --motion-ease-smooth-out, the `01-card-resize`
-// timing #916 asked for.
-const HEIGHT_TWEEN_MS = 300;
-const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-out)`;
-
-/**
- * #916: a box whose content changes height in one commit (a search narrows
- * 100 rows to 2, or clearing it brings them back) tweens to the new height
- * instead of stepping. A ResizeObserver keeps the box's last settled height;
- * when `trigger` changes, the layout effect pins the box at that height, then
- * sets the new one, and the height transition tweens between the two. The pin
- * comes off when the tween ends, so at rest the box is `height: auto` and an
- * inline editor or an error reveal inside it sizes it at once, as before. The
- * same pin-then-release as SignInClient (#752) and the /download panel (#767).
- * Under reduced motion nothing is pinned: the box takes its new height in the
- * same frame as the new content, as before.
- *
- * Only a change from one value of `trigger` to another tweens: the first
- * value after `undefined` (the first load's rows replacing the skeleton)
- * lands at once, as before.
- *
- * `transition` is any other transition the box keeps (the table's in-flight
- * dim); it is listed beside height, never as `all` (#668).
- */
-function HeightTween({
-  trigger,
-  className,
-  transition,
-  children,
-}: {
-  trigger: unknown;
-  className?: string;
-  transition?: string;
-  children: ReactNode;
-}) {
-  const box = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const settledHeight = useRef<number | null>(null);
-  const previousTrigger = useRef(trigger);
-  // The tween in flight: `stop` ends it (a second change mid-tween starts
-  // from where the box is now), `retarget` moves its end height.
-  const tween = useRef<{ stop: () => void; retarget: () => void } | null>(null);
-
-  useEffect(() => {
-    const element = box.current;
-    const inner = content.current;
-
-    if (!element || !inner) return;
-
-    // Reports after layout and before paint, so it always holds the height
-    // the last painted frame showed. Mid-tween the box is pinned, so a change
-    // of the content's own size (an editor opening) moves the pin instead:
-    // nothing is clipped, and nothing jumps when the pin comes off.
-    const observer = new ResizeObserver(() => {
-      if (tween.current) tween.current.retarget();
-      else settledHeight.current = element.offsetHeight;
-    });
-
-    observer.observe(element);
-    observer.observe(inner);
-
-    return () => {
-      observer.disconnect();
-      tween.current?.stop();
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const element = box.current;
-    const inner = content.current;
-    const previous = previousTrigger.current;
-
-    previousTrigger.current = trigger;
-    if (!element || !inner || previous === undefined) return;
-
-    let from = settledHeight.current;
-
-    if (tween.current) {
-      // The computed height mid-transition is where the box is drawn now
-      // (offsetHeight would read the pinned target).
-      from = parseFloat(getComputedStyle(element).height);
-      tween.current.stop();
-    }
-
-    // The two-frame start below would hold the old height for those frames,
-    // and the global guard would then end the transition at once: a late step
-    // instead of an on-time one.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const to = element.offsetHeight;
-
-    if (from === null || Math.abs(from - to) < 1) return;
-
-    // Pin the box where it was drawn; the new content must not spill out of
-    // it while it is still shorter.
-    element.style.height = `${from}px`;
-    element.style.overflow = "clip";
-
-    const target = () =>
-      inner.offsetHeight + element.offsetHeight - element.clientHeight;
-    let started = false;
-    let timer = 0;
-    let frame = 0;
-
-    const unpin = () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-      element.removeEventListener("transitionend", onEnd);
-      element.style.height = "";
-      element.style.overflow = "";
-      tween.current = null;
-      settledHeight.current = element.offsetHeight;
-    };
-    // Children's transitions bubble here too; only the box's own counts.
-    const onEnd = (event: TransitionEvent) => {
-      if (event.target === element && event.propertyName === "height") unpin();
-    };
-    // A transition that never runs fires no transitionend.
-    const bound = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 400);
-    };
-
-    // The tween starts two frames later, after the frame that draws the new
-    // content: a 100-row page takes one frame of ~250 ms to lay out and
-    // paint, and a transition started inside it is ~99% done by the first
-    // frame anyone sees (verify on #916). The first callback runs before that
-    // frame is drawn, the second in the frame after it.
-    frame = window.requestAnimationFrame(() => {
-      frame = window.requestAnimationFrame(() => {
-        started = true;
-        element.style.height = `${target()}px`;
-        bound();
-      });
-    });
-
-    element.addEventListener("transitionend", onEnd);
-    tween.current = {
-      stop: unpin,
-      retarget: () => {
-        // Before the start the box stays pinned: the content is still being
-        // drawn, and the start reads its height then.
-        if (!started) return;
-        const height = target();
-
-        // Its own frames report too; a pixel of rounding is not a change.
-        if (Math.abs(parseFloat(element.style.height) - height) < 2) return;
-        element.style.height = `${height}px`;
-        bound();
-      },
-    };
-  }, [trigger]);
-
-  const style: CSSProperties = {
-    transition: transition
-      ? `${transition}, ${HEIGHT_TRANSITION}`
-      : HEIGHT_TRANSITION,
-  };
-
-  // flow-root: the content's own margins count in its measured height.
-  return (
-    <div ref={box} className={className} style={style}>
-      <div ref={content} className="flow-root">
-        {children}
-      </div>
-    </div>
-  );
 }
 
 export default function CustomersClient() {
@@ -487,15 +342,15 @@ export default function CustomersClient() {
           wider than the viewport (#1330). */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Customers</h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <h1 className={PAGE_TITLE}>Customers</h1>
+          <p className={PAGE_SUB}>
             All customers with their license keys and credit balances
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setShowGrant(!showGrant); setGrantResult(null); grantMutation.reset(); }}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex items-center gap-2"
+            className={BTN_PRIMARY}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -505,7 +360,7 @@ export default function CustomersClient() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+            className={BTN_SECONDARY}
           >
             {isFetching ? (
               <Spinner className="w-4 h-4" />
@@ -536,7 +391,7 @@ export default function CustomersClient() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by email..."
-          className="w-full max-w-md px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+          className={`w-full max-w-md px-4 py-2.5 text-sm ${INPUT}`}
         />
       </div>
 
@@ -550,8 +405,8 @@ export default function CustomersClient() {
         <div className="t-cell-reveal mb-0">
           <div>
             <div className="pb-6">
-              <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
-                <h3 className="text-white font-medium">Grant Account Key by Email</h3>
+              <div className={`${CARD} p-5 space-y-3`}>
+                <h3 className={LABEL}>Grant Account Key by Email</h3>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -560,7 +415,7 @@ export default function CustomersClient() {
                       grantMutation.mutate({ email: grantEmail.trim() });
                     }
                   }}
-                  className="flex items-center gap-3"
+                  className="flex flex-wrap items-center gap-3"
                 >
                   <input
                     type="email"
@@ -568,12 +423,12 @@ export default function CustomersClient() {
                     onChange={(e) => setGrantEmail(e.target.value)}
                     placeholder="user@example.com"
                     required
-                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                    className={`min-w-0 flex-1 basis-56 px-3.5 py-2 text-sm ${INPUT}`}
                   />
                   <button
                     type="submit"
                     disabled={grantMutation.isPending}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                    className={BTN_PRIMARY}
                   >
                     {grantMutation.isPending ? "Granting..." : "Grant"}
                   </button>
@@ -584,7 +439,7 @@ export default function CustomersClient() {
                     pt-3 inside the clip carries the gap when open. */}
                 <ErrorReveal className="-mt-3" gap="pt-3">
                   {grantMutation.error && (
-                    <p className="text-red-300 text-sm" role="alert">
+                    <p className="text-rose-300 text-sm" role="alert">
                       {errorSentence(grantMutation.error, INVALID_EMAIL)}
                     </p>
                   )}
@@ -598,11 +453,11 @@ export default function CustomersClient() {
                   {grantResult && (
                     <div className="pt-3">
                       <div
-                        className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1"
+                        className={`t-panel-content p-3.5 space-y-1 ${ALERT_OK}`}
                         data-enter=""
                       >
-                        <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
-                        <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
+                        <p className="text-[var(--dusk-lav)] text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
+                        <p className="text-white font-mono text-sm select-all break-all">{grantResult.licenseKey}</p>
                       </div>
                     </div>
                   )}
@@ -617,8 +472,8 @@ export default function CustomersClient() {
           in one frame; the space-y-6 gap rides inside the clip as pb-6. */}
       <ErrorReveal gap="pb-6">
         {error && (
-          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
-            <p className="text-red-300">{error}</p>
+          <div className={`p-4 ${ALERT_ERROR}`} role="alert">
+            <p className="text-rose-300">{error}</p>
           </div>
         )}
       </ErrorReveal>
@@ -628,53 +483,64 @@ export default function CustomersClient() {
           one frame; the clearing path comes from the query cache, so the dim
           below never fires there and the tween is its only feedback. */}
       <HeightTween
-        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden ${
+        className={`${CARD} overflow-hidden ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
         // Tailwind's transition-opacity, kept beside the height tween.
         transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         trigger={data}
       >
-        <div className="overflow-x-auto">
+        {/* The table scrolls sideways on a phone, so its box is a named
+            region with a tab stop (#1148, as #1145 did on /download): a
+            keyboard user can scroll it.
+            The ring is inset (-outline-offset-2), and rounded like the card:
+            the card clips its overflow, so an outset ring would be hidden. */}
+        <div
+          aria-label="Customers table"
+          className="overflow-x-auto rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
+          role="region"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+          tabIndex={0}
+        >
           {/* min-w (#1330): the email wraps anywhere, so without a floor a
               phone-width column squeezes it to a letter or two per line. This
               keeps the columns readable and lets the wrapper scroll instead. */}
           <table className="w-full min-w-[48rem]">
             <thead>
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
                 {/* Fixed width (#914): the inline email editor fits inside it, so
                     opening it never widens the column or re-wraps other rows. */}
-                <th className="w-[24rem] px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={`w-[24rem] ${TH}`}>
                   Email
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Account Keys
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Total
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Total Spend
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className={TH}>
                   Created
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className={TBODY}>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-6 py-4">
-                        <div className="h-4 bg-white/10 rounded w-24 animate-pulse" />
+                        <div className={`h-4 w-24 ${SKEL}`} />
                       </td>
                     ))}
                   </tr>
                 ))
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-14 text-center text-[var(--dusk-mute)]">
                     No customers found.
                   </td>
                 </tr>
@@ -684,7 +550,7 @@ export default function CustomersClient() {
                   return (
                     <tr
                       key={customer.userId}
-                      className="hover:bg-white/5 transition-colors align-top"
+                      className={`${TR_HOVER} align-top`}
                     >
                       {/* Email + inline edit */}
                       <td className="px-6 py-4">
@@ -712,14 +578,17 @@ export default function CustomersClient() {
                                   type="email"
                                   value={editEmail}
                                   onChange={(e) => setEditEmail(e.target.value)}
+                                  // Opening the editor is the admin's own click on its
+                                  // pencil, so focus follows it there (#914).
+                                  // eslint-disable-next-line jsx-a11y/no-autofocus
                                   autoFocus
                                   required
-                                  className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 w-0 min-w-0 flex-1"
+                                  className={`px-2.5 py-1 rounded-lg text-sm w-0 min-w-0 flex-1 ${INPUT}`}
                                 />
                                 <button
                                   type="submit"
                                   disabled={updateEmailMutation.isPending}
-                                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
+                                  className={BTN_PRIMARY_XS}
                                 >
                                   {updateEmailMutation.isPending ? "Saving..." : "Save"}
                                 </button>
@@ -727,12 +596,12 @@ export default function CustomersClient() {
                                   type="button"
                                   onClick={cancelEdit}
                                   disabled={updateEmailMutation.isPending}
-                                  className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-gray-300 rounded text-xs font-medium transition-colors border border-white/10 disabled:opacity-50"
+                                  className={BTN_SECONDARY_XS}
                                 >
                                   Cancel
                                 </button>
                               </div>
-                              <p className="text-amber-300/80 text-xs">
+                              <p className="text-[var(--dusk-peach)]/85 text-xs">
                                 Updates this customer&apos;s account email and moves
                                 {" "}
                                 {customer.licenseCount === 1
@@ -747,7 +616,7 @@ export default function CustomersClient() {
                               <ErrorReveal className="-mt-2" gap="pt-2">
                                 {updateEmailMutation.error && (
                                   <p
-                                    className="text-red-300 text-xs"
+                                    className="text-rose-300 text-xs"
                                     role="alert"
                                   >
                                     {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
@@ -761,7 +630,7 @@ export default function CustomersClient() {
                             {/* #1663: the pencil rides in the email's own text run,
                                 glued to its last character, so a wrap never leaves
                                 it alone on a line under the address. */}
-                            <p className="text-gray-300 wrap-anywhere">
+                            <p className="text-[var(--dusk-ink)] wrap-anywhere">
                               {customer.email.slice(0, -1)}
                               <span className="whitespace-nowrap">
                                 {customer.email.slice(-1)}
@@ -773,7 +642,7 @@ export default function CustomersClient() {
                                   disabled={isTransitioning}
                                   title="Edit email"
                                   aria-label="Edit email"
-                                  className="ml-1.5 inline-flex align-[-2px] text-gray-400 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                                  className={`ml-1.5 inline-flex align-[-2px] rounded text-[var(--dusk-dim)] hover:text-[var(--dusk-lav)] transition-colors ${FOCUS_RING} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-[var(--dusk-dim)]`}
                                 >
                                   <svg
                                     className="h-3.5 w-3.5"
@@ -795,12 +664,12 @@ export default function CustomersClient() {
                               editedUserIds.has(customer.userId)) && (
                               <div className="flex items-center gap-2 flex-wrap">
                                 {customer.licenseCount > 1 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
+                                  <span className={`${CHIP} ${CHIP_LAV}`}>
                                     {customer.licenseCount} licenses
                                   </span>
                                 )}
                                 {editedUserIds.has(customer.userId) && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-gray-400">
+                                  <span className={`${CHIP} ${CHIP_MUTE}`}>
                                     Edited
                                   </span>
                                 )}
@@ -828,7 +697,7 @@ export default function CustomersClient() {
                                     ? "Account Key copied"
                                     : "Copy Account Key"
                                 }
-                                className="group relative inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
+                                className={`group relative inline-flex items-center gap-1.5 rounded-lg ${CODE_BOX} px-2 py-1 font-mono text-xs text-[var(--dusk-ink)] transition-colors hover:border-[rgba(196,181,253,.45)] hover:text-white ${FOCUS_RING}`}
                               >
                                 <code>{license.key.slice(0, 8)}...</code>
                                 <AnimatePresence
@@ -846,7 +715,7 @@ export default function CustomersClient() {
                                   >
                                     {copiedKey === license.key ? (
                                       <svg
-                                        className="h-3.5 w-3.5 text-emerald-400"
+                                        className="h-3.5 w-3.5 text-[var(--dusk-lav)]"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         strokeWidth={1.5}
@@ -860,7 +729,7 @@ export default function CustomersClient() {
                                       </svg>
                                     ) : (
                                       <svg
-                                        className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-blue-300"
+                                        className="h-3.5 w-3.5 text-[var(--dusk-dim)] transition-colors group-hover:text-[var(--dusk-lav)]"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         strokeWidth={1.5}
@@ -877,10 +746,12 @@ export default function CustomersClient() {
                                 </AnimatePresence>
                               </button>
                               <span
-                                className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                className={`${CHIP} justify-self-start ${
                                   license.status === "revoked"
-                                    ? "bg-red-500/20 text-red-300"
-                                    : "bg-emerald-500/20 text-emerald-300"
+                                    ? CHIP_ROSE
+                                    : license.status === "granted"
+                                      ? CHIP_LAV
+                                      : CHIP_MUTE
                                 }`}
                               >
                                 {licenseStatusLabel(license.status)}
@@ -896,7 +767,7 @@ export default function CustomersClient() {
                                     })
                                   }
                                   disabled={isTransitioning}
-                                  className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-500/20"
+                                  className={`${ROW_ACTION} bg-rose-500/[.12] text-rose-300 ring-rose-400/25 hover:bg-rose-500/20 disabled:hover:bg-rose-500/[.12]`}
                                 >
                                   Refund
                                 </button>
@@ -914,11 +785,11 @@ export default function CustomersClient() {
                           the same wallet on the server. */}
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-start gap-1.5">
-                          <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
+                          <span className="inline-flex flex-wrap items-baseline gap-x-1 text-[var(--dusk-ink)] text-sm font-medium tabular-nums">
                             <PopCredits
                               text={formatCredits(customer.totalCredits)}
                             />
-                            <span className="text-gray-400 text-xs">
+                            <span className="text-[var(--dusk-dim)] text-xs">
                               ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
                             </span>
                           </span>
@@ -932,7 +803,7 @@ export default function CustomersClient() {
                                 })
                               }
                               disabled={isTransitioning}
-                              className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
+                              className={`${ROW_ACTION} bg-[rgba(196,181,253,.12)] text-[var(--dusk-lav)] ring-[rgba(196,181,253,.24)] hover:bg-[rgba(196,181,253,.2)] disabled:hover:bg-[rgba(196,181,253,.12)]`}
                             >
                               Add credits
                             </button>
@@ -955,14 +826,14 @@ export default function CustomersClient() {
                           (license) => license.stripeCustomerId
                         ) ? (
                           <span
-                            className="text-gray-400 text-sm font-medium"
+                            className="text-[var(--dusk-dim)] text-sm font-medium"
                             title="No Stripe purchase on file (may have paid via another method)"
                           >
                             —
                           </span>
                         ) : customer.totalSpentCents === null ? (
                           <span
-                            className="inline-flex items-center gap-1 text-amber-300 text-sm font-medium"
+                            className="inline-flex items-center gap-1 text-[var(--dusk-peach)] text-sm font-medium"
                             title="Failed to fetch Stripe spend for this customer"
                           >
                             <svg
@@ -981,14 +852,14 @@ export default function CustomersClient() {
                             error
                           </span>
                         ) : (
-                          <span className="text-emerald-300 text-sm font-medium">
+                          <span className="text-[var(--dusk-ink)] text-sm font-medium tabular-nums">
                             {formatCurrency(customer.totalSpentCents)}
                           </span>
                         )}
                       </td>
 
                       {/* Created */}
-                      <td className="px-6 py-4 text-gray-400 text-sm">
+                      <td className="px-6 py-4 text-[var(--dusk-mute)] text-sm tabular-nums">
                         {formatDate(customer.created, "en-US")}
                       </td>
                     </tr>
@@ -1002,8 +873,8 @@ export default function CustomersClient() {
 
       {/* Customer Count + Pagination */}
       {data && data.totalCustomers > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-gray-400 text-sm flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[var(--dusk-mute)] text-sm flex items-center gap-2 tabular-nums">
             <span>
               Showing {(data.page - 1) * data.pageSize + 1}
               &ndash;
@@ -1011,23 +882,23 @@ export default function CustomersClient() {
               {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
             </span>
             {isTransitioning && (
-              <Spinner className="w-3.5 h-3.5 text-gray-400" label="Loading" />
+              <Spinner className="w-3.5 h-3.5 text-[var(--dusk-mute)]" label="Loading" />
             )}
           </p>
 
           {data.totalPages > 1 && (
-            <nav className="flex items-center gap-2" aria-label="Pagination">
+            <nav className="flex flex-wrap items-center gap-1.5" aria-label="Pagination">
               <button
                 type="button"
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page <= 1}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+                className={BTN_SECONDARY_XS}
               >
                 Prev
               </button>
               {getPageNumbers(page, data.totalPages).map((entry, i) =>
                 entry === "ellipsis" ? (
-                  <span key={`ellipsis-${i}`} className="text-gray-400 px-1">
+                  <span key={`ellipsis-${i}`} className="text-[var(--dusk-dim)] px-1">
                     …
                   </span>
                 ) : (
@@ -1036,10 +907,10 @@ export default function CustomersClient() {
                     type="button"
                     onClick={() => setPage(entry)}
                     aria-current={entry === page ? "page" : undefined}
-                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium tabular-nums transition-colors ${FOCUS_RING} ${
                       entry === page
-                        ? "bg-emerald-500 text-white"
-                        : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
+                        ? "bg-white text-[#0b0b14]"
+                        : "bg-white/[.04] hover:bg-white/[.09] text-[var(--dusk-mute)] hover:text-white border border-[var(--dusk-line)]"
                     }`}
                   >
                     {entry}
@@ -1050,7 +921,7 @@ export default function CustomersClient() {
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= data.totalPages}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+                className={BTN_SECONDARY_XS}
               >
                 Next
               </button>
@@ -1067,10 +938,12 @@ export default function CustomersClient() {
             onBackdropClick={() => { if (!refundMutation.isPending) { setRefundTarget(null); refundMutation.reset(); } }}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-white">Refund Account Key</h2>
               <button
+                aria-label="Close"
+                disabled={refundMutation.isPending}
                 onClick={() => { setRefundTarget(null); refundMutation.reset(); }}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={`p-1 -m-1 ${ICON_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1079,8 +952,8 @@ export default function CustomersClient() {
             </div>
 
             <div className="space-y-2 text-sm">
-              <p className="text-gray-400">Email: <span className="text-white">{refundTarget.email}</span></p>
-              <p className="text-gray-400">Key: <code className="text-white font-mono text-xs">{refundTarget.key}</code></p>
+              <p className="text-[var(--dusk-mute)]">Email: <span className="text-white [overflow-wrap:anywhere]">{refundTarget.email}</span></p>
+              <p className="text-[var(--dusk-mute)]">Key: <code className="text-white font-mono text-xs break-all">{refundTarget.key}</code></p>
             </div>
 
             {/* #965: the success banner replaces the two buttons. The box
@@ -1090,10 +963,10 @@ export default function CustomersClient() {
             <HeightTween trigger={refundMutation.isSuccess}>
               {refundMutation.isSuccess ? (
                 <div
-                  className="t-panel-content p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg"
+                  className={`t-panel-content p-3.5 ${ALERT_OK}`}
                   data-enter=""
                 >
-                  <p className="text-emerald-300 text-sm">
+                  <p className="text-[var(--dusk-lav)] text-sm">
                     Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
                   </p>
                 </div>
@@ -1105,10 +978,10 @@ export default function CustomersClient() {
                   <ErrorReveal gap="pb-5">
                     {refundMutation.error && (
                       <div
-                        className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                        className={`p-3.5 ${ALERT_ERROR}`}
                         role="alert"
                       >
-                        <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
+                        <p className="text-rose-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
                       </div>
                     )}
                   </ErrorReveal>
@@ -1121,7 +994,7 @@ export default function CustomersClient() {
                         })
                       }
                       disabled={refundMutation.isPending}
-                      className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
+                      className={`flex-1 ${BTN_DANGER}`}
                     >
                       {refundMutation.isPending ? "Processing..." : "Refund & Revoke"}
                     </button>
@@ -1133,7 +1006,7 @@ export default function CustomersClient() {
                         })
                       }
                       disabled={refundMutation.isPending}
-                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium border border-white/10"
+                      className={`flex-1 ${BTN_SECONDARY}`}
                     >
                       {refundMutation.isPending ? "Processing..." : "Refund Only"}
                     </button>
@@ -1154,10 +1027,12 @@ export default function CustomersClient() {
           >
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Add Credits</h2>
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-white">Add Credits</h2>
               <button
+                aria-label="Close"
+                disabled={addCreditsMutation.isPending}
                 onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={`p-1 -m-1 ${ICON_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1166,9 +1041,9 @@ export default function CustomersClient() {
             </div>
 
             {/* Account Info (the pooled balance) */}
-            <div className="p-3 bg-white/5 rounded-lg space-y-1">
-              <p className="text-white font-medium">{creditTarget.email}</p>
-              <p className="text-gray-400 text-sm">
+            <div className="p-3.5 rounded-2xl border border-[var(--dusk-line)] bg-white/[.03] space-y-1">
+              <p className="text-white font-medium [overflow-wrap:anywhere]">{creditTarget.email}</p>
+              <p className="text-[var(--dusk-mute)] text-sm tabular-nums">
                 Current balance: {formatCredits(creditTarget.credits)} credits
                 ({Math.floor(creditTarget.credits / CREDITS_PER_MINUTE)} minutes)
               </p>
@@ -1178,10 +1053,11 @@ export default function CustomersClient() {
             <form onSubmit={handleAddCredits} className="space-y-4">
               {/* Credit Amount */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                <label className={`block mb-2 ${LABEL}`} htmlFor="add-credits-amount">
                   Credits to Add
                 </label>
                 <input
+                  id="add-credits-amount"
                   type="number"
                   value={creditAmount}
                   onChange={(e) => setCreditAmount(e.target.value)}
@@ -1189,10 +1065,10 @@ export default function CustomersClient() {
                   min="1"
                   step="1"
                   required
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                  className={`w-full px-3.5 py-2.5 tabular-nums ${INPUT}`}
                 />
                 {creditAmount && parseFloat(creditAmount) > 0 && (
-                  <p className="text-gray-400 text-xs mt-1">
+                  <p className="text-[var(--dusk-mute)] text-xs mt-1.5">
                     = {Math.floor(parseFloat(creditAmount) / CREDITS_PER_MINUTE)} minutes of transcription
                   </p>
                 )}
@@ -1205,7 +1081,7 @@ export default function CustomersClient() {
                     key={amount}
                     type="button"
                     onClick={() => setCreditAmount(amount.toString())}
-                    className="flex-1 px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 text-sm transition-colors"
+                    className={`flex-1 px-2 py-1.5 rounded-full border border-[var(--dusk-line)] bg-white/[.03] text-[var(--dusk-mute)] text-sm tabular-nums transition-colors hover:border-white/25 hover:bg-white/[.07] hover:text-white ${FOCUS_RING}`}
                   >
                     {amount.toLocaleString()}
                   </button>
@@ -1216,7 +1092,7 @@ export default function CustomersClient() {
                   the clip as pb-4. */}
               <ErrorReveal gap="pb-4">
                 {addCreditsMutation.error && (
-                  <p className="text-red-300 text-sm" role="alert">
+                  <p className="text-rose-300 text-sm" role="alert">
                     {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
                   </p>
                 )}
@@ -1226,15 +1102,16 @@ export default function CustomersClient() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
+                  disabled={addCreditsMutation.isPending}
                   onClick={() => { setCreditTarget(null); addCreditsMutation.reset(); }}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg transition-colors"
+                  className={`flex-1 ${BTN_SECONDARY}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addCreditsMutation.isPending || !creditAmount || parseFloat(creditAmount) <= 0}
-                  className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className={`flex-1 ${BTN_PRIMARY}`}
                 >
                   {addCreditsMutation.isPending ? "Adding..." : "Add Credits"}
                 </button>

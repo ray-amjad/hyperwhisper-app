@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.51.0</title>
+            <pubDate>Mon, 09 Nov 2026 06:23:12 +0000</pubDate>
+            <sparkle:version>121</sparkle:version>
+            <sparkle:shortVersionString>2.51.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.51.0.dmg" length="36537530" type="application/octet-stream" sparkle:edSignature="KFaUpYidYJgixxqLzSvOCkGn8aYKkl1dpI7yJkDF8Sb8W3+bfS6s8CUBUab4oh27e99EjjGEo9n7QJ5FHxd1BA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Local AI post-processing is now up to 20× faster — on-device clean-up with Gemma 4 takes about a second instead of up to 20</li><li>The menu bar now shows a checkmark next to your active mode and microphone</li><li>You now get a low-credit warning when your HyperWhisper Cloud balance drops under one minute</li><li>Custom vocabulary works for words in quotes or brackets and words with symbols, and now applies to Deepgram, Soniox and ElevenLabs with your own API key</li><li>Clearer messages when a file is too large, you're out of credits, or an API key is wrong</li><li>Fixed a rare freeze when re-enabling the keyboard shortcut, and a crash when a microphone reports an unexpected format</li><li>Pasting is more reliable in apps that are slow to become ready, plus many smaller fixes</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.50.0</title>
             <pubDate>Thu, 22 Oct 2026 12:34:15 +0000</pubDate>
             <sparkle:version>120</sparkle:version>

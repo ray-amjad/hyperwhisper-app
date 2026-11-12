@@ -1,13 +1,27 @@
 "use client";
 
-import { Link as HeroUILink } from "@heroui/link";
-import { Divider } from "@heroui/divider";
 import { Github, Linkedin, Twitter } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { WRAP } from "./dusk";
 
 import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { useSiteHref } from "@/src/i18n/use-site-href";
+
+type FooterLink = {
+  label: string;
+  href: string;
+  /** An absolute path that must never get a locale prefix (English-only pages). */
+  raw?: boolean;
+  /** Opens the download dialog instead of navigating. */
+  download?: boolean;
+};
+
+const LINK =
+  "rounded text-sm text-[var(--dusk-dim)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
+const ICON_LINK =
+  "rounded text-[var(--dusk-dim)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]";
 
 export default function FooterSection() {
   const { openModal } = useDownloadModal();
@@ -21,140 +35,179 @@ export default function FooterSection() {
   */
   const { nativeLinks, siteHref } = useSiteHref();
 
-  const footerLinks = {
-    [t("product")]: [
-      { label: t("links.features"), href: "/#features" },
-      { label: t("links.pricing"), href: "/#cloud" },
-      { label: t("links.download"), href: "#" },
-      { label: t("links.roadmap"), href: "https://hyperwhisper.userjot.com/" },
-    ],
-    [t("resources")]: [
-      { label: t("links.helpCenter"), href: "https://hyperwhisper.com/docs" },
-      {
-        label: t("links.customerPortal"),
-        href: "/user",
-      },
-      { label: t("links.olderVersions"), href: "/older-versions" },
-      /*
-        The blog is English-only — /<locale>/blog 404s on every other locale — so
-        its href is the absolute /en/blog, rendered with a native <a>, never the
-        locale-prefixing Link (which would make it /de/en/blog). The label stays
-        translated.
-      */
-      { label: t("links.blog"), href: "/en/blog", raw: true },
-      { label: t("links.openSource"), href: "/open-source" },
-    ],
-    [t("company")]: [
-      { label: t("links.about"), href: "/" },
-      { label: t("links.support"), href: "/support" },
-    ],
-    [t("legal")]: [
-      { label: t("links.privacyPolicy"), href: "/legal/privacy-policy" },
-      { label: t("links.termsOfService"), href: "/legal/terms-of-service" },
-      { label: t("links.refundPolicy"), href: "/legal/refund-policy" },
-      { label: t("links.dataTraining"), href: "https://hyperwhisper.com/docs/data-privacy" },
-    ],
+  const columns: { title: string; links: FooterLink[] }[] = [
+    {
+      title: t("product"),
+      links: [
+        { label: t("links.features"), href: "/#features" },
+        { label: t("links.pricing"), href: "/#cloud" },
+        { label: t("links.download"), href: "#", download: true },
+        {
+          label: t("links.roadmap"),
+          href: "https://hyperwhisper.userjot.com/",
+        },
+      ],
+    },
+    {
+      title: t("resources"),
+      links: [
+        { label: t("links.helpCenter"), href: "https://hyperwhisper.com/docs" },
+        /*
+          English-only pages: /<locale>/... 404s on every other locale, so the
+          href is the absolute /en/... with a native <a>, and the label is the
+          same hardcoded English the navbar uses. The blog keeps its translated
+          label (its page is English either way).
+        */
+        { label: "Choose a model", href: "/en/choosing-a-model", raw: true },
+        { label: "Latency", href: "/en/latency", raw: true },
+        { label: t("links.blog"), href: "/en/blog", raw: true },
+        { label: t("links.customerPortal"), href: "/user" },
+        { label: t("links.olderVersions"), href: "/older-versions" },
+        { label: t("links.openSource"), href: "/open-source" },
+      ],
+    },
+    {
+      title: t("company"),
+      links: [
+        { label: t("links.about"), href: "/" },
+        { label: t("links.support"), href: "/support" },
+        {
+          label: "GitHub",
+          href: "https://github.com/ray-amjad/hyperwhisper-app",
+        },
+      ],
+    },
+    {
+      title: t("legal"),
+      links: [
+        { label: t("links.privacyPolicy"), href: "/legal/privacy-policy" },
+        { label: t("links.termsOfService"), href: "/legal/terms-of-service" },
+        { label: t("links.refundPolicy"), href: "/legal/refund-policy" },
+        {
+          label: t("links.dataTraining"),
+          href: "https://hyperwhisper.com/docs/data-privacy",
+        },
+      ],
+    },
+  ];
+
+  /*
+    IMPORTANT: native <a> for anchor links (/#features, /#cloud). next-intl's
+    Link uses client-side routing, which breaks anchor scrolling.
+  */
+  const renderLink = (link: FooterLink) => {
+    if (link.download) {
+      return (
+        <button
+          className={`${LINK} text-start`}
+          type="button"
+          onClick={openModal}
+        >
+          {link.label}
+        </button>
+      );
+    }
+    if (link.href.startsWith("http")) {
+      return (
+        <a
+          className={LINK}
+          href={link.href}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {link.label}
+        </a>
+      );
+    }
+    if (link.raw) {
+      return (
+        <a className={LINK} href={link.href}>
+          {link.label}
+        </a>
+      );
+    }
+    if (link.href.includes("#") || nativeLinks) {
+      return (
+        <a className={LINK} href={siteHref(link.href)}>
+          {link.label}
+        </a>
+      );
+    }
+
+    return (
+      <Link className={LINK} href={link.href}>
+        {link.label}
+      </Link>
+    );
   };
 
   return (
-    <footer className="bg-gray-900/50 backdrop-blur-xl border-t border-gray-800">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Main footer content */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
-          {/* Brand column */}
+    <footer className="border-t border-[var(--dusk-line)] bg-[#04050b] pb-10 pt-16 text-start">
+      <div className={WRAP}>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.6fr_repeat(4,1fr)] md:gap-8">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2.5 text-[17px] font-semibold text-white">
               <img
-                alt="HyperWhisper Logo"
-                className="w-10 h-10 rounded-xl outline-1 -outline-offset-1 outline-white/10"
+                alt=""
+                className="size-[30px] rounded-lg"
+                height={30}
                 src="/icon/128.png"
+                width={30}
               />
-              <span className="text-xl font-bold text-white">HyperWhisper</span>
+              HyperWhisper
             </div>
-            <p className="text-sm text-gray-400">{t("tagline")}</p>
+            <p className="mt-3.5 max-w-[260px] text-sm leading-normal text-[var(--dusk-dim)]">
+              {t("tagline")}
+            </p>
           </div>
 
-          {/* Links columns */}
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h3 className="font-semibold text-white mb-3">{category}</h3>
-              <ul className="space-y-2 break-words hyphens-auto">
-                {/*
-                  IMPORTANT: Use native <a> for anchor links (/#features, /#pricing).
-                  Do NOT use next-intl Link for hash navigation - it breaks anchor scrolling.
-                */}
-                {links.map((link) => (
-                  <li key={link.label}>
-                    {link.label === t("links.download") ? (
-                      <button
-                        className="text-sm text-gray-400 hover:text-white transition-colors text-left"
-                        onClick={openModal}
-                      >
-                        {link.label}
-                      </button>
-                    ) : link.href.includes("#") ||
-                      "raw" in link ||
-                      (nativeLinks && link.href.startsWith("/")) ? (
-                      <a
-                        className="text-sm text-gray-400 hover:text-white transition-colors"
-                        href={"raw" in link ? link.href : siteHref(link.href)}
-                      >
-                        {link.label}
-                      </a>
-                    ) : link.href.startsWith("http") ? (
-                      <a
-                        className="text-sm text-gray-400 hover:text-white transition-colors"
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {link.label}
-                      </a>
-                    ) : (
-                      <Link
-                        className="text-sm text-gray-400 hover:text-white transition-colors"
-                        href={link.href}
-                      >
-                        {link.label}
-                      </Link>
-                    )}
-                  </li>
+          {columns.map((column) => (
+            <div key={column.title} className="min-w-0">
+              <h3 className="mb-3.5 text-[13px] font-semibold text-white">
+                {column.title}
+              </h3>
+              <ul className="grid gap-2.5 break-words hyphens-auto">
+                {column.links.map((link) => (
+                  <li key={link.href + link.label}>{renderLink(link)}</li>
                 ))}
               </ul>
             </div>
           ))}
         </div>
 
-        <Divider className="bg-gray-800" />
-
-        {/* Bottom footer */}
-        <div className="flex flex-col md:flex-row justify-between items-center pt-8 gap-4">
-          <p className="text-sm text-gray-400">{t("copyright")}</p>
-          <div className="flex gap-6 items-center">
-            <HeroUILink
-              isExternal
-              aria-label={t("linkedinAria")}
-              className="text-gray-400 hover:text-white transition-[color,opacity]"
-              href="https://www.linkedin.com/company/hyperwhisper/"
-            >
-              <Linkedin className="w-5 h-5" />
-            </HeroUILink>
-            <HeroUILink
-              isExternal
-              aria-label={t("xAria")}
-              className="text-gray-400 hover:text-white transition-[color,opacity]"
-              href="https://x.com/HyperWhisperApp"
-            >
-              <Twitter className="w-5 h-5" />
-            </HeroUILink>
-            <HeroUILink
-              isExternal
-              aria-label={t("githubAria")}
-              className="text-gray-400 hover:text-white transition-[color,opacity]"
-              href="https://github.com/ray-amjad/hyperwhisper-app"
-            >
-              <Github className="w-5 h-5" />
-            </HeroUILink>
+        <div className="mt-12 flex flex-col gap-4 border-t border-[var(--dusk-line)] pt-6 text-[13px] text-[var(--dusk-dim)] md:flex-row md:items-center md:justify-between">
+          <p>{t("copyright")}</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <p>{t("madeBy")}</p>
+            <div className="flex items-center gap-5">
+              <a
+                aria-label={t("linkedinAria")}
+                className={ICON_LINK}
+                href="https://www.linkedin.com/company/hyperwhisper/"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Linkedin aria-hidden="true" className="size-[18px]" />
+              </a>
+              <a
+                aria-label={t("xAria")}
+                className={ICON_LINK}
+                href="https://x.com/HyperWhisperApp"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Twitter aria-hidden="true" className="size-[18px]" />
+              </a>
+              <a
+                aria-label={t("githubAria")}
+                className={ICON_LINK}
+                href="https://github.com/ray-amjad/hyperwhisper-app"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Github aria-hidden="true" className="size-[18px]" />
+              </a>
+            </div>
           </div>
         </div>
       </div>

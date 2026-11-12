@@ -80,6 +80,10 @@ moduleMock.module(moduleUrl("../styles/globals.css"), { defaultExport: {} });
 moduleMock.module(moduleUrl("../config/fonts.ts"), {
   namedExports: { fontSans: { variable: "" } },
 });
+// The homepage's own key-cap font (next/font too).
+moduleMock.module(moduleUrl("../config/fonts-mono.ts"), {
+  namedExports: { fontMono: { variable: "" } },
+});
 moduleMock.module(moduleUrl("../app/[locale]/providers.tsx"), {
   namedExports: { Providers: stub },
 });
