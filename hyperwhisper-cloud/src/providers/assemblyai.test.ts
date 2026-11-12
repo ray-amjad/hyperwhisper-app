@@ -415,8 +415,9 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
 });
 
 describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () => {
-  test('a poll timeout stays classified at the 15s budget and still deletes the transcript', async () => {
+  test('a poll timeout stays classified at the 15s budget, is retried (#2923), and still deletes the transcript', async () => {
     const calls: Call[] = [];
+    let polls = 0;
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method || 'GET';
@@ -428,7 +429,9 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
         return jsonResponse({ id: 'transcript-timeout' });
       }
       if (url === `${CREATE_URL}/transcript-timeout` && method === 'GET') {
-        throw new DOMException('The operation was aborted', 'AbortError');
+        polls += 1;
+        if (polls === 1) throw new DOMException('The operation was aborted', 'AbortError');
+        return jsonResponse({ status: 'completed', text: 'hello', audio_duration: 5, speech_model_used: 'universal-3-5-pro' });
       }
       if (url === `${CREATE_URL}/transcript-timeout` && method === 'DELETE') {
         return new Response(null, { status: 200 });
@@ -436,23 +439,23 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       throw new Error(`Unexpected fetch: ${method} ${url}`);
     }) as unknown as typeof fetch;
 
-    let thrown: unknown;
-    try {
-      await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto');
-    } catch (error) {
-      thrown = error;
-    }
+    let result: { text: string } | undefined;
+    const transportError = await captureProviderEvent('provider.transport_error', async () => {
+      result = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto');
+    });
 
-    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
-    expect((thrown as ProviderUnavailableError).kind).toBe('timeout');
-    expect((thrown as Error).message).toContain('timeout after 15000ms');
+    // The one timed-out poll is still classified at the 15 s budget, but it no
+    // longer abandons the running job: the next poll returns the transcript.
+    expect(transportError).toMatchObject({ kind: 'timeout', timeoutMs: 15_000 });
+    expect(result?.text).toBe('hello');
     expect(calls).toEqual([
       { url: UPLOAD_URL, method: 'POST' },
       { url: CREATE_URL, method: 'POST' },
       { url: `${CREATE_URL}/transcript-timeout`, method: 'GET' },
+      { url: `${CREATE_URL}/transcript-timeout`, method: 'GET' },
       { url: `${CREATE_URL}/transcript-timeout`, method: 'DELETE' },
     ]);
-  }, 10_000);
+  }, 15_000);
 
   test('bills the model that actually ran, computes cost off it, and cleans up the transcript on success', async () => {
     const calls = mockAsyncFlow({
