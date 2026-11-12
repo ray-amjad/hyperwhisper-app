@@ -99,7 +99,8 @@ public partial class HomePage : Page
         _statsViewModel = new HomeStatsBarViewModel(
             // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.TryRunAsync.
             new HomeStatisticsService(new WindowsStatisticsTranscriptProvider()),
-            SettingsService.Instance);
+            SettingsService.Instance,
+            cacheTotals: true);
         StatsBar.DataContext = _statsViewModel;
         StatsBar.Visibility = Visibility.Visible;
         await _statsViewModel.RecomputeAsync();
