@@ -9,8 +9,10 @@ import { providerAudioReservation } from '../providers/audio-reservation';
 import { maxReservationUsdPerMinute } from '../providers/reservation';
 
 /**
- * Preflight credit reservation: turn a declared Content-Length into the credits
- * to hold before the body is read.
+ * Preflight credit reservation: turn an audio duration into the credits to
+ * hold. The duration is `exactAudioSeconds` when the provider boundary read it
+ * from the buffered body (every route but AssemblyAI dictation's and Meta's
+ * reads it from the container, #2483), else a size-only estimate.
  *
  * Which providers the request could reach, what each of them would charge, and
  * which of them has a routing tier priced above its own catalog are all
@@ -107,9 +109,13 @@ export async function prepareTranscriptionAudio({
       contentLength, provider, model, medical, initialPrompt, language,
       audioReservation.preBufferAudioSeconds,
     );
-    // A floor check only, so it takes no hold: concurrent requests that each
-    // held a floor here could leave none of them room for its exact hold below.
-    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP, { hold: false });
+    // The floor is held PROVISIONALLY while the body is read: it is counted
+    // against every other hold on the balance, so a key cannot buffer more
+    // uploads at once than its balance covers floors for (each one can be
+    // 128 MB of memory). No other request's exact hold counts it, so
+    // concurrent floors cannot starve each other's exact hold below, which
+    // replaces this one (#2483).
+    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP, { provisional: true });
     if (!minimumCreditCheck.ok) {
       logEvent(requestId, startTime, 'transcribe.request_rejected', {
         reason: 'credits_failed_before_buffer',

@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import { pcm16Wav } from '../test-support/wav';
+import { opusOgg } from '../test-support/ogg';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
 import { saveEnv, stubEnv } from '../test-support/env';
@@ -33,6 +34,7 @@ mock.module('../lib/redis', () => ({
 const { transcribeRoute } = await import('./transcribe');
 const { postProcessRoute } = await import('./post-process');
 const { drainPendingDeductions } = await import('../middleware/credits');
+const { estimateCreditsForProviderFallbacks } = await import('./transcribe-audio');
 const { drainPendingHoldReleases, setCreditHoldStoreForTests } = await import('../middleware/credit-holds');
 
 const originalFetch = globalThis.fetch;
@@ -136,8 +138,10 @@ describe('concurrent /transcribe on a balance that covers one request (#2008)', 
     for (const response of refused) {
       const body = await response.json() as { error: string; credits_remaining: number };
       expect(body.error).toBe('Insufficient credits');
-      // What the balance had left once the served request's hold was counted.
-      expect(body.credits_remaining).toBe(1);
+      // What the balance had left once the other holds were counted: 1 after
+      // the served request's exact hold, or 0 for a request refused its
+      // pre-buffer floor while two floors were held (#2483).
+      expect(body.credits_remaining).toBeLessThanOrEqual(1);
     }
     // Only the served request reached the vendor, and only it was charged.
     expect(upstreamCalls).toBe(1);
@@ -519,5 +523,123 @@ describe('a dropped charge logs credits.deduction_failed (#820)', () => {
       .toEqual([200, 200, 500]);
     expect(charges).toHaveLength(3);
     expect([...transcribed.lines, ...postProcessed.lines, ...extractFailed.lines]).toEqual([]);
+  });
+});
+
+// Issue #2483: the default route used to reserve Content-Length at 64 kbps, so
+// an hour of 8 kbps Opus (3.6 MB) was held as 450 s. It now holds the duration
+// read from the container. The grok chain prices its hold at its costliest
+// fallback, so the balance here is what half an hour on it reserves: more than
+// the old 450 s hold, less than the real hour.
+describe('the default route holds credits for the decoded duration (#2483)', () => {
+  let restoreXaiKey: () => void;
+  let xaiCalls: number;
+  const halfHourCredits = estimateCreditsForProviderFallbacks(0, 'grok', undefined, false, undefined, 'en', 1800);
+
+  beforeEach(() => {
+    restoreXaiKey = stubEnv('XAI_API_KEY', 'test-xai-key');
+    xaiCalls = 0;
+    const licenceAndMeta = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('api.x.ai')) {
+        xaiCalls += 1;
+        return Response.json({ text: 'served', duration: 3, request_id: 'xai-1' });
+      }
+      return licenceAndMeta(input, init);
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    restoreXaiKey();
+  });
+
+  function grokRequest(audio: ArrayBuffer, contentType = 'audio/ogg'): Request {
+    const body = new Uint8Array(audio);
+    return new Request(`http://localhost/transcribe?account_key=${ACCOUNT}&language=en`, {
+      method: 'POST',
+      headers: { 'Content-Type': contentType, 'Content-Length': String(body.byteLength), 'X-STT-Provider': 'grok' },
+      body,
+    });
+  }
+
+  test('a half-hour balance is refused an hour of 8 kbps Opus', async () => {
+    cachedCredits = halfHourCredits;
+    expect(estimateCreditsForProviderFallbacks(0, 'grok', undefined, false, undefined, 'en', 450)).toBeLessThan(halfHourCredits);
+    const audio = opusOgg({ seconds: 3600 });
+    expect(audio.byteLength).toBeLessThan(4_000_000);
+
+    const response = await buildApp().fetch(grokRequest(audio));
+    await settle();
+
+    expect(response.status).toBe(402);
+    const body = await response.json() as { error: string; credits_required?: number };
+    expect(body.error).toBe('Insufficient credits');
+    expect(xaiCalls).toBe(0);
+    expect(charges).toEqual([]);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('the same balance is refused an hour of unknown low-bitrate audio (8 kbps fallback)', async () => {
+    cachedCredits = halfHourCredits;
+    const response = await buildApp().fetch(grokRequest(new Uint8Array(3_600_000).fill(0x5A).buffer, 'audio/webm'));
+    await settle();
+
+    expect(response.status).toBe(402);
+    expect(xaiCalls).toBe(0);
+  });
+
+  test('concurrent large uploads on a small balance are refused before their bodies are read', async () => {
+    // A balance that covers one 4 MB upload's pre-buffer floor, not two.
+    const sizeBytes = 4_000_000;
+    const floorCredits = estimateCreditsForProviderFallbacks(0, 'grok', undefined, false, undefined, 'en', sizeBytes / 384_000);
+    cachedCredits = floorCredits * 1.5;
+    let releaseBodies!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseBodies = resolve; });
+    let bodiesRead = 0;
+    const N = 5;
+    const requests = Array.from({ length: N }, () => {
+      const body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          bodiesRead += 1;
+          await gate;
+          controller.enqueue(new Uint8Array(sizeBytes).fill(0x5A));
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+      return new Request(`http://localhost/transcribe?account_key=${ACCOUNT}&language=en`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'audio/webm', 'Content-Length': String(sizeBytes), 'X-STT-Provider': 'grok' },
+        body,
+        duplex: 'half',
+      } as RequestInit);
+    });
+
+    const app = buildApp();
+    const pending = requests.map((request) => app.fetch(request));
+    // Every request but the one holding the floor is answered while that one
+    // is still waiting for its body.
+    const early = await Promise.all(pending.map((response) => Promise.race([
+      response, new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 200)),
+    ])));
+    const refusedEarly = early.filter((response) => response !== 'pending' && response.status === 402);
+    expect(refusedEarly).toHaveLength(N - 1);
+    expect(bodiesRead).toBe(1);
+
+    releaseBodies();
+    await Promise.all(pending);
+    await settle();
+    expect(xaiCalls).toBe(0);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('a short Opus file on the same balance is served', async () => {
+    cachedCredits = halfHourCredits;
+    const response = await buildApp().fetch(grokRequest(opusOgg({ seconds: 3 })));
+    await settle();
+
+    expect(response.status).toBe(200);
+    expect(xaiCalls).toBe(1);
+    expect(charges).toHaveLength(1);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 });

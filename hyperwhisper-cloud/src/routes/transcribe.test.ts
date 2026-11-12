@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
-import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { RESERVATION_FALLBACK_BYTES_PER_SECOND } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
@@ -20,8 +20,10 @@ const ELIGIBLE_CLIENT_HEADERS = {
 
 describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
-    const defaultRouteEstimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
-    const grokFallbackEstimate = estimateCreditsForProviderFallbacks(BYTES_PER_MINUTE_ESTIMATE, 'grok');
+    // One minute at the size-only reservation rate.
+    const oneMinuteBytes = 60 * RESERVATION_FALLBACK_BYTES_PER_SECOND;
+    const defaultRouteEstimate = estimateCreditsFromSize(oneMinuteBytes);
+    const grokFallbackEstimate = estimateCreditsForProviderFallbacks(oneMinuteBytes, 'grok');
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
     // 1.67 credits/min rounded up to a tenth.
