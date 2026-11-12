@@ -1298,7 +1298,7 @@
             <Grid ColumnDefinitions="Auto,*">
               <Path Data="{StaticResource HwIconHistory}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform"
                     Width="11" Height="11" VerticalAlignment="Top" Margin="0,2,8,0"/>
-              <TextBlock Grid.Column="1" x:Name="StoragePathText" Classes="caption"/>
+              <TextBlock Grid.Column="1" x:Name="StoragePathText" Classes="caption" Text="{Binding LastCleanupText}"/>
             </Grid>
           </StackPanel>
           <Button x:Name="SettingsStorageDeleteNow" HorizontalAlignment="Left" Margin="0,12,0,0"
