@@ -1,5 +1,8 @@
+using System.Data.Common;
 using System.IO;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 
@@ -65,6 +68,50 @@ public class HyperWhisperDbContext : DbContext
     {
         if (!options.IsConfigured)
             options.UseSqlite($"Data Source={_dbPath}");
+
+        // Every context, the options constructor's too, so no connection opened
+        // through EF misses the busy wait (#2782).
+        options.AddInterceptors(BusyTimeoutInterceptor.Instance);
+    }
+
+    /// <summary>
+    /// How long SQLite itself waits for another connection's lock (#2782). The same
+    /// 30 s as Microsoft.Data.Sqlite's own retry (its default command timeout), so the
+    /// two do not add up: that retry's clock starts before the first step and counts
+    /// the time this wait spends inside it.
+    /// </summary>
+    public const int BusyTimeoutMilliseconds = 30_000;
+
+    /// <summary>
+    /// Sets SQLite's native busy wait on every connection the context opens (#2782).
+    /// The database is in rollback-journal mode, and EF runs a one-row UPDATE or DELETE
+    /// in autocommit, committing at the statement reset. Microsoft.Data.Sqlite retries
+    /// a busy step but not a busy reset, and has no connection-string keyword for
+    /// busy_timeout ("Default Timeout" is only its own retry), so without this a reader
+    /// on another connection failed the write at once with "database is locked".
+    /// </summary>
+    private sealed class BusyTimeoutInterceptor : DbConnectionInterceptor
+    {
+        public static readonly BusyTimeoutInterceptor Instance = new();
+
+        private static readonly string Pragma = $"PRAGMA busy_timeout = {BusyTimeoutMilliseconds};";
+
+        public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
+        {
+            if (connection is not SqliteConnection) return;
+            using var command = connection.CreateCommand();
+            command.CommandText = Pragma;
+            command.ExecuteNonQuery();
+        }
+
+        public override async Task ConnectionOpenedAsync(
+            DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
+        {
+            if (connection is not SqliteConnection) return;
+            await using var command = connection.CreateCommand();
+            command.CommandText = Pragma;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

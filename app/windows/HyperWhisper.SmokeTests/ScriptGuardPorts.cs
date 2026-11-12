@@ -326,6 +326,67 @@ internal static class ScriptGuardPorts
             }
         });
 
+        run("modes: a one-row mode update waits for a reader on another connection, not fail at once (#2782)", () =>
+        {
+            // #2430 fixed the autocommit-at-reset race for History only. Every other
+            // one-row EF write (here ModeService) failed the same way with "database is
+            // locked" while a reader on another connection was mid-read. The context now
+            // sets SQLite's own busy wait on each connection, so the write waits instead.
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            var modes = ModeService.Instance;
+            var fixture = new Mode { Name = "g2782-update", ProviderType = "local", Language = "auto", SortOrder = 9_782 };
+            modes.SaveMode(fixture);
+            try
+            {
+                var edited = modes.GetMode(fixture.Id);
+                Assert(edited != null, "the fixture mode was not saved");
+                edited!.Name = "g2782 waited";
+                var update = WriteWhileAReaderHolds(() => modes.UpdateMode(edited), "SELECT Id FROM Modes");
+                Console.WriteLine($"       [measured] mode update under a reader released after ~1 s: {update.Elapsed.TotalMilliseconds:F0} ms");
+                Assert(update.Failure == null,
+                    $"the mode update failed after {update.Elapsed.TotalMilliseconds:F0} ms while a reader held the database: {DescribeCause(update.Failure)}");
+                Assert(update.WaitedForReader,
+                    $"the mode update finished in {update.Elapsed.TotalMilliseconds:F0} ms, while the reader still held the database");
+
+                using var check = new HyperWhisperDbContext();
+                var saved = check.Modes.AsNoTracking().FirstOrDefault(m => m.Id == fixture.Id);
+                Assert(saved?.Name == "g2782 waited", $"the update did not persist: the mode is named '{saved?.Name ?? "missing"}'");
+            }
+            finally
+            {
+                modes.DeleteMode(fixture.Id);
+            }
+        });
+
+        run("modes: a one-row mode delete waits for a reader on another connection, not fail at once (#2782)", () =>
+        {
+            // DeleteMode logs a refused write and returns false, so the check reads the
+            // return value and the table, not only "no throw".
+            DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+            var modes = ModeService.Instance;
+            var fixture = new Mode { Name = "g2782-delete", ProviderType = "local", Language = "auto", SortOrder = 9_783 };
+            modes.SaveMode(fixture);
+            var deleted = false;
+            try
+            {
+                Assert(modes.GetMode(fixture.Id) != null, "the fixture mode was not saved");
+                var delete = WriteWhileAReaderHolds(() => deleted = modes.DeleteMode(fixture.Id), "SELECT Id FROM Modes");
+                Console.WriteLine($"       [measured] mode delete under a reader released after ~1 s: {delete.Elapsed.TotalMilliseconds:F0} ms");
+                Assert(delete.Failure == null, $"the mode delete threw: {DescribeCause(delete.Failure)}");
+                Assert(deleted,
+                    $"DeleteMode returned false after {delete.Elapsed.TotalMilliseconds:F0} ms while a reader held the database (it logs the refused write)");
+                Assert(delete.WaitedForReader,
+                    $"the mode delete finished in {delete.Elapsed.TotalMilliseconds:F0} ms, while the reader still held the database");
+
+                using var check = new HyperWhisperDbContext();
+                Assert(!check.Modes.AsNoTracking().Any(m => m.Id == fixture.Id), "the deleted mode is still in the database");
+            }
+            finally
+            {
+                if (!deleted) modes.DeleteMode(fixture.Id);
+            }
+        });
+
         run("models: deleting a Whisper or Parakeet model whose file is in use fails as a Result and keeps it (#830)", () =>
         {
             // A model file held open (a running transcription, antivirus) made
@@ -1391,9 +1452,11 @@ internal static class ScriptGuardPorts
     /// paused mid-read on the scratch database, and lets the reader go after a second
     /// (#2430). WaitedForReader: the write was still running when the reader let go.
     /// Every wait is bounded and the reader is released in finally, so a regression
-    /// fails the check instead of hanging windows-ci.
+    /// fails the check instead of hanging windows-ci. The reader pauses on the first row
+    /// of <paramref name="readerQuery"/> (#2782 reads Modes); Elapsed is the write's own time.
     /// </summary>
-    private static (Exception? Failure, bool WaitedForReader) WriteWhileAReaderHolds(Action write)
+    private static (Exception? Failure, bool WaitedForReader, TimeSpan Elapsed) WriteWhileAReaderHolds(
+        Action write, string readerQuery = "SELECT Id FROM Transcripts")
     {
         string databasePath;
         using (var context = new HyperWhisperDbContext())
@@ -1402,10 +1465,11 @@ internal static class ScriptGuardPorts
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={databasePath};Pooling=False");
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id FROM Transcripts";
+        command.CommandText = readerQuery;
         Microsoft.Data.Sqlite.SqliteDataReader? reader = command.ExecuteReader();
         Task? worker = null;
         var waited = false;
+        var elapsed = TimeSpan.Zero;
         try
         {
             Assert(reader.Read(), "the reader found no row to pause on");
@@ -1414,7 +1478,12 @@ internal static class ScriptGuardPorts
             SynchronizationContext.SetSynchronizationContext(null);
             try
             {
-                worker = Task.Run(write);
+                worker = Task.Run(() =>
+                {
+                    var timer = Stopwatch.StartNew();
+                    try { write(); }
+                    finally { elapsed = timer.Elapsed; }
+                });
             }
             finally
             {
@@ -1430,8 +1499,8 @@ internal static class ScriptGuardPorts
         }
 
         if (!((IAsyncResult)worker!).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(45)))
-            return (new TimeoutException("the write did not finish within 45 s of the reader letting go"), waited);
-        return (worker.Exception?.GetBaseException(), waited);
+            return (new TimeoutException("the write did not finish within 45 s of the reader letting go"), waited, elapsed);
+        return (worker.Exception?.GetBaseException(), waited, elapsed);
     }
 
     /// <summary>
