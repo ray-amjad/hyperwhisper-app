@@ -31,38 +31,13 @@ import os
 
 struct LocalAudioSampleLoaderTests {
 
-    private struct FixtureError: Error {}
     private struct InjectedReadFault: Error {}
 
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "LocalAudioSampleLoaderTests")
 
     /// Writes a mono 16-bit PCM WAV holding a 440 Hz tone, and closes it.
     private func makeWAV(sampleRate: Double, frames: AVAudioFrameCount) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LocalAudioSampleLoaderTests-\(UUID().uuidString).wav")
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        // The scope releases the writer, which is what finalises the RIFF
-        // header (AVAudioFile.close() is macOS 15 only).
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames),
-                  let channel = buffer.floatChannelData?[0] else {
-                throw FixtureError()
-            }
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(prefix: "LocalAudioSampleLoaderTests", sampleRate: sampleRate, frames: frames)
     }
 
     /// Runs the loader with a reader that throws on read call number `failingCall`.
