@@ -44,8 +44,16 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
       admin: {
         devices: {
           list: {
-            useQuery: () => ({
-              data: { devices: LICENCE_ROWS },
+            useInfiniteQuery: () => ({
+              data: {
+                pages: [
+                  {
+                    devices: LICENCE_ROWS,
+                    total: LICENCE_ROWS.length,
+                    nextCursor: null,
+                  },
+                ],
+              },
               isLoading: false,
               error: null,
               refetch: () => undefined,
