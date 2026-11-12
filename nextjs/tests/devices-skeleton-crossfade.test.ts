@@ -111,7 +111,8 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
   assert.match(skeleton, /\[grid-area:1\/1\]/);
   assert.match(skeleton, /\bself-start\b/);
   assert.match(skeleton, /\bopacity-100\b/);
-  for (const c of FADE) assert.ok(skeleton.split(" ").includes(c), c);
+  // Entering a load snaps (#2789): the fade only rides the end of one.
+  assert.doesNotMatch(skeleton, /\btransition-/);
   assert.match(
     html,
     /<div aria-hidden="true" class="t-skel-skeleton [^"]*"><table class="w-full min-w-\[36rem\]"><thead><tr[^>]*><th[^>]*>Email<\/th><th[^>]*>Account Key<\/th><th[^>]*>Devices<\/th>/,
@@ -129,7 +130,7 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
     /<table class="\[grid-area:1\/1\] self-start w-full min-w-\[36rem\]"><thead class="[^"]*">/,
   );
   // Its header is hidden while the skeleton's shows, and fades in with the
-  // rows (at once under reduced motion).
+  // rows once the load ends (at once under reduced motion; source test below).
   const head =
     /<table class="\[grid-area:1\/1\] self-start w-full min-w-\[36rem\]"><thead class="([^"]*)">/.exec(
       html,
@@ -137,11 +138,11 @@ test("mid-first-load: the skeleton shares the table's grid slot and fades, under
 
   assert.ok(head);
   assert.match(head[1], /\bopacity-0\b/);
-  for (const c of FADE) assert.ok(head[1].split(" ").includes(c), c);
+  assert.doesNotMatch(head[1], /\btransition-/);
   const rows = classOf(html, /\bt-skel-content\b/);
 
   assert.match(rows, /\bopacity-0\b/);
-  for (const c of FADE) assert.ok(rows.split(" ").includes(c), c);
+  assert.doesNotMatch(rows, /\btransition-/);
 });
 
 test("a mount with the rows already cached shows no skeleton", async () => {
@@ -180,15 +181,29 @@ test("after the load the skeleton stays mounted, faded, paused and out of the he
     source,
     /className=\{`t-skel-skeleton \[grid-area:1\/1\] self-start pointer-events-none [^`]*\$\{\s*loading \? "" : "h-0 min-w-0 overflow-x-clip"\s*\}/,
   );
-  // Fades on the same signal that fades the rows in.
+  // Fades on the same signal that fades the rows in, a signal that is never
+  // on while loading (#2789), and with the same fade, which is on once the
+  // load is over (the 400 ms cross-fade, at once under reduced motion).
+  assert.match(source, /const shown = revealed && !loading;/);
+  const fade = /const fade = loading\s*\?\s*""\s*:\s*" ([^"]*)";/.exec(source);
+
+  assert.ok(fade);
+  for (const c of FADE) assert.ok(fade[1].split(" ").includes(c), c);
   assert.match(
     source,
-    /\$\{revealed \? "opacity-0 blur-\[2px\]" : "opacity-100 blur-\[0px\]"\}/,
+    /\$\{shown \? "opacity-0 blur-\[2px\]" : "opacity-100 blur-\[0px\]"\}\$\{fade\}/,
+  );
+  assert.equal(
+    source.match(
+      /\$\{\s*shown \? "opacity-100 blur-\[0px\]" : "opacity-0 blur-\[2px\]"\s*\}\$\{fade\}/g,
+    )?.length,
+    2,
+    "the real header and the rows",
   );
   // Its pulse pauses where it is once revealed: nothing animates unseen.
   assert.match(
     source,
-    /const pulse = `\$\{SKEL\}\$\{\s*revealed \? " \[animation-play-state:paused\]" : ""\s*\}`;/,
+    /const pulse = `\$\{SKEL\}\$\{\s*shown \? " \[animation-play-state:paused\]" : ""\s*\}`;/,
   );
   assert.equal(source.match(/h-4 w-(48|28|12) \$\{pulse\}/g)?.length, 3);
 });
