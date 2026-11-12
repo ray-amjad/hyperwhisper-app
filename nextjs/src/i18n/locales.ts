@@ -100,14 +100,52 @@ export const localeDirections: Record<Locale, LocaleDirection> = {
   hi: "ltr",
 };
 
-const openGraphLocaleOverrides: Partial<Record<Locale, string>> = {
+// #2004: exhaustive over Locale on purpose, like localeDirections. The Open
+// Graph locale is language_COUNTRY, and the country cannot be derived from the
+// language code (`ko` is Korea KR, `et` is Estonia EE, not Ethiopia), so a
+// human names each one; a new locale fails `tsc --noEmit` until it is listed.
+// pt_PT, nb_NO, zh_TW and es_ES are deliberate. ar_AR is Facebook's own code.
+const openGraphLocales: Record<Locale, string> = {
   en: "en_US",
   ja: "ja_JP",
   es: "es_ES",
   zh: "zh_CN",
+  de: "de_DE",
+  fr: "fr_FR",
+  ko: "ko_KR",
   "zh-Hant": "zh_TW",
+  it: "it_IT",
+  nl: "nl_NL",
   pt: "pt_PT",
+  ar: "ar_AR",
+  sv: "sv_SE",
+  da: "da_DK",
   nb: "nb_NO",
+  fi: "fi_FI",
+  he: "he_IL",
+  pl: "pl_PL",
+  cs: "cs_CZ",
+  tr: "tr_TR",
+  el: "el_GR",
+  ro: "ro_RO",
+  hu: "hu_HU",
+  sk: "sk_SK",
+  bg: "bg_BG",
+  hr: "hr_HR",
+  sl: "sl_SI",
+  sr: "sr_RS",
+  lt: "lt_LT",
+  lv: "lv_LV",
+  et: "et_EE",
+  is: "is_IS",
+  ca: "ca_ES",
+  ru: "ru_RU",
+  uk: "uk_UA",
+  th: "th_TH",
+  ms: "ms_MY",
+  id: "id_ID",
+  vi: "vi_VN",
+  hi: "hi_IN",
 };
 
 const localeSet = new Set<string>(locales);
@@ -145,14 +183,5 @@ export function buildAlternateLanguageMap(baseUrl: string, path: string) {
 }
 
 export function toOpenGraphLocale(locale: string): string {
-  if (!isSupportedLocale(locale)) return "en_US";
-
-  const override = openGraphLocaleOverrides[locale];
-  if (override) return override;
-
-  if (locale.includes("-")) {
-    return locale.replace(/-/g, "_");
-  }
-
-  return `${locale}_${locale.toUpperCase()}`;
+  return isSupportedLocale(locale) ? openGraphLocales[locale] : "en_US";
 }
