@@ -220,7 +220,7 @@ describe("getBlogPost sanitises a row stored before the fix", () => {
   beforeEach(() => {
     resetHarness();
     dbHandlers.select = () => ({
-      from: () => ({ orderBy: async () => rows }),
+      from: () => ({ where: () => ({ limit: async () => rows }) }),
     });
   });
   afterEach(() => resetHarness());

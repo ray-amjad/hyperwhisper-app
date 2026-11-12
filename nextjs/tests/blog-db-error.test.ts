@@ -11,6 +11,9 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { afterEach, before, beforeEach, describe, test } from "node:test";
 
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+
 import { moduleMock, moduleUrl } from "./module-mock";
 
 let select: () => unknown;
@@ -33,8 +36,25 @@ nodeModule._load = function (request, ...rest) {
 const dbDown = () => {
   throw new Error("ECONNREFUSED 127.0.0.1:5432");
 };
-const tableWith = (rows: unknown[]) => () => ({
-  from: () => ({ orderBy: async () => rows }),
+// The blog reads the list as select().from().where(locale).orderBy() and one
+// post as select().from().where(locale and slug).limit(1). The stub renders
+// the real where clause and answers with the rows it matches, so a slug
+// lookup finds only its own row (blog-post-query-columns.test.ts pins the SQL).
+const dialect = new PgDialect();
+type StubRow = { locale: string; slug: string };
+const tableWith = (rows: StubRow[]) => () => ({
+  from: () => ({
+    where: (condition: SQL) => {
+      const [locale, slug] = dialect.sqlToQuery(condition).params;
+      const matching = rows.filter(
+        (item) => item.locale === locale && (slug === undefined || item.slug === slug),
+      );
+      return {
+        orderBy: async () => matching,
+        limit: async (count: number) => matching.slice(0, count),
+      };
+    },
+  }),
 });
 
 const row = {
