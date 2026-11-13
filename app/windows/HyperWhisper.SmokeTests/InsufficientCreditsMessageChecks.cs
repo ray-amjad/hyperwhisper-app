@@ -6,8 +6,10 @@
 // balance and never a fake "required: 0". These go through the core's real
 // parser and the shipping RustCoreMapping, as HyperWhisperCloudService does.
 
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
+using HyperWhisper.ViewModels;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.SmokeTests;
@@ -44,6 +46,26 @@ internal static class InsufficientCreditsMessageChecks
             var overdrawn = MapCloud402("{\"error\":\"Insufficient credits\",\"credits_remaining\":-0.2}");
             Assert(overdrawn.Message == "Insufficient credits (remaining: 0)",
                 $"an overdrawn balance read '{overdrawn.Message}'");
+        });
+
+        run("cloud 402: the status bar shows the same user message as the toast, not the raw Message (#2830)", () =>
+        {
+            var mapped = MapCloud402(CloudBody);
+            var status = MainViewModel.TranscriptionFailureStatusText(mapped);
+            var toast = MainViewModel.TranscriptionFailureToast(mapped);
+            Assert(status == Loc.S("status.failed", toast.Message),
+                $"the status bar read '{status}' but the toast read '{toast.Message}'");
+            Assert(status == Loc.S("status.failed", mapped.GetUserMessage()),
+                $"the status bar read '{status}', not GetUserMessage '{mapped.GetUserMessage()}'");
+            Assert(status.Contains(mapped.GetUserMessage()) && !status.Contains(mapped.Message),
+                $"the status bar read '{status}' (raw Message '{mapped.Message}')");
+        });
+
+        run("a non-transcription failure still shows its own message in the status bar (#2830)", () =>
+        {
+            var status = MainViewModel.TranscriptionFailureStatusText(new InvalidOperationException("boom"));
+            Assert(status == Loc.S("status.failed", "boom"),
+                $"a plain exception read '{status}'");
         });
     }
 
