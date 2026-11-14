@@ -343,6 +343,31 @@ test("#2638: a refused callback origin logs rejected with its code, no IP header
   });
 });
 
+test("#2955: the ipHash is of cf-connecting-ip, not x-forwarded-for, when both are sent", async () => {
+  const h = await realAuthOnMemory();
+  const link = unknownTokenLink();
+  const capture = captureConsole(["log", "warn", "error"]);
+
+  try {
+    await h.handler(
+      new Request(link, {
+        redirect: "manual",
+        headers: {
+          "cf-connecting-ip": "203.0.113.7",
+          "x-forwarded-for": "198.51.100.9, 10.0.0.1",
+        },
+      }),
+    );
+  } finally {
+    capture.restore();
+  }
+
+  assert.equal(
+    theOneLine(capture.lines, "warn", [tokenOf(link)]).ipHash,
+    IP_HASH,
+  );
+});
+
 test("#2638: a fault inside the log line does not break the sign-in", async () => {
   const h = await realAuthOnMemory();
   const email = "verify-log-fault@example.com";
