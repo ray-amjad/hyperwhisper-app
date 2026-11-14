@@ -41,9 +41,6 @@ const VALID: Record<string, string> = {
   SUPPORT_EMAIL: "support@example.test",
   STRIPE_SECRET_KEY: "sk_test_not_a_key",
   STRIPE_WEBHOOK_SECRET: "whsec_placeholder",
-  UPSTASH_REDIS_SITE_URL: "https://redis.example.test",
-  UPSTASH_REDIS_SITE_TOKEN: "placeholder-token",
-  RESEND_API_KEY: "re_placeholder",
   CRON_SECRET: "placeholder-cron-secret",
   OUTRANK_WEBHOOK_TOKEN: "placeholder-outrank-token",
 };
@@ -188,7 +185,7 @@ describe("no raw process.env read of a validated variable", () => {
   const ROOT = fileURLToPath(new URL("..", import.meta.url));
   const DIRS = ["app", "lib", "server", "src"];
   const READ =
-    /process\.env\.(PLANETSCALE_DATABASE_URL|BETTER_AUTH_URL|SUPPORT_EMAIL|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|HYPERWHISPER_INTERNAL_SECRET|UPSTASH_REDIS_SITE_URL|UPSTASH_REDIS_SITE_TOKEN|NEXT_PUBLIC_SITE_URL)\b/g;
+    /process\.env\.(PLANETSCALE_DATABASE_URL|BETTER_AUTH_URL|SUPPORT_EMAIL|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|HYPERWHISPER_INTERNAL_SECRET|NEXT_PUBLIC_SITE_URL)\b/g;
 
   /**
    * Known reads left in files #682 does not own. Each is `file : variable`.

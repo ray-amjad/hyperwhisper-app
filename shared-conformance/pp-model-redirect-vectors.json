@@ -29,6 +29,8 @@
     {"provider": "gemini", "from": "gemini-3.5-flash", "to": "gemini-3.6-flash"},
     {"provider": "gemini", "from": "gemini-3-flash-preview", "to": "gemini-3.8-flash"},
     {"provider": "gemini", "from": "gemini-3.7-flash", "to": "gemini-3.8-flash"},
+    {"provider": "gemini", "from": "gemini-2.5-pro", "to": "gemini-3.8-flash"},
+    {"provider": "gemini", "from": "gemini-2.5-flash", "to": "gemini-3.5-flash-lite"},
     {"provider": "gemini", "from": "gemma-3-12b-it", "to": "gemini-3.8-flash"},
     {"provider": "gemini", "from": "gemma-3-27b-it", "to": "gemini-3.8-flash"},
     {"provider": "groq", "from": "llama-3.1-8b-instant", "to": "openai/gpt-oss-120b"},

@@ -67,7 +67,7 @@ describe("GET /api/internal/sessions/prune — who may run it", () => {
   const accepted: Array<[string, Record<string, string>]> = [
     ["the internal secret in x-internal-secret", { "x-internal-secret": INTERNAL_SECRET }],
     ["the internal secret as a bearer", { authorization: `Bearer ${INTERNAL_SECRET}` }],
-    ["the Vercel cron secret as a bearer", { authorization: `Bearer ${CRON_SECRET}` }],
+    ["the cron secret as a bearer (worker.ts scheduled)", { authorization: `Bearer ${CRON_SECRET}` }],
   ];
 
   for (const [name, headers] of accepted) {
@@ -171,14 +171,11 @@ describe("GET /api/internal/sessions/prune — what it deletes", () => {
   });
 });
 
-describe("the Vercel cron that runs it", () => {
-  test("vercel.json schedules the session prune daily", async () => {
-    const { readFile } = await import("node:fs/promises");
-    const config = JSON.parse(
-      await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-    ) as { crons: Array<{ path: string; schedule: string }> };
-    const entry = config.crons.find((c) => c.path === PRUNE_PATH);
-    assert.ok(entry, "vercel.json must schedule /api/internal/sessions/prune");
-    assert.match(entry.schedule, /^\d+ \d+ \* \* \*$/);
+describe("the cron that runs it", () => {
+  test("config/cron-jobs.mjs schedules the session prune daily", async () => {
+    const { CRON_JOBS } = await import("../config/cron-jobs.mjs");
+    const entry = Object.entries(CRON_JOBS).find(([, path]) => path === PRUNE_PATH);
+    assert.ok(entry, "config/cron-jobs.mjs must schedule /api/internal/sessions/prune");
+    assert.match(entry[0], /^\d+ \d+ \* \* \*$/);
   });
 });

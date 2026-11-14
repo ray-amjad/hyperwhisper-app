@@ -6,7 +6,7 @@ import { db } from "@/src/db";
 import { session } from "@/src/db/schema/auth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// No maxDuration: a Cloudflare cron invocation gets 15 minutes of wall time.
 
 /** Rows per delete. Bounded so one run can never hold a long table lock. */
 const BATCH_SIZE = 5_000;
@@ -21,7 +21,7 @@ const MAX_BATCHES = 20;
  * deletes an expired row only when its holder comes back with that cookie on
  * a POST (`deferSessionRefresh` in src/lib/auth.ts), so a member who signs in
  * once and never returns would leave an IP address in the database for good.
- * This daily Vercel cron (see vercel.json) is what makes the privacy page's
+ * This daily Cloudflare cron trigger (wrangler.jsonc, worker.ts) is what makes the privacy page's
  * "deleted within a day of the session expiring" true.
  *
  * `expires_at` is the live expiry: Better Auth moves it forward each time it

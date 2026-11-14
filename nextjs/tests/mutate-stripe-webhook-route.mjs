@@ -34,13 +34,13 @@ const MUTANTS = [
   },
   {
     name: "verify with a different secret",
-    from: "constructEvent(body, signature, webhookSecret)",
-    to: 'constructEvent(body, signature, "other-secret")',
+    from: "constructEventAsync(body, signature, webhookSecret)",
+    to: 'constructEventAsync(body, signature, "other-secret")',
   },
   {
     name: "verify a re-serialized body instead of the raw bytes",
-    from: "constructEvent(body, signature, webhookSecret)",
-    to: "constructEvent(JSON.stringify(JSON.parse(body)), signature, webhookSecret)",
+    from: "constructEventAsync(body, signature, webhookSecret)",
+    to: "constructEventAsync(JSON.stringify(JSON.parse(body)), signature, webhookSecret)",
   },
   {
     name: "accept a body whose signature did not verify",

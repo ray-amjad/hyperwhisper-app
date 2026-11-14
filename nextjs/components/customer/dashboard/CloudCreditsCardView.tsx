@@ -2,6 +2,20 @@
 
 import { ErrorReveal } from "@/components/ErrorReveal";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  BTN_PRIMARY,
+  CARD_ACCENT,
+  FOCUS_RING,
+  INPUT,
+  LABEL,
+} from "@/components/user/panel-styles";
+
+/** One amount tile, like the /credits page's amount picker. */
+const TILE =
+  `flex flex-col items-center justify-center gap-0.5 px-3 py-3.5 rounded-2xl border text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-[background-color,border-color,scale] duration-150 ease-out active:not-disabled:scale-[.97] ${FOCUS_RING} motion-reduce:transition-none`;
+const TILE_OFF =
+  "border-[var(--dusk-line)] bg-white/[.03] hover:not-disabled:border-white/25 hover:not-disabled:bg-white/[.06]";
+const TILE_ON = "border-white bg-white/[.08]";
 
 /**
  * The tier a checkout is in flight for: the dollar amount of a preset, or the
@@ -116,16 +130,16 @@ export default function CloudCreditsCardView({
   onBuy,
 }: CloudCreditsCardViewProps) {
   return (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <div className="mb-4">
-        <p className="text-sm text-gray-400 mb-1">{labels.title}</p>
-        <p className="text-2xl font-semibold text-white">
+    <div className={`${CARD_ACCENT} p-5 sm:p-6`}>
+      <div className="mb-5">
+        <p className={`${LABEL} mb-2`}>{labels.title}</p>
+        <p className="text-[34px] sm:text-[40px] font-semibold leading-none tracking-[-0.035em] text-white tabular-nums">
           {totalCredits.toLocaleString()}
         </p>
         {/* No `> 0` test here. The wrapper already made that call and a null
             string IS the answer — same shape as `tier.minutesLabel` below. */}
         {labels.minutesRemaining && (
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="mt-2 text-sm text-[var(--dusk-mute)]">
             {labels.minutesRemaining}
           </p>
         )}
@@ -133,7 +147,7 @@ export default function CloudCreditsCardView({
 
       {activeLicenseKey && (
         <>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             {tiers.map((tier) => {
               const isLoading = loadingTier === tier.amount;
               const isDisabled = loadingTier !== null;
@@ -141,7 +155,7 @@ export default function CloudCreditsCardView({
               return (
                 <button
                   key={tier.amount}
-                  className="flex flex-col items-center justify-center px-3 py-3 bg-white/5 border border-white/10 text-white font-medium rounded-lg hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className={`${TILE} ${TILE_OFF}`}
                   disabled={isDisabled}
                   onClick={() => onBuy(tier.amount, tier.amount)}
                 >
@@ -149,14 +163,14 @@ export default function CloudCreditsCardView({
                     <Spinner className="w-5 h-5 text-white" />
                   ) : (
                     <>
-                      <span className="text-lg font-semibold">
+                      <span className="text-[22px] font-semibold leading-tight tracking-[-0.02em]">
                         ${tier.amount}
                       </span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-[var(--dusk-mute)]">
                         {tier.creditsLabel}
                       </span>
                       {tier.minutesLabel && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-[var(--dusk-mute)]">
                           {tier.minutesLabel}
                         </span>
                       )}
@@ -169,16 +183,12 @@ export default function CloudCreditsCardView({
             {/* Custom amount: toggles an inline input below the tier grid. */}
             <button
               aria-pressed={showCustom}
-              className={`flex flex-col items-center justify-center px-3 py-3 border text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors ${
-                showCustom
-                  ? "bg-white/10 border-white/30"
-                  : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
-              }`}
+              className={`${TILE} ${showCustom ? TILE_ON : TILE_OFF}`}
               disabled={loadingTier !== null}
               onClick={onToggleCustom}
             >
-              <span className="text-lg font-semibold">{labels.custom}</span>
-              <span className="text-xs text-gray-400">{labels.customSub}</span>
+              <span className="text-[22px] font-semibold leading-tight tracking-[-0.02em]">{labels.custom}</span>
+              <span className="text-xs text-[var(--dusk-mute)]">{labels.customSub}</span>
             </button>
           </div>
 
@@ -187,13 +197,13 @@ export default function CloudCreditsCardView({
           {showCustom && (
             <div className="t-cell-reveal">
               <div>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2.5 flex items-center gap-2">
                   <div className="relative flex-1">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--dusk-dim)]">
                       $
                     </span>
                     <input
-                      className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-400 focus:border-white/30 focus:outline-none disabled:opacity-50"
+                      className={`w-full py-2.5 pl-8 pr-3 tabular-nums disabled:opacity-50 ${INPUT}`}
                       disabled={loadingTier !== null}
                       inputMode="numeric"
                       max={maxAmount}
@@ -206,12 +216,12 @@ export default function CloudCreditsCardView({
                     />
                   </div>
                   <button
-                    className="flex items-center justify-center rounded-lg bg-white/10 border border-white/20 px-4 py-2 font-medium text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    className={`${BTN_PRIMARY} self-stretch`}
                     disabled={!customValid || loadingTier !== null}
                     onClick={() => onBuy(Number(customAmount), "custom")}
                   >
                     {loadingTier === "custom" ? (
-                      <Spinner className="w-5 h-5 text-white" />
+                      <Spinner className="w-5 h-5" />
                     ) : (
                       labels.topUp
                     )}
@@ -230,7 +240,7 @@ export default function CloudCreditsCardView({
           <ErrorReveal>
             {error && (
               <div className="mt-2">
-                <span className="text-red-300 text-sm" role="alert">
+                <span className="text-rose-300 text-sm" role="alert">
                   {error}
                 </span>
               </div>

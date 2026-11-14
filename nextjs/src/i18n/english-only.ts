@@ -16,6 +16,14 @@ export function isEnglishOnlyPath(pathname: string): boolean {
 const BARE_ENGLISH_ONLY_REGEX = /^\/(latency|choosing-a-model|blog)(\/|$)/;
 
 /**
+ * True for an English-only page's path as next-intl's usePathname() gives it,
+ * with the locale prefix already stripped (`/latency`, `/blog/<slug>`).
+ */
+export function isEnglishOnlyRoute(pathname: string): boolean {
+  return BARE_ENGLISH_ONLY_REGEX.test(pathname);
+}
+
+/**
  * The `/en/...` path for a bare English-only path, else null. A trailing slash
  * is dropped, as next-intl does, so the visit takes one redirect, not two.
  */

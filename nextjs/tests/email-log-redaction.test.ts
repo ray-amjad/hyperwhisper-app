@@ -1,11 +1,11 @@
 /**
  * #717: no customer email address reaches a server log line from the REAL
  * `lib/services/email.ts` or the REAL `server/api/routers/download.ts` — on the
- * success path, and on the Resend-error path, where Resend's `validation_error`
- * echoes the recipient ("alice@corp.com is not a valid recipient") and the
+ * success path, and on the provider-error path, where a rejection can echo
+ * the recipient ("alice@corp.com is not a valid recipient") and the
  * caller logs the text it gets back in `EmailResult.error`.
  *
- * Only the collaborators are replaced (`mock.module`): the Resend client, the
+ * Only the collaborators are replaced (`mock.module`): the email client, the
  * database layer, the rate limiter and Better Auth (which `server/api/trpc.ts`
  * imports). Every `console.*` line is captured while a case runs.
  */
@@ -33,9 +33,9 @@ const behaviour = {
 };
 const sentEmailRows: Array<Record<string, unknown>> = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: { emails: { send: async () => behaviour.result } },
+    sendEmail: async () => behaviour.result,
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
 });
@@ -93,13 +93,12 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-/** A real Resend `validation_error`, echoing the recipient in another case. */
-function resendRejectsRecipient(): void {
+/** A provider rejection echoing the recipient in another case. */
+function providerRejectsRecipient(): void {
   behaviour.result = {
     data: null,
     error: {
-      name: "validation_error",
-      statusCode: 422,
+      code: "E_VALIDATION_ERROR",
       message: "alice.smith@acme-widgets.com is not a valid recipient",
     },
   };
@@ -133,8 +132,8 @@ test("email service: a successful send logs the tag, never the address", async (
   assert.ok(lines.some((line) => line.includes(TAG)), "the tag is logged instead");
 });
 
-test("email service: a Resend error echoing the recipient is redacted in the log AND in EmailResult.error", async () => {
-  resendRejectsRecipient();
+test("email service: a provider error echoing the recipient is redacted in the log AND in EmailResult.error", async () => {
+  providerRejectsRecipient();
 
   const result = await sendLicense();
 
@@ -144,7 +143,7 @@ test("email service: a Resend error echoing the recipient is redacted in the log
   assertNoAddressIn(lines);
   assert.ok(
     lines.some((line) => line.includes(`${TAG} is not a valid recipient`)),
-    "the catch-block log keeps Resend's reason",
+    "the catch-block log keeps the provider's reason",
   );
   // The audit row still names the recipient (it is the row's own column).
   assert.equal(sentEmailRows[0]?.recipient, RAW);
@@ -172,8 +171,8 @@ test("download: a recorded download logs the tag, never the address", async () =
   assert.ok(lines.some((line) => line.includes(TAG)));
 });
 
-test("download: a welcome email Resend refuses is logged without the address", async () => {
-  resendRejectsRecipient();
+test("download: a welcome email the provider refuses is logged without the address", async () => {
+  providerRejectsRecipient();
 
   const result = (await recordDownload()) as { success: boolean };
 
@@ -187,7 +186,7 @@ test("download: a welcome email Resend refuses is logged without the address", a
   );
 });
 
-test("download: a 60 KB address Resend echoes back reaches no log line and no EmailResult.error (review r2)", async () => {
+test("download: a 60 KB address the provider echoes back reaches no log line and no EmailResult.error (review r2)", async () => {
   // The public form's `z.string().email()` has no length bound. On the old
   // RegExp-based redaction this address threw `Regular expression too large`,
   // and that SyntaxError's text — the address, regex-escaped — was logged on
@@ -195,7 +194,7 @@ test("download: a 60 KB address Resend echoes back reaches no log line and no Em
   const huge = `${"alice.smith".repeat(5500)}@acme-widgets.com`;
   behaviour.result = {
     data: null,
-    error: { name: "validation_error", statusCode: 422, message: `${huge} is not a valid recipient` },
+    error: { code: "E_VALIDATION_ERROR", message: `${huge} is not a valid recipient` },
   };
 
   const started = performance.now();

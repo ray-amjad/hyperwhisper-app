@@ -25,14 +25,14 @@ public sealed partial class ApplicationLocalApiBackend
                 throw new ArgumentException("A transcription is already in progress.");
             if (snapshot.State == TranscriptionWorkflowState.Recording)
             {
-                var request = _activeRecordingRequest ?? await BuildRequestAsync(null, null, cancellationToken).ConfigureAwait(false);
+                var request = _activeRecordingRequest ?? await BuildRequestAsync(null, null, cancellationToken, preferSelectedMode: true).ConfigureAwait(false);
                 _activeRecordingRequest = null;
                 stopOperation = _workflow.StopAndTranscribeAsync(request, cancellationToken);
             }
             else
             {
                 _activeRecordingRequest = null;
-                var request = await BuildRequestAsync(null, null, cancellationToken).ConfigureAwait(false);
+                var request = await BuildRequestAsync(null, null, cancellationToken, preferSelectedMode: true).ConfigureAwait(false);
                 result = await _workflow.StartRecordingAsync(cancellationToken).ConfigureAwait(false);
                 if (result.IsSuccess) _activeRecordingRequest = request;
                 ThrowWorkflowFailure(result);
@@ -262,7 +262,8 @@ public sealed partial class ApplicationLocalApiBackend
         string? engineOverride = null,
         string? modelOverride = null,
         ApplicationContextSnapshot? applicationContext = null,
-        bool storeWordTimestamps = false)
+        bool storeWordTimestamps = false,
+        bool preferSelectedMode = false)
     {
         var modes = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
         Mode? mode;
@@ -275,7 +276,13 @@ public sealed partial class ApplicationLocalApiBackend
         }
         else if (string.IsNullOrWhiteSpace(engineOverride))
         {
-            mode = modes.SingleOrDefault(item => item.IsDefault);
+            // /recording/toggle records with the mode selected in the app, as
+            // the in-app button does, then the IsDefault row when nothing is
+            // selected or the selection names a mode that is gone (#2406). A
+            // /transcribe upload with no mode_id keeps the IsDefault rule.
+            var selectedId = preferSelectedMode ? _selectedModeId?.Invoke() : null;
+            mode = (selectedId is { } id ? modes.FirstOrDefault(item => item.Id == id) : null)
+                ?? modes.SingleOrDefault(item => item.IsDefault);
             if (mode is null && modes.Count != 0)
                 throw new InvalidOperationException("No default transcription mode is configured.");
         }

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup. Like /validate, this endpoint is
   // unauthenticated, so it shares the same limiter.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),

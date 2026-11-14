@@ -79,7 +79,7 @@ export function createAppcastReader(
 export interface DownloadRecordSource {
   /** The caller's IP, read from the request headers. */
   clientIP: (headers: Headers) => string;
-  /** One rate-limit check for this IP; the router wraps the Upstash limiter. */
+  /** One rate-limit check for this IP; the router wraps the Cloudflare limiter. */
   limit: (clientIP: string) => Promise<RateLimitOutcome>;
   getDisposableDomains: () => Promise<Set<string>>;
   upsertEmail: (data: { email: string; source: string }) => Promise<void>;
@@ -106,8 +106,8 @@ export function createDownloadRecorder(
 ): (input: { email: string; headers: Headers }) => Promise<DownloadRecordResult> {
   return async function recordDownload(input) {
     try {
-      // Rate limiting: 10 requests per IP per hour. Fails open, so an Upstash
-      // outage never keeps a visitor from the download link (#2136).
+      // Rate limiting: 2 requests per IP per minute. Fails open, so a limiter
+      // failure never keeps a visitor from the download link (#2136).
       const clientIP = source.clientIP(input.headers);
       const rateLimit = await source.limit(clientIP);
 

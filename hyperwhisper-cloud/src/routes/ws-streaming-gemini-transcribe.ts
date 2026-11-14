@@ -77,6 +77,45 @@ const MAX_UPSTREAM_BUFFERED_JSON_BYTES = Math.ceil(MAX_UPSTREAM_BUFFERED_BYTES *
 // (it did not close for 54 s), so this backstop is what ends the session.
 const STOP_GRACE_MS = 5_000;
 
+// WHICH COMPLETION ENDS THE SESSION (#2920). Every turn boundary arrives as a
+// completion (`turnComplete` or `generationComplete`, OR'd — see the
+// `a-false-generation-complete-does-not-mask-a-true-turn-complete` vector), and
+// nothing on the wire says which one answers `audio_stream_end`. So when the user
+// stops right after a short pause, the PREVIOUS turn's closing frame (final +
+// completion) can still be in flight as the stop goes out. Closing on it threw
+// the stop's own final away: the user's last sentence was lost.
+//
+// The flag cannot tell them apart either: the Rust core and the vectors treat
+// `turnComplete` as the same boundary under Google's other spelling, and a stop
+// answered with `turnComplete` alone is a case the vectors pin. What CAN tell
+// them apart is timing. A frame Google sent before it read `audio_stream_end`
+// lands within one round trip of the stop (tens of ms, Fly to Google), while
+// the answer needs Google to flush the tail audio first (~0.5 s, verified live,
+// above). So a post-stop completion is classed by when it lands:
+// - inside STOP_SETTLE_IN_FLIGHT_WINDOW_MS (250 ms, several round trips of
+//   margin): an earlier turn, in flight. The session is held until
+//   STOP_SETTLE_IN_FLIGHT_HOLD_MS after the stop for the real answer;
+// - after it: the stop's answer. The session closes STOP_SETTLE_QUIET_MS after
+//   the last transcript or completion (each re-arms it), so a frame right
+//   behind it still lands.
+//
+// THE TRADE-OFF, explicit. Closing too early loses the user's last sentence;
+// waiting delays `session_complete` (the clients wait up to 10 s for it, so
+// any wait under the 5 s STOP_GRACE_MS is safe for them, just slower).
+// - The usual stop (answer at ~0.5 s): closes at ~0.8 s, +0.3 s over closing on
+//   the spot, against the 5 s it waited before the final-and-complete fix.
+// - An earlier turn in flight (#2920): the answer is waited for up to 2.5 s
+//   after the stop, 5x the observed latency; past that it is lost, as before.
+// - A genuine answer faster than 250 ms is mistaken for an in-flight turn and
+//   the session ends at 2.5 s instead of ~0.55 s. Slower, nothing lost.
+// - Residual: an earlier turn's completion landing AFTER 250 ms (a very slow
+//   path to Google) with the answer more than 300 ms behind it still closes
+//   early. No signal on this API removes that; the margins above are the call.
+// STOP_GRACE_MS still caps all of it.
+const STOP_SETTLE_QUIET_MS = 300;
+const STOP_SETTLE_IN_FLIGHT_WINDOW_MS = 250;
+const STOP_SETTLE_IN_FLIGHT_HOLD_MS = 2_500;
+
 export function buildLiveWsUrl(apiKey: string): string {
   return `${LIVE_WS_ROOT}?key=${encodeURIComponent(apiKey)}`;
 }
@@ -183,7 +222,9 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // report reached the client ~5 s late on every cloud-Gemini dictation. Both
   // halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
   // already gated on `stopRequested`, so a mid-dictation turn boundary is a
-  // no-op there and only the post-stop frame ends the session. This matches
+  // no-op there, and a post-stop one starts the short settle wait above
+  // (STOP_SETTLE_*) rather than the 5 s backstop — it cannot close on the spot,
+  // because an earlier turn's completion looks the same (#2920). This matches
   // `gemini_transcribe/live.rs`' `LiveServerMessage::FinalTranscriptAndComplete`
   // and the `finalTranscriptAndComplete` conformance vector.
   const final = readText(content, 'inputTranscription');
@@ -281,6 +322,11 @@ export const GEMINI_TRANSCRIBE_VENDOR: StreamingVendor = {
   parseUpstreamClose: parseGeminiLiveClose,
   stopFrames: () => [buildAudioStreamEndFrame()],
   stopGraceMs: STOP_GRACE_MS,
+  stopSettle: {
+    quietMs: STOP_SETTLE_QUIET_MS,
+    inFlightWindowMs: STOP_SETTLE_IN_FLIGHT_WINDOW_MS,
+    inFlightHoldMs: STOP_SETTLE_IN_FLIGHT_HOLD_MS,
+  },
   costForSeconds: (seconds: number, transcriptChars?: number) =>
     computeGeminiTranscribeLiveCost(seconds, transcriptChars),
 };
