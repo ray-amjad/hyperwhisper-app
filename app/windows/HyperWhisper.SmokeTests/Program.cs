@@ -27075,6 +27075,7 @@ internal static class Program
             CloudCreditsWarningChecks.RunAll(Run);
             InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
+            TranscriptionRetryHandlerChecks.RunAll(Run);
             UpdateMessageWindowChecks.RunAll(Run);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
