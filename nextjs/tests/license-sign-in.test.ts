@@ -479,6 +479,19 @@ describe("POST /sign-in/license-key — the audit line", () => {
     assert.equal(parseLine(logLines[0]!).fields.ipHash, CLIENT_IP_HASH);
   });
 
+  test("hashes cf-connecting-ip, not x-forwarded-for, when both are sent", async () => {
+    grantedAccount();
+
+    await signInWithLicenseKey(GRANTED_KEY, {
+      headers: {
+        "cf-connecting-ip": CLIENT_IP,
+        "x-forwarded-for": "198.51.100.9, 70.41.3.18",
+      },
+    });
+
+    assert.equal(parseLine(logLines[0]!).fields.ipHash, CLIENT_IP_HASH);
+  });
+
   test("logs a null ipHash when the proxy header is absent", async () => {
     grantedAccount();
 
