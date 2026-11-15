@@ -19,9 +19,17 @@ After each recording, HyperWhisper can paste the result into the frontmost app. 
 
 ## Enable Auto Paste
 
-1. Open **Settings → Text Output**.
-2. Enable **Paste result automatically**.
-3. If an app processes a paste slowly, increase the clipboard restore delay. This delay is a single setting that applies to every app, not a per-app value.
+<Steps>
+  <Step title="Open Text Output settings">
+    Open **Settings → Text Output**.
+  </Step>
+  <Step title="Turn on Paste result automatically">
+    Enable **Paste result automatically**.
+  </Step>
+  <Step title="Adjust the restore delay if needed">
+    If an app processes a paste slowly, increase the clipboard restore delay. This delay is a single setting that applies to every app, not a per-app value.
+  </Step>
+</Steps>
 
 <Note>
   Auto Paste needs the Accessibility permission. With this permission, HyperWhisper can send the paste keystroke for you.
@@ -31,9 +39,17 @@ After each recording, HyperWhisper can paste the result into the frontmost app. 
 
 Grant the Accessibility permission to make Auto Paste operate correctly:
 
-1. Go to `System Settings → Privacy & Security → Accessibility`.
-2. Unlock the list. Then enable HyperWhisper. A development build from Xcode shows the Xcode DerivedData path, not `/Applications/HyperWhisper.app`. Release builds and development builds use the same bundle ID. The install path, not a different name, separates the two entries in this list. If you switch between the two builds, enable both entries.
-3. If you changed the setting while the app was open, restart the app.
+<Steps>
+  <Step title="Open Accessibility settings">
+    Go to `System Settings → Privacy & Security → Accessibility`.
+  </Step>
+  <Step title="Enable HyperWhisper">
+    Unlock the list. Then enable HyperWhisper. A development build from Xcode shows the Xcode DerivedData path, not `/Applications/HyperWhisper.app`. Release builds and development builds use the same bundle ID. The install path, not a different name, separates the two entries in this list. If you switch between the two builds, enable both entries.
+  </Step>
+  <Step title="Restart the app if it was open">
+    If you changed the setting while the app was open, restart the app.
+  </Step>
+</Steps>
 
 If the permission is missing, the app shows a banner on the Home screen. The Accessibility Helper gives a direct link to System Settings.
 

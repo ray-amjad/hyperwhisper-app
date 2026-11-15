@@ -11,7 +11,8 @@
 // - Receives TranscriptViewModel for UI state updates
 // - Returns TranscriptionResult for flexibility
 // - Handles both cloud and local retries
-// - Owns its own TranscriptionOrchestrator and TranscriptionService
+// - Uses the shared TranscriptionRuntime orchestrator and local providers;
+//   tests pass the transcription and History save as delegates (#1037)
 
 using System.IO;
 using HyperWhisper.Data.Entities;
@@ -30,12 +31,24 @@ public class TranscriptionRetryHandler : IDisposable
     // DEPENDENCIES
     // =========================================================================
 
-    private readonly TranscriptionOrchestrator _orchestrator;
+    /// <summary>
+    /// The orchestrator's <c>TranscribeAsync</c>, as the retry calls it: audio path,
+    /// mode, vocabulary, local provider, application context, token.
+    /// </summary>
+    internal delegate Task<TranscriptionResult> TranscribeAudio(
+        string audioPath,
+        Mode mode,
+        IReadOnlyList<string>? vocabulary,
+        ITranscriptionProvider? localTranscriptionProvider,
+        ApplicationContext? applicationContext,
+        CancellationToken cancellationToken);
+
+    private readonly TranscribeAudio _transcribe;
     private readonly TranscriptionService _localTranscriptionService;
     private readonly WhisperModelService _modelService;
     private readonly ParakeetTranscriptionService _parakeetTranscriptionService;
     private readonly ParakeetModelService _parakeetModelService;
-    private readonly HistoryService _historyService;
+    private readonly Action<Transcript> _saveTranscript;
     private bool _disposed;
 
     // =========================================================================
@@ -43,20 +56,43 @@ public class TranscriptionRetryHandler : IDisposable
     // =========================================================================
 
     public TranscriptionRetryHandler()
+        : this(TranscribeWith(TranscriptionRuntime.Orchestrator), SaveTo(HistoryService.Instance))
     {
-        // All three transcription primitives come from TranscriptionRuntime
+    }
+
+    /// <summary>
+    /// Test seam (#1037): the two I/O edges of a retry, the transcription and the
+    /// History save, as plain delegates. The local providers stay the shared ones.
+    /// </summary>
+    internal TranscriptionRetryHandler(TranscribeAudio transcribe, Action<Transcript> saveTranscript)
+    {
+        _transcribe = transcribe ?? throw new ArgumentNullException(nameof(transcribe));
+        _saveTranscript = saveTranscript ?? throw new ArgumentNullException(nameof(saveTranscript));
+
+        // The local transcription primitives come from TranscriptionRuntime
         // so the History retry path shares the same loaded model the GUI
         // and Local API see. Otherwise a retry on an <32GB box would force
         // a third Whisper instance + native load.
-        _orchestrator = TranscriptionRuntime.Orchestrator;
         _localTranscriptionService = TranscriptionRuntime.LocalProvider;
         _modelService = new WhisperModelService();
         _parakeetTranscriptionService = TranscriptionRuntime.ParakeetProvider;
         _parakeetModelService = new ParakeetModelService();
-        _historyService = HistoryService.Instance;
 
         LoggingService.Info("TranscriptionRetryHandler: Initialized");
     }
+
+    private static TranscribeAudio TranscribeWith(TranscriptionOrchestrator orchestrator) =>
+        (audioPath, mode, vocabulary, localProvider, applicationContext, cancellationToken) =>
+            orchestrator.TranscribeAsync(
+                audioPath,
+                mode,
+                vocabulary: vocabulary,
+                localTranscriptionProvider: localProvider,
+                applicationContext: applicationContext,
+                cancellationToken: cancellationToken);
+
+    private static Action<Transcript> SaveTo(HistoryService historyService) =>
+        transcript => historyService.UpdateTranscript(transcript);
 
     // =========================================================================
     // PUBLIC API
@@ -129,13 +165,13 @@ public class TranscriptionRetryHandler : IDisposable
                 ? VocabularyService.Instance.GetVocabularyWords(100)
                 : null;
 
-            var result = await _orchestrator.TranscribeAsync(
+            var result = await _transcribe(
                 transcript.AudioFilePath!,
                 mode,
-                vocabulary: vocabulary,
-                localTranscriptionProvider: localProvider,
-                applicationContext: null,
-                cancellationToken: cancellationToken);
+                vocabulary,
+                localProvider,
+                null,
+                cancellationToken);
 
             // Update transcript entity with success
             UpdateTranscriptSuccess(transcript, mode, result);
@@ -232,7 +268,7 @@ public class TranscriptionRetryHandler : IDisposable
         entity.LastRetryDate = DateTime.UtcNow;
         entity.Mode = mode.Name;
 
-        _historyService.UpdateTranscript(entity);
+        _saveTranscript(entity);
 
         // Update view model to reflect changes immediately
         transcript.Text = result.FinalText;
@@ -260,7 +296,7 @@ public class TranscriptionRetryHandler : IDisposable
         entity.RetryCount++;
         entity.LastRetryDate = DateTime.UtcNow;
 
-        _historyService.UpdateTranscript(entity);
+        _saveTranscript(entity);
 
         // Update view model to reflect changes immediately
         transcript.Status = TranscriptStatus.Failed;

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Ciri",
+    "modes": "Mod",
     "faq": "Soalan Lazim",
     "support": "Sokongan",
     "download": "Muat turun",
@@ -16,26 +17,36 @@
       "switchTo": "Tukar bahasa"
     },
     "cloud": "Cloud",
-    "githubAria": "Lihat HyperWhisper di GitHub"
+    "githubAria": "Lihat HyperWhisper di GitHub",
+    "skipToContent": "Langkau ke kandungan"
   },
   "hero": {
-    "logoAlt": "Logo HyperWhisper",
-    "headline": "Tulis, gubah dan cipta",
-    "headlineAccent": "5x lebih pantas dengan AI",
-    "subheadline": "HyperWhisper mentranskripsikan suara anda dengan ketepatan luar biasa. Hanya bercakap secara semula jadi dan lihat perkataan anda muncul serta-merta.",
-    "downloadCta": "Muat turun sekarang",
-    "demoCta": "Tonton demo",
-    "availableOn": "Tersedia di",
+    "badge": "Baharu",
+    "headline": "Cakap saja.",
+    "headlineAccent": "Kami taipkan.",
+    "subheadline": "Teks kemas dalam mana-mana aplikasi.",
+    "downloadMac": "Muat turun untuk Mac",
+    "freeForever": "Percuma selamanya",
+    "worksOffline": "Berfungsi luar talian",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Tatal",
+    "closing": {
+      "line1": "Berhenti menaip.",
+      "line2": "Mula bercakap.",
+      "meta": "Percuma dan sumber terbuka. Tiada akaun diperlukan."
+    }
   },
   "features": {
-    "title": "Dibina untuk profesional",
-    "subtitle": "Setiap ciri direka untuk membantu anda bekerja dengan lebih pantas dan cekap",
+    "title": "Dibina untuk mereka yang menulis sepanjang hari.",
     "customVocabulary": {
       "title": "Perbendaharaan kata tersuai",
       "description": "Tambah nama, akronim dan istilah khas untuk ketepatan sempurna setiap masa."
+    },
+    "realTime": {
+      "title": "Penstriman masa nyata",
+      "description": "Lihat perkataan anda muncul serta-merta semasa anda bercakap. Ketepatan terulung industri dengan latensi bawah 700ms."
     },
     "languages": {
       "title": "100+ Bahasa",
@@ -45,25 +56,9 @@
       "title": "Sokongan luar talian",
       "description": "Berfungsi sepenuhnya luar talian. Data anda tidak pernah meninggalkan peranti anda."
     },
-    "privacy": {
-      "title": "Fokus privasi",
-      "description": "Tiada akaun diperlukan. Tiada penjejakan. Data suara anda kekal pada Mac atau PC anda."
-    },
-    "hybridProcessing": {
-      "title": "Pemprosesan hibrid",
-      "description": "Pilih model setempat untuk privasi atau API awan untuk kelajuan. Yang terbaik daripada kedua-dua dunia."
-    },
-    "customizable": {
-      "title": "Sangat boleh disesuaikan",
-      "description": "Pilih daripada 9+ penyedia API dan 30+ model transkripsi."
-    },
-    "realTime": {
-      "title": "Penstriman masa nyata",
-      "description": "Lihat perkataan anda muncul serta-merta semasa anda bercakap. Ketepatan terulung industri dengan latensi bawah 700ms."
-    },
-    "fileImport": {
-      "title": "Import fail",
-      "description": "Import fail audio atau video untuk ditranskripsi. Menyokong semua format utama dengan pengesanan senyap automatik."
+    "openSource": {
+      "title": "Sumber Terbuka",
+      "description": "Dilesenkan di bawah Apache-2.0. Periksa setiap baris, fork ia, atau hos sendiri. Tiada kotak hitam, tiada terkurung."
     },
     "screenOcr": {
       "title": "OCR Skrin",
@@ -73,28 +68,57 @@
       "title": "API Tempatan & Pelayan MCP",
       "description": "Pelayan MCP terbina dalam membolehkan Claude, Cursor dan ejen AI lain memacu HyperWhisper. API HTTP setempat sahaja untuk skrip dan automasi."
     },
+    "fileImport": {
+      "title": "Import fail",
+      "description": "Import fail audio atau video untuk ditranskripsi. Menyokong semua format utama dengan pengesanan senyap automatik."
+    },
     "modes": {
-      "title": "Mod untuk setiap situasi",
-      "description": "Beralih antara mod transkripsi berbeza yang dioptimumkan untuk mesyuarat, nota, emel, pengekodan dan banyak lagi. Setiap mod menggunakan prompt tersuai untuk memformat teks anda dengan sempurna.",
-      "meeting": "Mesyuarat",
+      "heading": "Satu suara. Setiap format.",
+      "lead": "Setiap mod menulis semula apa yang anda katakan mengikut destinasinya.",
       "email": "Emel",
       "note": "Nota",
       "code": "Kod",
+      "meeting": "Mesyuarat",
       "legal": "Undang-undang",
       "medical": "Perubatan",
-      "presetModes": "Mod pratetap",
-      "customModes": "Mod tersuai"
-    },
-    "openSource": {
-      "title": "Sumber Terbuka",
-      "description": "Dilesenkan di bawah Apache-2.0. Periksa setiap baris, fork ia, atau hos sendiri. Tiada kotak hitam, tiada terkurung."
+      "youSaid": "Anda kata",
+      "hyperWhisperWrote": "HyperWhisper tulis",
+      "sample": "erm jadi beritahu john pelancaran tukar ke khamis sebab QA linux belum siap lagi dan err terima kasih sebab bersabar",
+      "output": {
+        "email": "Hai John,\n\nPelancaran dipindahkan ke hari Khamis sementara kami menyiapkan QA Linux. Terima kasih atas kesabaran anda.\n\nSalam hormat,",
+        "note": "• Pelancaran → Khamis\n• Halangan: QA Linux belum siap\n• Maklumkan John",
+        "code": "// TODO(john): pelancaran dipindahkan ke Khamis, QA Linux masih dijalankan",
+        "meeting": "Keputusan: pelancaran dipindahkan ke Khamis.\nSebab: QA Linux belum lengkap.\nPemilik: maklumkan John.",
+        "legal": "Sukacita dimaklumkan bahawa tarikh pelancaran telah dijadualkan semula ke hari Khamis, sementara menunggu penyempurnaan jaminan kualiti Linux.",
+        "medical": "Pelan: tangguhkan pelancaran ke Khamis. Status: QA Linux belum selesai. Susulan: maklumkan John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Berfungsi di mana sahaja anda menulis",
+    "eyebrow": "Cara ia berfungsi",
+    "titleLine1": "Tekan kekunci.",
+    "titleLine2": "Sebutkan.",
+    "titleAccent": "Siap.",
+    "lead": "Kata-kata anda muncul dengan kemas, tepat di kedudukan kursor.",
+    "step1": "Tekan pintasan anda",
+    "step2Key": "Cakap",
+    "step2": "Bercakap seperti biasa",
+    "step3Key": "Tekan lagi",
+    "step3": "Teks kemas, ditampal di tempatnya",
+    "watchVideo": "Tonton demo penuh",
+    "closeVideo": "Tutup video",
+    "exampleLabel": "Contoh animasi: balasan yang diucapkan ditaip ke dalam mesej Slack",
+    "message1": "Kita masih okey untuk lancarkan binaan Linux hari Khamis?",
+    "message2": "QA dah lulus di pihak saya 👍",
+    "composePlaceholder": "Hantar mesej ke #launch",
+    "typed": "Ya, QA Linux lulus pagi tadi, jadi Khamis okey. Saya akan siarkan nota keluaran sebelum tengah hari.",
+    "listening": "Mendengar",
+    "cleaningUp": "Mengemaskan…",
     "fasterThanTyping": "Lebih pantas daripada menaip",
     "accuracyRate": "Kadar ketepatan",
     "languagesSupported": "Bahasa disokong",
-    "providersSupported": "Penyedia disokong"
+    "modelsSupported": "Model transkripsi"
   },
   "faq": {
     "title": "Soalan lazim",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Model luar talian apa yang tersedia?",
-        "answer": "Untuk transkripsi luar talian, kami menawarkan pelbagai saiz model Whisper (dibangunkan oleh OpenAI, menyokong 99+ bahasa). Kami juga menawarkan model Parakeet daripada NVidia (menyokong 25+ bahasa).\n      \n      Untuk pascapemprosesan luar talian, kami menawarkan pelbagai saiz model Gemma 3 (dibangunkan oleh Google)."
+        "answer": "Untuk transkripsi luar talian, kami menawarkan pelbagai saiz model Whisper (dibangunkan oleh OpenAI, menyokong 99+ bahasa). Kami juga menawarkan model Parakeet daripada NVidia (menyokong 25+ bahasa).\n      \n      Untuk pascapemprosesan luar talian, kami menawarkan pelbagai saiz model Gemma 4 (dibangunkan oleh Google)."
       },
       "compatibility": {
         "question": "Adakah ia berfungsi dengan semua aplikasi saya?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Permintaan Sokongan HyperWhisper",
       "body": "Hai,\n\nVersi: \n[anda boleh semak di Settings > About]\n\nIsu: \n[Terangkan isu anda]\n\nButiran: \n[Berikan butiran berkaitan, apa yang anda lakukan sebelum crash]\n\n[Mesej anda di sini]\n\nSalam,"
-    }
+    },
+    "helpCenterHint": "Persediaan, pintasan dan model.",
+    "chooseModelHint": "Susun model mengikut cara anda bekerja.",
+    "accountHint": "Log masuk dengan kunci akaun anda.",
+    "chooseModelTitle": "Pilih model"
   },
   "downloadModal": {
     "logoAlt": "Logo HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Log keluar dan log masuk semula selepas menyertai kumpulan input. Keahlian adalah pilihan, tetapi pintasan global dan tampal automatik memerlukannya.",
     "aptTitle": "Hos sendiri repositori APT",
     "aptBody": "Keluaran Linux juga disertakan dengan arkib repositori APT statik. HyperWhisper buat masa ini tidak mengendalikan endpoint APT awam; lihat panduan pemasangan Linux untuk persediaan hos sendiri yang ditandatangani, komponen pendamping desktop, butiran privasi dan cara menyahpasang.",
-    "linuxGuideCta": "Baca panduan pemasangan Linux"
+    "linuxGuideCta": "Baca panduan pemasangan Linux",
+    "heroLead": "Percuma dan sumber terbuka. Pilih platform anda.",
+    "releaseNotes": "Nota keluaran",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon & Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 & ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Versi Lama",
@@ -280,6 +313,7 @@
       "dataTraining": "Privasi Data"
     },
     "copyright": "© 2026 HyperWhisper. Hak cipta terpelihara.",
+    "madeBy": "Dihasilkan oleh Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Ikuti HyperWhisper di X (Twitter)",
     "githubAria": "HyperWhisper di GitHub"
@@ -373,7 +407,33 @@
     "sendingLink": "Menghantar…",
     "linkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian jana semula kunci.",
     "linkFailed": "Tidak dapat menghantar pautan log masuk. Sila cuba lagi.",
-    "errorUnavailable": "Kunci ini tidak boleh dijana semula lagi. Status semasanya dipaparkan di atas."
+    "errorUnavailable": "Kunci ini tidak boleh dijana semula lagi. Status semasanya dipaparkan di atas.",
+    "delete": "Padam kunci",
+    "deleteConfirmTitle": "Padam kunci akaun ini?",
+    "deleteConfirmBody": "Kunci ini akan berhenti berfungsi serta-merta pada setiap peranti. Peranti yang menggunakannya memerlukan salah satu kunci anda yang lain: masukkannya dalam HyperWhisper pada setiap peranti. Kredit dan sejarah pembelian anda kekal dalam akaun anda. Anda juga akan dilog keluar daripada laman web ini dalam pelayar anda yang lain.",
+    "deleteConfirm": "Padam kunci",
+    "deleting": "Memadam…",
+    "deleted": "Kunci telah dipadam. Peranti yang menggunakannya memerlukan salah satu kunci anda yang lain.",
+    "deleteLastKey": "Ini satu-satunya kunci aktif anda, jadi ia tidak boleh dipadam.",
+    "deleteVerifyBody": "Untuk memadam kunci, sahkan identiti anda melalui e-mel terlebih dahulu. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian padam kunci dari halaman ini.",
+    "deleteLinkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian padam kunci.",
+    "deleteErrorStale": "Kunci ini telah berubah sejak halaman dimuatkan. Kunci semasa dipaparkan di atas.",
+    "deleteErrorUnavailable": "Kunci ini tidak boleh dipadam lagi.",
+    "deleteErrorGeneric": "Tidak dapat memadam kunci. Sila cuba lagi.",
+    "issue": "Tambah kunci baharu",
+    "issueConfirmTitle": "Tambah kunci akaun baharu?",
+    "issueConfirmBody": "Anda akan mendapat satu lagi kunci untuk akaun ini. Ia menggunakan kredit yang sama dengan kunci anda yang lain, yang terus berfungsi.",
+    "issueConfirm": "Tambah kunci",
+    "issuing": "Menambah…",
+    "issued": "Kunci baharu ditambah. Gunakan 'Tunjuk' untuk melihat dan menyalinnya.",
+    "issueCap": "Anda mempunyai {max} kunci aktif, jumlah maksimum bagi satu akaun. Padam satu untuk menambah yang lain.",
+    "issueVerifyBody": "Untuk menambah kunci, sahkan identiti anda melalui e-mel terlebih dahulu. Kami akan menghantar pautan log masuk ke alamat e-mel akaun anda. Bukanya, kemudian tambah kunci dari halaman ini.",
+    "issueLinkSent": "Pautan log masuk telah dihantar. Bukanya dari peti masuk anda, kemudian tambah kunci.",
+    "issueErrorUnavailable": "Hanya akaun yang mempunyai kunci aktif boleh menambah kunci lain.",
+    "issueErrorGeneric": "Tidak dapat menambah kunci. Sila cuba lagi.",
+    "manageErrorRateLimited": "Terlalu banyak perubahan kunci. Sila cuba lagi dalam seminit.",
+    "cloudPurgePending": "Kunci lama mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam.",
+    "deleteCloudPurgePending": "Kunci ini mungkin masih berfungsi dalam HyperWhisper Cloud sehingga satu jam."
   },
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Pautan log masuk ini telah tamat tempoh atau sudah digunakan. Masukkan e-mel anda untuk mendapatkan pautan baharu.",
     "magicLinkFailed": "Kami tidak dapat log masuk anda dengan pautan itu. Masukkan e-mel anda untuk mendapatkan pautan baharu."
+  },
+  "legal": {
+    "onThisPage": "Di halaman ini"
   }
 }

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Ominaisuudet",
+    "modes": "Tilat",
     "faq": "UKK",
     "support": "Tuki",
     "download": "Lataa",
@@ -16,26 +17,36 @@
       "switchTo": "Vaihda kieli"
     },
     "cloud": "Cloud",
-    "githubAria": "Katso HyperWhisper GitHubissa"
+    "githubAria": "Katso HyperWhisper GitHubissa",
+    "skipToContent": "Siirry sisältöön"
   },
   "hero": {
-    "logoAlt": "HyperWhisper-logo",
-    "headline": "Kirjoita, sommittele ja luo",
-    "headlineAccent": "5x nopeammin AI:n avulla",
-    "subheadline": "HyperWhisper litteroi puheesi uskomattomalla tarkkuudella. Puhu luonnollisesti ja näe sanojesi ilmestyvän heti.",
-    "downloadCta": "Lataa nyt",
-    "demoCta": "Katso demo",
-    "availableOn": "Saatavilla",
+    "badge": "Uutta",
+    "headline": "Puhu vain.",
+    "headlineAccent": "Me kirjoitamme.",
+    "subheadline": "Viimeisteltyä tekstiä missä tahansa sovelluksessa.",
+    "downloadMac": "Lataa Macille",
+    "freeForever": "Ilmainen ikuisesti",
+    "worksOffline": "Toimii offline-tilassa",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Vieritä",
+    "closing": {
+      "line1": "Lopeta näpyttely.",
+      "line2": "Ala puhua.",
+      "meta": "Ilmainen ja avointa lähdekoodia. Tiliä ei tarvita."
+    }
   },
   "features": {
-    "title": "Rakennettu ammattilaisille",
-    "subtitle": "Jokainen ominaisuus on suunniteltu auttamaan sinua työskentelemään nopeammin ja tehokkaammin",
+    "title": "Tehty ihmisille, jotka kirjoittavat koko päivän.",
     "customVocabulary": {
       "title": "Mukautettu sanasto",
       "description": "Lisää nimiä, lyhenteitä ja erikoistermejä, jotta saat parhaan mahdollisen tarkkuuden joka kerta."
+    },
+    "realTime": {
+      "title": "Reaaliaikainen suoratoisto",
+      "description": "Näe sanasi heti puhuessasi. Alan johtava tarkkuus alle 700 ms viiveellä."
     },
     "languages": {
       "title": "Yli 100 kieltä",
@@ -45,25 +56,9 @@
       "title": "Offline-tuki",
       "description": "Toimii täysin offline-tilassa. Tietosi eivät koskaan poistu laitteeltasi."
     },
-    "privacy": {
-      "title": "Tietosuoja edellä",
-      "description": "Ei tilivaatimusta. Ei seurantaa. Puhedatasi pysyy Macillasi tai PC:lläsi."
-    },
-    "hybridProcessing": {
-      "title": "Hybridikäsittely",
-      "description": "Valitse paikalliset mallit tietosuojan vuoksi tai pilvi-API:t nopeuden vuoksi. Molempien maailmojen parhaat puolet."
-    },
-    "customizable": {
-      "title": "Erittäin muokattava",
-      "description": "Valitse yli 9 API-palveluntarjoajasta ja yli 30 transkriptiomallista."
-    },
-    "realTime": {
-      "title": "Reaaliaikainen suoratoisto",
-      "description": "Näe sanasi heti puhuessasi. Alan johtava tarkkuus alle 700 ms viiveellä."
-    },
-    "fileImport": {
-      "title": "Tiedostojen tuonti",
-      "description": "Tuo ääni- tai videotiedostoja litterointiin. Tukee yleisimmät tiedostomuodot automaattisella hiljaisuuden tunnistuksella."
+    "openSource": {
+      "title": "Avoin lähdekoodi",
+      "description": "Apache-2.0-lisensoitu. Tarkasta jokainen rivi, forkkaa se tai isännöi itse. Ei mustia laatikoita, ei lukkiutumista."
     },
     "screenOcr": {
       "title": "Näytön OCR",
@@ -73,28 +68,57 @@
       "title": "Paikallinen API ja MCP-palvelin",
       "description": "Sisäänrakennettu MCP-palvelin antaa Clauden, Cursorin ja muiden tekoälyagenttien ohjata HyperWhisperiä. Vain paikallinen HTTP-API skripteille ja automaatioille."
     },
+    "fileImport": {
+      "title": "Tiedostojen tuonti",
+      "description": "Tuo ääni- tai videotiedostoja litterointiin. Tukee yleisimmät tiedostomuodot automaattisella hiljaisuuden tunnistuksella."
+    },
     "modes": {
-      "title": "Tilat joka tilanteeseen",
-      "description": "Vaihda eri litterointitilojen välillä, jotka on optimoitu kokouksiin, muistiinpanoihin, sähköposteihin, koodaukseen ja muuhun. Jokainen tila käyttää mukautettuja prompteja muotoillakseen tekstisi täydellisesti.",
-      "meeting": "Kokous",
+      "heading": "Yksi ääni. Kaikki muodot.",
+      "lead": "Jokainen tila muotoilee sanomasi sen mukaan, minne se on menossa.",
       "email": "Sähköposti",
       "note": "Muistiinpano",
       "code": "Koodi",
+      "meeting": "Kokous",
       "legal": "Juridinen",
       "medical": "Lääketieteellinen",
-      "presetModes": "Esiasetetut tilat",
-      "customModes": "Mukautetut tilat"
-    },
-    "openSource": {
-      "title": "Avoin lähdekoodi",
-      "description": "Apache-2.0-lisensoitu. Tarkasta jokainen rivi, forkkaa se tai isännöi itse. Ei mustia laatikoita, ei lukkiutumista."
+      "youSaid": "Sinä sanoit",
+      "hyperWhisperWrote": "HyperWhisper kirjoitti",
+      "sample": "öö eli kerro johnille että julkaisu siirtyy torstaille koska linuxin QA ei oo vielä valmis ja tota kiitos kärsivällisyydestä",
+      "output": {
+        "email": "Hei John,\n\nJulkaisu siirtyy torstaille, kun viimeistelemme Linuxin QA:n. Kiitos kärsivällisyydestäsi.\n\nTerveisin,",
+        "note": "• Julkaisu → torstai\n• Este: Linuxin QA kesken\n• Kerro Johnille",
+        "code": "// TODO(john): julkaisu siirretty torstaille, Linuxin QA vielä kesken",
+        "meeting": "Päätös: julkaisu siirtyy torstaille.\nSyy: Linuxin QA kesken.\nVastuu: ilmoita Johnille.",
+        "legal": "Ilmoitamme, että julkaisupäivä on siirretty torstaille, kunnes Linuxin laadunvarmistus on saatettu päätökseen.",
+        "medical": "Suunnitelma: julkaisu siirretään torstaille. Tila: Linuxin QA odottaa. Seuranta: tiedota Johnia."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Toimii kaikkialla, missä kirjoitat",
+    "eyebrow": "Näin se toimii",
+    "titleLine1": "Paina näppäintä.",
+    "titleLine2": "Sano se.",
+    "titleAccent": "Valmis.",
+    "lead": "Sanasi siistittyinä juuri kohdistimen kohdalle.",
+    "step1": "Paina pikanäppäintäsi",
+    "step2Key": "Puhu",
+    "step2": "Puhu kuten tavallisesti",
+    "step3Key": "Paina uudelleen",
+    "step3": "Siisti teksti, liitettynä paikalleen",
+    "watchVideo": "Katso koko demo",
+    "closeVideo": "Sulje video",
+    "exampleLabel": "Animoitu esimerkki: puhuttu vastaus kirjoitetaan Slack-viestiin",
+    "message1": "Saadaanko Linux-versio vielä julkaistua torstaina?",
+    "message2": "QA meni läpi minun osaltani 👍",
+    "composePlaceholder": "Viesti #launch",
+    "typed": "Kyllä, Linuxin QA meni läpi tänä aamuna, joten torstai pitää. Julkaisen julkaisutiedot puoleenpäivään mennessä.",
+    "listening": "Kuunnellaan",
+    "cleaningUp": "Siistitään…",
     "fasterThanTyping": "Nopeampi kuin kirjoittaminen",
     "accuracyRate": "Tarkkuus",
     "languagesSupported": "Tuetut kielet",
-    "providersSupported": "Tuetut palveluntarjoajat"
+    "modelsSupported": "Litterointimallit"
   },
   "faq": {
     "title": "Usein kysytyt kysymykset",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Mitä offline-malleja on saatavilla?",
-        "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 3 -mallista (Googlen tekemä)."
+        "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 4 -mallista (Googlen tekemä)."
       },
       "compatibility": {
         "question": "Toimiiko se kaikissa sovelluksissani?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper tukipyyntö",
       "body": "Hei,\n\nVersio: \n[voit tarkistaa sen kohdasta Asetukset > Tietoja]\n\nOngelma: \n[Kuvaile ongelmasi]\n\nYksityiskohdat: \n[Anna olennaiset tiedot, mitä olit tekemässä ennen kaatumista]\n\n[Viestisi tähän]\n\nYstävällisin terveisin,"
-    }
+    },
+    "helpCenterHint": "Käyttöönotto, pikanäppäimet ja mallit.",
+    "chooseModelHint": "Järjestä mallit oman työtapasi mukaan.",
+    "accountHint": "Kirjaudu sisään tiliavaimellasi.",
+    "chooseModelTitle": "Valitse malli"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logo",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Kirjaudu ulos ja takaisin sisään, kun olet liittynyt input-ryhmään. Jäsenyys on valinnainen, mutta yleiset pikanäppäimet ja automaattinen liittäminen edellyttävät sitä.",
     "aptTitle": "Isännöi omaa APT-repositoriota",
     "aptBody": "Linux-julkaisuihin sisältyy myös staattinen APT-repositorioarkisto. HyperWhisper ei tällä hetkellä ylläpidä julkista APT-päätepistettä; katso Linux-asennusoppaasta ohjeet allekirjoitettuun, itse isännöityyn käyttöönottoon, työpöytäintegraatioon, tietosuojaan ja poistamiseen.",
-    "linuxGuideCta": "Lue Linux-asennusopas"
+    "linuxGuideCta": "Lue Linux-asennusopas",
+    "heroLead": "Ilmainen ja avointa lähdekoodia. Valitse alustasi.",
+    "releaseNotes": "Julkaisutiedot",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon ja Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 ja ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Vanhemmat versiot",
@@ -280,6 +313,7 @@
       "dataTraining": "Tietosuoja"
     },
     "copyright": "© 2026 HyperWhisper. Kaikki oikeudet pidätetään.",
+    "madeBy": "Tekijä: Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Seuraa HyperWhisperiä X:ssä (Twitter)",
     "githubAria": "HyperWhisper GitHubissa"
@@ -373,7 +407,33 @@
     "sendingLink": "Lähetetään…",
     "linkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja vaihda sitten avain.",
     "linkFailed": "Kirjautumislinkin lähettäminen epäonnistui. Yritä uudelleen.",
-    "errorUnavailable": "Tätä avainta ei voi enää vaihtaa. Sen nykyinen tila näkyy yllä."
+    "errorUnavailable": "Tätä avainta ei voi enää vaihtaa. Sen nykyinen tila näkyy yllä.",
+    "delete": "Poista avain",
+    "deleteConfirmTitle": "Poistetaanko tämä tiliavain?",
+    "deleteConfirmBody": "Tämä avain lakkaa toimimasta heti kaikilla laitteilla. Sitä käyttävät laitteet tarvitsevat jonkin muista avaimistasi: syötä se HyperWhisperiin jokaisella laitteella. Krediittisi ja ostohistoriasi säilyvät tililläsi. Sinut myös kirjataan ulos tältä sivustolta muissa selaimissasi.",
+    "deleteConfirm": "Poista avain",
+    "deleting": "Poistetaan…",
+    "deleted": "Avain poistettu. Sitä käyttäneet laitteet tarvitsevat jonkin muista avaimistasi.",
+    "deleteLastKey": "Tämä on ainoa aktiivinen avaimesi, joten sitä ei voi poistaa.",
+    "deleteVerifyBody": "Vahvista ensin henkilöllisyytesi sähköpostilla, jotta voit poistaa avaimen. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja poista sitten avain tällä sivulla.",
+    "deleteLinkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja poista sitten avain.",
+    "deleteErrorStale": "Tämä avain on muuttunut sivun latautumisen jälkeen. Nykyinen avain näkyy yllä.",
+    "deleteErrorUnavailable": "Tätä avainta ei voi enää poistaa.",
+    "deleteErrorGeneric": "Avaimen poistaminen epäonnistui. Yritä uudelleen.",
+    "issue": "Lisää uusi avain",
+    "issueConfirmTitle": "Lisätäänkö uusi tiliavain?",
+    "issueConfirmBody": "Saat tälle tilille yhden avaimen lisää. Se käyttää samoja krediittejä kuin muut avaimesi, jotka toimivat edelleen.",
+    "issueConfirm": "Lisää avain",
+    "issuing": "Lisätään…",
+    "issued": "Uusi avain lisätty. Näet ja kopioit sen Näytä-painikkeella.",
+    "issueCap": "Aktiivisia avaimia on {max}, mikä on tilin enimmäismäärä. Poista yksi, jotta voit lisätä uuden.",
+    "issueVerifyBody": "Vahvista ensin henkilöllisyytesi sähköpostilla, jotta voit lisätä avaimen. Lähetämme kirjautumislinkin tilisi sähköpostiosoitteeseen. Avaa se ja lisää sitten avain tällä sivulla.",
+    "issueLinkSent": "Kirjautumislinkki lähetetty. Avaa se saapuneista viesteistä ja lisää sitten avain.",
+    "issueErrorUnavailable": "Vain tili, jolla on aktiivinen avain, voi lisätä uuden.",
+    "issueErrorGeneric": "Avaimen lisääminen epäonnistui. Yritä uudelleen.",
+    "manageErrorRateLimited": "Liian monta avainmuutosta. Yritä uudelleen minuutin kuluttua.",
+    "cloudPurgePending": "Vanha avain voi toimia HyperWhisper Cloudissa vielä enintään tunnin.",
+    "deleteCloudPurgePending": "Tämä avain voi toimia HyperWhisper Cloudissa vielä enintään tunnin."
   },
   "openSource": {
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Tämä kirjautumislinkki on vanhentunut tai jo käytetty. Anna sähköpostiosoitteesi saadaksesi uuden.",
     "magicLinkFailed": "Emme voineet kirjata sinua sisään tällä linkillä. Anna sähköpostiosoitteesi saadaksesi uuden."
+  },
+  "legal": {
+    "onThisPage": "Tällä sivulla"
   }
 }

@@ -18,7 +18,7 @@
  *
  * Every case stops before a database query, so `@/src/db` is real but never
  * used (see `magic-link-send.test.ts` for why `drizzle()` tolerates that). The
- * one mocked module is `lib/clients/resend.ts`, the email edge. No case
+ * one mocked module is `lib/clients/email.ts`, the email edge. No case
  * reaches it. `src/env/server.mjs` is real, with its format check skipped
  * (this file sets only the one variable it needs, `BETTER_AUTH_URL`).
  */
@@ -27,17 +27,13 @@ import { before, test } from "node:test";
 
 import { moduleMock, moduleUrl } from "./module-mock";
 
-const resendCalls: unknown[] = [];
+const emailCalls: unknown[] = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: unknown) => {
-          resendCalls.push(payload);
-          return { data: { id: "unused" }, error: null };
-        },
-      },
+    sendEmail: async (payload: unknown) => {
+      emailCalls.push(payload);
+      return { data: { id: "unused" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -118,7 +114,7 @@ test("POST reaches the magic-link plugin and validates its body", async () => {
     message: "[body.email] Invalid email address",
     code: "VALIDATION_ERROR",
   });
-  assert.equal(resendCalls.length, 0, "a rejected body sends no email");
+  assert.equal(emailCalls.length, 0, "a rejected body sends no email");
 });
 
 test("POST reaches the license-key plugin and validates its body", async () => {
@@ -144,7 +140,7 @@ test("a magic-link POST from a foreign origin is refused before the handler runs
     message: "Invalid origin",
     code: "INVALID_ORIGIN",
   });
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
 test("a cross-site form POST cannot reach either sign-in endpoint", async () => {
@@ -174,7 +170,7 @@ test("a cross-site form POST cannot reach either sign-in endpoint", async () => 
       path,
     );
   }
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
 test("a magic link that would redirect off-site is refused", async () => {
@@ -190,7 +186,7 @@ test("a magic link that would redirect off-site is refused", async () => {
     message: "Invalid callbackURL",
     code: "INVALID_CALLBACK_URL",
   });
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
 test("email + password sign-in and sign-up are not enabled", async () => {
