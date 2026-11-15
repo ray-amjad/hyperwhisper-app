@@ -55,6 +55,13 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     // moves it to _scheduledTranscript; a session that starts while it is still set treats that
     // transcript as left on the clipboard on purpose (restore off) and snapshots it afresh.
     private byte[]? _unscheduledTranscript;
+    // #2269 (the Linux twin of #1584): the transcript written over an EMPTY clipboard (no
+    // snapshot; a failed capture leaves none either) that had a restore scheduled, and when that restore delay ends, in TickCountMs
+    // ms. With nothing to restore the transcript stays on the clipboard, but until the delay ends
+    // it is still the app's own text: a session started in that window keeps "nothing to
+    // restore" instead of snapshotting it. After the delay it is the clipboard's content. Guarded by _gate.
+    private byte[]? _emptyClipboardTranscript;
+    private long _emptyClipboardRestoreEndsAt;
     // Bumped by every StartSession. A restore records it with the snapshot it restores and clears
     // state only while it is unchanged: a chained session keeps the SAME snapshot object, so a
     // reference check cannot tell its snapshot from the one an in-flight restore read. Guarded by _gate.
@@ -84,6 +91,9 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         _secureFieldGuard = secureFieldGuard ?? throw new ArgumentNullException(nameof(secureFieldGuard));
         _targets = targets ?? throw new ArgumentNullException(nameof(targets));
     }
+
+    /// <summary>Milliseconds on a monotonic clock. A seam so a test can move time past the restore delay.</summary>
+    internal Func<long> TickCountMs { get; set; } = static () => Environment.TickCount64;
 
     public bool IsCapturedTargetAvailable => _capturedTarget is not null && !_disposed;
     public ClipboardHistoryPrivacyCapability ClipboardHistoryPrivacyCapability =>
@@ -134,10 +144,22 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         {
             _sessionOpen = true;
             _unscheduledTranscript = null;
+            var emptyClipboardTranscript = _emptyClipboardTranscript;
+            _emptyClipboardTranscript = null;
             if (_snapshot is not null && _scheduledTranscript is not null && result is { IsSuccess: true }
                 && HoldsOnlyTranscript(result.Value, _scheduledTranscript))
                 return;
             _scheduledTranscript = null;
+            // #2269: the clipboard was empty before the last transcript, and its restore delay has
+            // not ended, so there is still nothing of the user's to restore. The mark stands until
+            // this session's own scheduled write replaces it, as with no write the chain mark does.
+            if (emptyClipboardTranscript is not null && TickCountMs() < _emptyClipboardRestoreEndsAt
+                && result is { IsSuccess: true } && HoldsOnlyTranscript(result.Value, emptyClipboardTranscript))
+            {
+                _snapshot = null;
+                _emptyClipboardTranscript = emptyClipboardTranscript;
+                return;
+            }
             _snapshot = result is { IsSuccess: true } ? result.Value : null;
         }
     }
@@ -156,7 +178,22 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     }
     public void ScheduleClipboardRestore(TimeSpan delay)
     {
-        if (_disposed || _snapshot is null) return;
+        if (_disposed) return;
+        lock (_gate)
+        {
+            if (_snapshot is null)
+            {
+                // #2269: nothing to restore, so the transcript stays; it counts as the app's own
+                // text until the delay would have ended. With no write this session, the earlier mark stands.
+                if (_unscheduledTranscript is not null)
+                {
+                    _emptyClipboardTranscript = _unscheduledTranscript;
+                    _emptyClipboardRestoreEndsAt = TickCountMs() + (long)Math.Max(0, delay.TotalMilliseconds);
+                    _unscheduledTranscript = null;
+                }
+                return;
+            }
+        }
         CancelPendingClipboardRestore();
         var cancellation = new CancellationTokenSource();
         lock (_gate)
@@ -261,7 +298,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     }
     /// <summary>
     /// Records that the clipboard now holds a transcript this service wrote. It drops the armed
-    /// mark: only a restore scheduled for this write (ScheduleClipboardRestore) arms it again, so
+    /// marks (#2269: the empty-clipboard one too): only a restore scheduled for this write (ScheduleClipboardRestore) arms one again, so
     /// a transcript left with no restore (restore off) is the clipboard's content next session.
     /// </summary>
     private void MarkTranscriptWritten(string text)
@@ -270,6 +307,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         lock (_gate)
         {
             _scheduledTranscript = null;
+            _emptyClipboardTranscript = null;
             _unscheduledTranscript = bytes;
         }
     }
@@ -395,7 +433,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         if (_disposed) return;
         _disposed = true;
         CancelPendingClipboardRestore();
-        lock (_gate) { _snapshot = null; _scheduledTranscript = null; _unscheduledTranscript = null; _sessionOpen = false; }
+        lock (_gate) { _snapshot = null; _scheduledTranscript = null; _unscheduledTranscript = null; _emptyClipboardTranscript = null; _sessionOpen = false; }
         _capturedTarget = null;
         if (_clipboard is IDisposable disposable) disposable.Dispose();
         GC.SuppressFinalize(this);

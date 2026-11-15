@@ -43,7 +43,11 @@ function logSignIn(
     headers: Headers | undefined;
   },
 ): void {
-  const ip = fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
+  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
+  const ip =
+    fields.headers?.get("cf-connecting-ip")?.trim() ||
+    fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
   const line = JSON.stringify({
     event: "auth.license_key_sign_in",
     outcome,
@@ -53,7 +57,7 @@ function logSignIn(
     ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
   });
 
-  // The website's console output is its server log (Vercel), so this is the
+  // The website's console output is its server log (Workers Logs), so this is the
   // sink, not leftover debugging.
   /* eslint-disable no-console */
   if (outcome === "ok") {
