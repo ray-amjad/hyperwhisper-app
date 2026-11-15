@@ -3,7 +3,8 @@ import { sha256Hex } from "@/lib/shared/sha256";
 /**
  * The shared pieces of the website's structured auth log lines (#2955):
  * `logSignIn` (`./auth-license-key-plugin.ts`), `logMagicLinkVerify`
- * (`./auth.ts`) and `logRotate` (`server/api/routers/customer-rotate-key.ts`).
+ * (`./auth.ts`), `logRotate` (`server/api/routers/customer-rotate-key.ts`) and
+ * `logManage` (`server/api/routers/customer-manage-keys.ts`).
  * Each logger still builds its own line, so its field list and JSON key order
  * stay its own; only the client-IP hash and the outcome → console level live
  * here, so they cannot drift between copies.
