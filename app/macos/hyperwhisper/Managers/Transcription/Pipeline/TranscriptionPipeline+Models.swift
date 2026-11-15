@@ -108,25 +108,41 @@ extension TranscriptionPipeline {
         }
         pendingParakeetReadinessModeId = nil
 
-        // Nemotron shares this path: a Re-download of a broken variant (#1632)
-        // must prepare it again, or the status bar never returns to Ready.
-        // So does Whisper: a mode whose file was missing or truncated at launch
-        // says No Model until a download lands, and only a prepare makes it
-        // Ready (#1632). A Whisper mode that is already Ready is left alone, so
-        // downloading some other model does not reload it.
-        let modelId = mode.model ?? ""
-        let isFluidAudioModel = ParakeetModelManager.Constants.canonicalModelId(for: modelId) != nil
-            || NemotronModelManager.variant(forModelId: modelId) != nil
-        let isUnreadyWhisperModel: Bool = {
-            guard mapModelIdToWhisperModel(modelId.lowercased()) != nil else { return false }
-            if case .ready = modelCoordinator.modelReadyState { return false }
-            return true
-        }()
-        guard isFluidAudioModel || isUnreadyWhisperModel else {
+        guard Self.installChangeNeedsPrepare(
+            modelId: mode.model ?? "",
+            readyState: modelCoordinator.modelReadyState
+        ) else {
             return
         }
 
         await prepareModel(for: mode)
+    }
+
+    /// Whether an install change (a download landing, weights removed) should
+    /// prepare the selected mode's model again.
+    ///
+    /// Nemotron shares this path: a Re-download of a broken variant (#1632)
+    /// must prepare it again, or the status bar never returns to Ready.
+    /// So does Whisper: a mode whose file was missing or truncated at launch
+    /// says No Model until a download lands, and only a prepare makes it
+    /// Ready (#1632). So does Qwen3 ASR: a mode with no weights says Download
+    /// (#1988) until the download lands (#2708). A Whisper or Qwen3 mode that
+    /// is already Ready is left alone, so downloading some other model does
+    /// not reload it.
+    @MainActor
+    static func installChangeNeedsPrepare(
+        modelId: String,
+        readyState: TranscriptionModelManager.ModelReadyState
+    ) -> Bool {
+        let isFluidAudioModel = ParakeetModelManager.Constants.canonicalModelId(for: modelId) != nil
+            || NemotronModelManager.variant(forModelId: modelId) != nil
+        if isFluidAudioModel { return true }
+
+        let isWhisperModel = mapModelIdToWhisperModel(modelId.lowercased()) != nil
+        let isQwen3AsrModel = modelId.lowercased() == Qwen3AsrModelManager.Constants.modelId
+        guard isWhisperModel || isQwen3AsrModel else { return false }
+        if case .ready = readyState { return false }
+        return true
     }
 
     /// Delete a downloaded model to free up space.
