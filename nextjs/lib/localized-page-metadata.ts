@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { OG_IMAGES, SITE_NAME, SITE_URL } from "@/lib/site-metadata";
+import { localeOpenGraphBase, SITE_URL } from "@/lib/site-metadata";
 import {
   buildAlternateLanguageMap,
   defaultLocale,
   isSupportedLocale,
-  toOpenGraphLocale,
 } from "@/src/i18n/locales";
 
 type LocalizedPageMetadataInput = {
@@ -23,8 +22,9 @@ type LocalizedPageMetadataInput = {
  * header, and that `headers()` call made every route dynamic. A page knows its
  * own path statically, so it states them here instead.
  *
- * Next merges metadata SHALLOWLY per top-level key, so `openGraph` carries the
- * layout's whole object plus the `url`, or the page would drop the og images.
+ * Next merges metadata SHALLOWLY per top-level key, so `openGraph` carries
+ * `localeOpenGraphBase` (the layout's type, locale, site name and images) plus
+ * the `url`, or the page would drop the og images.
  *
  * Except og:title and og:description (#2265): with neither set, Next fills
  * them from the page's own resolved <title> (template applied) and
@@ -68,10 +68,7 @@ export function localizedPageMetadata({
         },
       },
       openGraph: {
-        type: "website",
-        locale: toOpenGraphLocale(locale),
-        siteName: SITE_NAME,
-        images: OG_IMAGES,
+        ...localeOpenGraphBase(locale),
         url,
       },
     };

@@ -11,7 +11,7 @@
  * purchase or accepts a forged one.
  *
  * The route reaches three collaborators at import time: the Stripe client
- * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`), the two handlers
+ * (`lib/clients/stripe.ts`, for `webhooks.constructEventAsync`), the two handlers
  * in `lib/services/stripe-webhook.ts`, and the validated server env
  * (`src/env/server.mjs`, for `STRIPE_WEBHOOK_SECRET`, #682). All are replaced
  * here with `mock.module`, so the tests run the REAL route module with no
@@ -170,11 +170,11 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
   namedExports: {
     stripe: {
       webhooks: {
-        constructEvent: (
+        constructEventAsync: async (
           body: string,
           signature: string,
           secret: string,
-        ): Record<string, unknown> => {
+        ): Promise<Record<string, unknown>> => {
           calls.constructEvent.push({ body, signature, secret });
           if (!behaviour.verifiedEvent) {
             throw new Error(behaviour.verifyError);
