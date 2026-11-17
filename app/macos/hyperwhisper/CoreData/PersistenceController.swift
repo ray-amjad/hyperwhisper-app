@@ -1603,7 +1603,10 @@ class PersistenceController: ObservableObject {
             guard let running = try? context.count(for: stillRunning), running == 0 else {
                 return []
             }
-            return Self.audioPathsNoTranscriptOwns(unclaimed, in: context)
+            // Look up the trimmed WAV too: a row that records it derives the
+            // same copy name, and only a lookup by a recorded path finds it.
+            return Self.audioPathsNoTranscriptOwns([trimmedPath] + unclaimed, in: context)
+                .filter { unclaimed.contains($0) }
         }
     }
 
