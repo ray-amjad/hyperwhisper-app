@@ -240,7 +240,7 @@ class VADProcessingService {
             } else {
                 // Validation failed, use original audio. The trimmer already
                 // wrote its WAV, and no caller records a rejected one (#1524).
-                await discardRejectedTrim(trimResult, originalURL: audioURL)
+                await discardRejectedTrim(trimResult, originalURL: audioURL, context: context)
                 return VADProcessingResult(
                     finalAudioURL: audioURL,
                     trimResult: trimResult,
@@ -312,10 +312,15 @@ class VADProcessingService {
     ///
     /// Every run on one recording writes the same trimmed name, so the file is
     /// kept when it is the input itself or when a transcript records or
-    /// derives that name (another row made from the same audio).
-    private func discardRejectedTrim(_ trimResult: TrimResult, originalURL: URL) async {
+    /// derives that name (another row made from the same audio), or when
+    /// another running retry claims it: that run may have written the file
+    /// and not yet recorded it on its row. A retry caller claims the names
+    /// itself before VAD runs, so one claim is its own.
+    private func discardRejectedTrim(_ trimResult: TrimResult, originalURL: URL, context: VADProcessingContext) async {
         let trimmedPath = trimResult.outputURL.path
+        let ownClaims = context == .retry ? 1 : 0
         guard trimmedPath != originalURL.path,
+              TranscriptionRetryController.vadOutputClaimCount(trimmedPath) <= ownClaims,
               FileManager.default.fileExists(atPath: trimmedPath) else {
             return
         }

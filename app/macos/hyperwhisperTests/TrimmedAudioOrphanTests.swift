@@ -273,6 +273,59 @@ struct TrimmedAudioOrphanTests {
         #expect(exists(trimmedName))
     }
 
+    /// Review R1 [P1]: two retries of rows from the same audio share the
+    /// trimmed name. One's rejected trim must not delete the WAV the other
+    /// run wrote and has not yet recorded on its row.
+    @Test func aRejectedRetryTrimKeepsTheWAVAnotherRetryClaims() async throws {
+        let folder = try makeRecordingsFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let persistence = PersistenceController(inMemory: true)
+        let source = try makeFile("rec-\(UUID().uuidString).wav", in: folder, bytes: 10_000)
+        let claimed = TranscriptionRetryController.vadOutputPaths(for: source)
+        // This retry's own claim, then the other run's.
+        TranscriptionRetryController.claimVADOutputs(claimed)
+        TranscriptionRetryController.claimVADOutputs(claimed)
+        defer {
+            TranscriptionRetryController.releaseVADOutputs(claimed)
+            TranscriptionRetryController.releaseVADOutputs(claimed)
+        }
+        let service = VADProcessingService(
+            trimSilence: stubTrim(writing: 10_000, originalDuration: 60, trimmedDuration: 59.8),
+            unownedAudioPaths: { await persistence.unownedAudioPathsInBackground($0) }
+        )
+
+        let result = await service.processAudioForTranscription(
+            audioURL: source, duration: 60, vadEnabled: true, context: .retry
+        )
+
+        #expect(!result.wasProcessed)
+        let trimmedURL = try #require(result.trimResult?.outputURL)
+        #expect(exists(trimmedURL), "the other retry may still record this WAV")
+    }
+
+    /// Control: a retry holding only its own claim still removes its rejected WAV.
+    @Test func aRejectedRetryTrimWithOnlyItsOwnClaimIsRemoved() async throws {
+        let folder = try makeRecordingsFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let persistence = PersistenceController(inMemory: true)
+        let source = try makeFile("rec-\(UUID().uuidString).wav", in: folder, bytes: 10_000)
+        try insertTranscript(in: persistence, audioFilePath: source.path)
+        let claimed = TranscriptionRetryController.vadOutputPaths(for: source)
+        TranscriptionRetryController.claimVADOutputs(claimed)
+        defer { TranscriptionRetryController.releaseVADOutputs(claimed) }
+        let service = VADProcessingService(
+            trimSilence: stubTrim(writing: 10_000, originalDuration: 60, trimmedDuration: 59.8),
+            unownedAudioPaths: { await persistence.unownedAudioPathsInBackground($0) }
+        )
+
+        let result = await service.processAudioForTranscription(
+            audioURL: source, duration: 60, vadEnabled: true, context: .retry
+        )
+
+        #expect(!result.wasProcessed)
+        #expect(try filesNoRowRecords(in: folder, persistence: persistence).isEmpty)
+    }
+
     /// Control: a trim that passes keeps its WAV for the caller to record.
     @Test func aValidTrimKeepsItsWAV() async throws {
         let folder = try makeRecordingsFolder()
