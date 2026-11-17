@@ -397,7 +397,7 @@ enum TranscribeEndpoint {
             APIInputError(
                 code: .invalidRequest,
                 message: "Unknown engine '\(engine)'",
-                hint: "Send engine: whisperLocal, parakeet, nemotron, qwen3Asr, appleSpeech, or a cloud provider such as cloud or openai."
+                hint: "Send whisperLocal, parakeet, nemotron, qwen3Asr or appleSpeech for a local engine, cloud for HyperWhisper Cloud, or a cloud provider id such as openai."
             )
         }
 
@@ -409,7 +409,7 @@ enum TranscribeEndpoint {
         static func whisperModelNotLocal(_ model: String) -> APIInputError {
             APIInputError(
                 code: .invalidRequest,
-                message: "'\(model)' is not a local Whisper model.",
+                message: "'\(model)' is not a local Whisper model",
                 hint: "Send a Whisper model such as base.en, or send engine: cloud to use HyperWhisper Cloud."
             )
         }

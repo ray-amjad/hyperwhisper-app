@@ -446,7 +446,7 @@ struct LocalAPIRequestMistakeErrorTests {
                 #expect(thrown is TranscribeEndpoint.APIInputError)
                 let failure = Self.wire(thrown)
                 #expect(failure.code == .invalidRequest, "engine '\(engine)' model '\(model)' answered \(failure.code)")
-                #expect(failure.message == "'\(trimmed)' is not a local Whisper model.")
+                #expect(failure.message == "'\(trimmed)' is not a local Whisper model")
                 #expect(failure.hint == "Send a Whisper model such as base.en, or send engine: cloud to use HyperWhisper Cloud.")
                 #expect(failure.hint?.contains("Try again later") != true)
             }
@@ -458,7 +458,7 @@ struct LocalAPIRequestMistakeErrorTests {
     /// ENGINE_UNAVAILABLE "Unknown engine '<x>'"; the mixed form used to ignore
     /// the engine and run the saved Mode's own with `ok: true`.
     @Test func anUnknownEngineIsInvalidRequestOnBothForms() async throws {
-        let hint = "Send engine: whisperLocal, parakeet, nemotron, qwen3Asr, appleSpeech, or a cloud provider such as cloud or openai."
+        let hint = "Send whisperLocal, parakeet, nemotron, qwen3Asr or appleSpeech for a local engine, cloud for HyperWhisper Cloud, or a cloud provider id such as openai."
         for engine in ["vosk", " Vosk ", "whisper-cpp", "local"] {
             let trimmed = engine.trimmingCharacters(in: .whitespacesAndNewlines)
             for model in [nil, "base"] as [String?] {
