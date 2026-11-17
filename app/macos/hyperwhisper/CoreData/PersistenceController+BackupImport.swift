@@ -288,8 +288,10 @@ extension PersistenceController {
             // `.replace` it cannot delete a local mode with the same name. A
             // backup row carries no seeded flag, and neither endpoint ever
             // built a seeded Mode, so `false` is what the purge would read.
+            // The name is the RAW backup name, as stored on that machine: the
+            // trimmed one could match a row the purge there would keep.
             if LocalAPITransientModeMarker.isLeakedRow(
-                name: normalizedBackupName,
+                name: backupMode.name,
                 sortOrder: backupMode.sortOrder,
                 isDefault: backupMode.isDefault,
                 isSystemProvided: false

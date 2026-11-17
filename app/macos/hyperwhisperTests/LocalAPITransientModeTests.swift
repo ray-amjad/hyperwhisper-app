@@ -490,6 +490,34 @@ struct LocalAPITransientModeTests {
         #expect(result.modesSkipped == 0)
     }
 
+    /// The restore tests the RAW backup name, as the launch purge would read
+    /// it on the machine that made the backup. A name with a trailing space
+    /// does not match there, so the row is restored (trimmed on the way in,
+    /// as every restored name is).
+    @Test func aRestoreTestsTheRawBackupName() throws {
+        let t = LocalAPITransientModeMarker.transcribeName
+        let source = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: source, name: "Meeting", sortOrder: 0, isDefault: true)
+        _ = makeSavedMode(in: source, name: "\(t) ", sortOrder: Int16.max)
+        try saveFixtures(source)
+        let backup = try exportedModes(of: source)
+        try #require(backup.contains { $0.name == "\(t) " && $0.sortOrder == Int16.max })
+
+        let persistence = PersistenceController(inMemory: true)
+        let result = try persistence.importBackupStore(
+            modes: backup,
+            modeResolution: .skip,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        )
+        persistence.prepareModesOnLaunch()
+
+        let stored = try storedModes(in: persistence)
+        #expect(stored.map(\.name) == ["Meeting", t], "\(stored)")
+        #expect(result.modesImported == 2)
+        #expect(result.modesSkipped == 0)
+    }
+
     /// Path 2 under "Replace": a leaked backup row used to delete the local
     /// Mode with the same name before it was recreated in its place.
     @Test func aReplaceRestoreOfALeakedRowKeepsTheLocalModeWithThatName() throws {
