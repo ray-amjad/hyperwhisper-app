@@ -47,6 +47,9 @@ public partial class App : WpfApplication
         // constructs the real App to get App.xaml's resources but never calls Run(),
         // so OnStartup would never run for it.
         Utilities.ComboBoxWheelGuard.Install();
+
+        // Same reasoning: every window's title-bar icon at its own DPI (#1941).
+        Utilities.WindowIconDpi.Install();
     }
 
     protected override void OnStartup(StartupEventArgs e)
