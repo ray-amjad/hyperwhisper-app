@@ -283,6 +283,8 @@ class PersistenceController: ObservableObject {
             repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
+            // Background task, one time only (#1524); returns at once.
+            scheduleOrphanedTrimmedUploadCopySweepOnLaunch()
         }
     }
 
@@ -1540,8 +1542,11 @@ class PersistenceController: ObservableObject {
 
         guard let update else {
             // The VAD output has no Core Data owner if the row was deleted or
-            // the path save failed. Remove it instead of leaking it on disk.
-            _ = await FileDeletion.deleteFiles(at: [trimmedPath])
+            // the path save failed. Remove it instead of leaking it on disk,
+            // and its `.m4a` upload copy too (#1524) unless an upload may
+            // still use that copy.
+            let uploadCopies = await uploadCopiesFreeToRemove(afterFailedTrimSaveOf: trimmedPath, transcriptID: transcriptID)
+            _ = await FileDeletion.deleteFiles(at: [trimmedPath] + uploadCopies)
             AppLogger.coreData.warning("Could not attach trimmed audio path; removed the unowned file")
             return false
         }
@@ -1554,6 +1559,52 @@ class PersistenceController: ObservableObject {
         let trimmedFormat = AudioConstants.diagnosticAudioFormat(URL(fileURLWithPath: trimmedPath).pathExtension)
         AppLogger.coreData.debug("Set trimmed audio path · format=\(trimmedFormat, privacy: .public)")
         return true
+    }
+
+    /// Of `paths`, the files no transcript records or derives, read on the
+    /// serial writer. For a file a flow wrote that no row recorded (#1524).
+    func unownedAudioPathsInBackground(_ paths: [String]) async -> [String] {
+        guard !paths.isEmpty else { return [] }
+        return await performWrite { context in
+            Self.audioPathsNoTranscriptOwns(paths, in: context)
+        }
+    }
+
+    /// The `.m4a` upload copy of a trimmed WAV whose path could not be saved,
+    /// when no upload can still be using it (#1524; Ray: delete the copy
+    /// unless its upload is running, and otherwise leave it).
+    ///
+    /// No registry of running uploads exists, so "may still be uploading" is
+    /// read from the two places that do say a job is in flight:
+    /// - The row still exists with status "processing": its job has not
+    ///   finished. A file import calls `setTrimmedAudioPath` just BEFORE it
+    ///   uploads the copy, and a retry keeps the row processing until it
+    ///   writes its result.
+    /// - A running retry claims these VAD names
+    ///   (`TranscriptionRetryController.claimVADOutputs`); every retry of a
+    ///   recording writes the same names.
+    /// A copy another transcript records or derives is kept too. A kept copy
+    /// is left for the one-time sweep or the row's own delete.
+    @MainActor
+    private func uploadCopiesFreeToRemove(
+        afterFailedTrimSaveOf trimmedPath: String,
+        transcriptID: NSManagedObjectID
+    ) async -> [String] {
+        let copies = TranscriptAudioFiles.derivedArtifactPaths(
+            for: TranscriptRecordedAudioPaths(audioFilePath: nil, trimmedAudioFilePath: trimmedPath)
+        )
+        let unclaimed = TranscriptionRetryController.vadOutputsNoRunUses(copies)
+        guard !unclaimed.isEmpty else { return [] }
+
+        return await performWrite { context -> [String] in
+            let stillRunning: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            stillRunning.predicate = NSPredicate(format: "SELF == %@ AND status == %@", transcriptID, "processing")
+            stillRunning.fetchLimit = 1
+            guard let running = try? context.count(for: stillRunning), running == 0 else {
+                return []
+            }
+            return Self.audioPathsNoTranscriptOwns(unclaimed, in: context)
+        }
     }
 
     /// Deletes a transcript

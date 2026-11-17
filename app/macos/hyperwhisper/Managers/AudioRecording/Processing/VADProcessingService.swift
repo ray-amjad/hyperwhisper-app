@@ -138,9 +138,22 @@ class VADProcessingService {
     /// Owned by this service to avoid external dependencies.
     private let audioFileConverter = AudioFileConverter()
 
+    /// Runs the silence trim. Nil uses `SilenceTrimmer`; tests pass a stub.
+    private let trimSilence: ((URL) async throws -> TrimResult)?
+
+    /// Of the given paths, the ones no transcript records or derives. Nil
+    /// asks `PersistenceController.shared`; tests pass their own store.
+    private let unownedAudioPaths: (([String]) async -> [String])?
+
     // MARK: - Initialization
 
-    init() {}
+    init(
+        trimSilence: ((URL) async throws -> TrimResult)? = nil,
+        unownedAudioPaths: (([String]) async -> [String])? = nil
+    ) {
+        self.trimSilence = trimSilence
+        self.unownedAudioPaths = unownedAudioPaths
+    }
 
     // MARK: - Public API
 
@@ -196,8 +209,13 @@ class VADProcessingService {
         // Creates a new trimmer instance and processes the audio.
         // The trimmer uses VoiceActivityDetector to identify speech segments.
         do {
-            let trimmer = SilenceTrimmer()
-            let trimResult = try await trimmer.trimSilence(from: audioURL)
+            let trimResult: TrimResult
+            if let trimSilence {
+                trimResult = try await trimSilence(audioURL)
+            } else {
+                let trimmer = SilenceTrimmer()
+                trimResult = try await trimmer.trimSilence(from: audioURL)
+            }
 
             // STEP 3: Validate trim result
             // ============================
@@ -220,7 +238,9 @@ class VADProcessingService {
                     originalAudioURL: audioURL
                 )
             } else {
-                // Validation failed, use original audio
+                // Validation failed, use original audio. The trimmer already
+                // wrote its WAV, and no caller records a rejected one (#1524).
+                await discardRejectedTrim(trimResult, originalURL: audioURL)
                 return VADProcessingResult(
                     finalAudioURL: audioURL,
                     trimResult: trimResult,
@@ -286,6 +306,29 @@ class VADProcessingService {
     }
 
     // MARK: - Private Methods
+
+    /// Removes the WAV of a trim that failed validation (#1524). Callers record
+    /// a trimmed path only when `wasProcessed`, so nothing else would.
+    ///
+    /// Every run on one recording writes the same trimmed name, so the file is
+    /// kept when it is the input itself or when a transcript records or
+    /// derives that name (another row made from the same audio).
+    private func discardRejectedTrim(_ trimResult: TrimResult, originalURL: URL) async {
+        let trimmedPath = trimResult.outputURL.path
+        guard trimmedPath != originalURL.path,
+              FileManager.default.fileExists(atPath: trimmedPath) else {
+            return
+        }
+        let unowned: [String]
+        if let unownedAudioPaths {
+            unowned = await unownedAudioPaths([trimmedPath])
+        } else {
+            unowned = await PersistenceController.shared.unownedAudioPathsInBackground([trimmedPath])
+        }
+        guard !unowned.isEmpty else { return }
+        _ = await FileDeletion.deleteFiles(at: unowned)
+        AppLogger.audio.debug("Removed the trimmed WAV of a trim that failed validation")
+    }
 
     /// Validate trim result meets quality criteria.
     ///
