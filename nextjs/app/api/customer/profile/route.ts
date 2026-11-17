@@ -6,6 +6,7 @@ import {
   getCreditBalancesForUsers,
 } from "@/src/lib/db-layer";
 import { describeDbError } from "@/lib/shared/db-error";
+import { ACCOUNT_KEY_DELETED_STATUS } from "@/lib/account-key-limits";
 
 /**
  * Customer Profile API
@@ -41,16 +42,19 @@ export async function GET(req: NextRequest) {
     const userIds = Array.from(new Set(licenses.map((l) => l.userId)));
     const creditMap = await getCreditBalancesForUsers(userIds);
 
-    // Add credits to each license object
-    const licensesWithCredits = licenses.map((license) => ({
-      id: license.id,
-      key: license.key,
-      status: license.status,
-      created_at: license.createdAt.toISOString(),
-      stripe_customer_id: license.stripeCustomerId,
-      polar_customer_id: license.polarCustomerId,
-      credits: creditMap.get(license.userId) || 0,
-    }));
+    // Add credits to each license object. A key the owner deleted is not
+    // listed, as on the dashboard (`customer.licensesWithCredits`).
+    const licensesWithCredits = licenses
+      .filter((license) => license.status !== ACCOUNT_KEY_DELETED_STATUS)
+      .map((license) => ({
+        id: license.id,
+        key: license.key,
+        status: license.status,
+        created_at: license.createdAt.toISOString(),
+        stripe_customer_id: license.stripeCustomerId,
+        polar_customer_id: license.polarCustomerId,
+        credits: creditMap.get(license.userId) || 0,
+      }));
 
     // Total credits = the sum of the DISTINCT account balances (not a per-license
     // sum, which would double-count a multi-key account's pooled balance).
