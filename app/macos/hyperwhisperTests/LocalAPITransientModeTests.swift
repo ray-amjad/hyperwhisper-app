@@ -401,10 +401,13 @@ struct LocalAPITransientModeTests {
         #expect(try storedModes(in: persistence) == stored)
     }
 
-    /// Path 1, on a store an earlier build already repaired: a leaked row holds
-    /// the default flag. The purge deletes it and moves the flag to a real
-    /// mode, and a user Mode with the same name and an ordinary sort order stays.
-    @Test func aLaunchDeletesALeakedRowThatAlreadyHoldsTheDefault() throws {
+    /// A default Mode with an endpoint name and sort order 32767 stays. No
+    /// field tells it apart from one a user made through the Local API
+    /// (`POST /modes` + `PATCH` set all three), so the purge keeps #1540's
+    /// rule and never deletes the default. The non-default leaked row beside
+    /// it goes, and a user Mode with the same name and an ordinary sort order
+    /// stays.
+    @Test func aLaunchKeepsADefaultModeWithAnEndpointName() throws {
         let persistence = PersistenceController(inMemory: true)
         let t = LocalAPITransientModeMarker.transcribeName
         _ = makeSavedMode(in: persistence, name: t, sortOrder: Int16.max, isDefault: true)
@@ -416,7 +419,8 @@ struct LocalAPITransientModeTests {
         persistence.prepareModesOnLaunch()
 
         #expect(try storedModes(in: persistence) == [
-            StoredMode(name: "Meeting", sortOrder: 0, isDefault: true),
+            StoredMode(name: "Meeting", sortOrder: 0, isDefault: false),
+            StoredMode(name: t, sortOrder: Int16.max, isDefault: true),
             StoredMode(name: "\(t) 3", sortOrder: 3, isDefault: false),
         ])
         // Not a fresh install: nothing was seeded.
@@ -452,10 +456,38 @@ struct LocalAPITransientModeTests {
         let stored = try storedModes(in: persistence)
         #expect(stored.map(\.name) == ["Meeting", t], "\(stored)")
         #expect(stored.first { $0.name == "Meeting" }?.isDefault == true)
-        // The left-out rows are neither imported nor reported as skipped.
+        // The two left-out rows are reported as skipped.
+        #expect(result.modesImported == 2)
+        #expect(result.modesSkipped == 2)
+        #expect(!persistence.container.viewContext.hasChanges)
+    }
+
+    /// The restore drops no more than the launch purge would: a DEFAULT backup
+    /// row with an endpoint name and sort order 32767 is restored, because the
+    /// purge would have kept it on the machine that made the backup.
+    @Test func aRestoreKeepsADefaultBackupModeWithAnEndpointName() throws {
+        let t = LocalAPITransientModeMarker.transcribeName
+        let source = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: source, name: "Meeting", sortOrder: 0)
+        _ = makeSavedMode(in: source, name: t, sortOrder: Int16.max, isDefault: true)
+        try saveFixtures(source)
+        let backup = try exportedModes(of: source)
+        try #require(backup.contains { $0.name == t && $0.isDefault && $0.sortOrder == Int16.max })
+
+        let persistence = PersistenceController(inMemory: true)
+        let result = try persistence.importBackupStore(
+            modes: backup,
+            modeResolution: .skip,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        )
+        persistence.prepareModesOnLaunch()
+
+        let stored = try storedModes(in: persistence)
+        #expect(stored.map(\.name) == ["Meeting", t], "\(stored)")
+        #expect(stored.first { $0.name == t }?.isDefault == true)
         #expect(result.modesImported == 2)
         #expect(result.modesSkipped == 0)
-        #expect(!persistence.container.viewContext.hasChanges)
     }
 
     /// Path 2 under "Replace": a leaked backup row used to delete the local

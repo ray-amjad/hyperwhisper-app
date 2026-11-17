@@ -23,12 +23,11 @@ extension PersistenceController {
     /// (`LocalAPITransientMode`), so this pass only clears what is already on
     /// disk, and once a store is clean it deletes nothing.
     ///
-    /// A row is deleted only when `isLeakedLocalAPITransientModeRow` holds:
-    /// one of the two endpoint names (bare, or with the " N" suffix
-    /// `repairModeNames()` adds), `sortOrder` exactly `Int16.max`, and not
-    /// seeded. A leaked row that holds the default flag is deleted too, and
-    /// the flag moves to a remaining mode in the same save (issue #1546).
-    /// Runs every launch and saves only when it deleted something.
+    /// A row is deleted only when `LocalAPITransientModeMarker.isLeakedRow`
+    /// holds: one of the two endpoint names (bare, or with the " N" suffix
+    /// `repairModeNames()` adds), `sortOrder` exactly `Int16.max`, and
+    /// neither default nor seeded. Runs every launch and saves only when it
+    /// deleted something.
     @discardableResult
     func purgeLeakedLocalAPITransientModes() -> Int {
         let context = container.viewContext
@@ -39,22 +38,16 @@ extension PersistenceController {
         )
         do {
             let leaked = try context.fetch(request).filter { mode in
-                Self.isLeakedLocalAPITransientModeRow(
+                LocalAPITransientModeMarker.isLeakedRow(
                     name: mode.name,
                     sortOrder: mode.sortOrder,
+                    isDefault: mode.isDefault,
                     isSystemProvided: mode.isSystemProvided
                 )
             }
             guard !leaked.isEmpty else { return 0 }
-            let deletedTheDefault = leaked.contains { $0.isDefault }
             for mode in leaked {
                 context.delete(mode)
-            }
-            if deletedTheDefault {
-                // The fetch leaves out the pending deletes. With no mode left
-                // there is nothing to promote, and `initializeDefaultModes()`,
-                // which runs next at launch, seeds the default mode.
-                DefaultModePolicy.apply(to: fetchAllModes())
             }
             try context.save()
             return leaked.count
@@ -73,29 +66,6 @@ extension PersistenceController {
             )
             return 0
         }
-    }
-
-    /// True for a Mode row, stored or in a backup, that a build before issue
-    /// #1509 leaked out of a Local API request.
-    ///
-    /// `LocalAPITransientModeMarker.isLeakedRow` with the default flag left
-    /// out (issue #1546). Neither endpoint ever builds a default Mode, so a
-    /// leaked row that holds the flag got it later, from the default-mode
-    /// repair, when leaked rows were the only modes left. The default mode's
-    /// name cannot be changed, so without this the row stayed for good. A
-    /// Mode a user named this way still keeps an ordinary sort order, default
-    /// or not, so it does not match.
-    static func isLeakedLocalAPITransientModeRow(
-        name: String?,
-        sortOrder: Int16,
-        isSystemProvided: Bool
-    ) -> Bool {
-        LocalAPITransientModeMarker.isLeakedRow(
-            name: name,
-            sortOrder: sortOrder,
-            isDefault: false,
-            isSystemProvided: isSystemProvided
-        )
     }
 
     // MARK: - Google Chirp 3 → Gemini 3.5 Transcribe Tier Migration

@@ -279,18 +279,23 @@ extension PersistenceController {
             // Issue #1546: a backup exported on a build before #1509 can carry
             // leaked Local API rows. `createOrUpdateMode` would give such a row
             // an ordinary sort order, and the launch purge would never match it
-            // again, so it is recognised here by the backup row's own values and
-            // not restored at all. It is not counted as skipped: it was never a
-            // mode the user made. This check runs before the conflict handling,
-            // so under `.replace` it cannot delete a local mode with the same
-            // name. A backup row carries no seeded flag, and neither endpoint
-            // ever built a seeded Mode, so `false` is what the purge would read.
-            if Self.isLeakedLocalAPITransientModeRow(
+            // again. So the backup row's OWN values go through the same test
+            // the purge uses (`isLeakedRow`, default flag included), and a
+            // match is not restored: the restore drops exactly the rows the
+            // purge would delete on the machine that made the backup, never
+            // more. A match is counted as skipped, so the result still reports
+            // it. This check runs before the conflict handling, so under
+            // `.replace` it cannot delete a local mode with the same name. A
+            // backup row carries no seeded flag, and neither endpoint ever
+            // built a seeded Mode, so `false` is what the purge would read.
+            if LocalAPITransientModeMarker.isLeakedRow(
                 name: normalizedBackupName,
                 sortOrder: backupMode.sortOrder,
+                isDefault: backupMode.isDefault,
                 isSystemProvided: false
             ) {
-                AppLogger.coreData.info("Backup import: left out a leaked Local API transient mode")
+                AppLogger.coreData.info("Backup import: skipped a leaked Local API transient mode")
+                skipped += 1
                 continue
             }
             let normalizedKey = ModeNamePolicy.comparisonKey(normalizedBackupName)!

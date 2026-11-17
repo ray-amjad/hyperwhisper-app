@@ -291,7 +291,9 @@ class PersistenceController: ObservableObject {
     /// default flag onto some row when none has it, and a store whose only
     /// modes are leaked rows (the user deleted every real one) then gets a
     /// leaked row as its default. Purging first leaves such a store empty, so
-    /// the seeder writes the real default mode instead.
+    /// the seeder writes the real default mode instead. A leaked row an
+    /// earlier launch already made the default stays: no field tells it apart
+    /// from a default Mode a user made through the Local API.
     ///
     /// It also runs before `repairModeNamesOnLaunch()`: that pass renames a
     /// duplicate name with a " 2" suffix, and a leaked row is gone sooner if
