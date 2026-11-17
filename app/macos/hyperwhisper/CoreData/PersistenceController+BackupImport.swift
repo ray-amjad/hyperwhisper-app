@@ -283,8 +283,8 @@ extension PersistenceController {
             // not restored at all. It is not counted as skipped: it was never a
             // mode the user made. This check runs before the conflict handling,
             // so under `.replace` it cannot delete a local mode with the same
-            // name. A backup row has no seeded flag, and a restored row never
-            // gets one.
+            // name. A backup row carries no seeded flag, and neither endpoint
+            // ever built a seeded Mode, so `false` is what the purge would read.
             if Self.isLeakedLocalAPITransientModeRow(
                 name: normalizedBackupName,
                 sortOrder: backupMode.sortOrder,
