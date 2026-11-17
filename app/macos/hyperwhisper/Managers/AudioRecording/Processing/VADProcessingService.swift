@@ -330,8 +330,16 @@ class VADProcessingService {
         } else {
             unowned = await PersistenceController.shared.unownedAudioPathsInBackground([trimmedPath])
         }
-        guard !unowned.isEmpty else { return }
-        _ = await FileDeletion.deleteFiles(at: unowned)
+        // Read the claims again: a retry can claim the name and write the
+        // file while the lookup above is pending. Claims are made on the main
+        // actor, and no await separates this check from the removal.
+        guard !unowned.isEmpty,
+              TranscriptionRetryController.vadOutputClaimCount(trimmedPath) <= ownClaims else {
+            return
+        }
+        for path in unowned {
+            try? FileManager.default.removeItem(atPath: path)
+        }
         AppLogger.audio.debug("Removed the trimmed WAV of a trim that failed validation")
     }
 

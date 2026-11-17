@@ -32,6 +32,22 @@ private final class FailingSaveTrimPersistenceController: PersistenceController 
     }
 }
 
+/// Claims `claimOnLookup` for a retry the first time the writer runs a
+/// lookup (`performWrite`): another retry starting while the cleanup's
+/// Core Data query is pending (review R2).
+private final class ClaimDuringLookupPersistenceController: PersistenceController {
+    var claimOnLookup: [String] = []
+
+    override func performWrite<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> T {
+        let paths = claimOnLookup
+        claimOnLookup = []
+        if !paths.isEmpty {
+            await MainActor.run { TranscriptionRetryController.claimVADOutputs(paths) }
+        }
+        return await super.performWrite(block)
+    }
+}
+
 @MainActor
 struct TrimmedAudioOrphanTests {
 
@@ -194,6 +210,27 @@ struct TrimmedAudioOrphanTests {
         #expect(exists(trimmed.m4a))
     }
 
+    /// Review R2: a retry that claims the copy while the ownership query is
+    /// pending may be uploading it, so the failed-save cleanup keeps it.
+    @Test func anUploadCopyClaimedDuringTheLookupIsKept() async throws {
+        let folder = try makeRecordingsFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let persistence = ClaimDuringLookupPersistenceController(inMemory: true)
+        let source = try makeFile("rec-\(UUID().uuidString).wav", in: folder)
+        let transcript = try insertTranscript(in: persistence, audioFilePath: source.path)
+        persistence.deleteTranscript(transcript)
+        let trimmed = try makeTrimmedPair(for: source, in: folder)
+        let claimed = TranscriptionRetryController.vadOutputPaths(for: source)
+        persistence.claimOnLookup = claimed
+        defer { TranscriptionRetryController.releaseVADOutputs(claimed) }
+
+        let saved = await persistence.setTrimmedAudioPath(transcript, trimmedPath: trimmed.wav.path)
+
+        #expect(!saved)
+        #expect(TranscriptionRetryController.vadOutputClaimCount(trimmed.m4a.path) == 1, "the claim landed during the lookup")
+        #expect(exists(trimmed.m4a), "the new retry may be uploading the copy")
+    }
+
     // MARK: - 2. VAD validation failure
 
     private func stubTrim(
@@ -301,6 +338,31 @@ struct TrimmedAudioOrphanTests {
         #expect(!result.wasProcessed)
         let trimmedURL = try #require(result.trimResult?.outputURL)
         #expect(exists(trimmedURL), "the other retry may still record this WAV")
+    }
+
+    /// Review R2: another retry claims the name while the ownership lookup is
+    /// pending; the rejected trim's cleanup must not delete that run's WAV.
+    @Test func aRejectedTrimKeepsAWAVClaimedDuringTheLookup() async throws {
+        let folder = try makeRecordingsFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let persistence = PersistenceController(inMemory: true)
+        let source = try makeFile("rec-\(UUID().uuidString).wav", in: folder, bytes: 10_000)
+        let claimed = TranscriptionRetryController.vadOutputPaths(for: source)
+        defer { TranscriptionRetryController.releaseVADOutputs(claimed) }
+        let service = VADProcessingService(
+            trimSilence: stubTrim(writing: 10_000, originalDuration: 60, trimmedDuration: 59.8),
+            unownedAudioPaths: { paths in
+                await MainActor.run { TranscriptionRetryController.claimVADOutputs(claimed) }
+                return await persistence.unownedAudioPathsInBackground(paths)
+            }
+        )
+
+        let result = await service.processAudioForTranscription(audioURL: source, duration: 60, vadEnabled: true)
+
+        #expect(!result.wasProcessed)
+        let trimmedURL = try #require(result.trimResult?.outputURL)
+        #expect(TranscriptionRetryController.vadOutputClaimCount(trimmedURL.path) == 1, "the claim landed during the lookup")
+        #expect(exists(trimmedURL), "the other retry claimed it before the delete")
     }
 
     /// Control: a retry holding only its own claim still removes its rejected WAV.

@@ -1545,8 +1545,8 @@ class PersistenceController: ObservableObject {
             // the path save failed. Remove it instead of leaking it on disk,
             // and its `.m4a` upload copy too (#1524) unless an upload may
             // still use that copy.
-            let uploadCopies = await uploadCopiesFreeToRemove(afterFailedTrimSaveOf: trimmedPath, transcriptID: transcriptID)
-            _ = await FileDeletion.deleteFiles(at: [trimmedPath] + uploadCopies)
+            _ = await FileDeletion.deleteFiles(at: [trimmedPath])
+            await removeUploadCopiesNoUploadUses(afterFailedTrimSaveOf: trimmedPath, transcriptID: transcriptID)
             AppLogger.coreData.warning("Could not attach trimmed audio path; removed the unowned file")
             return false
         }
@@ -1570,9 +1570,9 @@ class PersistenceController: ObservableObject {
         }
     }
 
-    /// The `.m4a` upload copy of a trimmed WAV whose path could not be saved,
-    /// when no upload can still be using it (#1524; Ray: delete the copy
-    /// unless its upload is running, and otherwise leave it).
+    /// Removes the `.m4a` upload copy of a trimmed WAV whose path could not be
+    /// saved, when no upload can still be using it (#1524; Ray: delete the
+    /// copy unless its upload is running, and otherwise leave it).
     ///
     /// No registry of running uploads exists, so "may still be uploading" is
     /// read from the two places that do say a job is in flight:
@@ -1586,17 +1586,17 @@ class PersistenceController: ObservableObject {
     /// A copy another transcript records or derives is kept too. A kept copy
     /// is left for the one-time sweep or the row's own delete.
     @MainActor
-    private func uploadCopiesFreeToRemove(
+    private func removeUploadCopiesNoUploadUses(
         afterFailedTrimSaveOf trimmedPath: String,
         transcriptID: NSManagedObjectID
-    ) async -> [String] {
+    ) async {
         let copies = TranscriptAudioFiles.derivedArtifactPaths(
             for: TranscriptRecordedAudioPaths(audioFilePath: nil, trimmedAudioFilePath: trimmedPath)
         )
         let unclaimed = TranscriptionRetryController.vadOutputsNoRunUses(copies)
-        guard !unclaimed.isEmpty else { return [] }
+        guard !unclaimed.isEmpty else { return }
 
-        return await performWrite { context -> [String] in
+        let unowned = await performWrite { context -> [String] in
             let stillRunning: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             stillRunning.predicate = NSPredicate(format: "SELF == %@ AND status == %@", transcriptID, "processing")
             stillRunning.fetchLimit = 1
@@ -1607,6 +1607,13 @@ class PersistenceController: ObservableObject {
             // same copy name, and only a lookup by a recorded path finds it.
             return Self.audioPathsNoTranscriptOwns([trimmedPath] + unclaimed, in: context)
                 .filter { unclaimed.contains($0) }
+        }
+
+        // Read the claims again: a retry can claim the copy and start its
+        // upload while the lookup above is pending. Claims are made on the
+        // main actor, and no await separates this check from the removal.
+        for path in TranscriptionRetryController.vadOutputsNoRunUses(unowned) {
+            try? FileManager.default.removeItem(atPath: path)
         }
     }
 
