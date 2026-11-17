@@ -518,6 +518,41 @@ struct LocalAPITransientModeTests {
         #expect(result.modesSkipped == 0)
     }
 
+    /// A restored row the check keeps must not be stored as one the launch
+    /// purge deletes. In a store that already holds `Int16.max` (here a user
+    /// mode created after a leak) `createOrUpdateMode` caps the new row's sort
+    /// order there and trims its name, so both rows below would match.
+    @Test func aRowRestoredIntoAStoreAtTheMarkerSortOrderSurvivesALaunch() throws {
+        let t = LocalAPITransientModeMarker.transcribeName
+        let p = LocalAPITransientModeMarker.postProcessName
+        let source = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: source, name: "\(t) ", sortOrder: Int16.max)
+        _ = makeSavedMode(in: source, name: p, sortOrder: 7)
+        try saveFixtures(source)
+        let backup = try exportedModes(of: source)
+
+        let persistence = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: persistence, name: "Meeting", sortOrder: 0, isDefault: true)
+        _ = makeSavedMode(in: persistence, name: "Created After The Leak", sortOrder: Int16.max)
+        try saveFixtures(persistence)
+
+        let result = try persistence.importBackupStore(
+            modes: backup,
+            modeResolution: .skip,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        )
+        persistence.prepareModesOnLaunch()
+
+        #expect(result.modesImported == 2)
+        #expect(try storedModes(in: persistence) == [
+            StoredMode(name: "Created After The Leak", sortOrder: Int16.max, isDefault: false),
+            StoredMode(name: "Meeting", sortOrder: 0, isDefault: true),
+            StoredMode(name: p, sortOrder: Int16.max - 1, isDefault: false),
+            StoredMode(name: t, sortOrder: Int16.max - 1, isDefault: false),
+        ].sorted { $0.name < $1.name })
+    }
+
     /// Path 2 under "Replace": a leaked backup row used to delete the local
     /// Mode with the same name before it was recreated in its place.
     @Test func aReplaceRestoreOfALeakedRowKeepsTheLocalModeWithThatName() throws {

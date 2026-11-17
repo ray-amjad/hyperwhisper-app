@@ -405,7 +405,7 @@ extension PersistenceController {
             let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(backupMode.cloudProvider)
 
             // Create the mode using existing method
-            createOrUpdateMode(
+            let restoredMode = createOrUpdateMode(
                 id: finalId,
                 name: finalName,
                 preset: backupMode.preset,
@@ -449,6 +449,21 @@ extension PersistenceController {
                 restoringFromBackup: true,
                 updating: inPlaceTarget
             )
+
+            // Issue #1546: a row restored into a store that already holds
+            // `Int16.max` is capped there by `createOrUpdateMode`, and its
+            // name is trimmed. With an endpoint name, the next launch purge
+            // would then delete a mode the check above kept. One below the
+            // marker keeps it out of the purge and still last in the list.
+            // The default flag is left out: the pass below can still clear it.
+            if LocalAPITransientModeMarker.isLeakedRow(
+                name: restoredMode.name,
+                sortOrder: restoredMode.sortOrder,
+                isDefault: false,
+                isSystemProvided: restoredMode.isSystemProvided
+            ) {
+                restoredMode.sortOrder = LocalAPITransientModeMarker.sortOrder - 1
+            }
 
             // Update isDefault flag if this mode should be default
             // Only set as default if the original was default AND we're not in keepBoth mode
