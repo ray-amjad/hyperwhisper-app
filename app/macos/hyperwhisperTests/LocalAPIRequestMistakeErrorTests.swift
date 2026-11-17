@@ -16,6 +16,16 @@
 //     installed: the same NAMED MODEL_NOT_INSTALLED the engine-only form gives
 //     since #1493, not the bare "Required model is not installed.".
 //
+//  Issue #1934 (Ray's decisions 2026-10-18) adds four more, at the end of this
+//  file:
+//
+//  4. `mode_id` + `engine: nemotron` + an unknown `model`: MODEL_NOT_FOUND, as
+//     on the engine-only form (it was dropped and another variant ran).
+//  5. `mode_id` + `engine: whisper` + `model: "cloud"`: INVALID_REQUEST.
+//  6. An unknown `engine` alias, on both forms: INVALID_REQUEST.
+//  7. A pure `mode_id` whose saved Mode holds an unknown Parakeet id:
+//     MODEL_NOT_FOUND (a known but missing one stays MODEL_NOT_INSTALLED).
+//
 //  The seams are the production functions the endpoints call, rendered through
 //  `LocalAPIResponder.mapTranscriptionError`, which turns a throw into the
 //  `(code, message, hint)` the envelope carries. `TranscribeEndpoint.handle`
@@ -347,6 +357,227 @@ struct LocalAPIRequestMistakeErrorTests {
         ))
         #expect(failure.code == .modelNotInstalled)
         #expect(failure.message == "nemotron-asr-3.5-multilingual is not installed.")
+        withExtendedLifetime(whisper) {}
+    }
+
+    // MARK: - Issue #1934
+
+    /// What the mixed form's validator threw, or nil when it threw nothing.
+    private static func mixedRefusal(engine: String, model: String?) -> Error? {
+        do {
+            try TranscribeEndpoint.validateMixedPathEngineModel(engine: engine, model: model)
+            return nil
+        } catch {
+            return error
+        }
+    }
+
+    /// What the engine-only form's router threw, or nil when it resolved.
+    private static func engineOnlyRefusal(engine: String, model: String?) async -> Error? {
+        let router = TranscriptionProviderRouter()
+        do {
+            _ = try await router.resolveProvider(engine: engine, model: model, language: nil)
+            return nil
+        } catch {
+            return error
+        }
+    }
+
+    /// Issue #1934 row 1: `mode_id` + `engine: nemotron` + a model that names
+    /// no Nemotron variant is MODEL_NOT_FOUND, byte for byte what the
+    /// engine-only form sends. It used to be dropped, so the saved or the
+    /// default variant ran (or MODEL_NOT_INSTALLED named a model the caller
+    /// never sent).
+    @Test func mixedFormNemotronWithAnUnknownModelIsModelNotFound() async throws {
+        let hint = "Send model: \(NemotronModelManager.Constants.multilingualModelId) or \(NemotronModelManager.Constants.latinModelId)."
+        for engine in ["nemotron", " Nemotron ", "nemotron-asr", "nemotronLocal"] {
+            for model in ["nope", "base", "cloud", " typo ", "nemotron-asr-3.5-bogus", ParakeetModelManager.Constants.v3ModelId] {
+                let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+                let thrown = try #require(
+                    Self.mixedRefusal(engine: engine, model: model),
+                    "engine '\(engine)' model '\(model)' was not refused on the mixed form"
+                )
+                let mixed = Self.wire(thrown)
+                #expect(mixed.code == .modelNotFound, "engine '\(engine)' model '\(model)' answered \(mixed.code)")
+                #expect(mixed.message == "Unknown Nemotron model '\(trimmed)'")
+                #expect(mixed.hint == hint)
+
+                let engineOnlyResult = await Self.engineOnlyRefusal(engine: engine, model: model)
+                let engineOnlyThrown = try #require(engineOnlyResult, "engine '\(engine)' model '\(model)' resolved on the engine-only form")
+                let engineOnly = Self.wire(engineOnlyThrown)
+                #expect(mixed.code == engineOnly.code)
+                #expect(mixed.message == engineOnly.message)
+                #expect(mixed.hint == engineOnly.hint)
+            }
+        }
+    }
+
+    /// Row 1's limits: a missing or blank model keeps the mixed form's
+    /// inherit-or-default rule, and a real variant (any case, padded) is
+    /// accepted. Neither is refused.
+    @Test func mixedFormNemotronStillAcceptsNoModelABlankOneAndARealVariant() {
+        let accepted: [String?] = [
+            nil, "", "  ", "\t",
+            NemotronModelManager.Constants.multilingualModelId,
+            NemotronModelManager.Constants.latinModelId,
+            " \(NemotronModelManager.Constants.latinModelId.uppercased()) ",
+        ]
+        for engine in ["nemotron", "nemotron-asr"] {
+            for model in accepted {
+                #expect(
+                    Self.mixedRefusal(engine: engine, model: model) == nil,
+                    "engine '\(engine)' with model '\(model ?? "nil")' was refused"
+                )
+            }
+        }
+    }
+
+    /// Issue #1934 row 2: `mode_id` + a Whisper engine + `model: "cloud"` is
+    /// INVALID_REQUEST — `cloud` is a real model, just not a local one. It was
+    /// ENGINE_UNAVAILABLE "Unknown local model: cloud", "Try again later".
+    @Test func mixedFormWhisperWithTheCloudModelIsInvalidRequest() throws {
+        for engine in ["whisperLocal", "whisper", "libwhisper", " WhisperLocal "] {
+            for model in ["cloud", "CLOUD", " Cloud "] {
+                let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+                let thrown = try #require(
+                    Self.mixedRefusal(engine: engine, model: model),
+                    "engine '\(engine)' model '\(model)' was not refused"
+                )
+                #expect(thrown is TranscribeEndpoint.APIInputError)
+                let failure = Self.wire(thrown)
+                #expect(failure.code == .invalidRequest, "engine '\(engine)' model '\(model)' answered \(failure.code)")
+                #expect(failure.message == "'\(trimmed)' is not a local Whisper model.")
+                #expect(failure.hint == "Send a Whisper model such as base.en, or send engine: cloud to use HyperWhisper Cloud.")
+                #expect(failure.hint?.contains("Try again later") != true)
+            }
+        }
+    }
+
+    /// Issue #1934 row 3: an engine that names no engine is INVALID_REQUEST on
+    /// BOTH forms, with the same bytes. The engine-only form used to answer
+    /// ENGINE_UNAVAILABLE "Unknown engine '<x>'"; the mixed form used to ignore
+    /// the engine and run the saved Mode's own with `ok: true`.
+    @Test func anUnknownEngineIsInvalidRequestOnBothForms() async throws {
+        let hint = "Send engine: whisperLocal, parakeet, nemotron, qwen3Asr, appleSpeech, or a cloud provider such as cloud or openai."
+        for engine in ["vosk", " Vosk ", "whisper-cpp", "local"] {
+            let trimmed = engine.trimmingCharacters(in: .whitespacesAndNewlines)
+            for model in [nil, "base"] as [String?] {
+                let engineOnlyResult = await Self.engineOnlyRefusal(engine: engine, model: model)
+                let engineOnlyThrown = try #require(engineOnlyResult, "engine '\(engine)' resolved on the engine-only form")
+                let engineOnly = Self.wire(engineOnlyThrown)
+                #expect(engineOnly.code == .invalidRequest, "engine '\(engine)' answered \(engineOnly.code)")
+                #expect(engineOnly.message == "Unknown engine '\(trimmed)'")
+                #expect(engineOnly.hint == hint)
+
+                let mixedThrown = try #require(
+                    Self.mixedRefusal(engine: engine, model: model),
+                    "engine '\(engine)' was not refused on the mixed form"
+                )
+                let mixed = Self.wire(mixedThrown)
+                #expect(mixed.code == engineOnly.code)
+                #expect(mixed.message == engineOnly.message)
+                #expect(mixed.hint == engineOnly.hint)
+            }
+        }
+    }
+
+    /// Row 3's limit: every engine the API accepts still passes the mixed
+    /// validator — every local engine label from the shared table and the
+    /// cloud spellings, including the legacy folded names.
+    @Test func everyKnownEngineStillPassesTheMixedValidator() {
+        var engines = localApiAllEngineIds().map { localApiEngineWireLabel(id: $0) }
+        #expect(engines.count >= 5, "the shared engine table answered too few engines")
+        engines += ["cloud", "hyperwhisper", "meta", "openai", "groq", "deepgram", "googlespeech", "microsoftazurespeech", " Cloud "]
+        for engine in engines {
+            let refused = Self.mixedRefusal(engine: engine, model: nil)
+            #expect(refused == nil, "engine '\(engine)' with no model was refused: \(String(describing: refused))")
+        }
+    }
+
+    /// Issue #1934 row 4, the mapping: `ParakeetProvider`'s unknown-model throw
+    /// renders as MODEL_NOT_FOUND with the engine-only form's bytes, naming the
+    /// id the saved Mode held. The error itself is unchanged for dictation.
+    @Test func aSavedModesUnknownParakeetIdIsModelNotFound() {
+        for id in ["parakeet-tdt-0.6b-v9", "parakeet-tdt-1.1b"] {
+            let thrown = TranscriptionError.providerNotAvailable(
+                provider: "Parakeet",
+                reason: ParakeetProvider.ReportedFailureReason.unknownModelPrefix + id + "'"
+            )
+            let failure = Self.wire(thrown)
+            let engineOnly = Self.wire(TranscribeEndpoint.APIInputError.unknownParakeetModel(id))
+            #expect(failure.code == .modelNotFound)
+            #expect(failure.message == "Unknown Parakeet model '\(id)'")
+            #expect(failure.message == engineOnly.message)
+            #expect(failure.hint == engineOnly.hint)
+        }
+    }
+
+    /// Row 4's limits: a KNOWN Parakeet model that is not installed stays
+    /// MODEL_NOT_INSTALLED, and every other Parakeet `providerNotAvailable`
+    /// (a runtime that failed to load, no reason, another engine's unknown
+    /// model) stays ENGINE_UNAVAILABLE.
+    @Test func onlyAnUnknownParakeetIdIsRewritten() {
+        let notInstalled = Self.wire(TranscriptionError.modelNotDownloaded(
+            model: ParakeetModelManager.Constants.v2DisplayName
+        ))
+        #expect(notInstalled.code == .modelNotInstalled)
+
+        let unchanged: [TranscriptionError] = [
+            .providerNotAvailable(provider: "Parakeet", reason: ParakeetProvider.ReportedFailureReason.initializeRuntime),
+            .providerNotAvailable(provider: "Parakeet", reason: ParakeetProvider.ReportedFailureReason.loadRuntime),
+            .providerNotAvailable(provider: "Parakeet", reason: nil),
+            .providerNotAvailable(provider: "Local", reason: "Unknown local model: parakeet-tdt-0.6b-v9"),
+            .providerNotAvailable(provider: "Nemotron", reason: "Unknown Parakeet model 'x'"),
+        ]
+        for error in unchanged {
+            #expect(LocalAPIResponder.unknownParakeetModelId(in: error) == nil, "\(error) was read as an unknown Parakeet id")
+            #expect(Self.wire(error).code == .engineUnavailable, "\(error) answered \(Self.wire(error).code)")
+        }
+    }
+
+    /// Row 4 through the real router, the way a pure `mode_id` runs:
+    /// `selectProvider(for: savedMode)` reaches `ParakeetProvider`, which
+    /// rejects the id before it looks at the disk, and the Local API renders
+    /// the throw as MODEL_NOT_FOUND naming the saved id.
+    @Test func aPureModeIdWithAnUnknownParakeetIdIsModelNotFoundThroughTheRouter() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let saved = Mode(context: context)
+        saved.id = UUID()
+        saved.name = "Saved for #1934"
+        saved.model = "parakeet-tdt-0.6b-v9"
+        saved.sortOrder = 0
+        saved.createdDate = Date()
+        saved.modifiedDate = Date()
+        persistence.save()
+        try #require(!context.hasChanges, "the fixture save failed")
+
+        let whisperModels = WhisperModelManager()
+        let whisper = LibWhisperProvider(modelManager: whisperModels)
+        let parakeet = ParakeetProvider()
+        let router = TranscriptionProviderRouter()
+        router.setProviders(
+            localProvider: whisper,
+            parakeetProvider: parakeet,
+            parakeetModelManager: nil,
+            speechAnalyzerProvider: nil,
+            qwen3AsrProvider: nil,
+            qwen3AsrModelManager: nil,
+            nemotronProvider: nil,
+            nemotronModelManager: nil
+        )
+
+        var thrown: Error?
+        do {
+            _ = try await router.selectProvider(for: saved, vocabulary: [], stageWhisperModel: false)
+        } catch {
+            thrown = error
+        }
+        let error = try #require(thrown, "an unknown Parakeet id resolved")
+        let failure = Self.wire(error)
+        #expect(failure.code == .modelNotFound, "answered \(failure.code)")
+        #expect(failure.message == "Unknown Parakeet model 'parakeet-tdt-0.6b-v9'")
+        #expect(failure.hint?.contains("Try again later") != true)
         withExtendedLifetime(whisper) {}
     }
 }

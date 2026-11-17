@@ -385,6 +385,34 @@ enum TranscribeEndpoint {
                 hint: "Send model: \(NemotronModelManager.Constants.multilingualModelId) or \(NemotronModelManager.Constants.latinModelId)."
             )
         }
+
+        /// An `engine` that names no engine (issue #1934, Ray's decision
+        /// 2026-10-18): INVALID_REQUEST, on both `/transcribe` forms. The
+        /// engine-only form (`TranscriptionProviderRouter.resolveProvider`)
+        /// used to throw ENGINE_UNAVAILABLE with this message and "Try again
+        /// later"; the mixed mode_id + engine form
+        /// (`validateMixedPathEngineModel`) used to ignore the engine and run
+        /// the saved Mode's own. The message keeps the router's old wording.
+        static func unknownEngine(_ engine: String) -> APIInputError {
+            APIInputError(
+                code: .invalidRequest,
+                message: "Unknown engine '\(engine)'",
+                hint: "Send engine: whisperLocal, parakeet, nemotron, qwen3Asr, appleSpeech, or a cloud provider such as cloud or openai."
+            )
+        }
+
+        /// `mode_id` + a Whisper `engine` + `model: "cloud"` (issue #1934, Ray's
+        /// decision 2026-10-18): INVALID_REQUEST, not MODEL_NOT_FOUND. `cloud` is
+        /// a real model, but not one a local engine can run, and the request
+        /// fails the same way every time. It used to be ENGINE_UNAVAILABLE
+        /// "Unknown local model: cloud", "Try again later".
+        static func whisperModelNotLocal(_ model: String) -> APIInputError {
+            APIInputError(
+                code: .invalidRequest,
+                message: "'\(model)' is not a local Whisper model.",
+                hint: "Send a Whisper model such as base.en, or send engine: cloud to use HyperWhisper Cloud."
+            )
+        }
     }
 
     // MARK: - Resolution
