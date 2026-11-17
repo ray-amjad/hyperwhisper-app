@@ -341,4 +341,181 @@ struct LocalAPITransientModeTests {
         #expect(transient.mode.model == "tiny")
         #expect(LocalAPITransientMode.isInFlight(transient.mode))
     }
+
+    // MARK: - #1546: two paths that kept a leaked row
+
+    private struct StoredMode: Equatable {
+        let name: String
+        let sortOrder: Int16
+        let isDefault: Bool
+    }
+
+    /// Every Mode in the STORE, sorted by name, read like `storedModeNames`.
+    private func storedModes(in persistence: PersistenceController) throws -> [StoredMode] {
+        let probe = persistence.container.newBackgroundContext()
+        return try probe.performAndWait {
+            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+            return try probe.fetch(request)
+                .map { StoredMode(name: $0.name ?? "", sortOrder: $0.sortOrder, isDefault: $0.isDefault) }
+                .sorted { $0.name < $1.name }
+        }
+    }
+
+    /// Any row carrying an endpoint name, whatever its other fields.
+    private func internalNamedRows(in persistence: PersistenceController) throws -> [StoredMode] {
+        try storedModes(in: persistence).filter { $0.name.hasPrefix("__local_api_") }
+    }
+
+    /// What a pre-#1509 build exports: the real `BackupMode(from:)` projection
+    /// of every stored Mode, through the v1 Codable round trip.
+    private func exportedModes(of persistence: PersistenceController) throws -> [BackupMode] {
+        let data = try JSONEncoder().encode(persistence.fetchAllModes().map { BackupMode(from: $0) })
+        return try JSONDecoder().decode([BackupMode].self, from: data)
+    }
+
+    /// Path 1. The user deleted every real Mode, so leaked rows are all that
+    /// is left. The default-mode repair used to run first and make one of them
+    /// the default, and the purge then kept it for good.
+    @Test func aLaunchWithOnlyLeakedRowsEndsWithTheSeededDefaultMode() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let t = LocalAPITransientModeMarker.transcribeName
+        let p = LocalAPITransientModeMarker.postProcessName
+        _ = makeSavedMode(in: persistence, name: t, sortOrder: Int16.max)
+        _ = makeSavedMode(in: persistence, name: "\(t) 2", sortOrder: Int16.max)
+        _ = makeSavedMode(in: persistence, name: p, sortOrder: Int16.max)
+        try saveFixtures(persistence)
+
+        persistence.prepareModesOnLaunch()
+
+        let stored = try storedModes(in: persistence)
+        #expect(try internalNamedRows(in: persistence).isEmpty, "\(stored)")
+        // The store was empty after the purge, so the launch seeded the one
+        // real default mode, exactly as on a fresh install.
+        #expect(stored.count == 1, "\(stored)")
+        #expect(stored.first?.isDefault == true)
+        #expect(persistence.didSeedDefaultModesOnLaunch)
+        #expect(!persistence.container.viewContext.hasChanges)
+
+        // The next launch changes nothing.
+        persistence.prepareModesOnLaunch()
+        #expect(try storedModes(in: persistence) == stored)
+    }
+
+    /// Path 1, on a store an earlier build already repaired: a leaked row holds
+    /// the default flag. The purge deletes it and moves the flag to a real
+    /// mode, and a user Mode with the same name and an ordinary sort order stays.
+    @Test func aLaunchDeletesALeakedRowThatAlreadyHoldsTheDefault() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let t = LocalAPITransientModeMarker.transcribeName
+        _ = makeSavedMode(in: persistence, name: t, sortOrder: Int16.max, isDefault: true)
+        _ = makeSavedMode(in: persistence, name: "\(t) 2", sortOrder: Int16.max)
+        _ = makeSavedMode(in: persistence, name: "Meeting", sortOrder: 0)
+        _ = makeSavedMode(in: persistence, name: "\(t) 3", sortOrder: 3)
+        try saveFixtures(persistence)
+
+        persistence.prepareModesOnLaunch()
+
+        #expect(try storedModes(in: persistence) == [
+            StoredMode(name: "Meeting", sortOrder: 0, isDefault: true),
+            StoredMode(name: "\(t) 3", sortOrder: 3, isDefault: false),
+        ])
+        // Not a fresh install: nothing was seeded.
+        #expect(!persistence.didSeedDefaultModesOnLaunch)
+        #expect(!persistence.container.viewContext.hasChanges)
+    }
+
+    /// Path 2. A backup exported on a pre-#1509 build carries leaked rows.
+    /// The restore used to recreate each one with `maxSortOrder + 1`, so the
+    /// launch purge never matched it again. A user Mode named like the
+    /// internal one, with an ordinary sort order, is still restored.
+    @Test func aRestoredPreFixBackupLeavesNoLeakedRowAfterALaunch() throws {
+        let t = LocalAPITransientModeMarker.transcribeName
+        let p = LocalAPITransientModeMarker.postProcessName
+        let source = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: source, name: "Meeting", sortOrder: 0, isDefault: true)
+        _ = makeSavedMode(in: source, name: t, sortOrder: 4)
+        _ = makeSavedMode(in: source, name: "\(t) 2", sortOrder: Int16.max)
+        _ = makeSavedMode(in: source, name: p, sortOrder: Int16.max)
+        try saveFixtures(source)
+        let backup = try exportedModes(of: source)
+        try #require(backup.filter { $0.sortOrder == Int16.max }.count == 2)
+
+        let persistence = PersistenceController(inMemory: true)
+        let result = try persistence.importBackupStore(
+            modes: backup,
+            modeResolution: .skip,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        )
+        persistence.prepareModesOnLaunch()
+
+        let stored = try storedModes(in: persistence)
+        #expect(stored.map(\.name) == ["Meeting", t], "\(stored)")
+        #expect(stored.first { $0.name == "Meeting" }?.isDefault == true)
+        // The left-out rows are neither imported nor reported as skipped.
+        #expect(result.modesImported == 2)
+        #expect(result.modesSkipped == 0)
+        #expect(!persistence.container.viewContext.hasChanges)
+    }
+
+    /// Path 2 under "Replace": a leaked backup row used to delete the local
+    /// Mode with the same name before it was recreated in its place.
+    @Test func aReplaceRestoreOfALeakedRowKeepsTheLocalModeWithThatName() throws {
+        let t = LocalAPITransientModeMarker.transcribeName
+        let source = PersistenceController(inMemory: true)
+        _ = makeSavedMode(in: source, name: "Meeting", sortOrder: 0, isDefault: true)
+        _ = makeSavedMode(in: source, name: t, sortOrder: Int16.max)
+        try saveFixtures(source)
+        let backup = try exportedModes(of: source)
+
+        let persistence = PersistenceController(inMemory: true)
+        let local = makeSavedMode(in: persistence, name: t, sortOrder: 3, isDefault: true)
+        local.model = "small.en"
+        let localId = try #require(local.id)
+        try saveFixtures(persistence)
+
+        _ = try persistence.importBackupStore(
+            modes: backup,
+            modeResolution: .replace,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        )
+        persistence.prepareModesOnLaunch()
+
+        let stored = try storedModes(in: persistence)
+        #expect(stored.map(\.name) == ["Meeting", t], "\(stored)")
+        let kept = try #require(persistence.fetchAllModes().first { $0.name == t })
+        #expect(kept.id == localId)
+        #expect(kept.sortOrder == 3)
+        #expect(kept.model == "small.en")
+    }
+
+    /// `init` runs the launch steps only for an on-disk store, so the tests
+    /// above drive `prepareModesOnLaunch()` by hand. Pin that `init` runs it
+    /// first, and that it purges before it seeds.
+    @Test func launchRunsThePurgeBeforeTheDefaultModeSeed() throws {
+        let path = "app/macos/hyperwhisper/CoreData/PersistenceController.swift"
+        let launch = try ProductionSource.slice(
+            of: path,
+            from: "if !inMemory {",
+            to: "normalizeCloudRouteIdentifiersIfNeeded()"
+        )
+        #expect(launch.trimmingCharacters(in: .whitespacesAndNewlines) == "prepareModesOnLaunch()")
+        let afterInit = try ProductionSource.slice(
+            of: path,
+            from: "normalizeCloudRouteIdentifiersIfNeeded()",
+            to: "func prepareModesOnLaunch() {"
+        )
+        #expect(!afterInit.contains("initializeDefaultModes()"))
+        #expect(!afterInit.contains("purgeLeakedLocalAPITransientModesOnLaunch()"))
+
+        let prepare = try ProductionSource.slice(
+            of: path,
+            from: "func prepareModesOnLaunch() {",
+            to: "private func purgeLeakedLocalAPITransientModesOnLaunch() {"
+        )
+        let purge = try #require(prepare.range(of: "purgeLeakedLocalAPITransientModesOnLaunch()"))
+        let seed = try #require(prepare.range(of: "initializeDefaultModes()"))
+        #expect(purge.lowerBound < seed.lowerBound)
+    }
 }

@@ -276,6 +276,23 @@ extension PersistenceController {
 
         for backupMode in backupModes {
             let normalizedBackupName = ModeNamePolicy.storageName(backupMode.name, replacing: nil)
+            // Issue #1546: a backup exported on a build before #1509 can carry
+            // leaked Local API rows. `createOrUpdateMode` would give such a row
+            // an ordinary sort order, and the launch purge would never match it
+            // again, so it is recognised here by the backup row's own values and
+            // not restored at all. It is not counted as skipped: it was never a
+            // mode the user made. This check runs before the conflict handling,
+            // so under `.replace` it cannot delete a local mode with the same
+            // name. A backup row has no seeded flag, and a restored row never
+            // gets one.
+            if Self.isLeakedLocalAPITransientModeRow(
+                name: normalizedBackupName,
+                sortOrder: backupMode.sortOrder,
+                isSystemProvided: false
+            ) {
+                AppLogger.coreData.info("Backup import: left out a leaked Local API transient mode")
+                continue
+            }
             let normalizedKey = ModeNamePolicy.comparisonKey(normalizedBackupName)!
             let conflicts = fetchAllModes().filter {
                 guard let name = $0.name else { return false }
