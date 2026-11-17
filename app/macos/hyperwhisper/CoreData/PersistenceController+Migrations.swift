@@ -260,6 +260,9 @@ extension PersistenceController {
     /// prompt the app holds back until it has explained it. Until then the
     /// flag stays unset and a later launch runs the sweep.
     func scheduleOrphanedTrimmedUploadCopySweepOnLaunch(defaults: UserDefaults = .standard) {
+        // The unit-test host is this app on the user's own profile: a test
+        // run must never delete files from the real recordings folder.
+        guard !StoreInstanceLock.isRunningUnitTests else { return }
         guard !defaults.bool(forKey: Self.orphanedTrimmedUploadCopySweepDefaultsKey) else { return }
         guard let folder = Self.recordingsFolderForLaunchSweep(defaults: defaults) else { return }
         Task.detached(priority: .utility) { [self] in
