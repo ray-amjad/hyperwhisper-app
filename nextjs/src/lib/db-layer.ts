@@ -855,7 +855,7 @@ async function attachPooledCredits<T extends { userId: string }>(
 // 100 per customer is generous enough that no realistic customer's real
 // license set should ever hit it, while guaranteeing every requested userId
 // gets at least some rows back.
-const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
+export const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
 
 /**
  * Fetch every license (with credit balance) belonging to the given users,
@@ -908,6 +908,46 @@ export async function getAccountKeysWithCreditsForUserIds(
 
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
+}
+
+/**
+ * Every distinct Stripe customer id on each account's keys, with NO per-account
+ * row cap. A customer's total spend sums these, so it must not depend on the
+ * newest-100 cap `getAccountKeysWithCreditsForUserIds` puts on the key list:
+ * an older paid key's customer id would drop out of the total (#3056). Shared
+ * by the admin Customers page and the admin MCP `find_customer` tool.
+ */
+export async function getStripeCustomerIdsForUserIds(
+  userIds: string[],
+): Promise<Map<string, Set<string>>> {
+  const byUser = new Map<string, Set<string>>();
+
+  if (userIds.length === 0) return byUser;
+  const rows = await db
+    .selectDistinct({
+      userId: accountKeys.userId,
+      stripeCustomerId: accountKeys.stripeCustomerId,
+    })
+    .from(accountKeys)
+    .where(
+      and(
+        inArray(accountKeys.userId, userIds),
+        sql`${accountKeys.stripeCustomerId} IS NOT NULL`,
+      ),
+    );
+
+  for (const row of rows) {
+    if (!row.stripeCustomerId) continue;
+    let ids = byUser.get(row.userId);
+
+    if (!ids) {
+      ids = new Set();
+      byUser.set(row.userId, ids);
+    }
+    ids.add(row.stripeCustomerId);
+  }
+
+  return byUser;
 }
 
 /**

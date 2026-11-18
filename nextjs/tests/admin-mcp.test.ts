@@ -35,7 +35,7 @@ interface License {
   status: string;
   polarLicenseKeyId: null;
   polarCustomerId: null;
-  stripeCustomerId: null;
+  stripeCustomerId: string | null;
   stripeSessionId: null;
   createdAt: Date;
 }
@@ -81,13 +81,47 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       Array.from(store.users.values()).find((u) => u.email === email) ?? null,
     getUsersByIds: async (ids: string[]) =>
       new Map(ids.flatMap((id) => (store.users.has(id) ? [[id, store.users.get(id)]] : []))),
+    // Like the real query: the newest ACCOUNT_KEYS_PER_USER_ROW_LIMIT keys
+    // per account only.
+    ACCOUNT_KEYS_PER_USER_ROW_LIMIT: 100,
     getAccountKeysWithCreditsForUserIds: async (ids: string[]) =>
-      store.licenses
-        .filter((l) => ids.includes(l.userId))
-        .map((l) => ({ ...l, credits: balanceOf(l.userId) })),
+      ids.flatMap((id) =>
+        store.licenses
+          .filter((l) => l.userId === id)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, 100)
+          .map((l) => ({ ...l, credits: balanceOf(l.userId) })),
+      ),
+    // Like the real query: every key, NO per-account cap.
+    getStripeCustomerIdsForUserIds: async (ids: string[]) => {
+      const byUser = new Map<string, Set<string>>();
+
+      for (const l of store.licenses) {
+        if (!l.stripeCustomerId || !ids.includes(l.userId)) continue;
+        const set = byUser.get(l.userId) ?? new Set<string>();
+
+        set.add(l.stripeCustomerId);
+        byUser.set(l.userId, set);
+      }
+
+      return byUser;
+    },
     getCreditBalance: async (userId: string) => balanceOf(userId),
-    getCreditGrantsForUsers: async (ids: string[]) =>
-      store.grants.filter((g) => ids.includes(g.userId)),
+    // Like the real query: newest first, at most `limit` rows PER account.
+    getCreditGrantsForUsers: async (ids: string[], limit: number) => {
+      const truncatedUserIds = new Set<string>();
+      const rows = ids.flatMap((id) => {
+        const own = store.grants
+          .filter((g) => g.userId === id)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        if (own.length > limit) truncatedUserIds.add(id);
+
+        return own.slice(0, limit);
+      });
+
+      return { rows, truncatedUserIds };
+    },
     findCreditGrantBySource: async (sourceType: string, sourceId: string) =>
       store.grants.find((g) => g.sourceType === sourceType && g.sourceId === sourceId) ?? null,
     // The real one reads the key FOR SHARE inside the grant's transaction.
@@ -129,6 +163,37 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   },
 });
 
+// Stripe, as the shared customer spend reader calls it. A customer id mapped
+// to an Error makes its charge list fail.
+const stripeCharges = new Map<string, Array<Record<string, unknown>> | Error>();
+const stripeDisputes = new Map<string, string>();
+
+moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
+  namedExports: {
+    stripe: {
+      charges: {
+        list: (params: { customer: string }) => ({
+          autoPagingToArray: async () => {
+            const answer = stripeCharges.get(params.customer) ?? [];
+
+            if (answer instanceof Error) throw answer;
+
+            return answer;
+          },
+        }),
+      },
+      disputes: {
+        list: async (params: { charge: string }) => {
+          const status = stripeDisputes.get(params.charge);
+
+          return { data: status ? [{ status }] : [] };
+        },
+      },
+    },
+    stripeRefundApi: {},
+  },
+});
+
 let route: typeof import("../app/api/mcp/admin/route");
 
 test.before(async () => {
@@ -152,7 +217,7 @@ beforeEach(() => {
       status: "granted",
       polarLicenseKeyId: null,
       polarCustomerId: null,
-      stripeCustomerId: null,
+      stripeCustomerId: "cus_test_1",
       stripeSessionId: null,
       createdAt: new Date("2025-01-02T00:00:00Z"),
     },
@@ -185,6 +250,8 @@ beforeEach(() => {
   ];
   store.grantCalls = 0;
   store.staleGranted = false;
+  stripeCharges.clear();
+  stripeDisputes.clear();
 });
 
 function post(body: unknown, auth: string | null = `Bearer ${TOKEN}`): NextRequest {
@@ -405,7 +472,8 @@ test("add_credits grants exactly 30,000 and reports the new balance", async () =
       tool: "add_credits",
       amount: 30_000,
       sourceId: grant.sourceId,
-      reason: "pre-open-source purchase",
+      reasonRedacted: "pre-open-source purchase",
+      reasonLength: "pre-open-source purchase".length,
       licenseKeyId: "lic-1",
       userId: "user-1",
       newBalance: 31_200,
@@ -525,8 +593,15 @@ test("find_customer by email returns licenses, balance and grants", async () => 
       email: "buyer@example.com",
       createdAt: "2025-01-02T00:00:00.000Z",
       matched: true,
+      purchase: {
+        stripeCustomerId: "cus_test_1",
+        stripeCheckoutSessionId: null,
+        polarCustomerId: null,
+      },
     },
   ]);
+  assert.equal(customer.creditGrantsTruncated, false);
+  assert.equal(customer.licensesTruncated, undefined);
   assert.deepEqual(customer.creditGrants, [
     {
       sourceType: "license_bundle",
@@ -560,4 +635,234 @@ test("find_customer needs exactly one of email or licenseKey", async () => {
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /exactly one/);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Text content beside structuredContent (follow-up 1)
+// ---------------------------------------------------------------------------
+
+test("every tool result carries a text block on the wire, success and error", async () => {
+  const calls: Array<[string, Record<string, unknown>]> = [
+    ["find_customer", { email: "buyer@example.com" }],
+    ["find_customer", { email: "nobody@example.com" }],
+    ["add_credits", grantArgs(100, "text-block-0001")],
+    ["add_credits", grantArgs(0)],
+    ["find_customer", {}],
+  ];
+
+  for (const [name, args] of calls) {
+    const capture = captureConsole(["log", "warn", "error"]);
+    let body: { result: { content: Array<{ type: string; text: string }>; structuredContent?: unknown; isError?: boolean } };
+
+    try {
+      const res = await route.POST(
+        post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+      );
+
+      body = JSON.parse(await res.text());
+    } finally {
+      capture.restore();
+    }
+    const { content, structuredContent, isError } = body.result;
+
+    assert.equal(content.length, 1, `${name} ${JSON.stringify(args)}`);
+    assert.equal(content[0].type, "text");
+    assert.ok(content[0].text.length > 0);
+    if (structuredContent !== undefined) {
+      // The text block is the same data, serialised.
+      assert.deepEqual(JSON.parse(content[0].text), structuredContent);
+    } else {
+      assert.equal(isError, true);
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Spend (follow-up 2)
+// ---------------------------------------------------------------------------
+
+test("find_customer reports the Customers page's total spend and the charges behind it", async () => {
+  stripeCharges.set("cus_test_1", [
+    { id: "ch_license", status: "succeeded", disputed: false, amount: 1500, amount_refunded: 0, created: 1735776000, description: "HyperWhisper license" },
+    { id: "ch_pack", status: "succeeded", disputed: false, amount: 1200, amount_refunded: 165, created: 1736000000, description: "Credit pack" },
+    { id: "ch_failed", status: "failed", disputed: false, amount: 999, amount_refunded: 0, created: 1736100000 },
+    { id: "ch_lost", status: "succeeded", disputed: true, amount: 500, amount_refunded: 0, created: 1736200000 },
+  ]);
+  stripeDisputes.set("ch_lost", "lost");
+
+  const { result } = await callTool("find_customer", { licenseKey: ACTIVE_KEY });
+  const [customer] = result.structuredContent.customers;
+
+  assert.equal(customer.totalSpentCents, 2535);
+  assert.equal(customer.totalSpentUsd, 25.35);
+  assert.equal(customer.hasStripeCustomer, true);
+  assert.match(customer.totalSpentNote, /credit-pack/);
+  assert.deepEqual(
+    customer.charges.map((c: { id: string; countedCents: number; excluded?: string }) => [c.id, c.countedCents, c.excluded ?? null]),
+    [
+      ["ch_license", 1500, null],
+      ["ch_pack", 1035, null],
+      ["ch_failed", 0, "not_succeeded"],
+      ["ch_lost", 0, "dispute_not_won"],
+    ],
+  );
+  assert.equal(customer.charges[0].stripeCustomerId, "cus_test_1");
+  assert.equal(customer.charges[0].createdAt, "2025-01-02T00:00:00.000Z");
+  assert.equal(customer.charges[0].description, "HyperWhisper license");
+});
+
+test("find_customer spend is null when Stripe fails, and 0 without a Stripe customer", async () => {
+  stripeCharges.set("cus_test_1", new Error("stripe down"));
+  const capture = captureConsole(["error"]);
+
+  try {
+    const failed = await callTool("find_customer", { licenseKey: ACTIVE_KEY });
+    const [customer] = failed.result.structuredContent.customers;
+
+    assert.equal(customer.totalSpentCents, null);
+    assert.equal(customer.totalSpentUsd, null);
+    assert.deepEqual(customer.spendUnavailableFor, ["cus_test_1"]);
+  } finally {
+    capture.restore();
+  }
+
+  const none = await callTool("find_customer", { licenseKey: REFUNDED_KEY });
+  const [customer] = none.result.structuredContent.customers;
+
+  assert.equal(customer.totalSpentCents, 0);
+  assert.equal(customer.hasStripeCustomer, false);
+  assert.deepEqual(customer.charges, []);
+});
+
+// ---------------------------------------------------------------------------
+// Reason redaction (follow-up 3)
+// ---------------------------------------------------------------------------
+
+test("a grant logs a masked reason and its length, never the raw reason", async () => {
+  const reason = `paid $25.35 as buyer@example.com for ${ACTIVE_KEY}, ref ${"a".repeat(30)}`;
+  const { result, logs } = await callTool("add_credits", { ...grantArgs(20_350, "redact-reason-01"), reason });
+
+  assert.equal(result.structuredContent.status, "processed");
+  const line = logs.find((l) => l.includes("admin.mcp.add_credits"));
+
+  assert.ok(line);
+  const parsed = JSON.parse(line.slice(line.indexOf("{")));
+
+  assert.equal(parsed.reason, undefined);
+  assert.equal(parsed.reasonLength, reason.length);
+  assert.equal(parsed.reasonRedacted, "paid $25.35 as [email] for [license-key], ref [token]");
+  const all = logs.join("\n");
+
+  assert.ok(!all.includes("buyer@example.com"));
+  assert.ok(!all.includes(ACTIVE_KEY));
+});
+
+test("a refused grant also logs only the masked reason", async () => {
+  const reason = "for buyer@example.com";
+  const { logs } = await callTool("add_credits", { ...grantArgs(30_001), reason });
+
+  assert.ok(logs.some((l) => l.includes('"rejection":"out_of_band"')));
+  assert.ok(!logs.join("\n").includes("buyer@example.com"));
+});
+
+// ---------------------------------------------------------------------------
+// Lookup limits (follow-up 4)
+// ---------------------------------------------------------------------------
+
+test("find_customer by an old key past the 100-key cap still returns that key", async () => {
+  // The looked-up key is the OLDEST of 101 on the account, so the capped
+  // license list leaves it out.
+  for (let i = 0; i < 100; i++) {
+    store.licenses.push({
+      ...store.licenses[0],
+      id: `lic-new-${i}`,
+      key: `HW-TEST-NEW0-${String(i).padStart(4, "0")}`,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)),
+    });
+  }
+  const { result } = await callTool("find_customer", { licenseKey: ACTIVE_KEY });
+  const [customer] = result.structuredContent.customers;
+  const matched = customer.licenses.filter((l: { matched: boolean }) => l.matched);
+
+  assert.equal(customer.licenses.length, 101);
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].key, ACTIVE_KEY);
+  assert.equal(customer.licensesTruncated, true);
+  assert.match(customer.licensesNote, /newest 100/);
+});
+
+test("grant history is limited per account and says when it was cut", async () => {
+  // Two accounts share an email match; user-1 has 205 grants, user-2 has 1.
+  store.licenses[1].email = "buyer@example.com";
+  for (let i = 0; i < 204; i++) {
+    store.grants.push({
+      ...store.grants[0],
+      id: `bulk-${i}`,
+      sourceType: "admin_manual",
+      sourceId: `bulk-${i}`,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
+    });
+  }
+  store.grants.push({ ...store.grants[0], id: "u2-grant", userId: "user-2", sourceId: "u2" });
+
+  const { result } = await callTool("find_customer", { email: "buyer@example.com" });
+  const byId = new Map(
+    result.structuredContent.customers.map((c: { userId: string }) => [c.userId, c]),
+  ) as Map<string, { creditGrants: unknown[]; creditGrantsTruncated: boolean; creditGrantsNote?: string }>;
+
+  assert.equal(byId.get("user-1")?.creditGrants.length, 200);
+  assert.equal(byId.get("user-1")?.creditGrantsTruncated, true);
+  assert.match(byId.get("user-1")?.creditGrantsNote ?? "", /newest 200/);
+  assert.equal(byId.get("user-2")?.creditGrants.length, 1);
+  assert.equal(byId.get("user-2")?.creditGrantsTruncated, false);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1 on #3056
+// ---------------------------------------------------------------------------
+
+test("a license key right after a word character is still masked", async () => {
+  const glued = ["_", "x", "9"].map((p) => `${p}${ACTIVE_KEY}`);
+  const lower = ACTIVE_KEY.toLowerCase();
+
+  for (const reason of [...glued.map((g) => `ref${g}`), `key:${lower}.`]) {
+    const { logs } = await callTool("add_credits", { ...grantArgs(30_001), reason });
+    const all = logs.join("\n");
+
+    assert.ok(all.includes("[license-key]"), all);
+    assert.ok(!all.toUpperCase().includes(ACTIVE_KEY), all);
+  }
+});
+
+test("spend counts an old paid key's Stripe customer past the 100-key cap, by email and by key", async () => {
+  // The paid key is the OLDEST of 101 on the account; the 100 newer keys
+  // have no Stripe customer, so only the uncapped id query finds cus_old.
+  store.licenses[0].stripeCustomerId = "cus_old";
+  for (let i = 0; i < 100; i++) {
+    store.licenses.push({
+      ...store.licenses[0],
+      id: `lic-new-${i}`,
+      key: `HW-TEST-NEW0-${String(i).padStart(4, "0")}`,
+      stripeCustomerId: null,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)),
+    });
+  }
+  stripeCharges.set("cus_old", [
+    { id: "ch_old", status: "succeeded", disputed: false, amount: 2535, amount_refunded: 0 },
+  ]);
+
+  const byEmail = await callTool("find_customer", { email: "buyer@example.com" });
+  const byKey = await callTool("find_customer", { licenseKey: ACTIVE_KEY });
+  const emailCustomer = byEmail.result.structuredContent.customers[0];
+  const keyCustomer = byKey.result.structuredContent.customers[0];
+
+  // The email lookup's capped license list leaves the old key out...
+  assert.equal(
+    emailCustomer.licenses.some((l: { key: string }) => l.key === ACTIVE_KEY),
+    false,
+  );
+  // ...but its purchase still counts, and both lookups agree.
+  assert.equal(emailCustomer.totalSpentCents, 2535);
+  assert.equal(emailCustomer.hasStripeCustomer, true);
+  assert.equal(keyCustomer.totalSpentCents, 2535);
 });
