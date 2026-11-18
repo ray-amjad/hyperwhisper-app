@@ -7,9 +7,17 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 
 ## Prerequisites
 
-1. Install HyperWhisper for macOS or Windows, then open it one time. Both apps write the discovery file that the bridge reads.
-2. Turn on the local API server: **Settings → API Server** on macOS, or **Settings → Local API** on Windows. This setting writes the discovery file that the bridge reads.
-3. Put Node.js 18 or newer on your `PATH`. Run `node --version` to see the version number. If the command fails, install Node.js from [nodejs.org](https://nodejs.org). Node.js includes the `npx` command.
+<Steps>
+  <Step title="Install and open HyperWhisper">
+    Install HyperWhisper for macOS or Windows, then open it one time. Both apps write the discovery file that the bridge reads.
+  </Step>
+  <Step title="Turn on the local API server">
+    Turn on the local API server: **Settings → API Server** on macOS, or **Settings → Local API** on Windows. This setting writes the discovery file that the bridge reads.
+  </Step>
+  <Step title="Install Node.js 18 or newer">
+    Put Node.js 18 or newer on your `PATH`. Run `node --version` to see the version number. If the command fails, install Node.js from [nodejs.org](https://nodejs.org). Node.js includes the `npx` command.
+  </Step>
+</Steps>
 
 You do not need a global installation of the bridge. The `npx -y @hyperwhisper/mcp` command downloads the bridge and runs it on demand. Each MCP client in this page uses that command directly.
 

@@ -572,9 +572,10 @@ public class HistoryService
 
         lock (_lock)
         {
+            LastRecoveryFailure = null;
             try
             {
-                using var context = new HyperWhisperDbContext();
+                using var context = NewRowWriteContext();
 
                 recovered = context.Transcripts
                     .Where(t => t.Status == TranscriptStatus.Processing)
@@ -595,6 +596,7 @@ public class HistoryService
             }
             catch (Exception ex)
             {
+                LastRecoveryFailure = ex;
                 LoggingService.Error("HistoryService: Orphaned Processing transcript recovery failed", ex);
                 return 0;
             }
@@ -615,6 +617,13 @@ public class HistoryService
 
         return recovered.Count;
     }
+
+    /// <summary>
+    /// What made the last <see cref="RecoverOrphanedProcessingTranscripts"/> return 0
+    /// by failing, or null when it ran clean. Its 0 alone cannot tell a refused write
+    /// from "nothing was Processing" (#2430). For diagnostics and tests.
+    /// </summary>
+    internal Exception? LastRecoveryFailure { get; private set; }
 
     // =========================================================================
     // PUBLIC METHODS - UPDATE
@@ -651,7 +660,7 @@ public class HistoryService
             {
                 try
                 {
-                    using var context = new HyperWhisperDbContext();
+                    using var context = NewRowWriteContext();
 
                     var existing = context.Transcripts.Find(transcript.Id);
                     if (existing == null)
@@ -668,8 +677,10 @@ public class HistoryService
                     LoggingService.Info($"HistoryService: Updated transcript {transcript.Id} (Status: {transcript.Status})");
                     FlushPendingLocked();
                 }
-                catch (DbUpdateException ex)
+                catch (Exception ex) when (IsRefusedWrite(ex))
                 {
+                    // A lock the busy retry timed out on can now surface from BEGIN or
+                    // COMMIT as a bare SqliteException; it is logged the same way.
                     LoggingService.Error($"HistoryService: Failed to update transcript {transcript.Id}", ex);
                     throw;
                 }
@@ -723,7 +734,7 @@ public class HistoryService
             {
                 try
                 {
-                    using var context = new HyperWhisperDbContext();
+                    using var context = NewRowWriteContext();
 
                     var existing = context.Transcripts.Find(id);
                     if (existing == null)
@@ -738,7 +749,7 @@ public class HistoryService
                     LoggingService.Info($"HistoryService: Updated audio path of transcript {id}");
                     FlushPendingLocked();
                 }
-                catch (DbUpdateException ex)
+                catch (Exception ex) when (IsRefusedWrite(ex))
                 {
                     LoggingService.Error($"HistoryService: Failed to update audio path of transcript {id}", ex);
                     throw;
@@ -786,7 +797,7 @@ public class HistoryService
             {
                 try
                 {
-                    using var context = new HyperWhisperDbContext();
+                    using var context = NewRowWriteContext();
 
                     transcript = context.Transcripts.Find(id);
                     if (transcript == null)
@@ -912,11 +923,25 @@ public class HistoryService
     }
 
     /// <summary>
-    /// The database said no: SaveChanges failed (<see cref="DbUpdateException"/>), or
-    /// the lookup before it hit a locked or broken database
-    /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
-    /// runtime failures, so they become a failed Result rather than a throw.
+    /// A context for a write that may touch one existing row (an UPDATE or a DELETE).
+    /// EF Core runs such a single-statement SaveChanges with no transaction, as
+    /// <c>UPDATE ... RETURNING 1</c>. The database is in rollback-journal mode (it is
+    /// opened before MigrateAsync, so EF never switches it to WAL), and in autocommit the
+    /// commit happens when that statement is reset, where Microsoft.Data.Sqlite's busy
+    /// retry does not run and no native busy timeout is set: any other connection
+    /// mid-read at that moment (the Home stats bar's recompute after every History
+    /// event) failed the write at once with "database is locked" (#2430, #2403).
+    /// Always wrapping it in EF's transaction (BEGIN IMMEDIATE ... COMMIT) puts both
+    /// lock waits back in the provider's 30 s busy retry, as a multi-row SaveChanges
+    /// already was.
     /// </summary>
+    private static HyperWhisperDbContext NewRowWriteContext()
+    {
+        var context = new HyperWhisperDbContext();
+        context.Database.AutoTransactionBehavior = AutoTransactionBehavior.Always;
+        return context;
+    }
+
     /// <summary>
     /// BEGIN DEFERRED on the context's connection. EF's own BeginTransaction is BEGIN
     /// IMMEDIATE on SQLite: it would wait for the write lock before any statement runs,
@@ -931,6 +956,12 @@ public class HistoryService
         return transaction;
     }
 
+    /// <summary>
+    /// The database said no: SaveChanges failed (<see cref="DbUpdateException"/>), or
+    /// the lookup before it hit a locked or broken database
+    /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
+    /// runtime failures, so they become a failed Result rather than a throw.
+    /// </summary>
     private static bool IsRefusedWrite(Exception ex) =>
         ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
 
