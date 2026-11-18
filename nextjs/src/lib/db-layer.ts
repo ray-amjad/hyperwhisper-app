@@ -24,6 +24,7 @@ import {
 import {
   getCreditBalancesForUsers,
   grantCreditLotInTransaction,
+  type CreditGrantInsert,
   type CreditGrantSourceType,
   type DbExecutor,
 } from "./credit-ledger";
@@ -752,6 +753,42 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
     });
 
     return license;
+  });
+}
+
+export type GrantToGrantedKeyResult =
+  | {
+      status: "processed" | "duplicate";
+      balance: number;
+      license: AccountKeyRow;
+    }
+  | { status: "license_not_found" }
+  | { status: "license_not_granted"; license: AccountKeyRow };
+
+/**
+ * Grant a credit lot to the account that owns `key`, only while that key is
+ * `granted`, in ONE transaction. The key row is read `FOR SHARE`, so a
+ * revocation or refund (an `UPDATE` of its status) either committed first and
+ * is seen here, or waits until this grant commits. A status checked outside
+ * the transaction could change between the check and the grant (#3054).
+ */
+export async function grantCreditLotToGrantedKey(
+  key: string,
+  grant: Omit<CreditGrantInsert, "userId">,
+): Promise<GrantToGrantedKeyResult> {
+  return db.transaction(async (tx) => {
+    const license = await findAccountByKey(key, tx, { lockForShare: true });
+
+    if (!license) return { status: "license_not_found" };
+    if (license.status !== "granted") {
+      return { status: "license_not_granted", license };
+    }
+    const result = await grantCreditLotInTransaction(tx, {
+      ...grant,
+      userId: license.userId,
+    });
+
+    return { ...result, license };
   });
 }
 

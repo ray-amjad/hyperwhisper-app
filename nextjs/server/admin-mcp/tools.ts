@@ -8,11 +8,19 @@
  * construction: the route refuses every request without that token.
  *
  * Grants match the admin tRPC `addCredits` (server/api/routers/admin/
- * customers.ts): one `grantCreditLot` to the license's owning user, sourceType
- * `admin_manual`. The difference is the source id. The tRPC path draws a
- * random one; here it is derived from the caller's `idempotencyKey`, and
- * (source type, source id) is unique in `credit_grants`, so a retried call can
- * never grant twice.
+ * customers.ts): one credit lot to the license's owning user, sourceType
+ * `admin_manual`. Two differences. The source id: the tRPC path draws a random
+ * one; here it is derived from the caller's `idempotencyKey`, and (source
+ * type, source id) is unique in `credit_grants`, so a retried call can never
+ * grant twice. And the key must be `granted`, checked inside the grant's own
+ * transaction (`grantCreditLotToGrantedKey`), so a revoke or refund cannot
+ * slip in between the check and the grant.
+ *
+ * Approval of large grants is NOT enforced here, by design: the bearer token
+ * belongs to the agent gateway alone, and the gateway holds every destructive
+ * tool (`add_credits_large`) until a person approves it. This server cannot
+ * see that approval, so a server-side check could only be a field the caller
+ * sets itself, which proves nothing.
  *
  * Two grant tools share one implementation and differ only in their band: up
  * to 30,000 credits ($30 at 1,000 credits per dollar) is `add_credits`; above
@@ -30,7 +38,7 @@ import {
   getCreditGrantsForUsers,
   getUserByEmail,
   getUsersByIds,
-  grantCreditLot,
+  grantCreditLotToGrantedKey,
   type AccountKeyRow,
 } from "@/src/lib/db-layer";
 import { sha256Hex } from "@/lib/shared/sha256";
@@ -262,16 +270,25 @@ async function addCredits(band: GrantBand, args: unknown): Promise<ToolResult> {
   }
 
   try {
-    const license = await findAccountByKey(licenseKey);
+    // The key's status is checked inside the grant's own transaction, with the
+    // key row locked FOR SHARE, so a revoke or refund cannot land between the
+    // check and the grant.
+    const result = await grantCreditLotToGrantedKey(licenseKey, {
+      amount: credits,
+      sourceType: "admin_manual",
+      sourceId,
+    });
 
-    if (!license) {
+    if (result.status === "license_not_found") {
       logGrant("rejected", { ...log, rejection: "license_not_found" });
 
       return toolError("License key not found");
     }
+    const license = result.license;
+
     log.licenseKeyId = license.id;
     log.userId = license.userId;
-    if (license.status !== "granted") {
+    if (result.status === "license_not_granted") {
       logGrant("rejected", {
         ...log,
         rejection: "license_not_active",
@@ -282,13 +299,6 @@ async function addCredits(band: GrantBand, args: unknown): Promise<ToolResult> {
         `License key is ${license.status}; credits can only be added to a granted (active) license`,
       );
     }
-
-    const result = await grantCreditLot({
-      userId: license.userId,
-      amount: credits,
-      sourceType: "admin_manual",
-      sourceId,
-    });
 
     if (result.status === "duplicate") {
       // Nothing was written. Confirm the earlier grant is the SAME request
