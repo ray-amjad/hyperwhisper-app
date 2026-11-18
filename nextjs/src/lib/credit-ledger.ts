@@ -554,3 +554,90 @@ export async function getPaidCreditGrantsForUsers(
     status: row.status,
   }));
 }
+
+export interface CreditGrantLedgerRow {
+  id: string;
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  originalAmount: number;
+  remainingAmount: number;
+  refundedAmount: number;
+  status: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+}
+
+const ledgerRowColumns = {
+  id: creditGrants.id,
+  userId: creditGrants.userId,
+  sourceType: creditGrants.sourceType,
+  sourceId: creditGrants.sourceId,
+  originalAmount: creditGrants.originalAmount,
+  remainingAmount: creditGrants.remainingAmount,
+  refundedAmount: creditGrants.refundedAmount,
+  status: creditGrants.status,
+  createdAt: creditGrants.createdAt,
+  expiresAt: creditGrants.expiresAt,
+};
+
+function toLedgerRow(row: {
+  id: string;
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  originalAmount: string;
+  remainingAmount: string;
+  refundedAmount: string;
+  status: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+}): CreditGrantLedgerRow {
+  return {
+    ...row,
+    originalAmount: Number(row.originalAmount),
+    remainingAmount: Number(row.remainingAmount),
+    refundedAmount: Number(row.refundedAmount),
+  };
+}
+
+/**
+ * Every credit grant (any source, any status, expired included) for the given
+ * accounts, newest-first, at most `limit` rows. The admin MCP `find_customer`
+ * tool shows these so an operator can see what an account was already given.
+ */
+export async function getCreditGrantsForUsers(
+  userIds: string[],
+  limit = 200
+): Promise<CreditGrantLedgerRow[]> {
+  if (userIds.length === 0) return [];
+  const rows = await db
+    .select(ledgerRowColumns)
+    .from(creditGrants)
+    .where(inArray(creditGrants.userId, userIds))
+    .orderBy(desc(creditGrants.createdAt))
+    .limit(limit);
+  return rows.map(toLedgerRow);
+}
+
+/**
+ * The one grant recorded for a (source type, source id) pair, or null. The pair
+ * is unique (`credit_grants_source_unique`), which is what makes a
+ * deterministic source id an idempotency key.
+ */
+export async function findCreditGrantBySource(
+  sourceType: CreditGrantSourceType,
+  sourceId: string
+): Promise<CreditGrantLedgerRow | null> {
+  const [row] = await db
+    .select(ledgerRowColumns)
+    .from(creditGrants)
+    .where(
+      and(
+        eq(creditGrants.sourceType, sourceType),
+        eq(creditGrants.sourceId, sourceId)
+      )
+    )
+    .limit(1);
+  return row ? toLedgerRow(row) : null;
+}
