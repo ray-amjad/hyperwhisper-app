@@ -5,6 +5,7 @@ import { UserProvider } from "@/components/user/UserContext";
 import SessionRefresher from "@/components/user/SessionRefresher";
 import UserSidebar from "@/components/user/UserSidebar";
 import UserHeader from "@/components/user/UserHeader";
+import { PANEL_BG } from "@/components/user/panel-styles";
 
 /**
  * User Portal Layout
@@ -48,7 +49,7 @@ export default async function UserLayout({
   return (
     <UserProvider email={user.email || ""} isAdmin={isAdmin}>
       <SessionRefresher locale={locale} />
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className={`min-h-screen ${PANEL_BG}`}>
         <div className="flex flex-col md:flex-row">
           {/* Sidebar - Only visible for admins. Below md it is a menu bar
               above the content (#1330). */}
@@ -61,7 +62,7 @@ export default async function UserLayout({
             <UserHeader user={user} locale={locale} isAdmin={isAdmin} />
             <main
               className={`flex-1 ${
-                isAdmin ? "p-6" : "w-full max-w-4xl mx-auto px-6 py-8"
+                isAdmin ? "p-4 sm:p-6 lg:p-8" : "w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 md:py-10"
               }`}
             >
               {children}

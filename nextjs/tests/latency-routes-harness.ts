@@ -2,11 +2,11 @@
  * Test harness for the two internal latency routes:
  * `app/api/internal/latency` (the edge transcription service writes one
  * anonymous row per provider attempt) and `app/api/internal/latency/prune`
- * (the daily Vercel cron deletes rows past the 1-year retention the public
+ * (the daily Worker cron deletes rows past the 1-year retention the public
  * privacy page promises).
  *
  * Both routes reach three collaborators at import time: the Drizzle client
- * (`src/db/index.ts`), the Upstash-backed rate limiter (`lib/rate-limit.ts`)
+ * (`src/db/index.ts`), the Cloudflare rate limiter (`lib/rate-limit.ts`)
  * and the validated server env (`src/env/server.mjs`), which holds the secrets.
  * All three are replaced here with `mock.module`, so the tests run the REAL
  * route modules — the secret gate, the body-size guard, the batch validation,
@@ -40,7 +40,7 @@ export const calls = {
 export const behaviour = {
   /** What the rate limiter answers. */
   rateLimitSuccess: true,
-  /** Thrown by the rate limiter when set — models Upstash being unreachable. */
+  /** Thrown by the rate limiter when set — models the binding failing. */
   rateLimitError: null as unknown,
   /** Thrown by `insert().values()` when set — models a database fault. */
   insertError: null as unknown,
@@ -157,7 +157,7 @@ export function postRequest(
   });
 }
 
-/** Builds a GET the way the Vercel cron (or a manual run) sends one. */
+/** Builds a GET the way the Worker cron (or a manual run) sends one. */
 export function getRequest(
   path: string,
   headers: Record<string, string> = {},
