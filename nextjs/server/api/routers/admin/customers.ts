@@ -21,6 +21,7 @@ import {
   refundCreditGrant,
   revokeAccountKey,
   getAccountKeysWithCreditsForUserIds,
+  getStripeCustomerIdsForUserIds,
   getUserById,
   getUserByEmail,
   getUsersByIds,
@@ -164,9 +165,13 @@ export const customersRouter = createTRPCRouter({
 
         // Pull every license (with credit balance) for this page's customers,
         // plus canonical user.email for display.
-        const [licenses, userMap] = await Promise.all([
+        // The Stripe customer ids come from their own uncapped query: the
+        // license list is capped per customer, and an older paid key's
+        // customer id must still count toward Total spend (#3056).
+        const [licenses, userMap, stripeCustomerIdsByUserId] = await Promise.all([
           getAccountKeysWithCreditsForUserIds(userIds),
           getUsersByIds(userIds),
+          getStripeCustomerIdsForUserIds(userIds),
         ]);
 
         // Group licenses by their owning user. Display order is NOT derived
@@ -201,11 +206,6 @@ export const customersRouter = createTRPCRouter({
           }
         >();
 
-        // Distinct Stripe customer IDs per customer (userId), collected once
-        // here during the license-grouping pass rather than re-derived from
-        // customer.licenses again later.
-        const stripeCustomerIdsByUserId = new Map<string, Set<string>>();
-
         for (const l of licenses) {
           const created = Math.floor(l.createdAt.getTime() / 1000);
           let customer = customerMap.get(l.userId);
@@ -239,16 +239,6 @@ export const customersRouter = createTRPCRouter({
             stripeCustomerId: l.stripeCustomerId,
             created,
           });
-
-          if (l.stripeCustomerId) {
-            let ids = stripeCustomerIdsByUserId.get(l.userId);
-
-            if (!ids) {
-              ids = new Set();
-              stripeCustomerIdsByUserId.set(l.userId, ids);
-            }
-            ids.add(l.stripeCustomerId);
-          }
         }
 
         // Attach each customer's net lifetime Stripe spend, summed across all

@@ -911,6 +911,46 @@ export async function getAccountKeysWithCreditsForUserIds(
 }
 
 /**
+ * Every distinct Stripe customer id on each account's keys, with NO per-account
+ * row cap. A customer's total spend sums these, so it must not depend on the
+ * newest-100 cap `getAccountKeysWithCreditsForUserIds` puts on the key list:
+ * an older paid key's customer id would drop out of the total (#3056). Shared
+ * by the admin Customers page and the admin MCP `find_customer` tool.
+ */
+export async function getStripeCustomerIdsForUserIds(
+  userIds: string[],
+): Promise<Map<string, Set<string>>> {
+  const byUser = new Map<string, Set<string>>();
+
+  if (userIds.length === 0) return byUser;
+  const rows = await db
+    .selectDistinct({
+      userId: accountKeys.userId,
+      stripeCustomerId: accountKeys.stripeCustomerId,
+    })
+    .from(accountKeys)
+    .where(
+      and(
+        inArray(accountKeys.userId, userIds),
+        sql`${accountKeys.stripeCustomerId} IS NOT NULL`,
+      ),
+    );
+
+  for (const row of rows) {
+    if (!row.stripeCustomerId) continue;
+    let ids = byUser.get(row.userId);
+
+    if (!ids) {
+      ids = new Set();
+      byUser.set(row.userId, ids);
+    }
+    ids.add(row.stripeCustomerId);
+  }
+
+  return byUser;
+}
+
+/**
  * One page of distinct customers (grouped by user_id) from account_keys, plus
  * the total distinct-customer count — powers server-side pagination on the
  * admin Customers list. An optional email search filters the underlying

@@ -92,6 +92,20 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
           .slice(0, 100)
           .map((l) => ({ ...l, credits: balanceOf(l.userId) })),
       ),
+    // Like the real query: every key, NO per-account cap.
+    getStripeCustomerIdsForUserIds: async (ids: string[]) => {
+      const byUser = new Map<string, Set<string>>();
+
+      for (const l of store.licenses) {
+        if (!l.stripeCustomerId || !ids.includes(l.userId)) continue;
+        const set = byUser.get(l.userId) ?? new Set<string>();
+
+        set.add(l.stripeCustomerId);
+        byUser.set(l.userId, set);
+      }
+
+      return byUser;
+    },
     getCreditBalance: async (userId: string) => balanceOf(userId),
     // Like the real query: newest first, at most `limit` rows PER account.
     getCreditGrantsForUsers: async (ids: string[], limit: number) => {
@@ -801,4 +815,54 @@ test("grant history is limited per account and says when it was cut", async () =
   assert.match(byId.get("user-1")?.creditGrantsNote ?? "", /newest 200/);
   assert.equal(byId.get("user-2")?.creditGrants.length, 1);
   assert.equal(byId.get("user-2")?.creditGrantsTruncated, false);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1 on #3056
+// ---------------------------------------------------------------------------
+
+test("a license key right after a word character is still masked", async () => {
+  const glued = ["_", "x", "9"].map((p) => `${p}${ACTIVE_KEY}`);
+  const lower = ACTIVE_KEY.toLowerCase();
+
+  for (const reason of [...glued.map((g) => `ref${g}`), `key:${lower}.`]) {
+    const { logs } = await callTool("add_credits", { ...grantArgs(30_001), reason });
+    const all = logs.join("\n");
+
+    assert.ok(all.includes("[license-key]"), all);
+    assert.ok(!all.toUpperCase().includes(ACTIVE_KEY), all);
+  }
+});
+
+test("spend counts an old paid key's Stripe customer past the 100-key cap, by email and by key", async () => {
+  // The paid key is the OLDEST of 101 on the account; the 100 newer keys
+  // have no Stripe customer, so only the uncapped id query finds cus_old.
+  store.licenses[0].stripeCustomerId = "cus_old";
+  for (let i = 0; i < 100; i++) {
+    store.licenses.push({
+      ...store.licenses[0],
+      id: `lic-new-${i}`,
+      key: `HW-TEST-NEW0-${String(i).padStart(4, "0")}`,
+      stripeCustomerId: null,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)),
+    });
+  }
+  stripeCharges.set("cus_old", [
+    { id: "ch_old", status: "succeeded", disputed: false, amount: 2535, amount_refunded: 0 },
+  ]);
+
+  const byEmail = await callTool("find_customer", { email: "buyer@example.com" });
+  const byKey = await callTool("find_customer", { licenseKey: ACTIVE_KEY });
+  const emailCustomer = byEmail.result.structuredContent.customers[0];
+  const keyCustomer = byKey.result.structuredContent.customers[0];
+
+  // The email lookup's capped license list leaves the old key out...
+  assert.equal(
+    emailCustomer.licenses.some((l: { key: string }) => l.key === ACTIVE_KEY),
+    false,
+  );
+  // ...but its purchase still counts, and both lookups agree.
+  assert.equal(emailCustomer.totalSpentCents, 2535);
+  assert.equal(emailCustomer.hasStripeCustomer, true);
+  assert.equal(keyCustomer.totalSpentCents, 2535);
 });

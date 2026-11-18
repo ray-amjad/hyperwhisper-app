@@ -37,6 +37,7 @@ import {
   getAccountKeysWithCreditsForUserIds,
   getCreditBalance,
   getCreditGrantsForUsers,
+  getStripeCustomerIdsForUserIds,
   getUserByEmail,
   getUsersByIds,
   grantCreditLotToGrantedKey,
@@ -145,7 +146,8 @@ function logGrant(
 export function redactReason(reason: string): string {
   return reason
     .replace(/[^\s@]+@[^\s@]+/g, "[email]")
-    .replace(/\bHW(?:-[A-Za-z0-9]{4}){2,}\b/gi, "[license-key]")
+    // No word boundaries: `_HW-…` or `xHW-…` must be masked too (#3056).
+    .replace(/HW(?:-[A-Za-z0-9]{4}){2,}/gi, "[license-key]")
     .replace(/[A-Za-z0-9_-]{24,}/g, "[token]");
 }
 
@@ -197,11 +199,15 @@ async function findCustomer(args: unknown): Promise<ToolResult> {
     return ok({ customers: [], message: "No matching customer" });
   }
 
-  const [licenses, users, grants] = await Promise.all([
-    getAccountKeysWithCreditsForUserIds(ids),
-    getUsersByIds(ids),
-    getCreditGrantsForUsers(ids, FIND_CUSTOMER_GRANT_LIMIT_PER_ACCOUNT),
-  ]);
+  // Stripe customer ids come from their own uncapped query (as on the admin
+  // Customers page), so the spend does not depend on the license-list cap.
+  const [licenses, users, grants, stripeCustomerIdsByUserId] =
+    await Promise.all([
+      getAccountKeysWithCreditsForUserIds(ids),
+      getUsersByIds(ids),
+      getCreditGrantsForUsers(ids, FIND_CUSTOMER_GRANT_LIMIT_PER_ACCOUNT),
+      getStripeCustomerIdsForUserIds(ids),
+    ]);
 
   const customers = await Promise.all(
     ids.map(async (userId) => {
@@ -225,7 +231,9 @@ async function findCustomer(args: unknown): Promise<ToolResult> {
       const balance =
         licenses.find((l) => l.userId === userId)?.credits ??
         (await getCreditBalance(userId));
-      const spend = await accountSpend(own);
+      const spend = await accountSpend(
+        Array.from(stripeCustomerIdsByUserId.get(userId) ?? []),
+      );
 
       return {
         userId,
@@ -284,14 +292,7 @@ async function findCustomer(args: unknown): Promise<ToolResult> {
  * One account's total spend, from the same reader and the same per-account
  * sum as the admin Customers page, plus the charges behind it.
  */
-async function accountSpend(licenses: AccountKeyRow[]) {
-  const stripeCustomerIds = Array.from(
-    new Set(
-      licenses
-        .map((l) => l.stripeCustomerId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
+async function accountSpend(stripeCustomerIds: string[]) {
   const breakdowns = new Map<string, CustomerSpendBreakdown | null>(
     await Promise.all(
       stripeCustomerIds.map(

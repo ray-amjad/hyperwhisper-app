@@ -172,6 +172,21 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       calls.licensesForUserIds.push([...userIds]);
       return behaviour.licenses;
     },
+    // Derived from the same fixture licenses, so the page's spend sees the
+    // Stripe ids it always saw from the license rows.
+    getStripeCustomerIdsForUserIds: async (userIds: string[]) => {
+      const byUser = new Map<string, Set<string>>();
+
+      for (const l of behaviour.licenses as Array<{ userId: string; stripeCustomerId: string | null }>) {
+        if (!l.stripeCustomerId || !userIds.includes(l.userId)) continue;
+        const ids = byUser.get(l.userId) ?? new Set<string>();
+
+        ids.add(l.stripeCustomerId);
+        byUser.set(l.userId, ids);
+      }
+
+      return byUser;
+    },
     getUsersByIds: async (ids: string[]) => {
       calls.usersByIds.push([...ids]);
       return behaviour.users;
