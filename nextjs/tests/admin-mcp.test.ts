@@ -58,6 +58,7 @@ const store = {
   licenses: [] as License[],
   grants: [] as Grant[],
   grantCalls: 0,
+  staleGranted: false,
 };
 
 function balanceOf(userId: string): number {
@@ -68,8 +69,12 @@ function balanceOf(userId: string): number {
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
-    findAccountByKey: async (key: string) =>
-      store.licenses.find((l) => l.key === key.trim()) ?? null,
+    findAccountByKey: async (key: string) => {
+      const found = store.licenses.find((l) => l.key === key.trim());
+
+      // A stale read: what a lookup outside the grant transaction could see.
+      return found && store.staleGranted ? { ...found, status: "granted" } : (found ?? null);
+    },
     getAccountKeysByEmail: async (email: string) =>
       store.licenses.filter((l) => l.email === email.toLowerCase()),
     getUserByEmail: async (email: string) =>
@@ -85,20 +90,30 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       store.grants.filter((g) => ids.includes(g.userId)),
     findCreditGrantBySource: async (sourceType: string, sourceId: string) =>
       store.grants.find((g) => g.sourceType === sourceType && g.sourceId === sourceId) ?? null,
-    grantCreditLot: async (data: {
-      userId: string;
-      amount: number;
-      sourceType: string;
-      sourceId: string;
-    }) => {
+    // The real one reads the key FOR SHARE inside the grant's transaction.
+    // Here the status is read from the store at grant time, which is the
+    // point: a status read any earlier must not decide the grant.
+    grantCreditLotToGrantedKey: async (
+      key: string,
+      data: { amount: number; sourceType: string; sourceId: string },
+    ) => {
       store.grantCalls += 1;
+      const license = store.licenses.find((l) => l.key === key.trim());
+
+      if (!license) return { status: "license_not_found" };
+      if (license.status !== "granted") {
+        return { status: "license_not_granted", license: { ...license } };
+      }
       const exists = store.grants.some(
         (g) => g.sourceType === data.sourceType && g.sourceId === data.sourceId,
       );
-      if (exists) return { status: "duplicate", balance: balanceOf(data.userId) };
+
+      if (exists) {
+        return { status: "duplicate", balance: balanceOf(license.userId), license };
+      }
       store.grants.push({
         id: `grant-${store.grants.length + 1}`,
-        userId: data.userId,
+        userId: license.userId,
         sourceType: data.sourceType,
         sourceId: data.sourceId,
         originalAmount: data.amount,
@@ -108,7 +123,8 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
         createdAt: new Date("2026-11-18T00:00:00Z"),
         expiresAt: null,
       });
-      return { status: "processed", balance: balanceOf(data.userId) };
+
+      return { status: "processed", balance: balanceOf(license.userId), license };
     },
   },
 });
@@ -168,6 +184,7 @@ beforeEach(() => {
     },
   ];
   store.grantCalls = 0;
+  store.staleGranted = false;
 });
 
 function post(body: unknown, auth: string | null = `Bearer ${TOKEN}`): NextRequest {
@@ -449,7 +466,20 @@ test("a refunded or unknown license key is refused", async () => {
   const missing = await callTool("add_credits", { ...grantArgs(100), licenseKey: "HW-NOPE" });
   assert.equal(missing.result.isError, true);
   assert.match(missing.result.content[0].text, /not found/);
-  assert.equal(store.grantCalls, 0);
+  assert.equal(store.grants.filter((g) => g.sourceType === "admin_manual").length, 0);
+});
+
+test("a key revoked after any earlier read is refused by the in-transaction check", async () => {
+  // Every out-of-transaction lookup still says "granted"; only the read the
+  // grant itself makes sees the revocation.
+  store.licenses[0].status = "revoked";
+  store.staleGranted = true;
+  const { result, logs } = await callTool("add_credits", grantArgs(500));
+
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /License key is revoked/);
+  assert.equal(store.grants.filter((g) => g.sourceType === "admin_manual").length, 0);
+  assert.ok(logs.some((l) => l.includes('"rejection":"license_not_active"')), logs.join("\n"));
 });
 
 // ---------------------------------------------------------------------------
