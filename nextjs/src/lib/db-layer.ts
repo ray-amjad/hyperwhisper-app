@@ -770,6 +770,8 @@ export {
   getCreditBalance,
   getCreditBalancesForUsers,
   getPaidCreditGrantsForUsers,
+  getCreditGrantsForUsers,
+  findCreditGrantBySource,
 } from "./credit-ledger";
 export type {
   CreditGrantSourceType,
@@ -778,6 +780,7 @@ export type {
   CreditGrantRefund,
   CreditGrantRefundResult,
   CreditGrantHistoryRow,
+  CreditGrantLedgerRow,
 } from "./credit-ledger";
 
 /**
