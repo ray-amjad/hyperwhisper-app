@@ -107,7 +107,8 @@ this Worker is about 4.5 MiB gzipped).
      rate limits through the `RATE_LIMIT_*` (`ratelimits`) bindings in
      `wrangler.jsonc`. Email Sending needs hyperwhisper.com onboarded under
      Compute > Email Service > Email Sending.
-   - Optional: `HYPERWHISPER_INTERNAL_SECRET`, `CREDIT_POOL_ID_SECRET`,
+   - Optional: `HYPERWHISPER_INTERNAL_SECRET`, `HYPERWHISPER_ADMIN_MCP_TOKEN`
+     (section 7), `CREDIT_POOL_ID_SECRET`,
      `OUTRANK_WEBHOOK_SIGNING_SECRET`, `SUPPORT_EMAIL`,
      `HYPERWHISPER_CLOUD_URLS`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`,
      `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`,
@@ -219,3 +220,28 @@ npx wrangler tail hyperwhisper-web-prod --status error --format pretty   # strea
 ```
 
 Past logs: Workers & Pages -> `hyperwhisper-web-prod` -> Logs (observability is on).
+
+## 7. Admin MCP endpoint
+
+`POST /api/mcp/admin` is a stateless MCP server (Streamable HTTP, JSON replies,
+no SSE) for an agent gateway, so an agent can look a customer up and add
+HyperWhisper Cloud credits instead of an operator using the admin Customers
+page. Code: `app/api/mcp/admin/route.ts` and `server/admin-mcp/`.
+
+- Auth: `Authorization: Bearer <HYPERWHISPER_ADMIN_MCP_TOKEN>`, compared
+  timing-safe. The token is its own secret (at least 32 characters), set in
+  Infisical like every other runtime secret. Unset or empty, every request is
+  401. GET and DELETE are 405 once authenticated.
+- Tools:
+  - `find_customer` (read-only): `email` or `licenseKey`; returns the account's
+    licenses, pooled credit balance and credit grants.
+  - `add_credits`: `licenseKey`, `credits` (1 to 30,000; 1,000 credits = $1),
+    `reason`, `idempotencyKey`. Grants an `admin_manual` lot to the key's
+    owning account. A retry with the same `idempotencyKey` returns
+    `duplicate` and grants nothing.
+  - `add_credits_large`: the same for 30,001 to 1,000,000 credits. Annotated
+    `destructiveHint: true`, so a gateway that holds destructive tools for
+    approval puts a person in front of every grant over $30.
+- Refunded or revoked keys are refused. Every grant attempt writes one
+  `admin.mcp.add_credits` JSON line to Workers Logs (ids, amount, source id,
+  reason, new balance; never the token, a key or an email).
