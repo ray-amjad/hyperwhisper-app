@@ -142,16 +142,14 @@ struct HomeStatsBar: View {
     private var typingSpeedMenu: some View {
         Menu {
             ForEach([30, 40, 50, 60, 80, 100], id: \.self) { wpm in
-                Button {
-                    typingSpeedWPM = wpm
-                } label: {
-                    HStack {
-                        Text("\(wpm) WPM")
-                        if typingSpeedWPM == wpm {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
+                // A Toggle shows the native menu checkmark on every macOS
+                // version; a trailing checkmark Image does not (see the
+                // menu-bar Select Mode submenu in MainAppView).
+                Toggle(isOn: Binding(
+                    get: { typingSpeedWPM == wpm },
+                    set: { isOn in if isOn { typingSpeedWPM = wpm } }
+                )) {
+                    Text("\(wpm) WPM")
                 }
             }
         } label: {
