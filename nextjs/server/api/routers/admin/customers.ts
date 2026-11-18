@@ -193,6 +193,10 @@ export const customersRouter = createTRPCRouter({
             // customer ID at all keep the default 0 here; the client tells
             // that state apart from "$0 spent" via `licenses`.
             totalSpentCents: number | null;
+            // True when ANY of this customer's keys (not only the listed,
+            // newest-100 ones) has a Stripe customer id: the view shows the
+            // spend, or its error, only then (#3056).
+            hasStripeCustomer: boolean;
             created: number;
             licenses: Array<{
               id: string;
@@ -218,6 +222,7 @@ export const customersRouter = createTRPCRouter({
               licenseCount: 0,
               totalCredits: 0,
               totalSpentCents: 0,
+              hasStripeCustomer: false,
               created,
               licenses: [],
             };
@@ -265,9 +270,10 @@ export const customersRouter = createTRPCRouter({
           if (!customerStripeIds || customerStripeIds.size === 0) {
             // No Stripe customer ID on any of this customer's licenses —
             // nothing was fetched. Leave the default 0; the client tells
-            // this state apart from "$0 spent" via customer.licenses.
+            // this state apart from "$0 spent" via hasStripeCustomer.
             continue;
           }
+          customer.hasStripeCustomer = true;
 
           // If ANY of this customer's Stripe customer IDs failed to fetch,
           // the whole total is unknown rather than a possibly-wrong (too
