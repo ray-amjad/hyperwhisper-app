@@ -500,7 +500,7 @@
                   <TextBlock Text="{Binding Selected.TranscriptionProvider}" FontSize="11"/>
                 </Border>
                 <Border Classes="hBadge info" Margin="0,0,8,6" IsVisible="{Binding Selected.PostProcessingProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
-                  <TextBlock Text="{Binding Selected.PostProcessingProvider}" FontSize="11"/>
+                  <TextBlock Text="{Binding Selected.PostProcessingProvider, Converter={x:Static local:PostProcessingProviderLabelConverter.Instance}}" FontSize="11"/>
                 </Border>
                 <Border Classes="hBadge error" Margin="0,0,8,6" IsVisible="{Binding IsSelectedFailed}">
                   <TextBlock Text="{ReflectionBinding [history.status.failed], Source={StaticResource Localization}}" FontSize="11"/>

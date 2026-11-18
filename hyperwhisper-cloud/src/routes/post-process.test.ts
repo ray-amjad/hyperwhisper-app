@@ -921,3 +921,93 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
     ));
   });
 });
+
+// #1095: every malformed-request 400 writes exactly one rejection event with a
+// reason, and the event never carries the request's text, prompt or key.
+describe('postProcessRoute malformed-request rejections are logged', () => {
+  let providerCalled: boolean;
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    ipBlocked = false;
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  async function rejectionsFor(request: Request): Promise<{ status: number; lines: string[]; rejections: Record<string, unknown>[] }> {
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const response = await buildApp().fetch(request);
+      const lines = logSpy.mock.calls.map((call) => String(call[0]));
+      const rejections = lines
+        .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.request_rejected"'))
+        .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+      return { status: response.status, lines, rejections };
+    } finally {
+      logSpy.mockRestore();
+    }
+  }
+
+  const longText = 'secret dictation '.repeat(6000);
+  const cases: { name: string; request: () => Request; reason: string; fields?: Record<string, unknown> }[] = [
+    {
+      name: 'a wrong Content-Type',
+      request: () => jsonRequest(JSON.stringify({ text: 'hi', prompt: 'fix', account_key: 'lk' }), { 'Content-Type': 'text/plain' }),
+      reason: 'invalid_content_type',
+      fields: { contentType: 'text/plain' },
+    },
+    {
+      name: 'a malformed JSON body',
+      request: () => jsonRequest('{"text": "private words", "prompt":'),
+      reason: 'invalid_json',
+    },
+    {
+      name: 'a JSON body that is not an object',
+      request: () => jsonRequest('null'),
+      reason: 'body_not_object',
+    },
+    {
+      name: 'a body with no text',
+      request: () => postProcessRequest({ prompt: 'fix grammar', account_key: 'lk' }),
+      reason: 'missing_text',
+    },
+    {
+      name: 'a text over the length cap',
+      request: () => postProcessRequest({ text: longText, prompt: 'fix grammar', account_key: 'lk' }),
+      reason: 'text_too_long',
+      fields: { textLength: longText.trim().length, maxLength: 100000 },
+    },
+    {
+      name: 'a body with no prompt',
+      request: () => postProcessRequest({ text: 'private words', account_key: 'lk' }),
+      reason: 'missing_prompt',
+    },
+  ];
+
+  for (const { name, request, reason, fields } of cases) {
+    test(`${name} answers 400 and logs one ${reason} rejection`, async () => {
+      const { status, lines, rejections } = await rejectionsFor(request());
+
+      expect(status).toBe(400);
+      expect(providerCalled).toBe(false);
+      expect(rejections).toHaveLength(1);
+      expect(rejections[0]).toMatchObject({ reason, ...fields });
+      for (const line of lines) {
+        expect(line).not.toContain('private words');
+        expect(line).not.toContain('secret dictation');
+        expect(line).not.toContain('fix grammar');
+        expect(line).not.toContain('"lk"');
+      }
+    });
+  }
+});

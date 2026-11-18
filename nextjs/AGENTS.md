@@ -31,6 +31,8 @@ Local builds require `SKIP_ENV_VALIDATION=1` to skip Stripe/service env var chec
 ```bash
 SKIP_ENV_VALIDATION=1 npm run build
 ```
+
+The deployed site is the Cloudflare Workers build (`DEPLOY-CLOUDFLARE.md`). To check that it still bundles, run `pnpm run cf:build` (it sets build-only placeholders for the server secrets). `next build` rewrites `tsconfig.json`'s `jsx` field, so check `git diff tsconfig.json` afterwards.
 </important>
 
 <important if="you are making i18n, locale, or translation-string changes">
