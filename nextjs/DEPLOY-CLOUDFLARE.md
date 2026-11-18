@@ -234,7 +234,9 @@ page. Code: `app/api/mcp/admin/route.ts` and `server/admin-mcp/`.
   401. GET and DELETE are 405 once authenticated.
 - Tools:
   - `find_customer` (read-only): `email` or `licenseKey`; returns the account's
-    licenses, pooled credit balance and credit grants.
+    licenses, pooled credit balance, total spend (the Customers page's figure:
+    net Stripe charges for license purchases and credit packs, less refunds)
+    with its charges, and credit grants (newest 200 per account).
   - `add_credits`: `licenseKey`, `credits` (1 to 30,000; 1,000 credits = $1),
     `reason`, `idempotencyKey`. Grants an `admin_manual` lot to the key's
     owning account. A retry with the same `idempotencyKey` returns
@@ -244,4 +246,5 @@ page. Code: `app/api/mcp/admin/route.ts` and `server/admin-mcp/`.
     approval puts a person in front of every grant over $30.
 - Refunded or revoked keys are refused. Every grant attempt writes one
   `admin.mcp.add_credits` JSON line to Workers Logs (ids, amount, source id,
-  reason, new balance; never the token, a key or an email).
+  the reason with emails, keys and long tokens masked plus its length, new
+  balance; never the token, a raw reason, a key or an email).

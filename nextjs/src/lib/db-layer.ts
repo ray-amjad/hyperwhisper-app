@@ -855,7 +855,7 @@ async function attachPooledCredits<T extends { userId: string }>(
 // 100 per customer is generous enough that no realistic customer's real
 // license set should ever hit it, while guaranteeing every requested userId
 // gets at least some rows back.
-const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
+export const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
 
 /**
  * Fetch every license (with credit balance) belonging to the given users,

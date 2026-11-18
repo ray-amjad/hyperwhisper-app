@@ -9,7 +9,7 @@ import { TRPCError } from "@trpc/server";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
-import { stripe, stripeRefundApi } from "@/lib/clients/stripe";
+import { stripeRefundApi } from "@/lib/clients/stripe";
 import {
   getAccountKeyCustomerPage,
   getOrCreateUser,
@@ -40,7 +40,8 @@ import {
 import { emailTag } from "@/lib/shared/redact";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
-import { createCustomerSpendReader } from "./customer-spend";
+import { accountNetSpendCents } from "./customer-spend";
+import { customerSpendReader } from "./stripe-customer-spend";
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 
@@ -106,21 +107,9 @@ function dbErrorFields(error: unknown): AdminLogFields {
 // Distinct customers (by userId) per page of the admin Customers list.
 const CUSTOMERS_PAGE_SIZE = 100;
 
-const customerSpendReader = createCustomerSpendReader({
-  listCharges: async (stripeCustomerId) =>
-    stripe.charges
-      .list({ customer: stripeCustomerId, limit: 100 })
-      .autoPagingToArray({ limit: 10_000 }),
-  getLatestDisputeStatus: async (chargeId) => {
-    const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
-
-    return disputes.data[0]?.status ?? null;
-  },
-});
-
 // The refund flow runs on `stripeRefundApi`, pinned in lib/clients/stripe.ts
-// to the older API version it was tested against (#755). Everything else in
-// this router uses the shared `stripe`.
+// to the older API version it was tested against (#755). The spend reads use
+// the shared `stripe`, through `./stripe-customer-spend`.
 const customerPaymentRefunder = createCustomerPaymentRefunder({
   retrievePaymentIntent: async (stripeSessionId) => {
     const session =
@@ -290,22 +279,13 @@ export const customersRouter = createTRPCRouter({
             continue;
           }
 
-          let totalSpentCents = 0;
-          let hadFailedFetch = false;
-
-          for (const id of Array.from(customerStripeIds)) {
-            const cents = spendByStripeCustomerId.get(id);
-
-            if (cents === null || cents === undefined) {
-              hadFailedFetch = true;
-              break;
-            }
-            totalSpentCents += cents;
-          }
           // If ANY of this customer's Stripe customer IDs failed to fetch,
-          // report the whole total as unknown rather than a possibly-wrong
-          // (too low) number.
-          customer.totalSpentCents = hadFailedFetch ? null : totalSpentCents;
+          // the whole total is unknown rather than a possibly-wrong (too
+          // low) number. Shared with the admin MCP find_customer tool.
+          customer.totalSpentCents = accountNetSpendCents(
+            customerStripeIds,
+            spendByStripeCustomerId,
+          );
         }
 
         // Reorder explicitly by the canonical page order `userIds` came back

@@ -603,21 +603,47 @@ function toLedgerRow(row: {
 
 /**
  * Every credit grant (any source, any status, expired included) for the given
- * accounts, newest-first, at most `limit` rows. The admin MCP `find_customer`
- * tool shows these so an operator can see what an account was already given.
+ * accounts, newest-first, at most `limitPerUser` rows PER ACCOUNT, so one
+ * account with a long history cannot crowd another's out. `truncatedUserIds`
+ * names the accounts that had more. The admin MCP `find_customer` tool shows
+ * these so an operator can see what an account was already given.
  */
 export async function getCreditGrantsForUsers(
   userIds: string[],
-  limit = 200
-): Promise<CreditGrantLedgerRow[]> {
-  if (userIds.length === 0) return [];
+  limitPerUser = 200
+): Promise<{ rows: CreditGrantLedgerRow[]; truncatedUserIds: Set<string> }> {
+  const truncatedUserIds = new Set<string>();
+  if (userIds.length === 0) return { rows: [], truncatedUserIds };
+
+  // One row past the limit per account tells "exactly the limit" apart from
+  // "more than the limit".
+  const ranked = db.$with("ranked_credit_grants").as(
+    db
+      .select({
+        ...ledgerRowColumns,
+        rowNumber: sql<number>`row_number() over (partition by ${creditGrants.userId} order by ${creditGrants.createdAt} desc, ${creditGrants.id})`.as(
+          "row_number"
+        ),
+      })
+      .from(creditGrants)
+      .where(inArray(creditGrants.userId, userIds))
+  );
   const rows = await db
-    .select(ledgerRowColumns)
-    .from(creditGrants)
-    .where(inArray(creditGrants.userId, userIds))
-    .orderBy(desc(creditGrants.createdAt))
-    .limit(limit);
-  return rows.map(toLedgerRow);
+    .with(ranked)
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rowNumber} <= ${limitPerUser + 1}`)
+    .orderBy(desc(ranked.createdAt));
+
+  const kept: CreditGrantLedgerRow[] = [];
+  for (const { rowNumber, ...row } of rows) {
+    if (Number(rowNumber) > limitPerUser) {
+      truncatedUserIds.add(row.userId);
+      continue;
+    }
+    kept.push(toLedgerRow(row));
+  }
+  return { rows: kept, truncatedUserIds };
 }
 
 /**
