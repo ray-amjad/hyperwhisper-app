@@ -32,7 +32,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AuthContext } from './auth';
 import { CREDIT_POOL_ACCOUNT_PREFIX, createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
-import { createRedisGetter, RedisNotConfiguredError } from '../lib/redis-client';
+import { getCloudRedis, RedisNotConfiguredError } from '../lib/redis-client';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { backgroundWork } from '../lib/background-work';
 import { roundToTenth } from '../lib/utils';
@@ -42,10 +42,8 @@ export const REQUEST_HOLD_TTL_MS = 15 * 60_000;
 /** Backstop for a live session's hold. Renewed on every top-up and by the session's ping. */
 export const SESSION_HOLD_TTL_MS = 10 * 60_000;
 
-// Its own lazily built client: `lib/redis.ts` is replaced process-wide by a
-// dozen suites' `mock.module`, and its exports are the only surface those mocks
-// provide. Same database, same env vars.
-const productionStore = createUpstashCreditHoldStore(createRedisGetter());
+// The process's one cloud-Redis client (`lib/redis-client`), built lazily.
+const productionStore = createUpstashCreditHoldStore(getCloudRedis);
 let storeOverride: CreditHoldStore | null = null;
 
 /** Test-only: install a store (`createMemoryCreditHoldStore`), or `null` for the real one. */

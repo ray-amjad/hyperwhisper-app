@@ -15,6 +15,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import type * as RedisModule from './redis';
 import { stubEnv } from '../test-support/env';
+import { setRedisForTests } from './redis-client';
 
 const CLOUD_TOKEN = 'cloud-token-fixture';
 const ENV_KEYS = ['UPSTASH_REDIS_CLOUD_URL', 'UPSTASH_REDIS_CLOUD_TOKEN'] as const;
@@ -63,6 +64,9 @@ beforeAll(async () => {
   });
 
   restoreEnv = ENV_KEYS.map((k) => stubEnv(k, undefined));
+  // The one cloud client is process-wide; drop any client an earlier suite
+  // memoised so this suite's env decides it.
+  setRedisForTests(null);
 
   const specifier = './redis.ts?unmocked';
   redis = (await import(specifier)) as typeof RedisModule;
@@ -71,6 +75,7 @@ beforeAll(async () => {
 afterAll(() => {
   server.stop(true);
   for (const restore of restoreEnv) restore();
+  setRedisForTests(null);
 });
 
 beforeEach(() => {
