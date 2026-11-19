@@ -2,7 +2,7 @@
 
 import { computeXaiGrokFastChatCost, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { requireLLMApiKey } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';
@@ -12,10 +12,7 @@ export async function requestXaiGrokChat(
   payload: CorrectionRequestPayload,
   requestId: string
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
-  if (!apiKey) {
-    throw new LLMRequestError('XAI_API_KEY not configured', 503, 'grok');
-  }
+  const apiKey = requireLLMApiKey('grok', 'XAI_API_KEY', 'GROK_API_KEY');
 
   return requestOpenAICompatibleChat(
     {

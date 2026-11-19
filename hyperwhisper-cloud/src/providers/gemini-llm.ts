@@ -2,7 +2,7 @@
 
 import { computeGeminiChatCost, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { requireLLMApiKey } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 // Gemini exposes an OpenAI-compatible surface that accepts the shared chat
@@ -41,10 +41,7 @@ export async function requestGeminiChat(
   requestId: string,
   model: string
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new LLMRequestError('GEMINI_API_KEY not configured', 503, 'gemini');
-  }
+  const apiKey = requireLLMApiKey('gemini', 'GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY');
 
   return requestOpenAICompatibleChat(
     {

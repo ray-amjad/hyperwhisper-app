@@ -3,6 +3,7 @@
 import { computeGroqChatCost, type GroqUsage } from '../lib/cost-calculator';
 import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
+import { requireLLMApiKey } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
@@ -28,10 +29,7 @@ export async function requestGroqChat(
   payload: CorrectionRequestPayload,
   requestId: string
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error('GROQ_API_KEY not configured');
-  }
+  const apiKey = requireLLMApiKey('groq', 'GROQ_API_KEY');
 
   return requestOpenAICompatibleChat(
     {

@@ -3,10 +3,7 @@
 // groq/cerebras/xai/mistral/openai/gemini all expose an OpenAI-compatible
 // `/chat/completions` endpoint and follow the same fetch -> check-ok ->
 // parse -> cost sequence; this factors out that plumbing. Per-provider API
-// key resolution, missing-key error shape, and request-body construction
-// stay in each provider's own file so provider-specific quirks (fixed vs
-// allowlisted model, tagged vs untagged missing-key errors, extra body
-// fields) are unchanged.
+// key env names and request-body construction stay in each provider's own file.
 
 import { isRecord } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
