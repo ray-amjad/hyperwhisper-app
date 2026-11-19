@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkcije",
+    "modes": "Načini",
     "faq": "Pogosta vprašanja",
     "support": "Podpora",
     "download": "Prenos",
@@ -16,26 +17,36 @@
       "switchTo": "Zamenjaj jezik"
     },
     "cloud": "Cloud",
-    "githubAria": "Oglejte si HyperWhisper na GitHubu"
+    "githubAria": "Oglejte si HyperWhisper na GitHubu",
+    "skipToContent": "Skoči na vsebino"
   },
   "hero": {
-    "logoAlt": "Logotip HyperWhisper",
-    "headline": "Pišite, ustvarjajte in oblikujte",
-    "headlineAccent": "5x hitreje z AI",
-    "subheadline": "HyperWhisper prepisuje vaš glas z izjemno natančnostjo. Samo govorite naravno in opazujte, kako se vaše besede prikažejo takoj.",
-    "downloadCta": "Prenesi zdaj",
-    "demoCta": "Poglej demo",
-    "availableOn": "Na voljo za",
+    "badge": "Novo",
+    "headline": "Samo govorite.",
+    "headlineAccent": "Mi bomo tipkali.",
+    "subheadline": "Dovršeno besedilo v kateri koli aplikaciji.",
+    "downloadMac": "Prenesi za Mac",
+    "freeForever": "Za vedno brezplačno",
+    "worksOffline": "Deluje brez povezave",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Pomaknite se",
+    "closing": {
+      "line1": "Nehajte tipkati.",
+      "line2": "Začnite govoriti.",
+      "meta": "Brezplačno in odprta koda. Račun ni potreben."
+    }
   },
   "features": {
-    "title": "Ustvarjeno za profesionalce",
-    "subtitle": "Vsaka funkcija je zasnovana, da vam pomaga delati hitreje in učinkoviteje",
+    "title": "Ustvarjeno za ljudi, ki pišejo ves dan.",
     "customVocabulary": {
       "title": "Prilagojen besednjak",
       "description": "Dodajte imena, kratice in posebne izraze za popolno natančnost vsakič."
+    },
+    "realTime": {
+      "title": "Pretakanje v realnem času",
+      "description": "Glejte, kako se vaše besede pojavijo takoj med govorom. Vodilna natančnost v panogi z zakasnitvijo pod 700 ms."
     },
     "languages": {
       "title": "100+ jezikov",
@@ -45,25 +56,9 @@
       "title": "Podpora brez povezave",
       "description": "Deluje popolnoma brez povezave. Vaši podatki nikoli ne zapustijo vaše naprave."
     },
-    "privacy": {
-      "title": "Osredotočeno na zasebnost",
-      "description": "Račun ni potreben. Brez sledenja. Vaši glasovni podatki ostanejo na vašem Macu ali PC-ju."
-    },
-    "hybridProcessing": {
-      "title": "Hibridna obdelava",
-      "description": "Izberite lokalne modele za zasebnost ali cloud API-je za hitrost. Najboljše iz obeh svetov."
-    },
-    "customizable": {
-      "title": "Zelo prilagodljivo",
-      "description": "Izbirajte med več kot 9 API ponudniki in 30+ modeli prepisovanja."
-    },
-    "realTime": {
-      "title": "Pretakanje v realnem času",
-      "description": "Glejte, kako se vaše besede pojavijo takoj med govorom. Vodilna natančnost v panogi z zakasnitvijo pod 700 ms."
-    },
-    "fileImport": {
-      "title": "Uvoz datotek",
-      "description": "Uvozite zvočne ali video datoteke za prepis. Podprti so vsi glavni formati s samodejnim zaznavanjem tišine."
+    "openSource": {
+      "title": "Odprta koda",
+      "description": "Licencirano pod Apache-2.0. Preglejte vsako vrstico, jo razvejite ali gostite sami. Brez crnih skrinjic, brez vezave."
     },
     "screenOcr": {
       "title": "OCR zaslona",
@@ -73,28 +68,57 @@
       "title": "Lokalni API in strežnik MCP",
       "description": "Vgrajen strežnik MCP omogoča Claudeu, Cursorju in drugim AI agentom upravljanje HyperWhisperja. Samo lokalni HTTP API za skripte in avtomatizacije."
     },
+    "fileImport": {
+      "title": "Uvoz datotek",
+      "description": "Uvozite zvočne ali video datoteke za prepis. Podprti so vsi glavni formati s samodejnim zaznavanjem tišine."
+    },
     "modes": {
-      "title": "Načini za vsako situacijo",
-      "description": "Preklapljajte med različnimi načini prepisovanja, optimiziranimi za sestanke, zapiske, e-pošto, programiranje in več. Vsak način uporablja prilagojene promte za popolno oblikovanje besedila.",
-      "meeting": "Sestanek",
+      "heading": "En glas. Vsak format.",
+      "lead": "Vsak način prepiše, kar ste povedali, glede na to, kam je namenjeno.",
       "email": "E-pošta",
       "note": "Zapisek",
       "code": "Koda",
+      "meeting": "Sestanek",
       "legal": "Pravno",
       "medical": "Medicinsko",
-      "presetModes": "Prednastavljeni načini",
-      "customModes": "Prilagojeni načini"
-    },
-    "openSource": {
-      "title": "Odprta koda",
-      "description": "Licencirano pod Apache-2.0. Preglejte vsako vrstico, jo razvejite ali gostite sami. Brez crnih skrinjic, brez vezave."
+      "youSaid": "Povedali ste",
+      "hyperWhisperWrote": "HyperWhisper je napisal",
+      "sample": "ehm torej povej johnu da se lansiranje prestavi na četrtek ker QA za linux še ni končan in ee hvala za potrpežljivost",
+      "output": {
+        "email": "Živijo John,\n\nLansiranje se prestavi na četrtek, medtem ko zaključujemo QA za Linux. Hvala za potrpežljivost.\n\nLep pozdrav,",
+        "note": "• Lansiranje → četrtek\n• Ovira: QA za Linux ni končan\n• Obvestiti Johna",
+        "code": "// TODO(john): lansiranje prestavljeno na četrtek, QA za Linux še poteka",
+        "meeting": "Odločitev: lansiranje se prestavi na četrtek.\nRazlog: QA za Linux ni končan.\nOdgovoren: obvestiti Johna.",
+        "legal": "Obveščamo vas, da je bil datum lansiranja prestavljen na četrtek, do zaključka zagotavljanja kakovosti za Linux.",
+        "medical": "Načrt: odložiti lansiranje na četrtek. Stanje: QA za Linux v teku. Nadaljnji ukrepi: obvestiti Johna."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Deluje povsod, kjer pišete",
+    "eyebrow": "Kako deluje",
+    "titleLine1": "Pritisnite tipko.",
+    "titleLine2": "Povejte.",
+    "titleAccent": "Končano.",
+    "lead": "Vaše besede, urejene, pristanejo tam, kjer je kazalec.",
+    "step1": "Pritisnite svojo bližnjico",
+    "step2Key": "Govorite",
+    "step2": "Govorite kot običajno",
+    "step3Key": "Še enkrat",
+    "step3": "Čisto besedilo, prilepljeno na mesto",
+    "watchVideo": "Oglejte si celoten demo",
+    "closeVideo": "Zapri video",
+    "exampleLabel": "Animiran primer: izgovorjen odgovor se vpiše v sporočilo v Slacku",
+    "message1": "Ali različico za Linux še vedno izdamo v četrtek?",
+    "message2": "Pri meni je QA uspešen 👍",
+    "composePlaceholder": "Sporočilo za #launch",
+    "typed": "Ja, QA za Linux je bil zjutraj uspešen, tako da četrtek drži. Opombe ob izdaji objavim do poldneva.",
+    "listening": "Poslušam",
+    "cleaningUp": "Urejam…",
     "fasterThanTyping": "Hitreje kot tipkanje",
     "accuracyRate": "Stopnja natančnosti",
     "languagesSupported": "Podprti jeziki",
-    "providersSupported": "Podprti ponudniki"
+    "modelsSupported": "Modeli za prepis"
   },
   "faq": {
     "title": "Pogosto zastavljena vprašanja",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Kateri modeli brez povezave so na voljo?",
-        "answer": "Za prepisovanje brez povezave ponujamo več velikosti modela Whisper (od OpenAI, podpira 99+ jezikov). Ponujamo tudi modele Parakeet podjetja NVidia (podpirajo 25+ jezikov).\n      \n      Za naknadno obdelavo brez povezave ponujamo več velikosti modela Gemma 3 (od Google)."
+        "answer": "Za prepisovanje brez povezave ponujamo več velikosti modela Whisper (od OpenAI, podpira 99+ jezikov). Ponujamo tudi modele Parakeet podjetja NVidia (podpirajo 25+ jezikov).\n      \n      Za naknadno obdelavo brez povezave ponujamo več velikosti modela Gemma 4 (od Google)."
       },
       "compatibility": {
         "question": "Ali deluje z vsemi mojimi aplikacijami?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "Zahteva za podporo HyperWhisper",
       "body": "Živjo,\n\nRazličica: \n[to lahko preverite v Nastavitve > O aplikaciji]\n\nTežava: \n[Opišite svojo težavo]\n\nPodrobnosti: \n[Navedite pomembne podrobnosti, kaj ste počeli pred sesutjem]\n\n[Vaše sporočilo tukaj]\n\nLep pozdrav,"
-    }
+    },
+    "helpCenterHint": "Nastavitev, bližnjice in modeli.",
+    "chooseModelHint": "Razvrstite modele glede na to, kako delate.",
+    "accountHint": "Prijavite se s ključem računa.",
+    "chooseModelTitle": "Izberite model"
   },
   "downloadModal": {
     "logoAlt": "Logotip HyperWhisper",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Ko se pridružite skupini input, se odjavite in znova prijavite. Članstvo ni obvezno, vendar ga potrebujejo globalne bližnjice in samodejno lepljenje.",
     "aptTitle": "Lastno skladišče APT",
     "aptBody": "Izdaje za Linux vključujejo tudi arhiv statičnega skladišča APT. HyperWhisper trenutno ne upravlja javne končne točke APT; za podpisano lastno namestitev, namizne dodatke, podrobnosti o zasebnosti in odstranitev glejte vodnik za namestitev na Linuxu.",
-    "linuxGuideCta": "Preberite vodnik za namestitev na Linuxu"
+    "linuxGuideCta": "Preberite vodnik za namestitev na Linuxu",
+    "heroLead": "Brezplačno in odprtokodno. Izberite svojo platformo.",
+    "releaseNotes": "Opombe ob izdaji",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon in Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 in ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Starejše različice",
@@ -280,6 +313,7 @@
       "dataTraining": "Zasebnost podatkov"
     },
     "copyright": "© 2026 HyperWhisper. Vse pravice pridržane.",
+    "madeBy": "Ustvaril Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Spremljajte HyperWhisper na X (Twitter)",
     "githubAria": "HyperWhisper na GitHubu"
@@ -373,7 +407,33 @@
     "sendingLink": "Pošiljanje…",
     "linkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato ustvarite nov ključ.",
     "linkFailed": "Povezave za prijavo ni bilo mogoče poslati. Poskusite znova.",
-    "errorUnavailable": "Za ta ključ ni več mogoče ustvariti novega. Njegovo trenutno stanje je prikazano zgoraj."
+    "errorUnavailable": "Za ta ključ ni več mogoče ustvariti novega. Njegovo trenutno stanje je prikazano zgoraj.",
+    "delete": "Izbriši ključ",
+    "deleteConfirmTitle": "Želite izbrisati ta ključ računa?",
+    "deleteConfirmBody": "Ta ključ bo takoj prenehal delovati v vseh napravah. Naprave, ki ga uporabljajo, bodo potrebovale enega od vaših drugih ključev: vnesite ga v HyperWhisper v vsaki napravi. Vaši krediti in zgodovina nakupov ostanejo v vašem računu. Poleg tega boste v drugih brskalnikih odjavljeni s tega spletnega mesta.",
+    "deleteConfirm": "Izbriši ključ",
+    "deleting": "Brisanje…",
+    "deleted": "Ključ je izbrisan. Naprave, ki so ga uporabljale, potrebujejo enega od vaših drugih ključev.",
+    "deleteLastKey": "To je vaš edini aktivni ključ, zato ga ni mogoče izbrisati.",
+    "deleteVerifyBody": "Če želite izbrisati ključ, najprej po e-pošti potrdite, da ste to vi. Na e-poštni naslov vašega računa bomo poslali povezavo za prijavo. Odprite jo in nato na tej strani izbrišite ključ.",
+    "deleteLinkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato izbrišite ključ.",
+    "deleteErrorStale": "Ta ključ se je spremenil, odkar je bila stran naložena. Trenutni ključ je prikazan zgoraj.",
+    "deleteErrorUnavailable": "Tega ključa ni več mogoče izbrisati.",
+    "deleteErrorGeneric": "Ključa ni bilo mogoče izbrisati. Poskusite znova.",
+    "issue": "Dodaj nov ključ",
+    "issueConfirmTitle": "Želite dodati nov ključ računa?",
+    "issueConfirmBody": "Za ta račun boste prejeli še en ključ. Uporablja iste kredite kot vaši drugi ključi, ki še naprej delujejo.",
+    "issueConfirm": "Dodaj ključ",
+    "issuing": "Dodajanje…",
+    "issued": "Nov ključ je dodan. Z gumbom 'Pokaži' ga lahko vidite in kopirate.",
+    "issueCap": "Število aktivnih ključev: {max}, kar je največ, kolikor jih račun lahko ima. Izbrišite enega, če želite dodati drugega.",
+    "issueVerifyBody": "Če želite dodati ključ, najprej po e-pošti potrdite, da ste to vi. Na e-poštni naslov vašega računa bomo poslali povezavo za prijavo. Odprite jo in nato na tej strani dodajte ključ.",
+    "issueLinkSent": "Povezava za prijavo je poslana. Odprite jo v nabiralniku in nato dodajte ključ.",
+    "issueErrorUnavailable": "Samo račun z aktivnim ključem lahko doda še enega.",
+    "issueErrorGeneric": "Ključa ni bilo mogoče dodati. Poskusite znova.",
+    "manageErrorRateLimited": "Preveč sprememb ključev. Poskusite znova čez minuto.",
+    "cloudPurgePending": "Stari ključ lahko v HyperWhisper Cloud deluje še največ eno uro.",
+    "deleteCloudPurgePending": "Ta ključ lahko v HyperWhisper Cloud deluje še največ eno uro."
   },
   "openSource": {
     "heading": "Odprta koda. Nicesar za skrivati.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Ta povezava za prijavo je potekla ali je bila že uporabljena. Vnesite svoj e-poštni naslov, da prejmete novo.",
     "magicLinkFailed": "S to povezavo vas nismo mogli prijaviti. Vnesite svoj e-poštni naslov, da prejmete novo."
+  },
+  "legal": {
+    "onThisPage": "Na tej strani"
   }
 }

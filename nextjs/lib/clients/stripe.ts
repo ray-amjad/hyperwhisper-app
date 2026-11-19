@@ -18,6 +18,9 @@ export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   // @ts-expect-error - managed_payments_preview is in private preview
   apiVersion: "2025-12-15.clover; managed_payments_preview=v1",
   typescript: true,
+  // fetch, not node:http: the site runs on Cloudflare Workers, where fetch is
+  // the native client.
+  httpClient: Stripe.createFetchHttpClient(),
 });
 
 /**
@@ -32,6 +35,7 @@ export const stripeRefundApi = new Stripe(env.STRIPE_SECRET_KEY, {
   // @ts-expect-error - the SDK's types only admit the API version it ships
   // with; this flow stays pinned to the older one it was tested against.
   apiVersion: "2025-02-24.acacia",
+  httpClient: Stripe.createFetchHttpClient(),
 });
 
 // Validate that required environment variables are set
