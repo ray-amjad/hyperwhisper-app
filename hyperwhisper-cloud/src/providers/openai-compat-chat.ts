@@ -2,18 +2,8 @@
 // endpoint, as rows of one table, and the one client that sends to any of them.
 
 import { isRecord } from '../lib/utils';
-import {
-  computeCerebrasChatCost,
-  computeGeminiChatCost,
-  computeGroqChatCost,
-  computeMistralChatCost,
-  computeOpenAIChatCost,
-  computeXaiGrokFastChatCost,
-  estimateUsageFromChars,
-  isGroqUsage,
-  type GroqUsage,
-} from '../lib/cost-calculator';
-import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
+import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
+import { computeLLMChatCost, llmModelRow, type LLMProvider } from '../lib/llm-models';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
@@ -21,7 +11,7 @@ import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, readL
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
-export type OpenAICompatProvider = 'cerebras' | 'groq' | 'grok' | 'openai' | 'gemini' | 'mistral';
+export type OpenAICompatProvider = Exclude<LLMProvider, 'anthropic'>;
 
 type OpenAICompatAdapter = {
   baseUrl: string;
@@ -29,9 +19,11 @@ type OpenAICompatAdapter = {
   apiKeyEnv: [string, ...string[]];
   errorLogLabel: string;
   errorChatLabel: string;
-  /** Vendor fields added after the shared payload (`model` goes first, `stream: false` last). */
+  /**
+   * Vendor fields added after the shared payload and the row's output cap
+   * (`model` goes first, `stream: false` last).
+   */
   extraBody?: (model: string) => Record<string, unknown>;
-  computeCost: (model: string, usage: GroqUsage) => number;
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
@@ -63,17 +55,14 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'Cerebras API',
     errorChatLabel: 'Cerebras chat',
     extraBody: () => ({ reasoning_effort: 'low' }),
-    computeCost: (_model, usage) => computeCerebrasChatCost(usage),
   },
   groq: {
     baseUrl: 'https://api.groq.com/openai/v1',
     apiKeyEnv: ['GROQ_API_KEY'],
     errorLogLabel: 'Groq LLM API',
     errorChatLabel: 'Groq chat',
-    // Groq is the one hosted provider that needs an explicit output ceiling;
-    // see GROQ_MAX_COMPLETION_TOKENS.
-    extraBody: () => ({ max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS, reasoning_effort: 'low' }),
-    computeCost: (_model, usage) => computeGroqChatCost(usage),
+    // The output ceiling comes from its llm-models.ts row (maxOutputTokens).
+    extraBody: () => ({ reasoning_effort: 'low' }),
   },
   grok: {
     baseUrl: 'https://api.x.ai/v1',
@@ -81,7 +70,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'SpaceXAI Grok API',
     errorChatLabel: 'SpaceXAI Grok chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
-    computeCost: (_model, usage) => computeXaiGrokFastChatCost(usage),
   },
   // GPT-5 family on /v1/chat/completions only supports the default
   // `temperature` (1), so `temperature: 0` errors and buildBody drops it.
@@ -95,7 +83,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'OpenAI API',
     errorChatLabel: 'OpenAI chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
-    computeCost: computeOpenAIChatCost,
   },
   // Gemini exposes an OpenAI-compatible surface that accepts the shared chat
   // payload unchanged. Verified 2026-06-19.
@@ -108,7 +95,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
       const effort = GEMINI_REASONING_EFFORT_BY_PREFIX.find(([prefix]) => model.startsWith(prefix))?.[1];
       return effort ? { reasoning_effort: effort } : {};
     },
-    computeCost: computeGeminiChatCost,
   },
   // Mistral's chat/completions accepts the shared chat payload unchanged.
   // Verified 2026-06-19.
@@ -117,7 +103,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     apiKeyEnv: ['MISTRAL_API_KEY'],
     errorLogLabel: 'Mistral API',
     errorChatLabel: 'Mistral chat',
-    computeCost: computeMistralChatCost,
   },
 };
 
@@ -129,7 +114,14 @@ export function buildOpenAICompatBody(
 ): Record<string, unknown> {
   const { temperature, ...withoutTemperature } = payload;
   const shared = provider === 'openai' ? withoutTemperature : payload;
-  return { model, ...shared, ...OPENAI_COMPAT_ADAPTERS[provider].extraBody?.(model), stream: false };
+  const { maxOutputTokens } = llmModelRow(provider, model);
+  return {
+    model,
+    ...shared,
+    ...(maxOutputTokens === undefined ? {} : { max_completion_tokens: maxOutputTokens }),
+    ...OPENAI_COMPAT_ADAPTERS[provider].extraBody?.(model),
+    stream: false,
+  };
 }
 
 // Fail-closed fallback for vendor usage-schema drift: estimate tokens from
@@ -204,7 +196,7 @@ export async function requestOpenAICompatibleChat(
     computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
-  const costUsd = config.computeCost(model, usage ?? reportMissingUsage(provider, payload, json, requestId));
+  const costUsd = computeLLMChatCost(provider, model, usage ?? reportMissingUsage(provider, payload, json, requestId));
 
   return {
     raw: json,
