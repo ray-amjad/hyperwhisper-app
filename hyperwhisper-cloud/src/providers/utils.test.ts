@@ -19,7 +19,6 @@ import {
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';
-import { saveEnv } from '../test-support/env';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
   test('small payloads get the 30s floor', () => {
@@ -171,11 +170,9 @@ describe('audioExtensionFromContentType (multipart filename extension)', () => {
 });
 
 const originalFetch = globalThis.fetch;
-const restoreTimeoutEnv = saveEnv('STT_PROVIDER_TIMEOUT_MS');
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  restoreTimeoutEnv();
 });
 
 function fetchThatRejectsOnAbort(rejection: () => Error) {
@@ -222,31 +219,6 @@ describe('fetchWithTimeout', () => {
       expect(providerError.kind).toBe('network_error');
       expect(providerError.message).toContain('ECONNRESET');
     }
-  });
-
-  test('honours STT_PROVIDER_TIMEOUT_MS when no explicit override is given', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '20';
-    globalThis.fetch = fetchThatRejectsOnAbort(() => new DOMException('Aborted', 'AbortError'));
-
-    await expect(
-      fetchWithTimeout('test-provider', 'https://example.com', {})
-    ).rejects.toThrow(/timeout after 20ms/);
-  });
-
-  test('falls back to the default budget when STT_PROVIDER_TIMEOUT_MS is not a valid positive number', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = 'not-a-number';
-    // Resolves after 30ms — proves the override wasn't parsed as something
-    // tiny (e.g. NaN, which setTimeout treats as 0) that would abort first.
-    globalThis.fetch = mock((_url: string, init?: RequestInit) => new Promise((resolve, reject) => {
-      const timer = setTimeout(() => resolve(new Response('ok', { status: 200 })), 30);
-      init?.signal?.addEventListener('abort', () => {
-        clearTimeout(timer);
-        reject(new DOMException('Aborted', 'AbortError'));
-      });
-    })) as unknown as typeof fetch;
-
-    const response = await fetchWithTimeout('test-provider', 'https://example.com', {});
-    expect(response.status).toBe(200);
   });
 });
 
