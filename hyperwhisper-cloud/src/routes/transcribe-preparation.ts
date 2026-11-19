@@ -5,8 +5,7 @@ import { rejectRequestOptions } from '../providers/request-options';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
 import { readAccountKey } from '../lib/account-key';
-import { isIPBlocked } from '../lib/redis';
-import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import { generateRequestId, getFlyRequestId } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
 import {
   MEDICAL_DOMAIN,
@@ -16,9 +15,8 @@ import {
 import {
   authDiagnosticsForLog,
   type AuthContext,
-  validateAuth,
 } from '../middleware/auth';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { openRequestGate } from '../middleware/request-gate';
 import { prepareTranscriptionAudio } from './transcribe-audio';
 import {
   extractDomain,
@@ -58,17 +56,15 @@ export async function prepareTranscriptionRequest(
 ): Promise<PreparedTranscriptionRequest | Response> {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
   const flyRequestId = getFlyRequestId(c);
 
-  // IP block check
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'ip_blocked',
-      flyRequestId,
-    });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // IP block now; auth + the per-key rate limit after the header checks.
+  const gate = await openRequestGate(c, { endpoint: '/transcribe' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', { reason: gate.reason, flyRequestId });
+    return gate.response;
   }
+  const clientIP = gate.clientIP;
   logEvent(requestId, startTime, 'transcribe.ip_check_done', { flyRequestId });
 
   const providerSelection = extractProvider(c);
@@ -190,31 +186,19 @@ export async function prepareTranscriptionRequest(
   });
 
   // Auth (query params only) — Cloud is licensed-only; a valid account key is required.
-  const authResult = await validateAuth({
-    licenseKey: readAccountKey((field) => rawQuery(c.req.url, field)),
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'auth_failed',
-      flyRequestId,
-      status: authResult.response.status,
-      ...authDiagnosticsForLog(authResult.diagnostics),
-    });
-    return authResult.response;
-  }
-  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(authResult.diagnostics));
-
-  // Per-key rate limit, after auth and before the audio is buffered or any
+  // Per-key rate limit after auth, before the audio is buffered or any
   // credits are held (middleware/rate-limit.ts, #2010).
-  const rateLimited = await keyRateLimitResponse('/transcribe', authResult.value.licenseKey);
-  if (rateLimited) {
+  const admission = await gate.admitKey(readAccountKey((field) => rawQuery(c.req.url, field)));
+  if (!admission.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'rate_limited',
+      reason: admission.reason,
       flyRequestId,
-      status: rateLimited.status,
+      status: admission.response.status,
+      ...(admission.reason === 'auth_failed' ? authDiagnosticsForLog(admission.authDiagnostics) : {}),
     });
-    return rateLimited;
+    return admission.response;
   }
+  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(admission.authDiagnostics));
 
   const audioPreparation = await prepareTranscriptionAudio({
     c,
@@ -228,7 +212,7 @@ export async function prepareTranscriptionRequest(
     medical,
     initialPrompt,
     language,
-    auth: authResult.value,
+    auth: admission.auth,
     clientIP,
   });
   if (!audioPreparation.ok) {
@@ -251,7 +235,7 @@ export async function prepareTranscriptionRequest(
     mode,
     clientPlatform,
     clientVersion,
-    auth: authResult.value,
+    auth: admission.auth,
     audioBuffer: audioPreparation.audioBuffer,
     latencyOptOut,
     latencyReportable: !latencyOptOut && latencyEligibleClient,

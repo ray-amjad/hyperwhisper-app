@@ -39,15 +39,14 @@
 
 import type { Context, Next } from 'hono';
 import type { WSMessageReceive } from 'hono/ws';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { generateRequestId } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
-import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { authDiagnosticsForLog, type AuthContext } from '../middleware/auth';
+import { openRequestGate } from '../middleware/request-gate';
 import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../middleware/credit-holds';
 import { insufficientCreditsResponse } from '../lib/responses';
-import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
 import { readAccountKey } from '../lib/account-key';
@@ -315,10 +314,14 @@ export function makeStreamingPreflight(
       return c.text('Expected WebSocket upgrade', 426);
     }
 
-    const clientIP = getClientIP(c);
-    if (await isIPBlocked(clientIP)) {
-      logRejected('ip_blocked', 403);
-      return c.text('Access denied', 403);
+    // Plain-text 403/401: the upgrade clients read these bodies as text.
+    // Per-key rate limits after auth and before the credit hold (#2010): the
+    // 10/min upgrade bucket and the key's shared 60/min. A full bucket refuses
+    // before either is counted, so one never spends the other's slot.
+    const gate = await openRequestGate(c, { endpoint: c.req.path, buckets: ['ws_upgrade', 'key'], plainText: true });
+    if (!gate.ok) {
+      logRejected(gate.reason, gate.response.status);
+      return gate.response;
     }
 
     const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));
@@ -328,32 +331,27 @@ export function makeStreamingPreflight(
       return c.text('Missing account_key', 401);
     }
 
-    const authResult = await validateAuth({ licenseKey });
-    if (!authResult.ok) {
-      logEvent(requestId, startTime, 'ws_streaming.auth_rejected', {
-        endpoint: c.req.path,
-        status: authResult.response.status,
-        ...authDiagnosticsForLog(authResult.diagnostics),
-      });
-      return c.text('Unauthorized', 401);
-    }
-
-    // Per-key rate limits, after auth and before the credit hold (#2010): the
-    // 10/min upgrade bucket and the key's shared 60/min. A full bucket refuses
-    // before either is counted, so one never spends the other's slot.
-    const rateLimited = await keyRateLimitResponse(c.req.path, authResult.value.licenseKey, ['ws_upgrade', 'key']);
-    if (rateLimited) {
-      logRejected('rate_limited', rateLimited.status);
-      return rateLimited;
+    const admission = await gate.admitKey(licenseKey);
+    if (!admission.ok) {
+      if (admission.reason === 'auth_failed') {
+        logEvent(requestId, startTime, 'ws_streaming.auth_rejected', {
+          endpoint: c.req.path,
+          status: admission.authStatus,
+          ...authDiagnosticsForLog(admission.authDiagnostics),
+        });
+      } else {
+        logRejected(admission.reason, admission.response.status);
+      }
+      return admission.response;
     }
 
     const requiredCredits = minimumCredits();
     // A floor check only: the session's real hold is `reserveSessionHold` below.
-    const creditCheck = await validateCredits(authResult.value, requiredCredits, { hold: false });
+    const creditCheck = await validateCredits(admission.auth, requiredCredits, { hold: false });
     if (!creditCheck.ok) {
       logRejected('insufficient_credits', creditCheck.response.status, {
         // The rounded balance validateCredits compared, which the 402 body reports too.
-        credits: roundToTenth(authResult.value.credits),
+        credits: roundToTenth(admission.auth.credits),
         minimumCredits: requiredCredits,
       });
       return creditCheck.response;
@@ -363,7 +361,7 @@ export function makeStreamingPreflight(
     // (and dictations) on one key share the balance instead of each seeing all
     // of it. Anything from the 30 s floor up to one block is accepted.
     const { hold, outcome } = await reserveSessionHold(
-      authResult.value,
+      admission.auth,
       requiredCredits,
       Math.max(requiredCredits, holdCredits()),
     );
@@ -378,8 +376,8 @@ export function makeStreamingPreflight(
       return insufficientCreditsResponse(available, requiredCredits);
     }
 
-    c.set('wsAuth', authResult.value);
-    c.set('wsClientIP', clientIP);
+    c.set('wsAuth', admission.auth);
+    c.set('wsClientIP', gate.clientIP);
     c.set('wsCreditHold', hold);
 
     try {

@@ -4,17 +4,16 @@
 import type { Context } from 'hono';
 import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
 import { readClientInfo } from '../lib/client-info';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
-import { isIPBlocked } from '../lib/redis';
 import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
 import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
-import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog } from '../middleware/auth';
+import { openRequestGate } from '../middleware/request-gate';
 import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { withCreditHoldScope } from '../middleware/credit-holds';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
 import { isRecord } from '../lib/utils';
 import { readAccountKey } from '../lib/account-key';
@@ -53,11 +52,11 @@ export async function postProcessRoute(c: Context) {
 async function handlePostProcess(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
-
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'ip_blocked' });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // IP block now; auth + the per-key rate limit once the body is read.
+  const gate = await openRequestGate(c, { endpoint: '/post-process' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: gate.reason });
+    return gate.response;
   }
   logEvent(requestId, startTime, 'post_process.ip_check_done');
 
@@ -140,26 +139,17 @@ async function handlePostProcess(c: Context) {
     promptChars: prompt.length,
   });
 
-  const authResult = await validateAuth({
-    licenseKey: readAccountKey((field) => parsed[field]),
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', {
-      reason: 'auth_failed',
-      ...authDiagnosticsForLog(authResult.diagnostics),
-    });
-    return authResult.response;
+  // Auth, then the per-key rate limit before the credit hold (#2010).
+  const admission = await gate.admitKey(readAccountKey((field) => parsed[field]));
+  if (!admission.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', admission.reason === 'auth_failed'
+      ? { reason: 'auth_failed', ...authDiagnosticsForLog(admission.authDiagnostics) }
+      : { reason: admission.reason, status: admission.response.status });
+    return admission.response;
   }
-  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
+  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(admission.authDiagnostics));
 
-  // Per-key rate limit, after auth and before the credit hold (#2010).
-  const rateLimited = await keyRateLimitResponse('/post-process', authResult.value.licenseKey);
-  if (rateLimited) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
-    return rateLimited;
-  }
-
-  const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS);
+  const creditCheck = await validateCredits(admission.auth, ESTIMATED_POST_PROCESS_CREDITS);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'insufficient_credits' });
     return creditCheck.response;
@@ -298,7 +288,7 @@ async function handlePostProcess(c: Context) {
     // The LLM call already succeeded (and cost us money) — bill the user
     // even though we can't return usable text.
     deductCredits(
-      authResult.value,
+      admission.auth,
       costUsd,
       {
         post_processing_cost_usd: costUsd,
@@ -307,7 +297,7 @@ async function handlePostProcess(c: Context) {
         endpoint: '/post-process',
         llm_provider: providerUsed,
       },
-      clientIP,
+      gate.clientIP,
       { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
     ).catch(console.error);
 
@@ -323,7 +313,7 @@ async function handlePostProcess(c: Context) {
   const creditsUsed = creditsForCost(costUsd);
 
   deductCredits(
-    authResult.value,
+    admission.auth,
     costUsd,
     {
       post_processing_cost_usd: costUsd,
@@ -332,7 +322,7 @@ async function handlePostProcess(c: Context) {
       endpoint: '/post-process',
       llm_provider: providerUsed,
     },
-    clientIP,
+    gate.clientIP,
     { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
   ).catch(console.error);
 
