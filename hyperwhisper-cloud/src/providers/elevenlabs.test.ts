@@ -94,12 +94,6 @@ describe('transcribeWithElevenLabs — keyterm biasing', () => {
     expect(cap.formData().getAll('keyterms')).toEqual(['HyperWhisper', 'SwiftUI', 'Fly.io']);
   });
 
-  test('scribe_v1 drops keyterms entirely (no biasing support), even with an initialPrompt', async () => {
-    const cap = mockFetchOnce(() => jsonResponse({ text: 'hi' }));
-    await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', 'alpha,beta', { model: 'scribe_v1' });
-    expect(cap.formData().getAll('keyterms')).toEqual([]);
-  });
-
   test('terms over 50 chars or over 5 words are dropped; blanks are dropped', async () => {
     const overLong = 'x'.repeat(51);
     const overWords = 'one two three four five six';

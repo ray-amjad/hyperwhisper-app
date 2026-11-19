@@ -2,6 +2,7 @@
 // Fastest and cheapest STT - $0.00185/min using whisper-large-v3
 
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -33,7 +34,7 @@ export async function transcribeWithGroq(
   }
 
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
-  const model = context.model || 'whisper-large-v3-turbo';
+  const model = context.model || getProviderDef('groq').defaultModel;
   const formData = new FormData();
 
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);

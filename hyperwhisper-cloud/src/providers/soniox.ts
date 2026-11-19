@@ -7,6 +7,7 @@
 
 import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
@@ -14,7 +15,6 @@ import { readUpstreamError, safeErrorToken, upstreamErrorLogFields } from './ups
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
-const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
 const MAX_CONTEXT_TERMS = 200;
@@ -103,9 +103,7 @@ export async function transcribeWithSoniox(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'soniox';
-  const model = !context.model || context.model === 'stt-async-v4'
-    ? DEFAULT_MODEL
-    : context.model;
+  const model = context.model || getProviderDef('soniox').defaultModel;
 
   const apiKey = process.env.SONIOX_API_KEY;
   if (!apiKey) {

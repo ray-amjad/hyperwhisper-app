@@ -38,6 +38,7 @@ import {
   estimateGeminiTranscribeOutputTokens,
 } from '../lib/cost-calculator';
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { getProviderDef } from '../lib/stt-models';
 // A pure Content-Type → Google audio MIME mapper. Importing it is NOT the
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
@@ -59,7 +60,6 @@ const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/inter
 // the current default revision is, which is not a stable contract — pin it, and
 // re-verify the request/response shape before moving it.
 const API_REVISION = '2026-05-20';
-const DEFAULT_MODEL = 'gemini-3.5-transcribe';
 // WebSocket-only (BidiGenerateContent). `/v1beta/interactions` answers a request
 // for it with a 404 "Model not found", so this adapter rejects it up front
 // rather than spending a round trip — and so the failure names the real reason.
@@ -225,7 +225,7 @@ export async function transcribeWithGeminiTranscribe(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'gemini-transcribe';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('gemini-transcribe').defaultModel;
 
   if (model === GEMINI_TRANSCRIBE_LIVE_MODEL) {
     // Fail before spending a round trip, and name the reason. A

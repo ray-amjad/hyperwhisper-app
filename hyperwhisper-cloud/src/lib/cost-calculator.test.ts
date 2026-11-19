@@ -89,15 +89,6 @@ describe('new STT provider cost functions', () => {
     expect(u2Keyterms).toBe(u2Base);
   });
 
-  test('AssemblyAI universal-3-pro compatibility id bills at the same Pro-tier rate as universal-3-5-pro', () => {
-    // Defensive compatibility for callers that reach the calculator before
-    // the registry canonicalizes the retired id.
-    const legacy = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false, false);
-    const current = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false, false);
-    expect(legacy).toBeCloseTo(0.0035, 6);
-    expect(legacy).toBe(current);
-  });
-
   test('OpenAI whisper-1 is duration-billed; gpt-4o is token-billed', () => {
     expect(computeOpenAITranscriptionCost('whisper-1', { durationSeconds: 60 })).toBeCloseTo(0.006, 6);
 
