@@ -49,6 +49,7 @@ import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../mid
 import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
+import { rawQuery } from '../lib/query';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -318,12 +319,11 @@ export function makeStreamingPreflight(
       return c.text('Access denied', 403);
     }
 
-    const url = new URL(c.req.url);
     // `account_key` is the canonical param; `license_key` is the legacy alias that
     // installed native apps still send, so we accept either.
     const licenseKey =
-      url.searchParams.get('account_key') ||
-      url.searchParams.get('license_key') ||
+      rawQuery(c.req.url, 'account_key') ||
+      rawQuery(c.req.url, 'license_key') ||
       undefined;
 
     if (!licenseKey) {
@@ -498,9 +498,8 @@ export function createStreamingEventsFor(
   const startTime = performance.now();
   const auth = c.get('wsAuth');
   const clientIP = c.get('wsClientIP');
-  const url = new URL(c.req.url);
-  const language = url.searchParams.get('language') || undefined;
-  const vocabulary = url.searchParams.get('vocabulary') || undefined;
+  const language = rawQuery(c.req.url, 'language');
+  const vocabulary = rawQuery(c.req.url, 'vocabulary');
   const apiKey = vendor.apiKey();
   const endpoint = routePathFor(vendor);
 

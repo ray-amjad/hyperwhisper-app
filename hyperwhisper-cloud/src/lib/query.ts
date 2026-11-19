@@ -7,8 +7,9 @@
 // `C  `. This helper re-parses the query string manually and decodes with
 // `decodeURIComponent`, which leaves `+` alone.
 //
-// Scope: used by the /transcribe route only (see routes/transcribe.ts). Other
-// routes keep `c.req.query()` — their params (keys, ids) never carry `+`.
+// Scope: every route reads its query params through this helper, never
+// `c.req.query()` or `URLSearchParams.get`, which both apply the `+` → space
+// step (live-dictation `vocabulary` carries `C++` as much as `initial_prompt`).
 
 /**
  * Read a single query parameter from `url`, percent-decoding the value while
