@@ -159,7 +159,7 @@ async function handlePostProcess(c: Context) {
     return rateLimited;
   }
 
-  const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
+  const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'insufficient_credits' });
     return creditCheck.response;

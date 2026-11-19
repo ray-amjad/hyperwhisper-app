@@ -2,9 +2,8 @@
 // Handles preflight credit checks and post-usage deduction
 
 import { readCreditPoolId, type AuthContext } from './auth';
-import { CREDITS_PER_MINUTE, LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
-import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
-import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
+import { LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
+import { isRecord, roundToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
@@ -15,26 +14,6 @@ import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold
 export type CreditsResult =
   | { ok: true }
   | { ok: false; response: Response };
-
-export interface CreditEstimateOptions {
-  costEstimators?: Array<(durationSeconds: number) => number>;
-}
-
-export { estimateAudioSecondsFromSize };
-
-export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstimateOptions = {}): number {
-  const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
-
-  if (options.costEstimators?.length) {
-    const maxEstimatedCost = Math.max(
-      ...options.costEstimators.map((estimateCost) => estimateCost(estimatedSeconds))
-    );
-    return Math.max(0.1, creditsForCost(maxEstimatedCost));
-  }
-
-  const estimatedCredits = (estimatedSeconds / 60) * CREDITS_PER_MINUTE;
-  return Math.max(0.1, roundUpToTenth(estimatedCredits));
-}
 
 /**
  * The preflight: the estimate against the balance seen at auth, then (inside a
@@ -54,7 +33,6 @@ export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstima
 export async function validateCredits(
   auth: AuthContext,
   estimatedCredits: number,
-  _clientIP: string,
   options: { hold?: boolean } = {}
 ): Promise<CreditsResult> {
   const balance = roundToTenth(auth.credits);

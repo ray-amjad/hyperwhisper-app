@@ -3,7 +3,6 @@ import { Hono } from 'hono';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingLatencyReports } from '../lib/latency-report';
-import { estimateCreditsFromSize } from '../middleware/credits';
 import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
 import { stubEnv } from '../test-support/env';
 
@@ -20,12 +19,11 @@ const ELIGIBLE_CLIENT_HEADERS = {
 
 describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
-    const defaultRouteEstimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
+    // The default route's minute: 1.67 credits/min rounded up to a tenth.
+    const defaultRouteEstimate = 1.7;
     const grokFallbackEstimate = estimateCreditsForProviderFallbacks(BYTES_PER_MINUTE_ESTIMATE, 'grok');
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
-    // 1.67 credits/min rounded up to a tenth.
-    expect(defaultRouteEstimate).toBe(1.7);
     expect(grokFallbackEstimate).toBe(elevenLabsEstimate);
     expect(grokFallbackEstimate).toBeGreaterThan(defaultRouteEstimate);
   });

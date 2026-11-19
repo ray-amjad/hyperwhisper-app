@@ -69,7 +69,7 @@ export interface LatencySample {
 // under 'medium'. Neither billing estimator is used here: estimateSecondsFromBytes()
 // has the wrong rate — and IS what the adapters fall back to when an upstream
 // omits a duration, which is why the adapter's number cannot be trusted as a
-// measurement — and middleware/credits.ts's estimateAudioSecondsFromSize()
+// measurement — and lib/audio-duration.ts's estimateAudioSecondsFromSize()
 // additionally clamps to a 10-second floor so billing never under-charges,
 // which would push every short clip into 'medium'. Billing wants a floor;
 // bucketing wants the truth, applied identically to every row so a cell
