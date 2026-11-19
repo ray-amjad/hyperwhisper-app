@@ -888,7 +888,9 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
   });
 
   test('a missing provider key is not named to the client', async () => {
+    // A missing key fails over (503) without retries, so both keys go.
     delete process.env.CEREBRAS_API_KEY;
+    delete process.env.GROQ_API_KEY;
     withProviders({});
 
     const body = await readFailure(await buildApp().fetch(
@@ -896,6 +898,24 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
     ));
 
     expect(JSON.stringify(body)).not.toContain('CEREBRAS_API_KEY');
+    expect(JSON.stringify(body)).not.toContain('GROQ_API_KEY');
+  });
+
+  test('a missing provider key falls back to the fallback provider', async () => {
+    delete process.env.CEREBRAS_API_KEY;
+    withProviders({
+      'api.groq.com': () => Response.json({
+        choices: [{ message: { content: '<<CLEANED>>hello world<<END>>' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-llm-provider')).toBe('groq-gpt-oss-120b');
   });
 
   test('the fallback provider\'s error body is not echoed when both providers fail', async () => {

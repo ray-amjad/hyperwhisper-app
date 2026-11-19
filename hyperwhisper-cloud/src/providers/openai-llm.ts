@@ -2,7 +2,7 @@
 
 import { computeOpenAIChatCost, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { requireLLMApiKey } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
@@ -32,10 +32,7 @@ export async function requestOpenAIChat(
   requestId: string,
   model: string
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new LLMRequestError('OPENAI_API_KEY not configured', 503, 'openai');
-  }
+  const apiKey = requireLLMApiKey('openai', 'OPENAI_API_KEY');
 
   return requestOpenAICompatibleChat(
     {
