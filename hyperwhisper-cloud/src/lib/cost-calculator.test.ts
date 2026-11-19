@@ -1,27 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 import {
   GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND,
-  computeAnthropicCost,
   computeAssemblyAISyncTranscriptionCost,
   computeAssemblyAITranscriptionCost,
   computeAzureMaiTranscriptionCost,
-  computeCerebrasChatCost,
   computeDeepgramTranscriptionCost,
   computeElevenLabsTranscriptionCost,
-  computeGeminiChatCost,
   computeGeminiTranscribeCost,
   computeGeminiTranscribeLiveCost,
   computeGeminiTranscriptionCost,
   computeGoogleChirpTranscriptionCost,
-  computeGroqChatCost,
   computeGroqTranscriptionCost,
-  computeMistralChatCost,
   computeMistralTranscriptionCost,
   computeMetaMuseTranscriptionCost,
-  computeOpenAIChatCost,
   computeOpenAITranscriptionCost,
   computeSonioxTranscriptionCost,
-  computeXaiGrokFastChatCost,
   computeXaiTranscriptionCost,
   countCjkChars,
   creditsForCost,
@@ -36,6 +29,7 @@ import {
   usdToCredits,
   type GroqUsage,
 } from './cost-calculator';
+import { computeAnthropicCost, computeLLMChatCost, LLM_PROVIDERS, type LLMProvider } from './llm-models';
 import { getProviderDef } from './stt-models';
 
 describe('new STT provider cost functions', () => {
@@ -585,42 +579,42 @@ describe('LLM chat costs', () => {
 
   test('Anthropic bills prompt and completion tokens at the Haiku 5.5 base rates', () => {
     // Up to 100K input tokens: $0.10/1M input, $0.50/1M output.
-    expect(computeAnthropicCost(100_000, 0)).toBeCloseTo(0.01, 9);
-    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(0.50, 6);
+    expect(computeAnthropicCost('claude-haiku-5-5', 100_000, 0)).toBeCloseTo(0.01, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 0, 1_000_000)).toBeCloseTo(0.50, 6);
   });
 
   test('Anthropic switches the whole request to the long-prompt tier above 100K input tokens', () => {
     // Exactly 100K is still the base tier.
-    expect(computeAnthropicCost(100_000, 1000)).toBeCloseTo(0.01 + 0.0005, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 100_000, 1000)).toBeCloseTo(0.01 + 0.0005, 9);
     // Above it, EVERY token of the request bills at $0.50 / $2.50 per 1M,
     // output included, not just the tokens past the threshold.
-    expect(computeAnthropicCost(110_000, 1000)).toBeCloseTo(110_000 * 0.50 / 1e6 + 1000 * 2.50 / 1e6, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 110_000, 1000)).toBeCloseTo(110_000 * 0.50 / 1e6 + 1000 * 2.50 / 1e6, 9);
     // The step is at the boundary itself: one token past 100K is 5x the price.
-    expect(computeAnthropicCost(100_001, 0)).toBeGreaterThan(computeAnthropicCost(100_000, 0) * 4.9);
-    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(0.50, 6);
-    expect(computeAnthropicCost(1_000_000, 1_000_000)).toBeCloseTo(3.00, 6);
+    expect(computeAnthropicCost('claude-haiku-5-5', 100_001, 0)).toBeGreaterThan(computeAnthropicCost('claude-haiku-5-5', 100_000, 0) * 4.9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 1_000_000, 0)).toBeCloseTo(0.50, 6);
+    expect(computeAnthropicCost('claude-haiku-5-5', 1_000_000, 1_000_000)).toBeCloseTo(3.00, 6);
   });
 
   test('Anthropic decides the tier from uncached input + cache write + cache read', () => {
     // 40K + 40K + 40K = 120K total input: long tier, though no one bucket passes 100K.
-    const long = computeAnthropicCost(40_000, 1000, 40_000, 40_000);
+    const long = computeAnthropicCost('claude-haiku-5-5', 40_000, 1000, 40_000, 40_000);
     const expected = 40_000 * 0.50 / 1e6
       + 1000 * 2.50 / 1e6
       + 40_000 * 0.50 / 1e6 * 1.25
       + 40_000 * 0.50 / 1e6 * 0.10;
     expect(long).toBeCloseTo(expected, 9);
     // 30K + 30K + 30K = 90K: base tier.
-    const base = computeAnthropicCost(30_000, 1000, 30_000, 30_000);
+    const base = computeAnthropicCost('claude-haiku-5-5', 30_000, 1000, 30_000, 30_000);
     expect(base).toBeCloseTo(30_000 * 0.10 / 1e6 + 1000 * 0.50 / 1e6 + 30_000 * 0.10 / 1e6 * 1.25 + 30_000 * 0.10 / 1e6 * 0.10, 9);
     // Output tokens never count toward the threshold.
-    expect(computeAnthropicCost(1000, 500_000)).toBeCloseTo(1000 * 0.10 / 1e6 + 500_000 * 0.50 / 1e6, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 1000, 500_000)).toBeCloseTo(1000 * 0.10 / 1e6 + 500_000 * 0.50 / 1e6, 9);
   });
 
   test('Anthropic prices cache writes at 1.25x input and cache reads at 0.10x input in both tiers', () => {
     for (const tokens of [50_000, 1_000_000]) {
-      const input = computeAnthropicCost(tokens, 0);
-      const cacheWrite = computeAnthropicCost(0, 0, tokens, 0);
-      const cacheRead = computeAnthropicCost(0, 0, 0, tokens);
+      const input = computeAnthropicCost('claude-haiku-5-5', tokens, 0);
+      const cacheWrite = computeAnthropicCost('claude-haiku-5-5', 0, 0, tokens, 0);
+      const cacheRead = computeAnthropicCost('claude-haiku-5-5', 0, 0, 0, tokens);
       expect(cacheWrite).toBeCloseTo(input * 1.25, 6);
       expect(cacheRead).toBeCloseTo(input * 0.10, 6);
       // A cache read must be the cheapest of the three, or caching costs money.
@@ -631,20 +625,20 @@ describe('LLM chat costs', () => {
 
   test('Anthropic sums all four token buckets and defaults the cache buckets to 0', () => {
     // 1000 of each: 0.0001 + 0.0005 + 0.000125 + 0.00001.
-    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.000735, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 1000, 1000, 1000, 1000)).toBeCloseTo(0.000735, 9);
     // Omitting the cache arguments must not add a charge.
-    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.0006, 9);
-    expect(computeAnthropicCost(1000, 1000)).toBe(computeAnthropicCost(1000, 1000, 0, 0));
+    expect(computeAnthropicCost('claude-haiku-5-5', 1000, 1000)).toBeCloseTo(0.0006, 9);
+    expect(computeAnthropicCost('claude-haiku-5-5', 1000, 1000)).toBe(computeAnthropicCost('claude-haiku-5-5', 1000, 1000, 0, 0));
   });
 
   test('the single-model chat providers bill their published token rates', () => {
     // Cerebras $0.35/$0.75 per 1M, Groq $0.15/$0.60, xAI Grok 4.1 Fast $1.25/$2.50.
-    expect(computeCerebrasChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(0.35 + 0.75, 6);
-    expect(computeGroqChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
-    expect(computeXaiGrokFastChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(1.25 + 2.50, 6);
+    expect(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(1_000_000, 1_000_000))).toBeCloseTo(0.35 + 0.75, 6);
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
+    expect(computeLLMChatCost('grok', 'grok-4.3', usage(1_000_000, 1_000_000))).toBeCloseTo(1.25 + 2.50, 6);
     // Groq GPT-OSS is the cheapest of the three on identical usage.
-    expect(computeGroqChatCost(usage(1000, 1000))).toBeLessThan(computeCerebrasChatCost(usage(1000, 1000)));
-    expect(computeCerebrasChatCost(usage(1000, 1000))).toBeLessThan(computeXaiGrokFastChatCost(usage(1000, 1000)));
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(1000, 1000))).toBeLessThan(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(1000, 1000)));
+    expect(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(1000, 1000))).toBeLessThan(computeLLMChatCost('grok', 'grok-4.3', usage(1000, 1000)));
   });
 
   test('the multi-model chat providers price each model separately', () => {
@@ -652,9 +646,9 @@ describe('LLM chat costs', () => {
     // no second rate to tell apart. Its one rate is pinned by the "bills every id
     // at the one luna rate" test in src/providers/llm-dispatch.test.ts and by the
     // catalog-parity block below. Flash-lite is cheaper than flash.
-    expect(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
-    expect(computeGeminiChatCost('gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
-    expect(computeMistralChatCost('mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
+    expect(computeLLMChatCost('mistral', 'mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
     // gemini-3.8-flash deliberately has NO hand-written price line here. Its
     // rate — and every other model's, including any added after it — is pinned
     // by the catalog-parity block below, which compares the two price copies to
@@ -672,29 +666,29 @@ describe('LLM chat costs', () => {
     // Catalog or response-header drift must fail closed: a model id we do not
     // recognise bills at the provider default, not free.
     const tokens = usage(1_000_000, 1_000_000);
-    expect(computeOpenAIChatCost('gpt-9-imaginary', tokens)).toBe(computeOpenAIChatCost('gpt-5.6-luna', tokens));
-    expect(computeGeminiChatCost('gemini-99-ultra', tokens)).toBe(computeGeminiChatCost('gemini-3.8-flash', tokens));
+    expect(computeLLMChatCost('openai', 'gpt-9-imaginary', tokens)).toBe(computeLLMChatCost('openai', 'gpt-5.6-luna', tokens));
+    expect(computeLLMChatCost('gemini', 'gemini-99-ultra', tokens)).toBe(computeLLMChatCost('gemini', 'gemini-3.8-flash', tokens));
     // The retired Nemo id is no longer allowlisted; old clients still sending
     // it resolve to the Mistral default rate.
-    expect(computeMistralChatCost('open-mistral-nemo', tokens)).toBe(computeMistralChatCost('mistral-small-latest', tokens));
-    expect(computeOpenAIChatCost('', tokens)).toBeGreaterThan(0);
+    expect(computeLLMChatCost('mistral', 'open-mistral-nemo', tokens)).toBe(computeLLMChatCost('mistral', 'mistral-small-latest', tokens));
+    expect(computeLLMChatCost('openai', '', tokens)).toBeGreaterThan(0);
   });
 
   test('zero usage costs nothing at the chat layer', () => {
     // The 0.1-credit minimum is applied later by creditsForCost, not here —
     // the raw USD figure for zero tokens is genuinely 0.
-    expect(computeGroqChatCost(usage(0, 0))).toBe(0);
-    expect(computeOpenAIChatCost('gpt-5.6-luna', usage(0, 0))).toBe(0);
-    expect(creditsForCost(computeGroqChatCost(usage(0, 0)))).toBe(0.1);
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(0, 0))).toBe(0);
+    expect(computeLLMChatCost('openai', 'gpt-5.6-luna', usage(0, 0))).toBe(0);
+    expect(creditsForCost(computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(0, 0)))).toBe(0.1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// cloud-pp-catalog.json  <->  cost-calculator.ts price parity
+// cloud-pp-catalog.json  <->  llm-models.ts price parity
 //
 // shared-app-classification/CLAUDE.md calls this a CRITICAL invariant:
 // `pricePerMInput` / `pricePerMOutput` in that catalog are DISPLAY/estimate
-// only, the constants in this module are what ACTUALLY bills, and the two are
+// only, the registry rates in llm-models.ts are what ACTUALLY bills, and the two are
 // independent copies that "silently drift if you touch only one". Until this
 // block, nothing read the catalog and compared them — every price had a
 // hand-written assertion that restated the number instead.
@@ -705,13 +699,13 @@ describe('LLM chat costs', () => {
 //     a model added tomorrow is covered without anyone writing a new assertion.
 //   * It RESTATES NO PRICE. It asserts the two copies AGREE. A price change
 //     (gemini-3.8-flash's introductory $0.75/$3.75 expires 2026-12-31) stays a
-//     two-file edit — the catalog row and GEMINI_CHAT_RATES — and this test
+//     two-file edit — the catalog row and its llm-models.ts row — and this test
 //     needs no edit at all.
 //   * It goes through the EXPORTED billing entry points, not the module-private
 //     rate tables, so it needs no new export and it exercises the real billing
 //     path. Billing 1M input tokens yields exactly `pricePerMInput` dollars.
-//     That is also what makes a MISSING rate row visible: computeChatCost falls
-//     back to the provider default's rate for an id it has no row for, and the
+//     That is also what makes a MISSING registry row visible: llmModelRow falls
+//     back to the provider default's row for an id it has no row for, and the
 //     default's price will not equal the new model's catalog price.
 //
 // The catalog is read at RUNTIME rather than imported, matching the idiom in
@@ -737,23 +731,24 @@ const ONE_M_INPUT: GroqUsage = { prompt_tokens: ONE_M, completion_tokens: 0, tot
 const ONE_M_OUTPUT: GroqUsage = { prompt_tokens: 0, completion_tokens: ONE_M, total_tokens: ONE_M };
 
 /**
- * USD actually billed for exactly 1M input / 1M output tokens, keyed by the
- * catalog's `llmProvider` field — i.e. this module's billing constants
- * expressed in the catalog's own per-1M units. The four single-model providers
- * bill a flat rate and ignore the model id; that they only ever have ONE
- * allowlisted model is pinned by src/providers/llm-dispatch.test.ts.
+ * USD actually billed for exactly 1M input / 1M output tokens for a
+ * (catalog `llmProvider`, model) pair — the registry rows in llm-models.ts
+ * expressed in the catalog's own per-1M units. Undefined for a provider the
+ * registry does not know.
  */
-const BILLED_PER_M: Record<string, (model: string) => { input: number; output: number }> = {
-  cerebras: () => ({ input: computeCerebrasChatCost(ONE_M_INPUT), output: computeCerebrasChatCost(ONE_M_OUTPUT) }),
-  groq: () => ({ input: computeGroqChatCost(ONE_M_INPUT), output: computeGroqChatCost(ONE_M_OUTPUT) }),
-  // The catalog lists the base (<=100K-token prompt) tier, so price 100K input
-  // tokens and scale: 1M input tokens in ONE request would land in the long tier.
-  anthropic: () => ({ input: computeAnthropicCost(ONE_M / 10, 0) * 10, output: computeAnthropicCost(0, ONE_M) }),
-  grok: () => ({ input: computeXaiGrokFastChatCost(ONE_M_INPUT), output: computeXaiGrokFastChatCost(ONE_M_OUTPUT) }),
-  openai: model => ({ input: computeOpenAIChatCost(model, ONE_M_INPUT), output: computeOpenAIChatCost(model, ONE_M_OUTPUT) }),
-  gemini: model => ({ input: computeGeminiChatCost(model, ONE_M_INPUT), output: computeGeminiChatCost(model, ONE_M_OUTPUT) }),
-  mistral: model => ({ input: computeMistralChatCost(model, ONE_M_INPUT), output: computeMistralChatCost(model, ONE_M_OUTPUT) }),
-};
+function billedPerM(provider: string, model: string): { input: number; output: number } | undefined {
+  if (!(LLM_PROVIDERS as readonly string[]).includes(provider)) return undefined;
+  const llmProvider = provider as LLMProvider;
+  if (llmProvider === 'anthropic') {
+    // The catalog lists the base (<=100K-token prompt) tier, so price 100K input
+    // tokens and scale: 1M input tokens in ONE request would land in the long tier.
+    return { input: computeAnthropicCost(model, ONE_M / 10, 0) * 10, output: computeAnthropicCost(model, 0, ONE_M) };
+  }
+  return {
+    input: computeLLMChatCost(llmProvider, model, ONE_M_INPUT),
+    output: computeLLMChatCost(llmProvider, model, ONE_M_OUTPUT),
+  };
+}
 
 async function ppCatalogProviders(): Promise<PpCatalogProvider[]> {
   const catalog = (await Bun.file(PP_CATALOG_PATH).json()) as { providers: PpCatalogProvider[] };
@@ -766,7 +761,7 @@ async function ppCatalogProviders(): Promise<PpCatalogProvider[]> {
 describe('cloud-pp-catalog.json price parity (the critical pricing-sync invariant)', () => {
   test('every catalog provider has a billing entry point in cost-calculator', async () => {
     const unbillable = (await ppCatalogProviders())
-      .filter(provider => !BILLED_PER_M[provider.llmProvider])
+      .filter(provider => !billedPerM(provider.llmProvider, ''))
       .map(provider => `${provider.id} (llmProvider=${provider.llmProvider})`);
     expect(unbillable).toEqual([]);
   });
@@ -776,11 +771,10 @@ describe('cloud-pp-catalog.json price parity (the critical pricing-sync invarian
     const weBill: string[] = [];
 
     for (const provider of await ppCatalogProviders()) {
-      const billedPerM = BILLED_PER_M[provider.llmProvider];
-      if (!billedPerM) continue; // already reported by the test above
+      if (!billedPerM(provider.llmProvider, '')) continue; // already reported by the test above
       expect(provider.models.length).toBeGreaterThan(0);
       for (const model of provider.models) {
-        const billed = billedPerM(model.id);
+        const billed = billedPerM(provider.llmProvider, model.id)!;
         catalogSays.push(`${provider.id}/${model.id} in=${model.pricePerMInput} out=${model.pricePerMOutput}`);
         weBill.push(`${provider.id}/${model.id} in=${billed.input} out=${billed.output}`);
       }
@@ -815,10 +809,10 @@ describe('usage-object fallbacks and guards', () => {
   });
 
   test('the char estimate is what makes a missing usage object bill non-zero', () => {
-    // openai-compat-chat.ts feeds this estimate to computeGroqChatCost when the upstream
+    // openai-compat-chat.ts feeds this estimate to computeLLMChatCost when the upstream
     // response omits `usage`. A 2000-char prompt must produce a real charge.
     const estimated = estimateUsageFromChars(2000, 800);
-    expect(computeGroqChatCost(estimated)).toBeGreaterThan(0);
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-120b', estimated)).toBeGreaterThan(0);
   });
 
   test('isGroqUsage accepts a complete numeric usage object', () => {

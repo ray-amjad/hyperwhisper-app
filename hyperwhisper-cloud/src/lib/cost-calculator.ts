@@ -72,7 +72,7 @@ const GEMINI_RATES: Record<string, GeminiRate> = {
   },
   // #1019. Google lists ONE input price for 3.8 Flash (audio included), and it is
   // INTRODUCTORY: $0.75/$3.75 through 2026-12-31, $1.50/$7.50 from 2027-01-01.
-  // Change it together with the chat rate for the same id further down.
+  // Change it together with the chat rate for the same id in llm-models.ts.
   'gemini-3.8-flash': { textInputPerToken: 0.75 / M, audioInputPerToken: 0.75 / M, outputPerToken: 3.75 / M },
   'gemini-3.1-pro-preview': {
     textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M,
@@ -141,85 +141,7 @@ export function estimateSonioxContextTokens(contextText: string | undefined): nu
   return Math.ceil(contextText.length * SONIOX_TOKENS_PER_CHAR);
 }
 
-// Anthropic Claude Haiku 5.5 Pricing (USD). Two tiers, keyed on the request's
-// TOTAL input tokens (uncached input + cache write + cache read):
-//   * up to 100K: $0.10 / $0.50 per 1M (input / output)
-//   * above 100K: $0.50 / $2.50 per 1M
-// The tier a request lands in prices EVERY token of that request, output and
-// both cache buckets included, not just the tokens past the threshold.
-// The base tier MUST match the anthropic row in
-// shared-app-classification/cloud-pp-catalog.json.
-interface AnthropicRate {
-  promptPerToken: number;
-  completionPerToken: number;
-}
-const ANTHROPIC_HAIKU_LONG_PROMPT_THRESHOLD = 100_000;
-const ANTHROPIC_HAIKU_RATE: AnthropicRate = { promptPerToken: 0.10 / M, completionPerToken: 0.50 / M };
-const ANTHROPIC_HAIKU_LONG_PROMPT_RATE: AnthropicRate = { promptPerToken: 0.50 / M, completionPerToken: 2.50 / M };
-// Prompt caching: writes bill at 1.25x input, reads at 0.10x input (5-minute TTL),
-// applied to whichever tier's input rate the request lands in.
-// ASSUMED unchanged from Haiku 4.5 — Anthropic's standard cache multipliers.
-const ANTHROPIC_CACHE_WRITE_MULTIPLIER = 1.25;
-const ANTHROPIC_CACHE_READ_MULTIPLIER = 0.10;
-
-// Cerebras GPT-OSS-120B Pricing (USD)
-const CEREBRAS_PROMPT_COST_PER_TOKEN = 0.35 / 1_000_000;
-const CEREBRAS_COMPLETION_COST_PER_TOKEN = 0.75 / 1_000_000;
-
-// Groq GPT-OSS-120B Pricing (USD)
-const GROQ_PROMPT_COST_PER_TOKEN = 0.15 / 1_000_000;
-const GROQ_COMPLETION_COST_PER_TOKEN = 0.60 / 1_000_000;
-
-// xAI Grok 4.1 Fast Pricing (USD)
-const XAI_GROK_FAST_PROMPT_COST_PER_TOKEN = 1.25 / 1_000_000;
-const XAI_GROK_FAST_COMPLETION_COST_PER_TOKEN = 2.50 / 1_000_000;
-
-// ── HyperWhisper Cloud post-processing LLM providers (per-model) ────────────
-// Each provider exposes one or more chat models with distinct input/output
-// token pricing. These MUST match shared-app-classification/cloud-pp-catalog.json
-// (the display source of truth) — they are the ACTUAL billing constants. Rates
-// are USD per-1M ÷ 1e6. Re-confirmed against live provider pricing 2026-06-19.
-interface LLMChatRate {
-  promptPerToken: number;
-  completionPerToken: number;
-}
-
-// OpenAI GPT-5.6 Luna (chat/completions). $0.20/$1.20 per 1M, read 2026-09-25 at
-// https://developers.openai.com/api/docs/models/gpt-5.6-luna. gpt-5-mini and
-// gpt-5-nano are gone (OpenAI removes them 2026-12-11); an old client still
-// sending either id resolves to luna and bills at this rate. One row, but the
-// per-model shape stays (as for Mistral below): an unknown id takes the
-// default-rate fallback, and a second OpenAI model is a one-line add.
-const OPENAI_CHAT_RATES: Record<string, LLMChatRate> = {
-  'gpt-5.6-luna': { promptPerToken: 0.20 / 1_000_000, completionPerToken: 1.20 / 1_000_000 },
-};
-const OPENAI_DEFAULT_CHAT_MODEL = 'gpt-5.6-luna';
-
-// Google Gemini (OpenAI-compatible endpoint). https://ai.google.dev/gemini-api/docs/pricing
-const GEMINI_CHAT_RATES: Record<string, LLMChatRate> = {
-  'gemini-2.5-flash': { promptPerToken: 0.30 / 1_000_000, completionPerToken: 2.50 / 1_000_000 },
-  'gemini-2.5-flash-lite': { promptPerToken: 0.10 / 1_000_000, completionPerToken: 0.40 / 1_000_000 },
-  // INTRODUCTORY PRICING — $0.75/$3.75 per 1M runs to 2026-12-31. Re-confirm
-  // against ai.google.dev/gemini-api/docs/pricing on the first model watch of
-  // 2027 and update this rate AND the pricePerMInput/pricePerMOutput +
-  // priceNote on the gemini-3.8-flash row in cloud-pp-catalog.json together.
-  'gemini-3.8-flash': { promptPerToken: 0.75 / 1_000_000, completionPerToken: 3.75 / 1_000_000 },
-};
-// Follows the gemini default in llm-provider.ts. An unknown id bills at 3.8
-// Flash, the dearest row here, so drift never under-bills.
-const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-3.8-flash';
-
-// Mistral (chat/completions). https://mistral.ai/pricing + docs.mistral.ai
-// `mistral-small-latest` resolves to Mistral Small 4: the model-specific docs
-// list $0.15/$0.60, which conflicts with the lower pricing-tile figure — we
-// bill at the higher (model-docs) rate, the billing-safe choice. The retired
-// Nemo model is no longer allowlisted; old clients still sending its id resolve
-// to `mistral-small-latest` and are billed at that rate.
-// Re-confirm against live provider pages before secrets go live.
-const MISTRAL_CHAT_RATES: Record<string, LLMChatRate> = {
-  'mistral-small-latest': { promptPerToken: 0.15 / 1_000_000, completionPerToken: 0.60 / 1_000_000 },
-};
-const MISTRAL_DEFAULT_CHAT_MODEL = 'mistral-small-latest';
+// LLM post-processing rates live on the model rows in llm-models.ts.
 
 // Credit model: 1 credit = $0.001
 const USD_PER_CREDIT = 0.001;
@@ -620,64 +542,8 @@ export function computeSonioxTranscriptionCost(durationSeconds: number, contextT
 // LLM COSTS
 // =============================================================================
 
-export function computeAnthropicCost(
-  inputTokens: number,
-  outputTokens: number,
-  cacheCreationTokens: number = 0,
-  cacheReadTokens: number = 0,
-): number {
-  // `inputTokens` is the uncached input delta; cache buckets are billed separately.
-  // The tier is decided by the whole prompt — all three input buckets together.
-  const totalInputTokens = inputTokens + cacheCreationTokens + cacheReadTokens;
-  const rate = totalInputTokens > ANTHROPIC_HAIKU_LONG_PROMPT_THRESHOLD
-    ? ANTHROPIC_HAIKU_LONG_PROMPT_RATE
-    : ANTHROPIC_HAIKU_RATE;
-  const promptCost = inputTokens * rate.promptPerToken;
-  const completionCost = outputTokens * rate.completionPerToken;
-  const cacheWriteCost = cacheCreationTokens * rate.promptPerToken * ANTHROPIC_CACHE_WRITE_MULTIPLIER;
-  const cacheReadCost = cacheReadTokens * rate.promptPerToken * ANTHROPIC_CACHE_READ_MULTIPLIER;
-  return roundUsd(promptCost + completionCost + cacheWriteCost + cacheReadCost);
-}
-
-export function computeCerebrasChatCost(usage: GroqUsage): number {
-  const promptCost = usage.prompt_tokens * CEREBRAS_PROMPT_COST_PER_TOKEN;
-  const completionCost = usage.completion_tokens * CEREBRAS_COMPLETION_COST_PER_TOKEN;
-  return roundUsd(promptCost + completionCost);
-}
-
-export function computeGroqChatCost(usage: GroqUsage): number {
-  const promptCost = usage.prompt_tokens * GROQ_PROMPT_COST_PER_TOKEN;
-  const completionCost = usage.completion_tokens * GROQ_COMPLETION_COST_PER_TOKEN;
-  return roundUsd(promptCost + completionCost);
-}
-
-export function computeXaiGrokFastChatCost(usage: GroqUsage): number {
-  const promptCost = usage.prompt_tokens * XAI_GROK_FAST_PROMPT_COST_PER_TOKEN;
-  const completionCost = usage.completion_tokens * XAI_GROK_FAST_COMPLETION_COST_PER_TOKEN;
-  return roundUsd(promptCost + completionCost);
-}
-
-// Per-model chat cost for the OpenAI-compatible PP providers. Unknown models
-// fall back to the provider default rate so a catalog/header drift never bills
-// $0 (fail-closed, matching the duration-based STT floors above).
-function computeChatCost(rates: Record<string, LLMChatRate>, defaultModel: string, model: string, usage: GroqUsage): number {
-  const rate = rates[model] ?? rates[defaultModel];
-  const promptCost = usage.prompt_tokens * rate.promptPerToken;
-  const completionCost = usage.completion_tokens * rate.completionPerToken;
-  return roundUsd(promptCost + completionCost);
-}
-
-export function computeOpenAIChatCost(model: string, usage: GroqUsage): number {
-  return computeChatCost(OPENAI_CHAT_RATES, OPENAI_DEFAULT_CHAT_MODEL, model, usage);
-}
-
-export function computeGeminiChatCost(model: string, usage: GroqUsage): number {
-  return computeChatCost(GEMINI_CHAT_RATES, GEMINI_DEFAULT_CHAT_MODEL, model, usage);
-}
-
-export function computeMistralChatCost(model: string, usage: GroqUsage): number {
-  return computeChatCost(MISTRAL_CHAT_RATES, MISTRAL_DEFAULT_CHAT_MODEL, model, usage);
-}
+// The per-model LLM costs (computeLLMChatCost, computeAnthropicCost) are in
+// llm-models.ts, keyed on the model row.
 
 // Fallback token estimate (~4 chars/token) for when a provider response omits
 // or changes the usage schema. Ensures vendor schema drift fails closed

@@ -7,13 +7,16 @@ import {
   anthropicThinkingFor,
   requestAnthropicChat,
 } from './anthropic';
-import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
+import { llmModelRow } from '../lib/llm-models';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { shouldFallback } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
+
+// Output caps from the llm-models.ts rows.
+const ANTHROPIC_MAX_TOKENS = llmModelRow('anthropic', 'claude-haiku-5-5').maxOutputTokens;
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a

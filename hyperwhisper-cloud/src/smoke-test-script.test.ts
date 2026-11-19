@@ -7,7 +7,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { servedNameFor, type SttProviderId } from './lib/stt-models';
-import { LLM_PROVIDER_NAMES } from './lib/llm-provider';
+import { defaultModelFor, servedLLMName, type LLMProvider } from './lib/llm-provider';
+
+/** The provider's static label: its default row's served name. */
+const providerLabel = (provider: LLMProvider): string => servedLLMName(provider, defaultModelFor(provider));
 
 const SCRIPT = join(import.meta.dir, '..', 'scripts', 'smoke-test.ts');
 const FIXED = 'Hello world, this is a CI smoke test.';
@@ -48,7 +51,7 @@ function startFakeCloud(reply: Reply): string {
         const attempt = (calls.get(provider) ?? 0) + 1;
         calls.set(provider, attempt);
         const r = reply(provider, attempt);
-        const served = r.served ?? LLM_PROVIDER_NAMES[provider as keyof typeof LLM_PROVIDER_NAMES];
+        const served = r.served ?? providerLabel(provider as LLMProvider);
         const corrected = r.corrected === RAW ? body.text : r.corrected;
         return Response.json({ corrected }, { headers: { 'X-LLM-Provider': served } });
       }
@@ -77,7 +80,7 @@ async function runSmoke(reply: Reply): Promise<{ code: number; out: string }> {
 describe('deploy smoke /post-process rows', () => {
   test('pass when every provider corrects the input', async () => {
     const { code, out } = await runSmoke(() => ({ corrected: FIXED }));
-    expect(out).toContain(`✓ POST /post-process openai — via ${LLM_PROVIDER_NAMES.openai}`);
+    expect(out).toContain(`✓ POST /post-process openai — via ${providerLabel('openai')}`);
     expect(out).toContain('✓ Smoke test passed');
     expect(code).toBe(0);
   }, 30_000);
@@ -102,14 +105,14 @@ describe('deploy smoke /post-process rows', () => {
       corrected: p === 'grok' && attempt === 1 ? RAW : FIXED,
     }));
     expect(out).toContain('! POST /post-process grok — fell back to the raw input');
-    expect(out).toContain(`✓ POST /post-process grok — via ${LLM_PROVIDER_NAMES.grok}`);
+    expect(out).toContain(`✓ POST /post-process grok — via ${providerLabel('grok')}`);
     expect(code).toBe(0);
   }, 30_000);
 
   test('a served model other than the requested one still fails, twice', async () => {
     const { code, out } = await runSmoke((p) => ({
       corrected: FIXED,
-      served: p === 'mistral' ? LLM_PROVIDER_NAMES.groq : undefined,
+      served: p === 'mistral' ? providerLabel('groq') : undefined,
     }));
     expect(out).toContain('✗ POST /post-process mistral — fell back — requested mistral');
     expect(code).toBe(1);
@@ -119,7 +122,7 @@ describe('deploy smoke /post-process rows', () => {
     const { code, out } = await runSmoke((p, attempt) =>
       p === 'cerebras'
         ? attempt === 1
-          ? { corrected: FIXED, served: LLM_PROVIDER_NAMES.groq }
+          ? { corrected: FIXED, served: providerLabel('groq') }
           : { corrected: RAW }
         : { corrected: FIXED },
     );
