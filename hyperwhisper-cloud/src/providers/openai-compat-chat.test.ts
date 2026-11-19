@@ -497,11 +497,13 @@ describe('missing API key', () => {
     expect(calls).toHaveLength(0);
   });
 
-  test('the four late-added providers report an unconfigured key as failover-eligible', async () => {
+  test('every provider reports an unconfigured key as a failover-eligible 503', async () => {
     // A provider we have no key for is, from the route's point of view, down —
     // tagging it 503 lets post-process serve the request off the fallback
     // instead of returning the raw transcript.
     const cases: Array<[() => Promise<unknown>, string, string]> = [
+      [() => requestCerebrasChat(PAYLOAD, 'req-1'), 'cerebras', 'CEREBRAS_API_KEY'],
+      [() => requestGroqChat(PAYLOAD, 'req-1'), 'groq', 'GROQ_API_KEY'],
       [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), 'openai', 'OPENAI_API_KEY'],
       [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), 'gemini', 'GEMINI_API_KEY'],
       [() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'), 'mistral', 'MISTRAL_API_KEY'],
@@ -519,23 +521,6 @@ describe('missing API key', () => {
       expect(errorProvider(error)).toBe(provider);
       expect(shouldFallback(error)).toBe(true);
     }
-  });
-
-  test('cerebras and groq report an unconfigured key as a plain, non-failover error', async () => {
-    // Documenting current behaviour, which differs from the four above: these
-    // two throw untagged, so shouldFallback() is false and the request does
-    // NOT move to another provider.
-    for (const key of API_KEY_ENV) delete process.env[key];
-
-    const cerebrasError = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
-    expect((cerebrasError as Error).message).toBe('CEREBRAS_API_KEY not configured');
-    expect(errorStatus(cerebrasError)).toBeUndefined();
-    expect(shouldFallback(cerebrasError)).toBe(false);
-
-    const groqError = await captureError(() => requestGroqChat(PAYLOAD, 'req-1'));
-    expect((groqError as Error).message).toBe('GROQ_API_KEY not configured');
-    expect(errorStatus(groqError)).toBeUndefined();
-    expect(shouldFallback(groqError)).toBe(false);
   });
 
   test('treats an empty-string key as unconfigured', async () => {

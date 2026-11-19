@@ -2,7 +2,7 @@
 
 import { retryWithBackoff } from './utils';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
-import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
+import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { requestCerebrasChat } from '../providers/cerebras';
 import { requestGroqChat } from '../providers/groq-llm';
 import { requestAnthropicChat } from '../providers/anthropic';
@@ -151,7 +151,8 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
  * the provider has just been silent for the whole per-attempt bound, so a
  * retry would only make the caller wait that long again before the fallback
  * provider gets its turn. An upstream-returned 504, any other non-2xx and a
- * network error are still retried.
+ * network error are still retried. A missing API key (LLMMissingKeyError) is
+ * not retried either: the env does not change between attempts.
  *
  * `retryRateLimit: false` also refuses a 429 (#1568). The caller sets it when a
  * fallback provider is next: the vendor has just said no, and the fallback has
@@ -159,7 +160,7 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
  * has no further provider to try (Ray, #1568 decision 2).
  */
 export function isRetryableLLMError(error: Error, retryRateLimit = true): boolean {
-  if (error instanceof LLMTimeoutError) return false;
+  if (error instanceof LLMTimeoutError || error instanceof LLMMissingKeyError) return false;
   if (!retryRateLimit && error instanceof LLMRequestError && error.status === 429) return false;
   return true;
 }

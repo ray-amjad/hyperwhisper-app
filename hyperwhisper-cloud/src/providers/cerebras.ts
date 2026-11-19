@@ -2,6 +2,7 @@
 
 import { computeCerebrasChatCost, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
+import { requireLLMApiKey } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const CEREBRAS_BASE_URL = 'https://api.cerebras.ai/v1';
@@ -11,10 +12,7 @@ export async function requestCerebrasChat(
   payload: CorrectionRequestPayload,
   requestId: string
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.CEREBRAS_API_KEY;
-  if (!apiKey) {
-    throw new Error('CEREBRAS_API_KEY not configured');
-  }
+  const apiKey = requireLLMApiKey('cerebras', 'CEREBRAS_API_KEY');
 
   return requestOpenAICompatibleChat(
     {

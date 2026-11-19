@@ -144,6 +144,18 @@ describe('callWithRetry', () => {
       expect(counter.calls).toBe(attempts);
     });
 
+    test(`${provider}: a missing API key is NOT retried, and fails over`, async () => {
+      const counter = respondWith(200);
+      delete process.env[provider === 'groq' ? 'GROQ_API_KEY' : 'ANTHROPIC_API_KEY'];
+
+      const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
+
+      expect((error as LLMRequestError).status).toBe(503);
+      expect(shouldFallback(error)).toBe(true);
+      expect(counter.calls).toBe(0);
+      expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
+    });
+
     test(`${provider}: a network error is still retried ${attempts - 1} times`, async () => {
       const counter = routeTo(refusedUrl());
 
