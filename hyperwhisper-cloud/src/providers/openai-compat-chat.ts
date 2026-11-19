@@ -166,7 +166,6 @@ export async function requestOpenAICompatibleChat(
   payload: CorrectionRequestPayload,
   requestId: string,
   model: string,
-  timeoutMs?: number,
 ): Promise<OpenAICompatChatResult> {
   const config = OPENAI_COMPAT_ADAPTERS[provider];
   const apiKey = requireLLMApiKey(provider, ...config.apiKeyEnv);
@@ -202,7 +201,7 @@ export async function requestOpenAICompatibleChat(
       return { json, usage };
     },
     requestId,
-    timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+    computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
   const costUsd = config.computeCost(model, usage ?? reportMissingUsage(provider, payload, json, requestId));

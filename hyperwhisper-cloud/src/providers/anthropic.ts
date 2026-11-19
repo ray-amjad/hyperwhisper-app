@@ -62,7 +62,6 @@ function toTokenCount(value: unknown): number {
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
-  timeoutMs?: number,
   model: string = ANTHROPIC_MODEL,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
   const apiKey = requireLLMApiKey('anthropic', 'ANTHROPIC_API_KEY');
@@ -121,7 +120,7 @@ export async function requestAnthropicChat(
       }>(response, 'anthropic', requestId);
     },
     requestId,
-    timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+    computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
   const inputTokens = toTokenCount(data.usage?.input_tokens);

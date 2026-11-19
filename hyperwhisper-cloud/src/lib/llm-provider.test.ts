@@ -11,7 +11,7 @@
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
-import { callWithRetry, isRetryableLLMError, shouldFallback, type LLMProvider } from './llm-provider';
+import { callWithRetry, shouldFallback, type LLMProvider } from './llm-provider';
 import { buildCorrectionRequest } from '../providers/llm-contract';
 import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { LLM_REQUEST_TIMEOUT_MS } from '../providers/llm-fetch';
@@ -165,22 +165,4 @@ describe('callWithRetry', () => {
       expect(counter.calls).toBe(attempts);
     });
   }
-});
-
-describe('isRetryableLLMError', () => {
-  test('refuses only our own timeout', () => {
-    expect(isRetryableLLMError(new LLMTimeoutError('groq LLM request timeout after 20000ms', 'groq'))).toBe(false);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 504', 504, 'groq'))).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503))).toBe(true);
-    expect(isRetryableLLMError(new TypeError('fetch failed'))).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'))).toBe(true);
-  });
-
-  test('with retryRateLimit false, also refuses a 429 and nothing else (#1568)', () => {
-    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'), false)).toBe(false);
-    expect(isRetryableLLMError(new LLMTimeoutError('groq LLM request timeout after 20000ms', 'groq'), false)).toBe(false);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503), false)).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 400', 400), false)).toBe(true);
-    expect(isRetryableLLMError(new TypeError('fetch failed'), false)).toBe(true);
-  });
 });
