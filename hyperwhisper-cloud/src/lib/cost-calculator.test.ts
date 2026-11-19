@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE,
   GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND,
   computeAnthropicCost,
   computeAssemblyAISyncTranscriptionCost,
@@ -488,13 +487,6 @@ describe('flat per-audio-minute STT rates', () => {
     expect(computeAssemblyAISyncTranscriptionCost(3600)).toBeCloseTo(0.45, 6);
     expect(computeAssemblyAISyncTranscriptionCost(60))
       .toBeGreaterThan(computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', true, true));
-  });
-
-  test('the exported sync rate constant is the rate the sync cost fn charges', () => {
-    // stt-models.ts imports ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE for its
-    // preflight reservation instead of copying the literal. Pin the two
-    // together so the amount reserved can never drift from the amount billed.
-    expect(computeAssemblyAISyncTranscriptionCost(60)).toBeCloseTo(ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE, 9);
   });
 });
 

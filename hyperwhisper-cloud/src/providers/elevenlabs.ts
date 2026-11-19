@@ -1,5 +1,5 @@
 // ELEVENLABS SCRIBE PROVIDER
-// High accuracy STT - $0.00983/min using Scribe v2
+// High accuracy STT using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
