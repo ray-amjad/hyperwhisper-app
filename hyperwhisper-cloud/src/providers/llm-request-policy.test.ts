@@ -3,12 +3,11 @@ import { describe, expect, test } from 'bun:test';
 import { ANTHROPIC_MAX_TOKENS, GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { ANTHROPIC_WRAPPER_INSTRUCTION } from './anthropic';
 import { buildCorrectionRequest } from './llm-contract';
-import { buildGroqBody } from './groq-llm';
-import { buildOpenAIBody } from './openai-llm';
+import { buildOpenAICompatBody } from './openai-compat-chat';
 
 describe('hosted LLM output-limit policy', () => {
   test('does not translate an output cap into the OpenAI request', () => {
-    const body = buildOpenAIBody(buildCorrectionRequest('system', 'transcript'), 'gpt-5.6-luna');
+    const body = buildOpenAICompatBody('openai', buildCorrectionRequest('system', 'transcript'), 'gpt-5.6-luna');
 
     expect(body).not.toHaveProperty('max_tokens');
     expect(body).not.toHaveProperty('max_completion_tokens');
@@ -18,7 +17,7 @@ describe('hosted LLM output-limit policy', () => {
   // default ceiling is too low for a cleaned transcript once gpt-oss reasoning
   // tokens are drawn from the same budget.
   test('sends an explicit completion cap on the Groq request', () => {
-    const body = buildGroqBody(buildCorrectionRequest('system', 'transcript'), 'openai/gpt-oss-120b');
+    const body = buildOpenAICompatBody('groq', buildCorrectionRequest('system', 'transcript'), 'openai/gpt-oss-120b');
 
     expect(body.max_completion_tokens).toBe(GROQ_MAX_COMPLETION_TOKENS);
     expect(body).not.toHaveProperty('max_tokens');
