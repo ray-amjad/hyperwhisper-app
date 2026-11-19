@@ -16,9 +16,10 @@
 // which says why a raw Upstash error is a credential leak.
 
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
-import { WRITE_POOL_BALANCE_SCRIPT, creditPoolBalanceKey, type CreditPoolBalanceEntry } from './credit-hold-store';
+import { WRITE_POOL_BALANCE_SCRIPT, type CreditPoolBalanceEntry } from './credit-hold-store';
 import { toRedactedLogLine } from './log-redaction';
 import { isRecord } from './utils';
+import { creditPoolBalanceKey, ipBlockedKey, licenseCacheKey } from './redis-keys';
 
 /** The three Upstash commands this module uses. */
 export interface RedisStore {
@@ -42,7 +43,7 @@ export type RedisStoreFactory = () => RedisStore;
 
 export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise<boolean> {
   try {
-    const blockKey = `ip_blocked:${ip}`;
+    const blockKey = ipBlockedKey(ip);
     const blocked = await store().get(blockKey);
     // The client JSON-parses every read, so an entry stored as bare `true`
     // (redis-cli, the Upstash console, or `set(key, 'true')`) reads back as
@@ -96,7 +97,7 @@ export async function getCachedLicense(
   licenseKey: string
 ): Promise<CachedLicense | null> {
   try {
-    const cached = await store().get<CachedLicense>(`license:${licenseKey}`);
+    const cached = await store().get<CachedLicense>(licenseCacheKey(licenseKey));
     if (!cached) return null;
 
     // Validate the shape instead of asserting it. An entry written by an older
@@ -154,10 +155,10 @@ export async function cacheLicense(
       license.issuedAtMs !== undefined
         ? redis.eval(
           WRITE_LICENSE_SCRIPT,
-          [`license:${licenseKey}`],
+          [licenseCacheKey(licenseKey)],
           [JSON.stringify(license), String(LICENSE_CACHE_TTL_SECONDS), String(license.issuedAtMs)],
         )
-        : redis.set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS }),
+        : redis.set(licenseCacheKey(licenseKey), license, { ex: LICENSE_CACHE_TTL_SECONDS }),
     ];
     // A pooled key's balance is the USER's (#2026), so it is also the latest
     // word on every other key of that user. The credit-hold script caps a
@@ -219,7 +220,7 @@ export async function invalidateCachedLicense(
   try {
     await store().eval(
       WRITE_LICENSE_SCRIPT,
-      [`license:${licenseKey}`],
+      [licenseCacheKey(licenseKey)],
       [JSON.stringify(entry), String(LICENSE_CACHE_TTL_SECONDS), String(nowMs)],
     );
     return true;

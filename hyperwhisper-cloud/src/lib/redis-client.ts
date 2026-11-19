@@ -1,10 +1,16 @@
-// UPSTASH REDIS CLIENT FACTORY
+// UPSTASH REDIS CLIENT — THE ONE CLIENT FOR THE CLOUD DATABASE
 //
-// The env-reading, client-building edge that `./redis` used to inline. It
-// lives in its own module because a dozen suites `mock.module('./redis')`,
+// Every module that talks to the cloud's Upstash database (`./redis`, the
+// credit-hold and rate-limit middleware, the internal licence-cache route)
+// gets its client from `getCloudRedis` here, so there is ONE memoised client
+// and one place to change its options. The key names live in `./redis-keys`.
+//
+// It lives apart from `./redis` because many suites `mock.module('./redis')`,
 // which replaces that module process-wide in bun, so no test could ever run
-// the real getter. Nothing mocks this module, and both dependencies arrive as
-// defaulted parameters, so `redis-client.test.ts` drives the real code.
+// the real getter. Nothing mocks this module, and both dependencies of
+// `createRedisGetter` arrive as defaulted parameters, so
+// `redis-client.test.ts` drives the real code. A test that wants a fake
+// database swaps it with `setRedisForTests` instead of a `mock.module`.
 
 import { Redis } from '@upstash/redis';
 
@@ -50,4 +56,28 @@ export function createRedisGetter(
     }
     return client;
   };
+}
+
+let override: Redis | null = null;
+let productionGetter = createRedisGetter();
+
+/**
+ * The process's one cloud-Redis client: lazy and memoised, built on first use
+ * from `UPSTASH_REDIS_CLOUD_*`. Throws `RedisNotConfiguredError` when that env
+ * is missing (callers keep their own fail-open / fail-closed choice).
+ */
+export function getCloudRedis(): Redis {
+  return override ?? productionGetter();
+}
+
+/**
+ * Test hook: every `getCloudRedis()` caller sees `fake` until it is reset
+ * with `setRedisForTests(null)`. Only the methods a suite drives need to exist.
+ * The reset also drops the memoised env-built client, so a suite that stubs
+ * `UPSTASH_REDIS_CLOUD_*` gets a client built from ITS env, not one another
+ * suite memoised earlier in the same process.
+ */
+export function setRedisForTests(fake: object | null): void {
+  override = fake as Redis | null;
+  if (fake === null) productionGetter = createRedisGetter();
 }

@@ -7,8 +7,12 @@
 // the IP block or the licence cache, and should not pull them into its module
 // graph to reach one string function. Both modules import this one as peers.
 //
-// Pure: no I/O, no imports. Nothing `mock.module`s it, so every suite that
-// reaches it through a caller exercises the real thing.
+// Pure: no I/O; its one import is the pure key-name module, so a renamed or
+// added Redis key is redacted without a second edit here. Nothing
+// `mock.module`s it, so every suite that reaches it through a caller exercises
+// the real thing.
+
+import { GOOGLE_TOKEN_CACHE_KEY, IDENTIFYING_KEY_PREFIXES } from './redis-keys';
 
 /**
  * The longest redacted failure we put on one log line. An
@@ -51,8 +55,15 @@ const MIN_BY_VALUE_KEY_CHARS = 8;
  * cannot start at `<`, so the pass is a fixed point on its own output. See
  * pass 4.
  */
-const GOOGLE_TOKEN_KEY_VALUE =
-  /(google_oauth_token(?:(?:\\*"|&quot;|') ?[,:=] ?(?:\\*"|&quot;|')?|[ :=]+))[^\s"'<>&,\]\\]+/g;
+const GOOGLE_TOKEN_KEY_VALUE = new RegExp(
+  String.raw`(${GOOGLE_TOKEN_CACHE_KEY}(?:(?:\\*"|&quot;|') ?[,:=] ?(?:\\*"|&quot;|')?|[ :=]+))[^\s"'<>&,\]\\]+`,
+  'g'
+);
+
+/** `<prefix><value>` for each key whose suffix identifies a caller (pass 4). */
+const IDENTIFYING_KEY_VALUES = IDENTIFYING_KEY_PREFIXES.map(
+  (prefix) => [new RegExp(String.raw`${prefix}[^"'\s\]]*`, 'g'), `${prefix}<redacted>`] as const
+);
 
 /**
  * A Google OAuth access token by its FORMAT: Google issues them as `ya29.`
@@ -252,9 +263,10 @@ export function toRedactedLogLine(error: unknown, byValue: RedactByValue = {}): 
       /([a-z][a-z0-9+.-]*:\/\/)[^@\s"'/?#\]]*@/gi,
       '$1<redacted-credentials>@'
     );
+    for (const [pattern, replacement] of IDENTIFYING_KEY_VALUES) {
+      line = line.replace(pattern, replacement);
+    }
     line = line
-      .replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>')
-      .replace(/license:[^"'\s\]]*/g, 'license:<redacted>')
       .replace(GOOGLE_TOKEN_KEY_VALUE, '$1<redacted>')
       .replace(GOOGLE_ACCESS_TOKEN, 'ya29.<redacted>');
     const { ip, licenseKey, secrets = [] } = byValue;

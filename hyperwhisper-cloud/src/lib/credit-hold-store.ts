@@ -28,6 +28,8 @@
 // arrives through a factory, and `credit-hold-store-memory.ts` is the in-memory
 // twin the route suites use.
 
+import { creditHoldsExpiryKey, creditHoldsKey, creditPoolBalanceKey, licenseCacheKey } from './redis-keys';
+
 /** Credits as integer milli-credits. */
 export function toMilliCredits(credits: number): number {
   if (!Number.isFinite(credits) || credits <= 0) return 0;
@@ -80,14 +82,9 @@ export interface CreditHoldStore {
 /** The hold account of a credit pool: `pool:<credit_pool_id>`. */
 export const CREDIT_POOL_ACCOUNT_PREFIX = 'pool:';
 
-/**
- * Where `cacheLicense` keeps the latest balance the licence API reported for
- * ANY key of one credit pool (#2026). Same `{ credits, cachedAt }` JSON and TTL
- * as the `license:<key>` entry it is written next to.
- */
-export function creditPoolBalanceKey(creditPoolId: string): string {
-  return `credit_pool_balance:${creditPoolId}`;
-}
+// The key builders live with every other cloud key name in `./redis-keys`;
+// re-exported so existing importers keep one path.
+export { creditPoolBalanceKey };
 
 /** The JSON `cacheLicense` keeps under `creditPoolBalanceKey`. */
 export interface CreditPoolBalanceEntry {
@@ -144,11 +141,11 @@ export function holdKeys(
   account: string,
   licenseKey: string = account,
 ): { holds: string; expiry: string; license: string; poolBalance: string } {
-  const license = `license:${licenseKey}`;
+  const license = licenseCacheKey(licenseKey);
   return {
-    holds: `credit_holds:${account}`,
-    expiry: `credit_holds_expiry:${account}`,
-    // The SAME key `redis-core.ts` caches the balance under. The script reads it
+    holds: creditHoldsKey(account),
+    expiry: creditHoldsExpiryKey(account),
+    // The SAME key `redis-core.ts` caches the balance under (`licenseCacheKey`). The script reads it
     // so a settle that lowered the cached balance after this request authed is
     // still seen: auth can read the balance seconds before the reservation runs
     // (a long upload sits between them on /transcribe).

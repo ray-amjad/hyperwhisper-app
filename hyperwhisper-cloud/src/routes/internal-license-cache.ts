@@ -23,7 +23,7 @@ import type { Context } from 'hono';
 import { invalidateCachedLicense } from '../lib/redis-core';
 import { validateContentLength } from '../lib/request-limits';
 import { readAccountKey } from '../lib/account-key';
-import { createRedisGetter } from '../lib/redis-client';
+import { getCloudRedis } from '../lib/redis-client';
 
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
 
@@ -90,12 +90,8 @@ export function createLicenseCacheInvalidateRoute(deps: LicenseCacheInvalidateDe
   };
 }
 
-// Its own lazy client over the same UPSTASH_REDIS_CLOUD_* pair, as the credit
-// hold store has: `lib/redis` is replaced with `mock.module` by many suites, and
-// importing a new export through it would break every one of their stubs.
-const getRedis = createRedisGetter();
 
 export const licenseCacheInvalidateRoute = createLicenseCacheInvalidateRoute({
   secret: () => process.env.HYPERWHISPER_INTERNAL_SECRET,
-  invalidate: (licenseKey) => invalidateCachedLicense(getRedis, licenseKey),
+  invalidate: (licenseKey) => invalidateCachedLicense(getCloudRedis, licenseKey),
 });

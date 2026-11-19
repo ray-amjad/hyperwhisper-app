@@ -69,3 +69,22 @@ describe('createRedisGetter', () => {
     expect(get()).toBeInstanceOf(Redis);
   });
 });
+
+describe('getCloudRedis / setRedisForTests', () => {
+  test('every caller sees the swapped store until it is reset', async () => {
+    const { getCloudRedis, setRedisForTests } = await import('./redis-client');
+    const fake = { get: async () => 'fake' };
+    setRedisForTests(fake);
+    try {
+      expect(getCloudRedis() as unknown).toBe(fake);
+    } finally {
+      setRedisForTests(null);
+    }
+    // Reset: back to the env-built client (which throws when no env is set).
+    let after: unknown = null;
+    try {
+      after = getCloudRedis();
+    } catch {}
+    expect(after).not.toBe(fake);
+  });
+});

@@ -16,8 +16,9 @@
 import { JWT } from 'google-auth-library';
 import { createGoogleAuth, type GoogleTokenCache, type GoogleTokenMinter } from './google-auth-core';
 import { redis } from './redis';
+import { GOOGLE_TOKEN_CACHE_KEY } from './redis-keys';
 
-const TOKEN_CACHE_KEY = 'google_oauth_token';
+const TOKEN_CACHE_KEY = GOOGLE_TOKEN_CACHE_KEY;
 const SPEECH_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
 
 export type { GoogleAuth, GoogleTokenCache, GoogleTokenMinter } from './google-auth-core';

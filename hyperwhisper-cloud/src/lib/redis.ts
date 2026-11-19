@@ -8,14 +8,14 @@
 // reach it through this module.
 
 import * as core from './redis-core';
-import { createRedisGetter } from './redis-client';
+import { getCloudRedis } from './redis-client';
 
 export type { CachedLicense, RedisStore, RedisStoreFactory } from './redis-core';
 
 // Lazy, memoised getter for the CLOUD database. The env names, the missing-env
 // error and the memo live in `./redis-client`, which nothing mocks, so its
 // tests reach them; see the SITE / CLOUD warning there.
-const getRedis = createRedisGetter();
+const getRedis = getCloudRedis;
 
 // Export redis getter for lazy initialization
 export const redis = {

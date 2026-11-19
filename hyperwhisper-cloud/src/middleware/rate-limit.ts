@@ -33,7 +33,8 @@ import { createHash } from 'node:crypto';
 import type { Context, Next } from 'hono';
 import { Ratelimit } from '@upstash/ratelimit';
 import type { Redis } from '@upstash/redis';
-import { createRedisGetter, RedisNotConfiguredError } from '../lib/redis-client';
+import { getCloudRedis, RedisNotConfiguredError } from '../lib/redis-client';
+import { rateLimitKeyPrefix } from '../lib/redis-keys';
 import { getClientIP } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
 import { toRedactedLogLine } from '../lib/log-redaction';
@@ -98,7 +99,7 @@ export function createUpstashRateLimitStore(
       limiter = new Ratelimit({
         redis: getRedis(),
         limiter: Ratelimit.slidingWindow(RATE_LIMITS[bucket], `${RATE_LIMIT_WINDOW_SECONDS} s`),
-        prefix: `ratelimit:${bucket}`,
+        prefix: rateLimitKeyPrefix(bucket),
         timeout: timeoutMs,
         analytics: false,
       });
@@ -129,10 +130,8 @@ export function createUpstashRateLimitStore(
   };
 }
 
-// Its own lazily built client, like `middleware/credit-holds.ts`: `lib/redis.ts`
-// is replaced process-wide by a dozen suites' `mock.module`. Same database,
-// same env vars.
-const productionStore = createUpstashRateLimitStore(createRedisGetter());
+// The process's one cloud-Redis client (`lib/redis-client`), built lazily.
+const productionStore = createUpstashRateLimitStore(getCloudRedis);
 let storeOverride: RateLimitStore | null = null;
 
 /** Test-only: install a store, or `null` for the real Upstash one. */
