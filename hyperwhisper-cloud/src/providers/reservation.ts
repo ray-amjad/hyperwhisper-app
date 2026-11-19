@@ -40,7 +40,7 @@ import { couldRouteThroughSync } from './assemblyai';
 import {
   estimatedUsdPerMinute,
   fallbackChainFor,
-  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
+  ASSEMBLYAI_SYNC_USD_PER_MINUTE,
   type SttProviderId,
 } from '../lib/stt-models';
 
@@ -84,7 +84,7 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
   // exactly sync's target case, so a reservation that only ever priced the
   // requested async model could be deducted beyond what it held.
   assemblyai: (input) => (input.model !== 'dictation' && couldRouteThroughSync(input)
-    ? ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE
+    ? ASSEMBLYAI_SYNC_USD_PER_MINUTE
     : null),
 };
 

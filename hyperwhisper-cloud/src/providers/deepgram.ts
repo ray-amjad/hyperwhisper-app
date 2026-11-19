@@ -1,5 +1,5 @@
 // DEEPGRAM NOVA-3 PROVIDER
-// Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
+// Primary STT provider - best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
