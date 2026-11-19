@@ -1,6 +1,4 @@
 // HYPERWHISPER FLY.IO TRANSCRIPTION SERVICE
-// Edge-based transcription proxy replacing Cloudflare Workers
-// Eliminates R2 upload path complexity - can buffer larger audio files in memory
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -71,13 +69,10 @@ app.get('/warmup', (c) => {
 // `/post-process`: it counts them so a deploy's SIGTERM waits for them (and
 // refuses new ones) instead of exiting under them (#2031). It reads no body.
 
-// Main transcription endpoint
 app.post('/transcribe', trackInFlightRequests, ipRateLimit, transcribeRoute);
 
-// Standalone post-processing endpoint
 app.post('/post-process', trackInFlightRequests, ipRateLimit, postProcessRoute);
 
-// Usage endpoint
 app.get('/usage', ipRateLimit, usageRoute);
 
 // WebSocket streaming endpoints. One route per live vendor, named
@@ -157,7 +152,6 @@ process.on('SIGINT', () => { onShutdownSignal('SIGINT'); });
 // binding cut for silent requests.
 export const SERVER_IDLE_TIMEOUT_SECONDS = 255;
 
-// Export for Bun
 export default {
   port: Number(process.env.PORT) || 8080,
   idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,

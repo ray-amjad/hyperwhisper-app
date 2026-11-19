@@ -1,7 +1,6 @@
 /**
  * The one way the cloud tests change an environment variable and put it back.
- * `stubEnv` reads the old value at the moment it is called, so call it where
- * the test used to read `process.env.X` into a local; `saveEnv` is the same
+ * `stubEnv` reads the old value at the moment it is called; `saveEnv` is the same
  * capture without a write. Test code only: nothing in `src/index.ts` imports
  * this module.
  */

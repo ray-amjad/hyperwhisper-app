@@ -1,9 +1,6 @@
 // CREDIT HOLDS — PER-REQUEST AND PER-SESSION RESERVATIONS (issue #2008)
 //
-// `validateCredits` used to compare the estimate with a balance cached for up to
-// an hour, and nothing was set aside, so N concurrent requests on one key each
-// saw the whole balance and each were served. Now every billed request holds
-// its estimate in Redis before it runs (`lib/credit-hold-store.ts` does the
+// Every billed request holds its estimate in Redis before it runs (`lib/credit-hold-store.ts` does the
 // atomic part), and the hold is settled or released exactly once when the
 // request ends.
 //
@@ -20,8 +17,8 @@
 //
 // WHO SHARES A HOLD BUDGET: every key of one user (#2026). Credits belong to the
 // user, so holds are counted per credit pool: `pool:<credit_pool_id>` when the
-// licence API sent one (cached with the licence), else the Account Key, as
-// before. A user's keys then cannot together hold more than the one balance.
+// licence API sent one (cached with the licence), else the Account Key.
+// A user's keys then cannot together hold more than the one balance.
 //
 // REDIS UNAVAILABLE FAILS OPEN. A store error (or an unconfigured store) marks
 // the hold `degraded`, logs `credits_hold.unavailable`, and the request runs on
@@ -155,7 +152,6 @@ export class CreditHold {
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const previous = this.queue;
     const run = (async () => {
-      // Runs after the previous operation whether it resolved or rejected.
       try {
         await previous;
       } catch {
@@ -275,7 +271,7 @@ export async function withCreditHoldScope<T>(run: () => Promise<T>): Promise<T> 
 /**
  * The hold for this request's auth context, created on first use. `undefined`
  * outside `withCreditHoldScope`: such a caller holds nothing and is checked
- * against the cached balance only, as before.
+ * against the cached balance only.
  */
 export function requestHoldFor(auth: AuthContext): CreditHold | undefined {
   const scope = requestScope.getStore();

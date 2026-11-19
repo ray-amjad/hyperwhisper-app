@@ -1,6 +1,3 @@
-// AUTHENTICATION HELPERS
-// Validates license keys and device trial identifiers
-
 import { LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
 import { canonicalAccountKey } from '../lib/account-key';
 import { cacheLicense, getCachedLicense } from '../lib/redis';

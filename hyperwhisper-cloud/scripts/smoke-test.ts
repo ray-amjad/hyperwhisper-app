@@ -50,7 +50,6 @@ interface SttCheck {
 // — it 400s on a bare language subtag. Every other provider accepts the short
 // ISO-639-1 form, so only the chirp rows are region-qualified.
 const STT_CHECKS: SttCheck[] = [
-  // Original cross-fallback trio + single-model providers.
   { provider: 'deepgram',     file: 'en-us-sarah.mp3',  language: 'en' },
   { provider: 'deepgram',     file: 'zh-roger.mp3',     language: 'zh' },
   { provider: 'groq',         file: 'en-gb-george.mp3', language: 'en' },
@@ -61,8 +60,6 @@ const STT_CHECKS: SttCheck[] = [
   { provider: 'azure-mai',    file: 'de-brian.mp3',     language: 'de' },
   { provider: 'google-chirp', file: 'ja-yuki.mp3',      language: 'ja-JP' },
   { provider: 'google-chirp', file: 'hi-rashmi.mp3',    language: 'hi-IN' },
-  // Proxy providers added in the multi-provider rollout. One run each so the
-  // coverage guard is satisfied and a dead key/route fails the deploy.
   { provider: 'openai',       file: 'es-m.mp3',         language: 'es' },
   { provider: 'gemini',       file: 'fr-lily.mp3',      language: 'fr' },
   { provider: 'assemblyai',   file: 'de-brian.mp3',     language: 'de' },
@@ -93,9 +90,7 @@ const LLM_CHECKS: Record<string, string> = Object.fromEntries(
 // model-name echo apart from a genuine fallback to another provider.
 //
 // The base comes from the registry (`servedNameFor`), which is the same
-// function the route labels the header with. This used to be a hand-written
-// copy of the one rule where the two differ (grok is served as "xai-grok"), so
-// a second such provider would have passed a smoke test that checked nothing.
+// function the route labels the header with.
 function expectedServedPrefix(provider: SttProviderId): string {
   return servedNameFor(provider);
 }

@@ -1,6 +1,3 @@
-// CREDIT VALIDATION + DEDUCTION
-// Handles preflight credit checks and post-usage deduction
-
 import { readCreditPoolId, type AuthContext } from './auth';
 import { LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
 import { isRecord, roundToTenth } from '../lib/utils';
