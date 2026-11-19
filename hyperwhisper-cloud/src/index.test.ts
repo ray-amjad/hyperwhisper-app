@@ -56,8 +56,8 @@ const { LLM_REQUEST_TIMEOUT_MS } = await import('./providers/llm-fetch');
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
-const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./routes/ws-streaming-shared');
-const { resetInFlightRequestsForTests } = await import('./middleware/in-flight-requests');
+const { endLiveSessions, resetLiveSessionsForTests } = await import('./lib/background-work');
+const { resetInFlightRequestsForTests } = await import('./lib/in-flight-requests');
 
 /** Just enough upstream socket for a Deepgram session that is already open. */
 class OpenUpstreamSocket {
@@ -137,7 +137,7 @@ afterAll(() => {
   process.exit = originalExit;
   // The SIGTERM test latches the streaming shutdown and the request refusal;
   // bun runs every file in one process.
-  resetStreamingShutdownForTests();
+  resetLiveSessionsForTests();
   resetInFlightRequestsForTests();
   restorePort();
 });
@@ -499,8 +499,8 @@ describe('graceful shutdown', () => {
 
     // A live session another suite left open would be ended too; settle those
     // first so the counts below are this test's alone.
-    await endActiveStreamingSessions();
-    resetStreamingShutdownForTests();
+    await endLiveSessions();
+    resetLiveSessionsForTests();
     await drainPendingDeductions(3_000);
     deductionReachedApi = false;
     liveChargeSeconds.length = 0;

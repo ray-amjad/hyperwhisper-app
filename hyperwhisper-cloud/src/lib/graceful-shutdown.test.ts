@@ -33,8 +33,8 @@ import {
   RESPONSE_FLUSH_GRACE_MS,
   resetInFlightRequestsForTests,
   trackInFlightRequests,
-} from '../middleware/in-flight-requests';
-import { endActiveStreamingSessions, resetStreamingShutdownForTests } from '../routes/ws-streaming-shared';
+} from './in-flight-requests';
+import { endLiveSessions, resetLiveSessionsForTests } from './background-work';
 import { saveEnv } from '../test-support/env';
 
 const AUTH = { identifier: 'HW-ROUTINE-FIXTURE', credits: 1000, licenseKey: 'HW-ROUTINE-FIXTURE' };
@@ -113,13 +113,13 @@ function startStuckRequest(): () => void {
 
 /** Drop whatever another suite (or a mutant) left pending, so counts are this test's own. */
 async function settleLeftovers(): Promise<void> {
-  await endActiveStreamingSessions();
+  await endLiveSessions();
   await Promise.all([
     drainPendingDeductions(3_000),
     drainPendingLatencyReports(3_000),
     drainPendingHoldReleases(3_000),
   ]);
-  resetStreamingShutdownForTests();
+  resetLiveSessionsForTests();
   resetInFlightRequestsForTests();
 }
 

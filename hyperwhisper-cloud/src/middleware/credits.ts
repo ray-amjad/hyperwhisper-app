@@ -9,6 +9,7 @@ import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
 import { logEvent } from '../lib/logging';
+import { backgroundWork } from '../lib/background-work';
 import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
 export type CreditsResult =
@@ -228,18 +229,10 @@ async function recordLicenseUsage(
 // Fly machine recycle (SIGTERM on deploy/scale-down) between the response
 // flush and the redis/license write would silently drop the charge. Every
 // deduction registers here so the SIGTERM handler can drain before exit.
-const inFlightDeductions = new Set<Promise<number>>();
+const inFlightDeductions = backgroundWork('deductions');
 
-export async function drainPendingDeductions(timeoutMs: number): Promise<number> {
-  const pendingCount = inFlightDeductions.size;
-  if (pendingCount === 0) {
-    return 0;
-  }
-
-  const allSettled = Promise.allSettled([...inFlightDeductions]);
-  const timeout = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
-  await Promise.race([allSettled, timeout]);
-  return pendingCount;
+export function drainPendingDeductions(timeoutMs: number): Promise<number> {
+  return inFlightDeductions.drain(timeoutMs);
 }
 
 export function deductCredits(
@@ -252,12 +245,8 @@ export function deductCredits(
   // Taken synchronously, so the request scope that ends right after this call
   // finds the hold already handed over and leaves its release to the charge.
   const hold = takeHoldForSettle(auth);
-  const deduction = performDeduction(auth, costUsd, metadata, clientIP, options, hold);
-  inFlightDeductions.add(deduction);
-  deduction
-    .catch(() => {}) // errors are logged inside performDeduction / by callers
-    .finally(() => inFlightDeductions.delete(deduction));
-  return deduction;
+  // Errors are logged inside performDeduction / by callers.
+  return inFlightDeductions.track(performDeduction(auth, costUsd, metadata, clientIP, options, hold));
 }
 
 async function performDeduction(
