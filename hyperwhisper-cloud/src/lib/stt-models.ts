@@ -525,8 +525,8 @@ export function estimatedUsdPerMinute(
   const base = priced.estimatedUsdPerMinute;
 
   if (provider === 'elevenlabs') {
-    // Keyterm prompting adds +20% on base, scribe_v2 only (scribe_v1 has no biasing).
-    return (keyterms && priced.id === 'scribe_v2') ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
+    // Keyterm prompting adds +20% on base.
+    return keyterms ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
   }
 
   if (provider !== 'assemblyai' || priced.id === 'dictation') {

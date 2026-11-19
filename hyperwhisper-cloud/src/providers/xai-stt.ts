@@ -5,6 +5,7 @@
 // on every request. Ref: https://x.ai/news/grok-voice-transcribe-2
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -19,13 +20,6 @@ import {
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
-// The route resolves `context.model` against the registry before this runs, so
-// the constant only covers a direct caller that passes no context. It is kept
-// equal to the `grok` row's default in `lib/stt-models.ts` — `stt-models.test`
-// pins the two together. Sending nothing is NOT an option: xAI defaults
-// `/v1/stt` to its newest model, so an unpinned request would change model on
-// xAI's schedule rather than on a deploy of ours.
-const XAI_STT_DEFAULT_MODEL = 'grok-voice-transcribe-2.0';
 // xAI keyterm limits: max 100 terms, each up to 50 characters.
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
@@ -99,7 +93,9 @@ export async function transcribeWithXaiGrok(
   }
 
   const formattingLanguage = normalizedFormattingLanguage(language);
-  const model = context.model?.trim() || XAI_STT_DEFAULT_MODEL;
+  // Always pinned: xAI defaults /v1/stt to its newest model, so an unpinned
+  // request would change model on xAI's schedule rather than on our deploy.
+  const model = context.model || getProviderDef('grok').defaultModel;
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'mp3';
   const formData = new FormData();
 

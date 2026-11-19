@@ -8,6 +8,7 @@
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -21,7 +22,6 @@ import {
 } from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
-const DEFAULT_MODEL = 'gpt-4o-transcribe';
 // OpenAI serves this model only over a Realtime WebSocket session, not on
 // v1/audio/transcriptions. It stays registered (stt-models.ts), so the adapter
 // refuses it before the key check or any upstream call.
@@ -76,7 +76,7 @@ export async function transcribeWithOpenAI(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'openai';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('openai').defaultModel;
 
   if (model === LIVE_ONLY_MODEL) {
     // Fail before spending a round trip, and name the reason. A
