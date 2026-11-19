@@ -3,13 +3,8 @@
 import { retryWithBackoff } from './utils';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
 import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
-import { requestCerebrasChat } from '../providers/cerebras';
-import { requestGroqChat } from '../providers/groq-llm';
 import { requestAnthropicChat } from '../providers/anthropic';
-import { requestXaiGrokChat } from '../providers/xai-llm';
-import { requestOpenAIChat } from '../providers/openai-llm';
-import { requestGeminiChat } from '../providers/gemini-llm';
-import { requestMistralChat } from '../providers/mistral-llm';
+import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from '../providers/openai-compat-chat';
 
 export type LLMProvider = 'cerebras' | 'groq' | 'anthropic' | 'grok' | 'openai' | 'gemini' | 'mistral';
 
@@ -78,9 +73,8 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 };
 
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
-// resolved model is threaded through callWithRetry to the anthropic/openai/
-// gemini/mistral clients, which put it in the request body (the other 3
-// providers ignore it).
+// resolved model is threaded through callWithRetry to the client, which sends it
+// as the request model.
 // Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
 const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
@@ -167,8 +161,7 @@ export function isRetryableLLMError(error: Error, retryRateLimit = true): boolea
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
- * model id — the anthropic/openai/gemini/mistral clients send it as the request
- * model; the other providers ignore it. See isRetryableLLMError for
+ * model id the client sends as the request model. See isRetryableLLMError for
  * `retryRateLimit`.
  */
 export async function callWithRetry(
@@ -177,18 +170,11 @@ export async function callWithRetry(
   requestId: string,
   model: string,
   { retryRateLimit = true }: { retryRateLimit?: boolean } = {}
-): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
+): Promise<OpenAICompatChatResult> {
   return retryWithBackoff(
-    () => {
-      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId, undefined, model);
-      if (provider === 'grok') return requestXaiGrokChat(payload, requestId);
-      if (provider === 'openai') return requestOpenAIChat(payload, requestId, model);
-      if (provider === 'gemini') return requestGeminiChat(payload, requestId, model);
-      if (provider === 'mistral') return requestMistralChat(payload, requestId, model);
-      return provider === 'cerebras'
-        ? requestCerebrasChat(payload, requestId)
-        : requestGroqChat(payload, requestId);
-    },
+    () => provider === 'anthropic'
+      ? requestAnthropicChat(payload, requestId, undefined, model)
+      : requestOpenAICompatibleChat(provider, payload, requestId, model),
     {
       maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
