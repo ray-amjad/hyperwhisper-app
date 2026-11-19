@@ -36,13 +36,7 @@ import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { shouldFallback } from '../lib/llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { requestGroqChat } from './groq-llm';
-import { requestCerebrasChat } from './cerebras';
-import { requestOpenAIChat } from './openai-llm';
-import { requestGeminiChat } from './gemini-llm';
-import { requestMistralChat } from './mistral-llm';
-import { requestXaiGrokChat } from './xai-llm';
-import { requestOpenAICompatibleChat, type OpenAICompatChatConfig } from './openai-compat-chat';
+import { requestOpenAICompatibleChat } from './openai-compat-chat';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
 
@@ -82,6 +76,14 @@ function chatResponse(body: Record<string, unknown> = {}): Response {
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 }
+
+type Payload = CorrectionRequestPayload;
+const requestCerebrasChat = (p: Payload, id: string) => requestOpenAICompatibleChat('cerebras', p, id, 'gpt-oss-120b');
+const requestGroqChat = (p: Payload, id: string) => requestOpenAICompatibleChat('groq', p, id, 'openai/gpt-oss-120b');
+const requestXaiGrokChat = (p: Payload, id: string) => requestOpenAICompatibleChat('grok', p, id, 'grok-4.3');
+const requestOpenAIChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('openai', p, id, model);
+const requestGeminiChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('gemini', p, id, model);
+const requestMistralChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('mistral', p, id, model);
 
 const PAYLOAD: CorrectionRequestPayload = buildCorrectionRequest('system prompt', 'user transcript');
 
@@ -291,15 +293,11 @@ describe('request body construction', () => {
     expect(lastBody().reasoning_effort).toBe('low');
   });
 
-  test('xai lets the payload override its reasoning_effort default', async () => {
-    // xai spreads `reasoning_effort` BEFORE the payload. This asymmetry with
-    // cerebras is easy to erase in a refactor, so it is pinned deliberately.
+  test('xai sends reasoning_effort none', async () => {
+    // The payload type has no reasoning_effort, so the order of the old spread
+    // (xai put it before the payload) could never be observed.
     await requestXaiGrokChat(PAYLOAD, 'req-1');
     expect(lastBody().reasoning_effort).toBe('none');
-
-    const withOverride = { ...PAYLOAD, reasoning_effort: 'high' } as CorrectionRequestPayload;
-    await requestXaiGrokChat(withOverride, 'req-1');
-    expect(lastBody().reasoning_effort).toBe('high');
   });
 });
 
@@ -549,17 +547,10 @@ describe('bounded wait on a silent upstream', () => {
     upstream = undefined;
   });
 
-  function configFor(baseUrl: string): OpenAICompatChatConfig {
-    return {
-      baseUrl,
-      apiKey: 'test-key',
-      providerTag: 'groq',
-      errorLogLabel: 'test chat',
-      errorChatLabel: 'test chat',
-      buildBody: () => ({ model: 'm' }),
-      computeCost: () => 0,
-      timeoutMs: TIMEOUT_MS,
-    };
+  /** Send the groq client's request to `url` (the real fetch) with a short bound. */
+  function sendTo(url: string, requestId: string) {
+    globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => originalFetch(url, init)) as typeof fetch;
+    return requestOpenAICompatibleChat('groq', PAYLOAD, requestId, 'm', TIMEOUT_MS);
   }
 
   async function timedError(fn: () => Promise<unknown>): Promise<{ error: unknown; elapsedMs: number }> {
@@ -569,11 +560,9 @@ describe('bounded wait on a silent upstream', () => {
   }
 
   test('rejects with a 504 within the timeout when the upstream never answers', async () => {
-    globalThis.fetch = originalFetch;
     upstream = silentUpstream();
 
-    const { error, elapsedMs } = await timedError(() =>
-      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-silent', 'm'));
+    const { error, elapsedMs } = await timedError(() => sendTo(upstream!.url, 'req-silent'));
 
     expect(error).toBeInstanceOf(LLMRequestError);
     expect(errorStatus(error)).toBe(504);
@@ -585,11 +574,9 @@ describe('bounded wait on a silent upstream', () => {
   });
 
   test('rejects with a 504 when the headers arrive but the body stalls', async () => {
-    globalThis.fetch = originalFetch;
     upstream = stalledBodyUpstream();
 
-    const { error, elapsedMs } = await timedError(() =>
-      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-stalled-body', 'm'));
+    const { error, elapsedMs } = await timedError(() => sendTo(upstream!.url, 'req-stalled-body'));
 
     expect(errorStatus(error)).toBe(504);
     expect(shouldFallback(error)).toBe(true);
@@ -599,10 +586,7 @@ describe('bounded wait on a silent upstream', () => {
   // Only our timer is mapped. A real network error stays the untagged error
   // it was before #782 (retried, not failed over), as the #210 test pins.
   test('passes a refused connection through untagged, not as a timeout', async () => {
-    globalThis.fetch = originalFetch;
-
-    const error = await captureError(() =>
-      requestOpenAICompatibleChat(configFor(refusedUrl()), PAYLOAD, 'req-refused', 'm'));
+    const error = await captureError(() => sendTo(refusedUrl(), 'req-refused'));
 
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(LLMRequestError);
@@ -667,17 +651,7 @@ describe('timeout scales with the transcript', () => {
   });
 
   test('an injected timeoutMs still wins over the computed one', async () => {
-    const config: OpenAICompatChatConfig = {
-      baseUrl: 'https://llm.test',
-      apiKey: 'test-key',
-      providerTag: 'groq',
-      errorLogLabel: 'test chat',
-      errorChatLabel: 'test chat',
-      buildBody: () => ({ model: 'm' }),
-      computeCost: () => 0,
-      timeoutMs: 1_234,
-    };
-    const delays = await armedDelays(() => requestOpenAICompatibleChat(config, LONG_PAYLOAD, 'req-override', 'm'));
+    const delays = await armedDelays(() => requestOpenAICompatibleChat('groq', LONG_PAYLOAD, 'req-override', 'm', 1_234));
     expect(delays).toContain(1_234);
     expect(delays).not.toContain(50_000);
   });
