@@ -373,6 +373,12 @@ describe('streaming socket lifecycle', () => {
       expect(upstream.url).not.toContain('%3A1.5');
     });
 
+    test('keeps a literal + in a vocabulary term', () => {
+      const { upstream } = openSession({ query: '&language=en&vocabulary=C++,C%2B%2B' });
+
+      expect(new URL(upstream.url).searchParams.getAll('keyterm')).toEqual(['C++', 'C++']);
+    });
+
     test('drops keyterms in auto-detect mode, where Nova-3 ignores them', () => {
       const { upstream } = openSession({ query: '&language=auto&vocabulary=HyperWhisper,Fly.io' });
       const params = new URL(upstream.url).searchParams;
