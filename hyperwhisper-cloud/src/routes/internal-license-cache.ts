@@ -22,6 +22,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Context } from 'hono';
 import { invalidateCachedLicense } from '../lib/redis-core';
 import { validateContentLength } from '../lib/request-limits';
+import { readAccountKey } from '../lib/account-key';
 import { createRedisGetter } from '../lib/redis-client';
 
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
@@ -72,12 +73,9 @@ export function createLicenseCacheInvalidateRoute(deps: LicenseCacheInvalidateDe
       return c.json({ error: 'Invalid request body' }, 400);
     }
 
-    const raw = typeof body === 'object' && body !== null && 'account_key' in body
-      ? (body as { account_key: unknown }).account_key
-      : undefined;
-    // The same spelling the cache is keyed on: trimmed, case kept
-    // (`canonicalAccountKey` in middleware/auth.ts).
-    const licenseKey = typeof raw === 'string' ? raw.trim() : '';
+    // `account_key` only: the site is the one caller and sends no legacy alias.
+    const fields = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+    const licenseKey = readAccountKey((field) => fields[field], ['account_key']);
     if (!licenseKey || licenseKey.length > MAX_KEY_LENGTH) {
       return c.json({ error: 'account_key is required' }, 400);
     }

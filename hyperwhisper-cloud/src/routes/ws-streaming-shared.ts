@@ -50,6 +50,7 @@ import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
+import { readAccountKey } from '../lib/account-key';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -319,12 +320,7 @@ export function makeStreamingPreflight(
       return c.text('Access denied', 403);
     }
 
-    // `account_key` is the canonical param; `license_key` is the legacy alias that
-    // installed native apps still send, so we accept either.
-    const licenseKey =
-      rawQuery(c.req.url, 'account_key') ||
-      rawQuery(c.req.url, 'license_key') ||
-      undefined;
+    const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));
 
     if (!licenseKey) {
       logRejected('missing_account_key', 401);

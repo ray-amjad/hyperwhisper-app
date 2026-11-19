@@ -2,8 +2,8 @@
 // GET /usage - Query credit balance and rate limits
 
 import type { Context } from 'hono';
-import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { authDiagnosticsForLog, canonicalAccountKey, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
+import { CREDITS_PER_MINUTE, LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
+import { authDiagnosticsForLog, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense, redis } from '../lib/redis';
@@ -14,6 +14,7 @@ import { isIPBlocked } from '../lib/redis';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
+import { ACCOUNT_KEY_FIELDS, readAccountKey } from '../lib/account-key';
 
 export function readFiniteCredits(data: unknown): number | null {
   if (
@@ -72,7 +73,7 @@ type CreditsLookupError = 'http_error' | 'invalid_response' | 'network_error';
 async function getCreditsBalance(
   licenseKey: string,
 ): Promise<{ credits: number; error?: CreditsLookupError; status?: number; errorName?: string }> {
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
 
   try {
     // Taken BEFORE the request goes out: the pool balance cache orders replies
@@ -123,14 +124,10 @@ export async function usageRoute(c: Context) {
     return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
   }
 
-  // `account_key` is the canonical param; `license_key` is the legacy alias that
-  // installed native apps still send, so we accept either.
-  // Trimmed (#2461): the cache and the balance lookup below key on it directly.
+  // `/usage` alone also takes `identifier`: the macOS and Windows clients
+  // (`NetworkConfig` / `CloudManager`) send the key under that name here.
   const licenseKey =
-    canonicalAccountKey(rawQuery(c.req.url, 'account_key')) ||
-    canonicalAccountKey(rawQuery(c.req.url, 'license_key')) ||
-    canonicalAccountKey(rawQuery(c.req.url, 'identifier')) ||
-    null;
+    readAccountKey((field) => rawQuery(c.req.url, field), [...ACCOUNT_KEY_FIELDS, 'identifier']) ?? null;
   const forceRefresh = rawQuery(c.req.url, 'force_refresh') === 'true';
 
   if (licenseKey) {
