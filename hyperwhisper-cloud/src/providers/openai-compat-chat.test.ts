@@ -22,6 +22,7 @@
 // calculator, the real usage type guard and the real error classes all run.
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
 import {
   computeCerebrasChatCost,
   computeGeminiChatCost,
@@ -541,16 +542,27 @@ describe('missing API key', () => {
 describe('bounded wait on a silent upstream', () => {
   const TIMEOUT_MS = 200;
   let upstream: TestUpstream | undefined;
+  // Shrink the request bound so the real abort fires in milliseconds.
+  let timerSpy: ReturnType<typeof spyOn> | undefined;
+  beforeEach(() => {
+    const realSetTimeout = globalThis.setTimeout;
+    timerSpy = spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: (...args: unknown[]) => void,
+      ms?: number,
+      ...args: unknown[]
+    ) => realSetTimeout(handler, ms === LLM_REQUEST_TIMEOUT_MS ? TIMEOUT_MS : ms, ...args)) as unknown as typeof setTimeout);
+  });
 
   afterEach(() => {
+    timerSpy?.mockRestore();
     upstream?.stop();
     upstream = undefined;
   });
 
-  /** Send the groq client's request to `url` (the real fetch) with a short bound. */
+  /** Send the groq client's request to `url` (the real fetch). */
   function sendTo(url: string, requestId: string) {
     globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => originalFetch(url, init)) as typeof fetch;
-    return requestOpenAICompatibleChat('groq', PAYLOAD, requestId, 'm', TIMEOUT_MS);
+    return requestOpenAICompatibleChat('groq', PAYLOAD, requestId, 'm');
   }
 
   async function timedError(fn: () => Promise<unknown>): Promise<{ error: unknown; elapsedMs: number }> {
@@ -567,7 +579,7 @@ describe('bounded wait on a silent upstream', () => {
     expect(error).toBeInstanceOf(LLMRequestError);
     expect(errorStatus(error)).toBe(504);
     expect(errorProvider(error)).toBe('groq');
-    expect((error as Error).message).toContain(`timeout after ${TIMEOUT_MS}ms`);
+    expect((error as Error).message).toContain(`timeout after ${LLM_REQUEST_TIMEOUT_MS}ms`);
     expect(shouldFallback(error)).toBe(true);
     expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
@@ -611,7 +623,7 @@ describe('bounded wait on a silent upstream', () => {
 
 // The non-streaming bound scales with the transcript (review rounds 1 and 2):
 // the shared client arms its timer with computeLLMRequestTimeoutMs(transcript
-// chars) unless the config injects timeoutMs. Spy on setTimeout to read it.
+// chars). Spy on setTimeout to read it.
 describe('timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
@@ -648,11 +660,5 @@ describe('timeout scales with the transcript', () => {
       requestGroqChat(buildCorrectionRequest('s'.repeat(30_000), 'user transcript'), 'req-long-system'));
     expect(delays).toContain(20_000);
     expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
-  });
-
-  test('an injected timeoutMs still wins over the computed one', async () => {
-    const delays = await armedDelays(() => requestOpenAICompatibleChat('groq', LONG_PAYLOAD, 'req-override', 'm', 1_234));
-    expect(delays).toContain(1_234);
-    expect(delays).not.toContain(50_000);
   });
 });

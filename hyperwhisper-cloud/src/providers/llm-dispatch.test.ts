@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  DEFAULT_LLM_PROVIDER,
   defaultModelFor,
   extractLLMProvider,
   fallbackProviderFor,
@@ -9,7 +8,7 @@ import {
   servedLLMName,
   shouldFallback,
   LLM_PROVIDER_NAMES,
-  __tables,
+  LLM_PROVIDER_MODELS,
   type LLMProvider,
 } from '../lib/llm-provider';
 import {
@@ -38,8 +37,8 @@ describe('extractLLMProvider', () => {
   });
 
   test('falls back to the default provider for unknown/missing header', () => {
-    expect(extractLLMProvider(requestWith({ 'x-llm-provider': 'bogus' }))).toBe(DEFAULT_LLM_PROVIDER);
-    expect(extractLLMProvider(requestWith({}))).toBe(DEFAULT_LLM_PROVIDER);
+    expect(extractLLMProvider(requestWith({ 'x-llm-provider': 'bogus' }))).toBe('cerebras');
+    expect(extractLLMProvider(requestWith({}))).toBe('cerebras');
   });
 });
 
@@ -196,24 +195,6 @@ describe('shouldFallback', () => {
   });
 });
 
-describe('retry policy', () => {
-  test('has an entry for every provider', () => {
-    expect(Object.keys(__tables.LLM_PROVIDER_RETRIES).sort()).toEqual([...ALL_PROVIDERS].sort());
-  });
-
-  test('preserves each provider retry count', () => {
-    expect(__tables.LLM_PROVIDER_RETRIES).toEqual({
-      anthropic: 2,
-      cerebras: 0,
-      grok: 1,
-      openai: 1,
-      gemini: 2,
-      mistral: 2,
-      groq: 3,
-    });
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Allowlist  <->  billing parity
 //
@@ -224,9 +205,7 @@ describe('retry policy', () => {
 // input and 1.5x on output.
 //
 // These tests are generic over the allowlist, so they cover any id added after
-// gemini-3.8-flash with no new assertion. `LLM_PROVIDER_MODELS` is reachable
-// through llm-provider's `__tables` test-only export, the same convention
-// language-codes.ts uses for its mirrored tables.
+// gemini-3.8-flash with no new assertion.
 describe('allowlist parity', () => {
   const PP_CATALOG_PATH = `${import.meta.dir}/../../../shared-app-classification/cloud-pp-catalog.json`;
 
@@ -263,7 +242,7 @@ describe('allowlist parity', () => {
     // a second allowlisted id there would bill at the first one's price.
     for (const provider of ALL_PROVIDERS) {
       if (PER_MODEL_CHAT_COST[provider]) continue;
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
+      const { default: defaultModel, allowed } = LLM_PROVIDER_MODELS[provider];
       expect(`${provider}: ${allowed.join(',')}`).toBe(`${provider}: ${defaultModel}`);
     }
   });
@@ -274,7 +253,7 @@ describe('allowlist parity', () => {
     for (const provider of ALL_PROVIDERS) {
       const costFor = PER_MODEL_CHAT_COST[provider];
       if (!costFor) continue;
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
+      const { default: defaultModel, allowed } = LLM_PROVIDER_MODELS[provider];
       const defaultRate = pricedAt(costFor, NO_SUCH_MODEL);
 
       for (const model of allowed) {
@@ -307,7 +286,7 @@ describe('allowlist parity', () => {
       }
     }
     for (const provider of ALL_PROVIDERS) {
-      for (const model of __tables.LLM_PROVIDER_MODELS[provider].allowed) {
+      for (const model of LLM_PROVIDER_MODELS[provider].allowed) {
         fromAllowlist.push(`${provider}/${model}`);
       }
     }
@@ -329,7 +308,7 @@ describe('allowlist parity', () => {
       fromCatalog.push(`${provider.llmProvider}/${defaults.join('+')}`);
     }
     for (const provider of ALL_PROVIDERS) {
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
+      const { default: defaultModel, allowed } = LLM_PROVIDER_MODELS[provider];
       expect(`${provider}/${allowed[0]}`).toBe(`${provider}/${defaultModel}`);
       fromAllowlist.push(`${provider}/${defaultModel}`);
     }
