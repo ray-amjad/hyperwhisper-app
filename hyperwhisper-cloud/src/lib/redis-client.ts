@@ -8,6 +8,18 @@
 
 import { Redis } from '@upstash/redis';
 
+/**
+ * The Upstash env is missing. Callers that fail open (rate limits, credit
+ * holds) check for this type to log "not configured" once instead of on every
+ * request.
+ */
+export class RedisNotConfiguredError extends Error {
+  constructor() {
+    super('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
+    this.name = 'RedisNotConfiguredError';
+  }
+}
+
 export type RedisClientFactory = (opts: { url: string; token: string }) => Redis;
 
 // The transcription service's own Upstash database. The Next.js site has a
@@ -29,7 +41,7 @@ export function createRedisGetter(
       const token = env.UPSTASH_REDIS_CLOUD_TOKEN;
 
       if (!url || !token) {
-        throw new Error('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
+        throw new RedisNotConfiguredError();
       }
 
       client = makeClient({ url, token });
