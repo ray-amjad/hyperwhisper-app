@@ -16,7 +16,7 @@ import {
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { ipRateLimit } from './middleware/rate-limit';
-import { trackInFlightRequests } from './middleware/in-flight-requests';
+import { trackInFlightRequests } from './lib/in-flight-requests';
 import { runGracefulShutdown, SHUTDOWN_DRAIN_MS } from './lib/graceful-shutdown';
 import { MAX_AUDIO_SIZE_BYTES, licenseApiBaseUrl } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';

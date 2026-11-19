@@ -9,6 +9,7 @@
 // stored shape and what is deliberately absent.
 
 import { licenseApiBaseUrl } from './constants';
+import { backgroundWork } from './background-work';
 import type { ProviderUnavailableKind } from '../providers/types';
 
 /** How long the whole batch POST may take before we abandon it. */
@@ -80,18 +81,10 @@ export interface LatencySample {
 // response flush and the POST would silently drop the samples. Every batch
 // registers here so the SIGTERM handler can drain before exit. Same pattern as
 // inFlightDeductions in middleware/credits.ts.
-const inFlightReports = new Set<Promise<void>>();
+const inFlightReports = backgroundWork('latency_reports');
 
-export async function drainPendingLatencyReports(timeoutMs: number): Promise<number> {
-  const pendingCount = inFlightReports.size;
-  if (pendingCount === 0) {
-    return 0;
-  }
-
-  const allSettled = Promise.allSettled([...inFlightReports]);
-  const timeout = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
-  await Promise.race([allSettled, timeout]);
-  return pendingCount;
+export function drainPendingLatencyReports(timeoutMs: number): Promise<number> {
+  return inFlightReports.drain(timeoutMs);
 }
 
 /**
@@ -128,11 +121,8 @@ export function reportLatencySamples(samples: LatencySample[]): void {
     return;
   }
 
-  const report = sendBatch(samples, secret, flyRegion);
-  inFlightReports.add(report);
-  report
-    .catch(() => {}) // already logged inside sendBatch
-    .finally(() => inFlightReports.delete(report));
+  // Failures are already logged inside sendBatch.
+  void inFlightReports.track(sendBatch(samples, secret, flyRegion));
 }
 
 async function sendBatch(samples: LatencySample[], secret: string, flyRegion: string): Promise<void> {
