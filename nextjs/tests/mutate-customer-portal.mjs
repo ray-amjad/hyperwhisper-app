@@ -36,8 +36,8 @@ const MUTANTS = [
   {
     file: TRPC,
     name: "drop the request headers from the context",
-    from: "return { user, isAdmin, headers: opts.headers };",
-    to: "return { user, isAdmin, headers: new Headers() };",
+    from: "    headers: opts.headers,\n",
+    to: "    headers: new Headers(),\n",
   },
   {
     file: TRPC,
@@ -164,13 +164,13 @@ const MUTANTS = [
   {
     file: CUSTOMER,
     name: "open the portal for the wrong key when the first has no customer",
-    from: "    const licenseWithStripe = licenses.find((l) => l.stripeCustomerId);",
-    to: "    const licenseWithStripe = licenses[licenses.length - 1];",
+    from: "      new Set(licenses.flatMap((l) => l.stripeCustomerId ?? [])),",
+    to: "      new Set(licenses.slice(-1).flatMap((l) => l.stripeCustomerId ?? [])),",
   },
   {
     file: CUSTOMER,
     name: "open a portal session for an account with no Stripe history",
-    from: "    if (!licenseWithStripe?.stripeCustomerId) {",
+    from: "    if (!stripeCustomerId) {",
     to: "    if (false) {",
   },
   {
