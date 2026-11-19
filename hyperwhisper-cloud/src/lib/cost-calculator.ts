@@ -1,6 +1,3 @@
-// COST CALCULATION MODULE
-// Handles pricing calculations for STT providers and LLM post-processing
-
 import { roundUpToTenth } from './utils';
 import {
   applyKeytermsSurcharge,
@@ -186,7 +183,6 @@ function computeRowDurationCost(
   throw new Error(`STT model ${row.id} is token-billed; it has no duration price`);
 }
 
-/** The flat per-minute rate of a duration-priced row. */
 function perMinuteRate(row: SttModelDef): number {
   if (row.billing.kind !== 'perMinute') {
     throw new Error(`STT model ${row.id} is not billed per minute`);
@@ -204,7 +200,6 @@ export function computeDeepgramTranscriptionCost(durationSeconds: number): numbe
 }
 
 export function computeGroqTranscriptionCost(durationSeconds: number, model?: string): number {
-  // An id with no row (or none) bills at the default turbo rate.
   return computeRowDurationCost(findModelRow('groq', model) ?? defaultModelRow('groq'), durationSeconds);
 }
 
@@ -214,8 +209,7 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
 
 export function computeAzureMaiTranscriptionCost(durationSeconds: number, model?: string): number {
   // Unknown/absent model bills at the dearest row (1.5), so a model string we
-  // don't recognise cannot under-bill. `findModelRow` compares ids, so a
-  // prototype key such as 'constructor' cannot turn the rate into a function.
+  // don't recognise cannot under-bill.
   return computeRowDurationCost(findModelRow('azure-mai', model) ?? dearestModel('azure-mai'), durationSeconds);
 }
 
@@ -242,9 +236,6 @@ export interface OpenAITranscriptionUsage {
  * of tokens, so erring high there is both simpler and conservative.
  */
 export function computeOpenAITranscriptionCost(model: string, usage: OpenAITranscriptionUsage): number {
-  // A row billed by duration (whisper-1, gpt-transcribe, gpt-live-transcribe)
-  // bills its flat rate. Everything else — the gpt-4o-* rows and an id with no
-  // row — takes the token-billed path below.
   const row = findModelRow('openai', model);
   if (row && row.billing.kind !== 'tokens') {
     return computeRowDurationCost(row, usage.durationSeconds);
@@ -305,7 +296,6 @@ export function computeGeminiTranscriptionCost(model: string, usage: GeminiTrans
   const textTokens = Math.max(0, usage.textInputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens);
 
-  // Long-context tier is keyed on the total prompt (input) token count.
   const promptTokens = audioTokens + textTokens;
   const rate = (rateDef.longContext && promptTokens > GEMINI_LONG_CONTEXT_THRESHOLD)
     ? rateDef.longContext
@@ -400,7 +390,6 @@ const CJK_PATTERN = new RegExp(
   'g',
 );
 
-/** How many characters of `text` belong to a CJK script. */
 export function countCjkChars(text: string): number {
   return text.match(CJK_PATTERN)?.length ?? 0;
 }
@@ -468,7 +457,6 @@ export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscri
   return roundUsd(Math.max(tokenCost, geminiTranscribeSecondsCost(seconds, rate)));
 }
 
-/** Per-second cost at `rate`, with output estimated from the audio duration. */
 function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate): number {
   return seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
     + seconds * GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND * rate.outputPerToken;
@@ -487,10 +475,7 @@ function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate
  *
  * MONOTONICITY IS A REQUIREMENT, not an accident of the arithmetic. This
  * function must never charge more for a shorter transcript at the same
- * duration. Treating `0` as "unknown" broke that: at 60 s, 0 chars billed the
- * ~150 wpm estimate (9.2 credits) and 1 char billed 5.3, so every session under
- * 749 chars/min cost less than silence and a stuck push-to-talk minute
- * over-billed by 74%. A finals-less session now bills the audio it forwarded
+ * duration. A finals-less session bills the audio it forwarded
  * and nothing more — an under-charge of the output half in a rare case, which
  * is the side to be wrong on when the alternative is charging a user more for
  * saying less.

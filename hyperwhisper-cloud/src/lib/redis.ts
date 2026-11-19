@@ -17,7 +17,6 @@ export type { CachedLicense, RedisStore, RedisStoreFactory } from './redis-core'
 // tests reach them; see the SITE / CLOUD warning there.
 const getRedis = getCloudRedis;
 
-// Export redis getter for lazy initialization
 export const redis = {
   get: getRedis,
 };

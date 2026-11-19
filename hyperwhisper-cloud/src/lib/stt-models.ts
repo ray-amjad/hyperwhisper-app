@@ -57,13 +57,11 @@ export interface SttAddOns {
 
 /** The authored half of a model row; `estimatedUsdPerMinute` is derived from it. */
 interface SttModelSpec {
-  /** Upstream model id. */
   id: string;
   /** Marks a preview/experimental model so clients can badge it. */
   isPreview?: boolean;
   /** Whether the upstream honours custom-vocabulary / keyterm biasing. */
   supportsVocabulary: boolean;
-  /** The model's price. See `SttBilling`. */
   billing: SttBilling;
   addOns?: SttAddOns;
   /**
@@ -255,14 +253,6 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // credits/min it backs in cloud-stt-catalog.json, when the offer ends.
     // Refs: https://microsoft.ai/models/mai-transcribe-2/
     //       https://microsoft.ai/news/mai-transcribe-2-is-the-fastest-most-accurate-and-cheapest-speech-recognition-model-in-the-world/
-    //
-    // v2 used to reserve at 1.5's 0.006 as insurance against the offer ending.
-    // That bought nothing (the charge would have been wrong regardless) and cost
-    // something real: `validateCredits` REFUSES when the balance is under the
-    // estimate, so a user with 15 credits was turned away from a 4-minute
-    // request that bills ~6.7 — at the 1.67 credits/min the catalog and the docs
-    // advertise for this exact model. Fail-closed for an UNKNOWN model id is now
-    // `dearestUsdPerMinute`, which does not need this array in any order.
     models: [
       { id: 'mai-transcribe-1.5', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.006 } },
       { id: 'mai-transcribe-2', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 } },
@@ -478,12 +468,6 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
 };
 
-// `selfOnly` is computed, never authored: it used to be a hand-written flag here
-// while the actual chains lived in routes/transcribe.ts, so nothing stopped the
-// two from disagreeing — and the flag was documentation only, since the route
-// re-derived self-only-ness from its own chain length. Deriving it from the one
-// authored chain makes that class of drift unrepresentable.
-//
 // The callback's return type is annotated on purpose. Without it the trailing
 // `as` would happily accept an entry that never added `selfOnly` at all — the
 // spec type is a supertype of the def, so tsc reads the assertion as a legal
@@ -516,8 +500,7 @@ function deriveModelDef(spec: SttModelSpec): SttModelDef {
 
 const PROVIDER_IDS = new Set<string>(Object.keys(PROVIDERS));
 
-// Canonical runtime list of every routable provider. Derived from the registry
-// so it can never drift from it. The deploy smoke test imports this to assert it
+// The deploy smoke test imports this to assert it
 // exercises every provider — a new provider added above can't ship untested.
 export const ALL_STT_PROVIDER_IDS = Object.keys(PROVIDERS) as SttProviderId[];
 
@@ -557,9 +540,7 @@ export function isSelfOnly(provider: SttProviderId): boolean {
  * the provider id except where the registry authors a `servedName` (`grok` →
  * `xai-grok`).
  *
- * Ask this rather than keeping a label table of your own. The route and the
- * deploy smoke test each held one, so a provider whose label is not its id was
- * a rule two files had to remember separately.
+ * Ask this rather than keeping a label table of your own.
  */
 export function servedNameFor(provider: SttProviderId): string {
   return PROVIDERS[provider].servedName ?? provider;
@@ -591,7 +572,6 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
   const validModels = def.models.map((m) => m.id);
   const trimmed = (requested ?? '').trim();
 
-  // No model supplied → provider default.
   if (trimmed.length === 0) {
     const fallback = def.models.find((m) => m.id === def.defaultModel) ?? def.models[0];
     return { ok: true, model: fallback };
@@ -627,7 +607,6 @@ export function modelAdapterIdFor(provider: SttProviderId, model: string | undef
   return (model ? findModelRow(provider, model) : defaultModelRow(provider))?.adapter;
 }
 
-/** The registry row for `provider`'s default model. */
 export function defaultModelRow(provider: SttProviderId): SttModelDef {
   const def = PROVIDERS[provider];
   return def.models.find((m) => m.id === def.defaultModel) ?? def.models[0];
@@ -637,12 +616,7 @@ export function defaultModelRow(provider: SttProviderId): SttModelDef {
  * The dearest rate any of a provider's models can bill at.
  *
  * The fail-closed answer for a model id `resolveModel` could not resolve: hold
- * enough for the worst case, because we do not yet know what will run. This
- * used to read `models[0]`, which made ARRAY ORDER a billing invariant — every
- * multi-model provider had to keep its dearest model first or a bad model
- * string under-reserved, and an under-reservation lets a request deduct more
- * than was held for it. Taking the maximum states the property directly, so a
- * model row can be added or reordered without reading this function first.
+ * enough for the worst case, because we do not yet know what will run.
  */
 export function dearestModel(provider: SttProviderId): SttModelDef {
   return PROVIDERS[provider].models.reduce(

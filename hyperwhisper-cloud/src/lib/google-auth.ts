@@ -83,10 +83,6 @@ const redisTokenCache: GoogleTokenCache = {
   },
 };
 
-/**
- * The process-wide instance every caller already uses. Same lifetime and same
- * single-flight semantics as the module-level state it replaces.
- */
 const defaultGoogleAuth = createGoogleAuth(jwtTokenMinter, redisTokenCache);
 
 /**

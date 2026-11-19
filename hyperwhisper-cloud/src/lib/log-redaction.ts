@@ -1,11 +1,7 @@
 // LOG REDACTION — ONE BOUNDED LINE FOR A FAILURE THAT MAY QUOTE A SECRET
 //
 // `toRedactedLogLine` turns a caught error into a single, capped log line with
-// the secrets taken out of it. It started inside `lib/redis-core.ts` (#898,
-// #921) and moved here for #1029, when the Google-token cache catches in
-// `lib/google-auth-core.ts` needed it too: that module has nothing to do with
-// the IP block or the licence cache, and should not pull them into its module
-// graph to reach one string function. Both modules import this one as peers.
+// the secrets taken out of it.
 //
 // Pure: no I/O; its one import is the pure key-name module, so a renamed or
 // added Redis key is redacted without a second edit here. Nothing
@@ -117,12 +113,9 @@ export interface RedactByValue {
  * and on a `cacheLicense` write the cached licence object itself. The licence
  * key is the bearer credential for every request (`middleware/auth.ts`). So
  * EVERY Upstash catch logs through this helper: `isIPBlocked` in
- * `lib/redis-core.ts` (#898 — its catch was silent before), `getCachedLicense`
- * / `cacheLicense` there too (#921 — they used to log the raw Error, measured
- * at 20 stderr lines on one 401 with the IP, the licence key and the cached
- * licence value in the clear), and the three Google-token cache catches in
- * `lib/google-auth-core.ts` (#1029 — a failed
- * `set google_oauth_token <ACCESS_TOKEN> ex …` quoted the live Google access
+ * `lib/redis-core.ts`, `getCachedLicense` / `cacheLicense` there too, and the
+ * three Google-token cache catches in `lib/google-auth-core.ts` (a failed
+ * `set google_oauth_token <ACCESS_TOKEN> ex …` quotes the live Google access
  * token, plus any co-batched `license:` key, back in its message).
  *
  * Each caller hands over the secrets it HOLDS in `byValue`: `isIPBlocked` its
@@ -194,8 +187,7 @@ export interface RedactByValue {
  *      entirely — a DNS failure gives
  *      `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no
  *      key and no command suffix. (That example is MEASURED on this runtime.
- *      The `connect ETIMEDOUT <addr>:443` shape this comment used to cite does
- *      NOT occur here: bun's fetch gives `Unable to connect. Is the computer
+ *      A `connect ETIMEDOUT <addr>:443` shape does NOT occur here: bun's fetch gives `Unable to connect. Is the computer
  *      able to access the url?` with the address only on a non-enumerable
  *      property, and Node/undici hides it on `error.cause`, which this helper
  *      never reads.) Gated on `looksLikeIPAddress` so the `'unknown'`
@@ -221,8 +213,6 @@ export interface RedactByValue {
  * later pass can only re-match one whole (which is idempotent) and can never
  * truncate one. Pass 3 re-matching its OWN output is the case that needs `@`
  * on that list, and `redis://<redacted-credentials>@host` is a fixed point.
- * Round 1's `<redacted ip>` did have a space, which is what made the old order
- * load-bearing; the hyphen removed the hazard rather than documenting it.
  * Dropping any one of 2, 3, 4 or any part of 5 re-opens a leak the tests pin,
  * so none is redundant. (`<unloggable failure>` is the catch-path return, not
  * a marker: it replaces the whole line and never meets another pass.)
@@ -232,7 +222,6 @@ export interface RedactByValue {
  * prefixes, which existing Axiom queries match on — only the second argument
  * goes through here.
  * The licence key is REDACTED, not masked to its first/last 4 characters.
- * `README.md` said "masked" until #2163 brought it in line with this (#921).
  *
  * Returns a STRING, never the Error: a raw Error prints a multi-line stack,
  * and the line-oriented shipper splits that into several unrelated records.
@@ -244,8 +233,7 @@ export interface RedactByValue {
  */
 export function toRedactedLogLine(error: unknown, byValue: RedactByValue = {}): string {
   try {
-    // `String(x)`, never `` `${x}` ``. MEASURED, because round 1's note had it
-    // backwards: `String(aSymbol)` does NOT throw — it has an explicit Symbol
+    // `String(x)`, never `` `${x}` ``. MEASURED: `String(aSymbol)` does NOT throw — it has an explicit Symbol
     // case and gives `Symbol(x)` — while `` `${aSymbol}` `` throws
     // `Cannot convert a symbol to a string`. `String()` DOES still throw on an
     // object with a null prototype, which is what the catch below is for.
@@ -270,9 +258,6 @@ export function toRedactedLogLine(error: unknown, byValue: RedactByValue = {}): 
       .replace(GOOGLE_TOKEN_KEY_VALUE, '$1<redacted>')
       .replace(GOOGLE_ACCESS_TOKEN, 'ya29.<redacted>');
     const { ip, licenseKey, secrets = [] } = byValue;
-    // Pass 1 collapsed the LINE's whitespace, so a secret holding a newline or
-    // a run of spaces would no longer match as given. Collapse the needle the
-    // same way, and apply the length gate to what is actually searched for.
     const redactByValue = (value: string, marker: string): void => {
       const needle = value.replace(/\s+/g, ' ').trim();
       if (needle.length >= MIN_BY_VALUE_KEY_CHARS) {

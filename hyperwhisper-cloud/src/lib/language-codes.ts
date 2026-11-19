@@ -5,11 +5,10 @@
 // That is not what several upstreams accept.
 // `shared-app-classification/cloud-stt-catalog.json` records the divergence per
 // provider — Google Chirp wants a full BCP-47 locale, ElevenLabs wants ISO-639-3,
-// Azure documents `nb` and not `no` — and until this module existed the adapters
-// forwarded the picker code raw. Google then 400s, and because
+// Azure documents `nb` and not `no`. Google 400s a raw picker code, and because
 // `TranscriptionError.isRetryable` treats every 5xx/4xx server error as
-// retryable, the app retried a permanent rejection four times before surfacing
-// it. The user-visible symptom was a ~27-second hang, not an error.
+// retryable, the app retries a permanent rejection four times before surfacing
+// it.
 //
 // THE FALLBACK IS ALWAYS AUTO-DETECT, NEVER AN ERROR. When a code has no valid
 // mapping for the chosen provider and model, {@link resolveProviderLanguage}
@@ -21,10 +20,6 @@
 // ONE ENTRY POINT, ONE EVENT. Adapters call `resolveProviderLanguage(...)` and
 // read the single return value; they do not call the per-provider resolvers, do
 // not re-run a resolver "for the log", and do not emit their own language event.
-// There was briefly a second event name (`language_unsupported_for_model`) with
-// a different `fallback` value, which meant "how often are we discarding a
-// user's language?" needed two Axiom queries that could not be summed. The
-// reason now rides on the one event as a `reason` field.
 //
 // WHERE THE TABLES COME FROM. Two shared files are the source of truth:
 //
@@ -40,10 +35,7 @@
 // in CI and 404s in production. `language-codes.test.ts` closes that gap by
 // asserting the mirrors equal the catalogs EXACTLY, in both directions: a
 // catalog edit that outdates this file fails CI rather than silently
-// reintroducing the 400. Both key space and value space are checked — the
-// previous test only checked values, which is how `tl` came to be missing from
-// the Chirp table (every Filipino dictation silently went out as auto-detect)
-// and how `DEEPGRAM_NOVA3_ONLY` drifted in three directions at once.
+// reintroducing the 400.
 //
 // Only genuinely EDITORIAL data is hand-written here: which region we pick when
 // an upstream offers several for one language, and the picker-code aliases the
@@ -204,8 +196,7 @@ function resolveExplicit(
 // the shared language list inherited) and `jv-ID` at Google, Filipino is `tl`
 // here and `fil-PH` at Google, and Mandarin is `zh` here and `cmn-Hans-CN` at
 // Google. `language-codes.test.ts` asserts every picker code for `chirp_3` in
-// models-catalog.json has a row — the missing `tl` row is why every Filipino
-// dictation used to go out as auto-detect.
+// models-catalog.json has a row.
 const GOOGLE_CHIRP_LOCALE_BY_BASE: Readonly<Record<string, string>> = {
   af: 'af-ZA',
   am: 'am-ET',
@@ -375,12 +366,6 @@ function resolveGoogleChirpLocale(language: string): Resolution {
 
 // Verbatim mirror of `supportedLanguages` per Deepgram model in
 // shared-models/models-catalog.json, which is the picker's own code space.
-// The hand-typed `DEEPGRAM_NOVA3_ONLY` set this replaces had drifted from the
-// catalog in three directions at once: it downgraded Lithuanian on nova-2 (which
-// nova-2 supports), still forwarded Arabic and Croatian to nova-2 (which it does
-// not), carried four dead rows, and never noticed that `th`/`zh` are nova-2-ONLY
-// and were being forwarded to nova-3. Deriving the whole matrix instead of the
-// difference removes the class of mistake, not one instance of it.
 //
 // The medical models being English-only is not a niche edge case: the picker
 // scopes its language list by TIER, not by model, so every non-English language
@@ -411,11 +396,9 @@ const DEEPGRAM_DEFAULT_LANGUAGES: ReadonlySet<string> =
 
 // `multi` is Deepgram's code-switching sentinel, not a language. It is a
 // nova-3 feature and is meaningless on the English-only medical models, so it is
-// scoped rather than short-circuited: the previous `if (code === 'multi')`
-// returned BEFORE the medical clamp, which let the sentinel through on
-// nova-3-medical. `transcribe.ts` reads `language` as an unvalidated raw query
-// param, so that was reachable from outside even though no shipped client emits
-// it.
+// scoped rather than short-circuited. `transcribe.ts` reads `language` as an
+// unvalidated raw query param, so it is reachable from outside even though no
+// shipped client emits it.
 const DEEPGRAM_MULTI_MODELS: ReadonlySet<string> = new Set(['nova-3-general']);
 
 // Region-qualified codes Deepgram itself lists (mirror of the hyphenated entries
@@ -513,7 +496,6 @@ const AZURE_MAI_ALIASES: Readonly<Record<string, string>> = {
   iw: 'he', // legacy Hebrew code → the form Azure lists on v2
 };
 
-/** Resolve a client language code to an Azure MAI locale for a given model. */
 function resolveAzureMaiLocale(model: string, language: string): Resolution {
   const base = primarySubtag(language);
   if (base.length === 0) return NO_LOCALE;
@@ -543,8 +525,7 @@ function resolveAzureMaiLocale(model: string, language: string): Resolution {
 // Scribe does not have, Scribe 4xx'd, `providerHttpError` raised
 // `ProviderInputError`, and `transcribe.ts` walked the elevenlabs fallback chain
 // down to deepgram/groq — moving the user off the provider they picked, with no
-// telemetry saying why. Every sibling resolver returns null here; this one now
-// does too.
+// telemetry saying why.
 const ELEVENLABS_LANGUAGES: ReadonlySet<string> = new Set([
   'af', 'am', 'ar', 'as', 'az', 'be', 'bg', 'bn', 'bs', 'ca', 'cs', 'cy', 'da', 'de',
   'el', 'en', 'es', 'et', 'fa', 'fi', 'fr', 'gl', 'gu', 'ha', 'he', 'hi', 'hr', 'hu',
@@ -693,12 +674,10 @@ const LANGUAGE_NAMES: Readonly<Record<string, string>> = {
  * Keeps the code REGION-QUALIFIED. Gemini is the one tier with no picker
  * narrowing (the catalog marks its code list `"unverified"` and there is no
  * `gemini` entry in STTCapabilities.swift), so `zh-TW`, `pt-PT` and `en-GB` all
- * reach it. Reducing the tag to its primary subtag here threw away
- * Traditional-vs-Simplified, pt-PT vs pt-BR and en-GB vs en-US spelling — the
- * old code interpolated the raw tag and did not.
+ * reach it.
  *
- * Falls back to the bare code when the language is unknown — no worse than the
- * old behaviour, and Gemini can still often read it.
+ * Falls back to the bare code when the language is unknown; Gemini can still
+ * often read it.
  */
 export function describeLanguage(language: string): string {
   const tag = canonicalBcp47(language.trim());

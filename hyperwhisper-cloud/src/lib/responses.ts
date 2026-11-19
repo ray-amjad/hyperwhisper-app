@@ -1,6 +1,3 @@
-// RESPONSE HELPERS
-// Standardized JSON responses with CORS headers
-
 import { CREDITS_PER_MINUTE } from './constants';
 
 export const CORS_HEADERS: Record<string, string> = {
@@ -32,7 +29,6 @@ export function jsonResponse<T>(data: T, headers?: Record<string, string>): Resp
   });
 }
 
-// Common error responses
 export function licenseRequiredResponse(): Response {
   return errorResponse(401, 'License required', 'HyperWhisper Cloud requires a license key. Add credits to get a key, or use your own API key for free.');
 }

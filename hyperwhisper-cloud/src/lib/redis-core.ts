@@ -21,7 +21,6 @@ import { toRedactedLogLine } from './log-redaction';
 import { isRecord } from './utils';
 import { creditPoolBalanceKey, ipBlockedKey, licenseCacheKey } from './redis-keys';
 
-/** The three Upstash commands this module uses. */
 export interface RedisStore {
   get<TData = unknown>(key: string): Promise<TData | null>;
   set(key: string, value: unknown, opts: { ex: number }): Promise<unknown>;
@@ -32,8 +31,7 @@ export interface RedisStore {
  * Called per operation, never held. The real factory THROWS when the Upstash
  * env vars are absent, so every function below calls it inside its own `try` —
  * that keeps the long-standing "no Redis configured fails open" behaviour
- * (`isIPBlocked` false, `getCachedLicense` a miss, `cacheLicense` a no-op)
- * exactly as it was when they called `getRedis()` inline.
+ * (`isIPBlocked` false, `getCachedLicense` a miss, `cacheLicense` a no-op).
  */
 export type RedisStoreFactory = () => RedisStore;
 

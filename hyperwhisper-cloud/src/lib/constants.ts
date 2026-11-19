@@ -1,6 +1,3 @@
-// SHARED CONSTANTS
-
-// Credit system
 // Credits per minute used to turn a balance into minutes (`minutes_remaining`,
 // `minutes_required`, `credits_per_minute` in /usage and the 402 body) and
 // for the size-based estimate in middleware/credits.ts. It is the rate of the
@@ -11,10 +8,8 @@
 // for the same balance (#1657). Actual charges come from cost-calculator.ts.
 export const CREDITS_PER_MINUTE = 1.67;
 
-// License cache TTL (seconds)
 export const LICENSE_CACHE_TTL_SECONDS = 60 * 60; // 1 hour for valid and invalid keys
 
-// Audio limits
 // The global upload cap. The route buffers the whole body (`arrayBuffer()`) on
 // a 1 GB Fly machine, so the cap has to fit that machine's memory (#2011).
 // 128 MB was already the real ceiling: it is Bun's default body limit, and the

@@ -12,7 +12,6 @@ import { licenseApiBaseUrl } from './constants';
 import { backgroundWork } from './background-work';
 import type { ProviderUnavailableKind } from '../providers/types';
 
-/** How long the whole batch POST may take before we abandon it. */
 const REPORT_TIMEOUT_MS = 5_000;
 
 /** Matches the ingest endpoint's ceiling; one chain never comes close. */
@@ -30,7 +29,7 @@ const PUBLISHING_FLY_APP = 'hyperwhisper-transcribe';
  * Derived, not re-spelled: every reason a provider attempt can fail is already
  * a ProviderUnavailableKind, plus the one case that is not an availability
  * problem at all — an upstream that answered and rejected the input
- * (ProviderInputError). Writing the members out again let the two drift.
+ * (ProviderInputError).
  *
  * Note what is NOT here: our own pre-flight rejections — a missing API key, a
  * size cap, an unsupported container. Those throw before the attempt has made a
@@ -121,7 +120,6 @@ export function reportLatencySamples(samples: LatencySample[]): void {
     return;
   }
 
-  // Failures are already logged inside sendBatch.
   void inFlightReports.track(sendBatch(samples, secret, flyRegion));
 }
 

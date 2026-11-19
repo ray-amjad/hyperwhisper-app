@@ -1,4 +1,3 @@
-// PCM16 WAV HEADER PARSER
 // One RIFF chunk walk for every provider that needs the exact duration of an uploaded WAV.
 // It reads bytes a caller uploads, so harden it here, once. Providers pass only their policy.
 

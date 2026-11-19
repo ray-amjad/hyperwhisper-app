@@ -138,7 +138,7 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
     // Only clear `inflight` AFTER the cache write attempt resolves. Clearing
     // earlier would let a concurrent caller arrive between mint-completion
     // and cache-write, see no inflight, miss the cache, and mint a second
-    // token. `mintAndCacheToken` owns its own inflight lifecycle now.
+    // token.
     inflight = null;
     return access_token;
   }

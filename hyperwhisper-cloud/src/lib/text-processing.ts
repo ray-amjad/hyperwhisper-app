@@ -1,6 +1,3 @@
-// TEXT PROCESSING HELPERS
-// Shared helpers for LLM post-processing outputs
-
 import { isRecord } from './utils';
 
 /**
@@ -38,9 +35,6 @@ export function extractCorrectedText(response: unknown): string {
   throw new Error('Correction response missing text');
 }
 
-/**
- * Wrap the raw transcript in clear delimiters for the post-processing prompt
- */
 export function buildTranscriptUserContent(text: string): string {
   return `--TRANSCRIPT--\n${text}\n--ENDTRANSCRIPT--`;
 }

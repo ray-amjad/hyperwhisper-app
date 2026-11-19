@@ -100,7 +100,6 @@ export function parseClientInfo(
   };
 }
 
-/** Read the client identity off a Hono request. */
 export function readClientInfo(c: Context): ClientInfo {
   return parseClientInfo(
     c.req.header(CLIENT_PLATFORM_HEADER),

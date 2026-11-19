@@ -47,7 +47,6 @@ export interface LLMModelRow {
 const M = 1_000_000;
 
 export const LLM_MODELS: readonly LLMModelRow[] = [
-  // Cerebras GPT-OSS-120B.
   { provider: 'cerebras', model: 'gpt-oss-120b', servedName: 'cerebras-gpt-oss-120b', isDefault: true,
     rate: { promptPerToken: 0.35 / M, completionPerToken: 0.75 / M } },
 
@@ -75,7 +74,6 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
     cache: { writeMultiplier: 1.25, readMultiplier: 0.10 },
     maxOutputTokens: 8192 },
 
-  // SpaceXAI Grok 4.3.
   { provider: 'grok', model: 'grok-4.3', servedName: 'xai-grok-4.3', isDefault: true,
     rate: { promptPerToken: 1.25 / M, completionPerToken: 2.50 / M } },
 
@@ -123,7 +121,6 @@ function defaultRowFor(provider: LLMProvider): LLMModelRow {
   return row;
 }
 
-/** The provider's rows, the default first. */
 export function llmModelsFor(provider: LLMProvider): LLMModelRow[] {
   const rows = LLM_MODELS.filter((r) => r.provider === provider);
   return [...rows.filter((r) => r.isDefault), ...rows.filter((r) => !r.isDefault)];
@@ -142,17 +139,14 @@ export function defaultModelFor(provider: LLMProvider): string {
   return defaultRowFor(provider).model;
 }
 
-/** Whether `model` is an allowlisted X-LLM-Model id for `provider`. */
 export function isAllowedLLMModel(provider: LLMProvider, model: string): boolean {
   return LLM_MODELS.some((r) => r.provider === provider && r.model === model);
 }
 
-/** Served name for the X-LLM-Provider response header / log. */
 export function servedLLMName(provider: LLMProvider, model: string): string {
   return llmModelRow(provider, model).servedName;
 }
 
-/** USD for one OpenAI-compatible chat call, at the (provider, model) row's rate. */
 export function computeLLMChatCost(provider: LLMProvider, model: string, usage: GroqUsage): number {
   const { rate } = llmModelRow(provider, model);
   const promptCost = usage.prompt_tokens * rate.promptPerToken;

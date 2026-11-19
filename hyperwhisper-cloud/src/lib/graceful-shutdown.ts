@@ -40,7 +40,6 @@ export const ERROR_FLUSH_TIMEOUT_MS = 2_000;
 export interface GracefulShutdownOptions {
   /** The clock every deadline is measured on (ms epoch). */
   now?: () => number;
-  /** Ends the process. */
   exit?: (code: number) => void;
   /** Sends queued error events, up to `timeoutMs`; a no-op with no DSN. */
   flushErrors?: (timeoutMs: number) => Promise<void>;

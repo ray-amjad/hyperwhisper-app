@@ -1,16 +1,7 @@
-// GENERAL UTILITY HELPERS
-// Shared helpers for type guards, rounding, and retry operations
-
-/**
- * Type guard for plain object values
- */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-/**
- * Round a numeric value to the nearest tenth, guarding against NaN/Infinity.
- */
 export function roundToTenth(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -20,9 +11,6 @@ export function roundToTenth(value: number): number {
   return Math.abs(rounded) < Number.EPSILON ? 0 : rounded;
 }
 
-/**
- * Round a numeric value up to the next tenth, ensuring non-negative output.
- */
 export function roundUpToTenth(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -32,9 +20,6 @@ export function roundUpToTenth(value: number): number {
   return rounded <= 0 ? 0 : rounded;
 }
 
-/**
- * Retry configuration options
- */
 export interface RetryOptions {
   /** Maximum number of retry attempts (default: 3) */
   maxRetries?: number;
@@ -51,9 +36,6 @@ export interface RetryOptions {
   shouldRetry?: (error: Error) => boolean;
 }
 
-/**
- * Retry an async operation with exponential backoff
- */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
@@ -88,8 +70,5 @@ export async function retryWithBackoff<T>(
     }
   }
 
-  // Unreachable for maxRetries >= 0 (the loop always runs once and either
-  // returns or throws). A negative maxRetries skips the loop entirely, which
-  // used to throw `undefined` through the non-null assertion.
   throw lastError ?? new Error('withRetry: no attempt was made');
 }

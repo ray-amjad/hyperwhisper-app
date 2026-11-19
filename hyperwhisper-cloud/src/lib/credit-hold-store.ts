@@ -30,7 +30,6 @@
 
 import { creditHoldsExpiryKey, creditHoldsKey, creditPoolBalanceKey, licenseCacheKey } from './redis-keys';
 
-/** Credits as integer milli-credits. */
 export function toMilliCredits(credits: number): number {
   if (!Number.isFinite(credits) || credits <= 0) return 0;
   return Math.round(credits * 1000);
@@ -82,8 +81,6 @@ export interface CreditHoldStore {
 /** The hold account of a credit pool: `pool:<credit_pool_id>`. */
 export const CREDIT_POOL_ACCOUNT_PREFIX = 'pool:';
 
-// The key builders live with every other cloud key name in `./redis-keys`;
-// re-exported so existing importers keep one path.
 export { creditPoolBalanceKey };
 
 /** The JSON `cacheLicense` keeps under `creditPoolBalanceKey`. */
@@ -173,7 +170,7 @@ export function holdKeys(
 // rewrites the pool entry too (`WRITE_POOL_BALANCE_SCRIPT`), and a balance the
 // site was asked for after the stored one came back replaces it, higher or
 // lower. (A key's own stale entry still caps that
-// key until it refreshes, exactly as before pools.)
+// key until it refreshes.)
 export const RESERVE_HOLD_SCRIPT = `
 local holds = KEYS[1]
 local expiry = KEYS[2]

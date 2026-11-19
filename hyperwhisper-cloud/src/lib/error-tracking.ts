@@ -18,7 +18,6 @@ import * as Sentry from '@sentry/bun';
 import type { ErrorEvent, Exception, StackFrame } from '@sentry/bun';
 import { toRedactedLogLine } from './log-redaction';
 
-/** Tags an event may carry. Anything else set on a scope is dropped. */
 export const ALLOWED_TAGS = ['region', 'machineId', 'errorId', 'route', 'method'] as const;
 
 /** Stack frames kept per exception: code locations, not data. */
@@ -110,10 +109,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
 
 let initialized = false;
 
-/**
- * Starts Sentry when `SENTRY_DSN` is set. Returns whether it did. `transport`
- * is for the tests only.
- */
+/** `transport` is for the tests only. */
 export function initErrorTracking(
   options: { transport?: NonNullable<Parameters<typeof Sentry.init>[0]>['transport'] } = {},
 ): boolean {
@@ -176,7 +172,6 @@ export function captureServerError(
   }
 }
 
-/** Waits for queued events to send, up to `timeoutMs`. For shutdown. */
 export async function flushErrorTracking(timeoutMs: number): Promise<void> {
   if (!initialized) return;
   try {

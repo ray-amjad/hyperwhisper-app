@@ -42,7 +42,6 @@ function parts(version: string): [number, number, number] | null {
   return [major, minor, patch];
 }
 
-/** True when `version` is `minimum` or newer. */
 function isAtLeast(version: string, minimum: string): boolean {
   const actual = parts(version);
   const floor = parts(minimum);

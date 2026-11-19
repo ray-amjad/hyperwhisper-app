@@ -37,10 +37,6 @@ export function fallbackProviderFor(provider: LLMProvider): LLMProvider {
   return LLM_PROVIDER_FALLBACKS[provider];
 }
 
-/**
- * Extract LLM provider from X-LLM-Provider header.
- * Returns default provider if header is missing or invalid.
- */
 export function extractLLMProvider(request: Request): LLMProvider {
   const header = request.headers.get('x-llm-provider')?.toLowerCase().trim();
 
