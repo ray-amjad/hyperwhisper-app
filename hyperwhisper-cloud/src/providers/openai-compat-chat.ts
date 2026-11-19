@@ -15,24 +15,15 @@ export type OpenAICompatProvider = Exclude<LLMProvider, 'anthropic'>;
 
 type OpenAICompatAdapter = {
   baseUrl: string;
-  /** Env vars holding the API key, first set one wins; the first is named when none is. */
   apiKeyEnv: [string, ...string[]];
   errorLogLabel: string;
   errorChatLabel: string;
-  /**
-   * Vendor fields added after the shared payload and the row's output cap
-   * (`model` goes first, `stream: false` last).
-   */
   extraBody?: (model: string) => Record<string, unknown>;
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
 // bill thinking tokens as output — wasted latency/cost for simple text cleanup —
-// so each is sent the lowest reasoning_effort it accepts. Listed per family rather
-// than matched on a generic /gemini-\d+.*flash/ so an id we have not checked (e.g.
-// a future 3.x flash, or any -pro id) keeps its own default instead of silently
-// inheriting one of these. First match wins, so keep a longer prefix above a
-// shorter one it extends.
+// so each is sent the lowest reasoning_effort it accepts.
 //
 // - 2.5-flash: 'none' turns thinking off.
 // - 3.8-flash: thinking cannot be turned off; its levels are low/medium/high
@@ -40,9 +31,7 @@ type OpenAICompatAdapter = {
 //   the OpenAI-compat surface 2026-10-15: 'minimal' is a 400 ("Thinking level
 //   MINIMAL is not supported for this model"), while 'none' is a 200 that still
 //   thinks — about the same hidden tokens as 'low'. So send 'low', the floor the
-//   docs name, rather than rely on Google quietly remapping 'none'. A 400 here
-//   would NOT fall back: shouldFallback() fails over on a 5xx or 429 only. This
-//   matches the transcription client (gemini.ts thinkingConfig).
+//   docs name, rather than rely on Google quietly remapping 'none'.
 const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
   ['gemini-2.5-flash', 'none'],
   ['gemini-3.8-flash', 'low'],
@@ -61,7 +50,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     apiKeyEnv: ['GROQ_API_KEY'],
     errorLogLabel: 'Groq LLM API',
     errorChatLabel: 'Groq chat',
-    // The output ceiling comes from its llm-models.ts row (maxOutputTokens).
     extraBody: () => ({ reasoning_effort: 'low' }),
   },
   grok: {
@@ -106,7 +94,6 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
   },
 };
 
-/** The request body sent to `provider` for `model`. */
 export function buildOpenAICompatBody(
   provider: OpenAICompatProvider,
   payload: CorrectionRequestPayload,

@@ -46,7 +46,6 @@ export class LLMMissingKeyError extends LLMRequestError {
   }
 }
 
-/** The first set env var of `envNames`, or a LLMMissingKeyError naming the first. */
 export function requireLLMApiKey(provider: string, ...envNames: [string, ...string[]]): string {
   for (const name of envNames) {
     const value = process.env[name];

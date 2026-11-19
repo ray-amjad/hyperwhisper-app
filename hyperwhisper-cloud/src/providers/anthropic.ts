@@ -1,6 +1,3 @@
-// ANTHROPIC LLM CLIENT (MESSAGES API)
-// Used by the /post-process endpoint for text correction.
-
 import type { GroqUsage } from '../lib/cost-calculator';
 import { computeAnthropicCost, defaultModelFor, llmModelRow } from '../lib/llm-models';
 import type { CorrectionRequestPayload } from './llm-contract';
@@ -10,12 +7,10 @@ import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, readLLMJson, transcrip
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
-// The default anthropic row of llm-models.ts.
 export const ANTHROPIC_MODEL = defaultModelFor('anthropic');
 
 /**
- * `max_tokens` for `model`: its row's output cap (an id with no row takes the
- * default row's). The Messages API requires one, so every anthropic row in
+ * The Messages API requires one, so every anthropic row in
  * llm-models.ts sets maxOutputTokens (pinned by llm-dispatch.test.ts).
  */
 function anthropicMaxTokens(model: string): number {
@@ -25,9 +20,6 @@ function anthropicMaxTokens(model: string): number {
 }
 
 /**
- * The `thinking` field that turns extended thinking OFF for `model`, or
- * undefined when the model needs none.
- *
  * - `claude-haiku-5-5` and `claude-sonnet-5` think by default (adaptive), which
  *   adds latency and output tokens to a punctuation pass: `{type:'disabled'}`.
  * - `claude-sonnet-5-5` answers `disabled` with a 400; its off switch is
@@ -50,7 +42,6 @@ export function anthropicThinkingFor(model: string): { type: 'disabled' | 'betwe
   }
 }
 
-/** Append `thinking` (last, so the other keys keep their order) when the model needs it. */
 function withThinking<T extends Record<string, unknown>>(model: string, body: T): T & { thinking?: { type: string } } {
   const thinking = anthropicThinkingFor(model);
   return thinking ? { ...body, thinking } : body;
@@ -58,17 +49,10 @@ function withThinking<T extends Record<string, unknown>>(model: string, body: T)
 export const ANTHROPIC_WRAPPER_INSTRUCTION =
   'IMPORTANT: Output ONLY the corrected text surrounded by <<CLEANED>> and <<END>> exactly. Do not add markdown headers, labels, or text outside those markers.';
 
-// A token count is billable only as a finite, non-negative number; anything
-// else bills 0 instead of turning the cost into NaN.
 function toTokenCount(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-/**
- * Calls the Anthropic Messages API without streaming.
- * Used for post-processing text correction via the /post-process endpoint.
- * Returns shape matching Cerebras/Groq: { raw, usage, costUsd }
- */
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
@@ -76,8 +60,6 @@ export async function requestAnthropicChat(
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
   const apiKey = requireLLMApiKey('anthropic', 'ANTHROPIC_API_KEY');
 
-  // Convert OpenAI chat format to Anthropic format:
-  // messages[0] = system prompt, messages[1] = user message
   const systemContent = (payload.messages[0]?.content || '')
     + `\n\n${ANTHROPIC_WRAPPER_INSTRUCTION}`;
   const userContent = payload.messages[1]?.content || '';

@@ -14,8 +14,6 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-// Read from the registry, never restated, so the adapter cannot disagree with
-// `stt-models.ts` about the default (same pattern as azure-mai.ts).
 const DEFAULT_MODEL = getProviderDef('gemini').defaultModel;
 const AUDIO_TOKENS_PER_SECOND = 32;
 // Vocabulary terms named in the prompt, matching the sibling adapters' cap.
@@ -30,7 +28,6 @@ const GEMINI_MIME: Record<string, string> = {
 };
 
 export function geminiMimeType(contentType: string): string {
-  // Strip any parameters (e.g. "audio/webm;codecs=opus" → "audio/webm").
   const base = contentType.toLowerCase().split(';')[0].trim();
   for (const [needle, mime] of Object.entries(GEMINI_MIME)) {
     if (base.includes(needle)) return mime;
@@ -46,7 +43,6 @@ export function geminiMimeType(contentType: string): string {
   return 'audio/wav';
 }
 
-/** Per-model thinking config — keep thinking as low as each model allows. */
 function thinkingConfig(model: string): Record<string, unknown> {
   if (model === 'gemini-3.1-pro-preview') return { thinkingLevel: 'low' };
   // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
@@ -124,7 +120,6 @@ export function resolveAudioInputTokens(
     return upstreamTokens;
   }
 
-  // Last resort (tier 4): no usage total at all — estimate audio seconds from payload size.
   const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
   return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
 }
@@ -153,16 +148,10 @@ export function resolveModalityAudioInputTokens(
 
   const promptTokenCount = usage?.promptTokenCount ?? 0;
   if (details && details.length > 0) {
-    // Partial breakdown without an AUDIO entry — subtract the non-AUDIO
-    // (text/image/etc.) components from the prompt total to back out the audio.
     const nonAudioTokens = details
       .filter((d) => d.modality !== 'AUDIO')
       .reduce((sum, d) => sum + (d.tokenCount ?? 0), 0);
     const remainder = promptTokenCount - nonAudioTokens;
-    // Only trust the remainder when it's a genuine subset of the prompt: a
-    // breakdown that omits the TEXT component would leave remainder ≈ the whole
-    // prompt, so we fall through to the promptTokenCount tier (which backs out
-    // our OWN text estimate) rather than trusting the bogus breakdown.
     if (remainder > 0 && remainder < promptTokenCount * 0.99) {
       return remainder;
     }
@@ -293,10 +282,6 @@ export async function transcribeWithGemini(
   const usage = data.usageMetadata;
   const promptTextTokens = estimatePromptTextTokens(promptText);
   const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, promptTextTokens);
-  // The audio token count Gemini's OWN modality breakdown gives, or null. Not the
-  // billing figure: that one nets our local prompt-text estimate out of the prompt
-  // total, and logging it as an upstream duration is exactly the confusion
-  // `upstreamDurationSeconds` exists to prevent. (review r2)
   const upstreamAudioTokens = resolveModalityAudioInputTokens(usage);
   // The non-audio remainder of the documented prompt total is the text we sent
   // (instruction + vocab). Bill it at the text-input rate — not the audio rate,

@@ -1,8 +1,7 @@
 // XAI GROK STT PROVIDER
 // xAI Speech to Text REST API
 // Model: Grok Voice Transcribe 2.0. The endpoint took no `model` parameter
-// before 2026-09-19 and this adapter sent none; it now sends the resolved model
-// on every request. Ref: https://x.ai/news/grok-voice-transcribe-2
+// before 2026-09-19. Ref: https://x.ai/news/grok-voice-transcribe-2
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
@@ -52,9 +51,6 @@ const SUPPORTED_FORMATTING_LANGUAGES = new Set([
 ]);
 
 function normalizedFormattingLanguage(language?: string): string | undefined {
-  // Strip any BCP-47 region ("en-US" → "en") to the primary subtag before the
-  // supported-set check, so a region-tagged locale still matches instead of
-  // silently dropping the formatting language.
   const primary = explicitLanguageSubtag(language);
   if (primary === undefined) {
     return undefined;
@@ -168,8 +164,7 @@ export async function transcribeWithXaiGrok(
     // length of the SUBMITTED audio, not of detected speech). That is worth one
     // sibling call rather than a "No speech detected" the user has to redo — but
     // only when the ROUTE says a sibling is there to take it. We never inspect
-    // `attempt` for that: the chain is the route's to read. One shared block for
-    // all three covered adapters. See emptyTranscriptOutcome in providers/utils.
+    // `attempt` for that: the chain is the route's to read.
     // (issue ray-amjad/hyperwhisper-app#381)
     return emptyTranscriptOutcome(provider, {
       label: 'Grok',

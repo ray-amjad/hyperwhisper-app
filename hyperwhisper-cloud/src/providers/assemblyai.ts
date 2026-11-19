@@ -107,8 +107,6 @@ const SYNC_MAX_DURATION_SECONDS = 120;
 // 20s before the cap is treated as "too close to call" and skips sync
 // entirely rather than risk a wasted round-trip AssemblyAI rejects as too long.
 const SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS = 20;
-// Module-private. A caller that needs to know whether sync could run asks
-// `couldRouteThroughSync` below rather than holding this threshold itself.
 const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
 const SYNC_MAX_KEYTERMS_PROMPT_CHARS = 2048;
 // AssemblyAI's sync p50 latency is ~134ms, so even a much tighter budget than
@@ -151,20 +149,11 @@ function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
   return out;
 }
 
-/** Returns the TRIMMED, explicit (non-"auto") language, or `undefined` when
- * absent/blank/"auto". Single source of truth for both the sync-eligibility
- * gate (`hasExplicitLanguage`) and the sync request builder's
- * `language_codes` derivation — using two independently-trimmed copies let a
- * language value with stray whitespace (e.g. `" en-US "`) pass the gate but
- * then produce a malformed `language_codes` entry (e.g. `[" en"]`) in the
- * actual request. */
 function trimExplicitLanguage(language: string | undefined): string | undefined {
   const trimmed = language?.trim();
   return isExplicitLanguage(trimmed) ? trimmed : undefined;
 }
 
-/** `true` when `language` is an explicit, non-"auto" language — the only case
- * sync is eligible for. See the module doc's "Language" note above. */
 function hasExplicitLanguage(language: string | undefined): boolean {
   return trimExplicitLanguage(language) !== undefined;
 }
@@ -188,9 +177,7 @@ function hasExplicitLanguage(language: string | undefined): boolean {
  * a smaller one, so a request can be reserved as too long for sync and then
  * run through sync anyway. That gap predates this module and is not closed by
  * it — do not read the superset property as covering duration.
- *
- * Exists so a caller never needs this module's threshold or its language rule.
- * The transcribe route imported both directly and re-derived the gate inline. */
+ */
 export function couldRouteThroughSync(input: {
   medical: boolean;
   language?: string;
@@ -228,11 +215,6 @@ function authHeaders(apiKey: string): Record<string, string> {
   return { authorization: apiKey };
 }
 
-/** The keyterm phrases both paths send: split, drop phrases over
- * `MAX_KEYTERM_WORDS` words, and cap at `MAX_KEYTERMS` kept terms. The word
- * filter runs before the cap, as in the Rust core (`async_flow.rs`:
- * `filter_keyterm_words(...).take(max_terms)`), so a dropped long phrase never
- * uses up a slot a shorter term could fill. */
 function toKeyterms(initialPrompt: string): string[] {
   return splitVocabularyTerms(initialPrompt, {
     maxTerms: MAX_KEYTERMS,
@@ -320,7 +302,6 @@ async function transcribeWithAssemblyAISync(
       body: form,
     }, context, SYNC_TIMEOUT_MS);
   } catch (error) {
-    // fetchWithTimeout already logs transport_error/timeout internally.
     logProviderEvent(provider, 'sync_fallback', {
       reason: 'transport', message: error instanceof Error ? error.message : String(error),
     }, context);
@@ -341,8 +322,6 @@ async function transcribeWithAssemblyAISync(
     return null;
   }
 
-  // Defensive: an unexpected/missing response shape falls back to async
-  // rather than crashing — `text` is the only field we require.
   if (typeof job.text !== 'string') {
     logProviderEvent(provider, 'sync_fallback', { reason: 'missing_text_field' }, context);
     return null;
@@ -444,9 +423,6 @@ export async function transcribeWithAssemblyAI(
   // language defaults to English server-side). Otherwise, gate on the
   // conservative byte-size duration estimate (see module doc for why: no real
   // duration is available here).
-  // `couldRouteThroughSync` owns the medical / language / duration terms — see
-  // its doc. The WAV-container term stays here because it is the one term a
-  // preflight caller cannot use (it would narrow the reservation, not widen it).
   const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
   const wavContainer = isWavContentType(contentType);
   const syncEligible = couldRouteThroughSync({ medical, language, estimatedSeconds }) && wavContainer;
@@ -482,8 +458,6 @@ export async function transcribeWithAssemblyAI(
   return pollUntilTerminal(transcriptId, apiKey, context, { model, medical, keyterms, audio, startedAt });
 }
 
-/** Step 1 of the async flow: upload the raw audio bytes and return the
- * `upload_url` AssemblyAI hands back. */
 async function uploadAudio(
   audio: ArrayBuffer,
   apiKey: string,
@@ -569,7 +543,6 @@ export function buildTranscriptJob(
   return { createBody, keyterms };
 }
 
-/** Step 2b of the async flow: create the transcript job and return its id. */
 async function createTranscriptJob(
   createBody: Record<string, unknown>,
   apiKey: string,
@@ -598,8 +571,6 @@ async function createTranscriptJob(
   });
 }
 
-/** Step 3 of the async flow: poll the transcript until it is completed or
- * failed, then decode and bill the result. Always deletes the transcript. */
 async function pollUntilTerminal(
   transcriptId: string,
   apiKey: string,

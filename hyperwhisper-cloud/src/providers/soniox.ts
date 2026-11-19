@@ -110,10 +110,6 @@ export async function transcribeWithSoniox(
     throw new Error('SONIOX_API_KEY not configured');
   }
 
-  // Reject audio too long to reliably finish within the poll deadline BEFORE
-  // creating any upstream file/job — a job still processing at POLL_DEADLINE_MS
-  // can't be deleted (Soniox 409), which would orphan a running, billable job.
-  // Surfaces as 413 via the AudioTooLargeError path in transcribe.ts.
   if (audio.byteLength > SONIOX_MAX_BYTES) {
     logProviderEvent(provider, 'audio_too_long', {
       audioBytes: audio.byteLength, maxBytes: SONIOX_MAX_BYTES,
@@ -125,7 +121,6 @@ export async function transcribeWithSoniox(
   let transcriptionId = '';
 
   try {
-    // ── 1. Upload the file ──
     logProviderEvent(provider, 'prepare', {
       model, audioBytes: audio.byteLength, contentType, language: language || 'auto',
     }, context);
@@ -153,7 +148,6 @@ export async function transcribeWithSoniox(
       missingMessage: 'upload returned no file id',
     });
 
-    // ── 2. Create the transcription ──
     const createBody: Record<string, unknown> = {
       file_id: fileId,
       model,
@@ -192,7 +186,6 @@ export async function transcribeWithSoniox(
 
     logProviderEvent(provider, 'job_created', { model, transcriptionId, termCount: terms.length }, context);
 
-    // ── 3. Poll job status ──
     const deadline = performance.now() + POLL_DEADLINE_MS;
     const jobUrl = `${SONIOX_BASE}/v1/transcriptions/${transcriptionId}`;
     let polls = 0;
@@ -218,8 +211,6 @@ export async function transcribeWithSoniox(
         continue;
       }
 
-      // Unreadable or malformed poll body: the helper logs parse_error (never
-      // the body, #1069) and the poll retries, as `await resp.json()` did on main.
       const job = await readPollJson<{ status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string }>(
         provider, jobResp, polls, context,
       );
@@ -264,7 +255,6 @@ export async function transcribeWithSoniox(
       throw new ProviderUnavailableError('Soniox', `poll deadline exceeded after ${POLL_DEADLINE_MS}ms`);
     }
 
-    // ── 4. Fetch the transcript text ──
     const transcriptResp = await fetchWithTimeout(provider, `${jobUrl}/transcript`, {
       method: 'GET',
       headers: authHeader(apiKey),
@@ -291,8 +281,6 @@ export async function transcribeWithSoniox(
       logProviderEvent(provider, 'no_speech', {
         model,
         polls,
-        // Set from `job.audio_duration_ms` during polling; still 0 means the
-        // upstream never reported one.
         upstreamDurationSeconds: (durationSeconds > 0 && Number.isFinite(durationSeconds))
           ? durationSeconds
           : null,

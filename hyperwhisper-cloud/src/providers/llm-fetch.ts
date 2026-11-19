@@ -14,9 +14,9 @@
 // FALLBACK:
 //   - our timer fired           -> LLMTimeoutError (an LLMRequestError, 504,
 //                                  provider). callWithRetry does NOT retry it on
-//                                  the same provider (review round 2): it goes
+//                                  the same provider: it goes
 //                                  straight to post-process.ts's fallback.
-//   - any other failure          -> rethrown unchanged, exactly as before #782:
+//   - any other failure          -> rethrown unchanged:
 //                                  a network error stays an untagged error
 //                                  (retried, not failed over), and the non-2xx
 //                                  handling in each caller keeps its own status
@@ -39,7 +39,7 @@ export const LLM_REQUEST_TIMEOUT_MS = 20_000;
 // allowance). A non-streaming response only arrives after the upstream has
 // generated ALL of its output, and a correction's output is about as long as
 // the transcript it corrects, so a flat cap would abort a long, healthy
-// correction. The system prompt is left out (review round 2): it is the
+// correction. The system prompt is left out: it is the
 // caller's instructions, it does not lengthen the output, and counting it gave
 // a short dictation under a long custom prompt a long bound for nothing.
 //
@@ -57,13 +57,11 @@ export const LLM_REQUEST_TIMEOUT_MS = 20_000;
 export const LLM_REQUEST_TIMEOUT_PER_1K_CHARS_MS = 10_000;
 export const LLM_REQUEST_TIMEOUT_CEILING_MS = 180_000;
 
-/** Per-attempt bound for a non-streaming chat request whose transcript is `transcriptChars` long. */
 export function computeLLMRequestTimeoutMs(transcriptChars: number): number {
   const scaled = Math.ceil(transcriptChars / 1_000) * LLM_REQUEST_TIMEOUT_PER_1K_CHARS_MS;
   return Math.min(LLM_REQUEST_TIMEOUT_CEILING_MS, Math.max(LLM_REQUEST_TIMEOUT_MS, scaled));
 }
 
-/** Total characters across every message of a chat payload (system prompt included). */
 export function promptCharCount(messages: ReadonlyArray<{ content: string }>): number {
   return messages.reduce((sum, message) => sum + message.content.length, 0);
 }

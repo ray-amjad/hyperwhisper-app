@@ -14,10 +14,7 @@
 // as `classifierText`, which callers may test with a regex (quota markers, the
 // Chirp adaptation retry) but must never log or put in an Error message that
 // is logged.
-//
-// Pure apart from reading the response body once. No imports.
 
-/** The 500-character truncation the old error-body preview used, so classifiers see the same text. */
 const CLASSIFIER_TEXT_LIMIT = 500;
 
 /**
@@ -49,11 +46,8 @@ const REQUEST_ID_HEADERS = [
 /** Content-free facts about one non-OK upstream response. Safe to log. */
 export interface UpstreamErrorFields {
   status: number;
-  /** The provider's error code, when it is a short identifier. */
   errorCode?: string;
-  /** The provider's error type / status enum, when it is a short identifier. */
   errorType?: string;
-  /** The upstream's id for the call, from the response headers or body. */
   upstreamRequestId?: string;
   /** Characters in the error body. `-1` when the body could not be read. */
   bodyLength: number;
@@ -71,7 +65,6 @@ export interface UpstreamErrorRead {
   classifierText: string;
 }
 
-/** `value` when it is a short token-like identifier, else undefined. */
 export function safeErrorToken(value: unknown, pattern: RegExp = SAFE_TOKEN): string | undefined {
   if (typeof value === 'number' && Number.isInteger(value)) {
     value = String(value);
@@ -148,11 +141,6 @@ export function summarizeUpstreamError(
   return fields;
 }
 
-/**
- * Read a non-OK upstream response once and split it into loggable fields and
- * the classifier-only text. Never throws: an unreadable body gives
- * `bodyLength: -1` and `classifierText: '<unreadable>'`.
- */
 export async function readUpstreamError(response: Response): Promise<UpstreamErrorRead> {
   let body: string | undefined;
   try {
@@ -169,18 +157,10 @@ export async function readUpstreamError(response: Response): Promise<UpstreamErr
   return { fields, classifierText };
 }
 
-/**
- * A short, content-free reason for an Error message: the provider's error
- * code or type when it gave one, else `HTTP <status>`.
- */
 export function upstreamErrorReason(fields: UpstreamErrorFields): string {
   return fields.errorCode ?? fields.errorType ?? `HTTP ${fields.status}`;
 }
 
-/**
- * The fields as a log-line object with no undefined members, so a JSON log
- * line stays compact and `toMatchObject` assertions read cleanly.
- */
 export function upstreamErrorLogFields(fields: UpstreamErrorFields): Record<string, string | number> {
   const out: Record<string, string | number> = { status: fields.status, bodyLength: fields.bodyLength };
   if (fields.errorCode !== undefined) out.errorCode = fields.errorCode;

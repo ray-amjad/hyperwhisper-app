@@ -4,7 +4,7 @@
 // region it is running in, and if not, what should the route do instead?
 //
 // This module exists so the transcribe route does not have to know FIVE
-// ElevenLabs internals it previously carried inline:
+// ElevenLabs internals:
 //   1. that ElevenLabs is geo-blocked at all,
 //   2. which Fly regions it is blocked from (`nrt`, `bom`, `maa`),
 //   3. which region a blocked request has to be replayed to (`iad`),
@@ -96,8 +96,6 @@ export function planGeoRouting(provider: SttProviderId, contentLength: number): 
  * The members of `chain` that this machine can actually reach. Ask this instead
  * of filtering a provider id out by hand: the caller then never names a
  * geo-blocked provider, and a second blocked provider needs no caller change.
- *
- * Returns a fresh array, like `fallbackChainFor()`.
  */
 export function reachableFromRegion(chain: readonly SttProviderId[]): SttProviderId[] {
   const region = currentRegion();

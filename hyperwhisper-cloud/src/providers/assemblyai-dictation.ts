@@ -98,11 +98,6 @@ export async function transcribeWithAssemblyAIDictation(
   };
 }
 
-/**
- * The `adapter: 'assemblyai-dictation'` row of `MODEL_ADAPTERS` (dispatch.ts):
- * everything about Dictation the route, the reservation and dispatch need, so
- * none of them compares a model id to 'dictation'.
- */
 export const ASSEMBLYAI_DICTATION_ADAPTER: ModelAdapter = {
   transcribe: (audio, contentType, language, initialPrompt, context = {}) =>
     transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context),
@@ -112,7 +107,6 @@ export const ASSEMBLYAI_DICTATION_ADAPTER: ModelAdapter = {
     }
     return null;
   },
-  // Reserve from the parsed WAV, never from size: only the body says how long it is.
   audioReservation: () => ({
     requiresBufferedBody: true,
     estimatedAudioSeconds: 120,

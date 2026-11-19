@@ -29,11 +29,7 @@ const MAX_KEYTERM_CHARS = 50;
 const MAX_KEYTERM_WORDS = 5;
 
 /**
- * A RIFF/WAVE file's length in seconds from its `fmt ` byte rate and `data`
- * size, for ANY WAV encoding (PCM at any depth, float, EXTENSIBLE), or null
- * when the bytes are not a readable WAV. Deliberately more tolerant than
- * `parsePcm16Wav`, which validates what an upstream accepts: billing only
- * needs the length. A `data` size past the end of the buffer (a streaming
+ * A `data` size past the end of the buffer (a streaming
  * writer's 0xFFFFFFFF, a truncated file) is cut to the bytes actually sent.
  */
 function wavDurationSeconds(audio: ArrayBuffer): number | null {
@@ -95,9 +91,6 @@ function toKeyterms(initialPrompt: string): string[] {
   });
 }
 
-/**
- * Transcribe audio with ElevenLabs Scribe v2
- */
 export async function transcribeWithElevenLabs(
   audio: ArrayBuffer,
   contentType: string,
@@ -202,8 +195,6 @@ export async function transcribeWithElevenLabs(
     words: unknown;
   }>(provider, 'ElevenLabs', response, startTime, context);
 
-  // A `text` that is present but not a string is a broken body too: `.trim()`
-  // below would throw a TypeError and answer a 500.
   if (data.text !== undefined && data.text !== null && typeof data.text !== 'string') {
     logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startTime),
@@ -217,8 +208,6 @@ export async function transcribeWithElevenLabs(
     });
   }
 
-  // Calculate duration from word timings. Only a finite number counts: a
-  // missing or odd `words` field leaves it 0, never a TypeError.
   let duration = 0;
   if (Array.isArray(data.words) && data.words.length > 0) {
     const lastWord: unknown = data.words[data.words.length - 1];

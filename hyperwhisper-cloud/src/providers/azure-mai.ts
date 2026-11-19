@@ -34,14 +34,6 @@ import {
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
 
-// What this adapter runs when the caller names no model.
-//
-// Read from the registry, never restated: `/transcribe` resolves the model
-// before it dispatches (`resolveModel` in `routes/transcribe.ts`), so in
-// production `context.model` is always one of the ids below and this only
-// covers a direct call. Restating a literal here made the file disagree with
-// `stt-models.ts` — it said 1.5 while the registry said 2 — and the disagreement
-// was invisible because neither fallback could be reached.
 const DEFAULT_MODEL = getProviderDef('azure-mai').defaultModel;
 
 // Internal model id → the string Azure wants in `enhancedMode.model`.
@@ -144,11 +136,6 @@ export async function transcribeWithAzureMai(
 
   const url = `https://${azureRegion}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`;
 
-  // Normalise to a KNOWN id, so the wire string, the `transcribeStyle` branch,
-  // the locale table and the billed rate all describe the same model. Taking
-  // `context.model` verbatim and only falling back on the wire lookup could
-  // send v2's wire string with 1.5's request shape.
-  //
   // `Object.hasOwn`, not `in`: `in` walks the prototype chain, so a model id of
   // `constructor` or `toString` would pass the guard and hand a FUNCTION to the
   // wire string below. The HTTP route resolves the model before dispatch today,
@@ -250,7 +237,6 @@ export async function transcribeWithAzureMai(
   }>(provider, 'Azure MAI', response, startedAt, context);
 
   const rawTranscript = Array.isArray(data.combinedPhrases) ? data.combinedPhrases[0]?.text : undefined;
-  // A truthy non-string `text` would reach `.trim()` and throw a TypeError.
   if (rawTranscript !== undefined && rawTranscript !== null && typeof rawTranscript !== 'string') {
     logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startedAt),

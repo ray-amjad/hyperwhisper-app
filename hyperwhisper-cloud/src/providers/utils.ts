@@ -38,10 +38,6 @@ export function estimateSecondsFromBytes(byteLength: number): number {
  * 64 kbps assumption behind estimateSecondsFromBytes() overstates their clips
  * by ~4×. Unknown or compressed containers fall back to 16,000 B/s (128 kbps),
  * which is the middle of the range we actually receive.
- *
- * Match order is the order google-chirp.ts's if/else chain used before this
- * moved here — a content type carrying two hints (`audio/mp4; codecs=opus`)
- * resolves to the first entry that matches. Keep it stable.
  */
 const BYTES_PER_SECOND_BY_CONTAINER: ReadonlyArray<{ hints: readonly string[]; bytesPerSecond: number }> = [
   { hints: ['wav', 'pcm'], bytesPerSecond: 32_000 },
@@ -73,12 +69,7 @@ export function estimateAudioSeconds(byteLength: number, contentType: string): n
  *
  * `undefined`, `''` and `'auto'` (any case) all mean auto-detect: the client
  * sends the literal string `auto` for "detect the language", and omits the
- * param entirely on older builds. Every adapter had its own copy of the same
- * `language && language.toLowerCase() !== 'auto'` test, so the meaning of
- * "explicit language" was defined in ten places at once.
- *
- * Declared as a type predicate so a call site keeps the `string` narrowing the
- * inline expression used to give it.
+ * param entirely on older builds.
  */
 export function isExplicitLanguage(language: string | undefined): language is string {
   return !!language && language.toLowerCase() !== 'auto';
@@ -110,7 +101,6 @@ export function explicitLanguageSubtag(language: string | undefined): string | u
  * terms.
  */
 export interface VocabularyTermPolicy {
-  /** Maximum number of terms forwarded upstream. */
   maxTerms: number;
   /**
    * Drop a term longer than this many characters. Omit for no length limit —
@@ -161,12 +151,6 @@ const LIST_BULLET = /^[-*](?:\s+|$)/;
  *
  * Input `"HyperWhisper, SwiftUI\n- Claude"` → `["HyperWhisper", "SwiftUI", "Claude"]`.
  *
- * Every adapter had grown its own copy of the same four steps — split on
- * `,` / newline / `;`, trim, strip a leading `-` / `*` bullet, drop empties —
- * differing only in the numeric limits on {@link VocabularyTermPolicy}. So the
- * meaning of "one vocabulary term" was defined in nine places at once, and a
- * term that one adapter forwarded another silently dropped.
- *
  * Every upstream here takes ONE repeated field value per term, never a single
  * comma-joined string (that boosts one literal phrase containing commas, which
  * does nothing), so callers append each returned term separately.
@@ -214,7 +198,6 @@ export function splitVocabularyTerms(
   return terms;
 }
 
-/** Filename extensions the multipart adapters use for the audio part. */
 export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
 
 /**
@@ -235,7 +218,6 @@ const AUDIO_EXTENSION_HINTS: ReadonlyArray<{ ext: AudioExtension; hints: readonl
   { ext: 'flac', hints: ['flac'] },
 ];
 
-/** The container set the Whisper-style multipart adapters recognise. */
 export const DEFAULT_AUDIO_EXTENSIONS = ['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac'] as const;
 
 /**
@@ -268,8 +250,6 @@ export function audioExtensionFromContentType<T extends AudioExtension>(
  * Every adapter runs its own gates first — a missing API key, a byte-length cap,
  * a content-type check — and each of those throws in single-digit microseconds,
  * which the page would otherwise render as that provider answering in 1 ms.
- * Enumerating those throw sites is what failed twice (a whitelist of error types
- * has to be extended by whoever adds the next gate, and nothing makes them).
  *
  * So the signal is taken from the one place that cannot be bypassed without
  * noticing: the request actually leaving this process. `markProviderNetworkCall()`
@@ -292,7 +272,6 @@ export type ProviderAttemptNetwork = { reachedProvider: boolean };
 
 const attemptNetworkStorage = new AsyncLocalStorage<ProviderAttemptNetwork>();
 
-/** Runs one provider attempt, recording into `state` whether it reached the wire. */
 export function runProviderAttempt<T>(
   state: ProviderAttemptNetwork,
   fn: () => Promise<T>,
@@ -300,7 +279,6 @@ export function runProviderAttempt<T>(
   return attemptNetworkStorage.run(state, fn);
 }
 
-/** Called immediately before an upstream request leaves this process. */
 export function markProviderNetworkCall(): void {
   const state = attemptNetworkStorage.getStore();
   if (state) {
@@ -359,8 +337,6 @@ export async function readPollJson<T>(
   polls: number,
   context: ProviderRequestContext = {},
 ): Promise<T | undefined> {
-  // `raw` stays undefined when the body fails to read, so the catch can tell
-  // a read failure from a parse failure.
   let raw: string | undefined;
   try {
     raw = await resp.text();
@@ -523,7 +499,6 @@ export type ProviderHttpErrorPolicy = ProviderHttpErrorPolicyBase & (
      * unauthorized key pass `[401, 403]`.
      */
     authStatuses?: readonly number[];
-    /** Message for the `authStatuses` failure. */
     authMessage: string;
   }
   | {
@@ -538,7 +513,6 @@ export type ProviderHttpErrorPolicy = ProviderHttpErrorPolicyBase & (
 );
 
 interface ProviderHttpErrorPolicyBase {
-  /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
    * Statuses that END the request with a plain `Error(message)`: no failover,
@@ -559,7 +533,6 @@ interface ProviderHttpErrorPolicyBase {
    * what the adapters whose upstream never returns 402 already did.
    */
   failoverOn402?: boolean;
-  /** Extra fields merged into the `http_error` log line (e.g. `{ model }`). */
   logDetails?: Record<string, unknown>;
   /**
    * Attach `{ kind, status, elapsedMs }` to the thrown
@@ -590,10 +563,6 @@ const QUOTA_EXHAUSTED_MARKERS: ReadonlyArray<{ pattern: RegExp; reason: string }
 /** Statuses an upstream has been seen to carry an out-of-credits body on. */
 const QUOTA_EXHAUSTED_STATUSES: ReadonlySet<number> = new Set([401, 402, 403, 429]);
 
-/**
- * The greppable reason when `body` says the upstream account is out of
- * credits, or `null` when it does not.
- */
 export function quotaExhaustedReason(status: number, body: string): string | null {
   if (!QUOTA_EXHAUSTED_STATUSES.has(status)) return null;
   return QUOTA_EXHAUSTED_MARKERS.find(({ pattern }) => pattern.test(body))?.reason ?? null;
@@ -608,12 +577,6 @@ export function quotaExhaustedReason(status: number, body: string): string | nul
  *   throw await providerHttpError(provider, response, startedAt, context, { … });
  * }
  * ```
- *
- * Every adapter had grown its own copy of this block — same body preview, same
- * `kind` ternary, same `http_error` log, same 401 / 429 / 5xx / other-4xx
- * ladder — differing only in the knobs on {@link ProviderHttpErrorPolicy}. It
- * returns the error rather than throwing so the `throw` stays visible at the
- * call site and TypeScript keeps narrowing the code after it.
  *
  * `startedAt` is the adapter's `performance.now()` mark; `elapsedMs` is measured
  * AFTER the body preview is read, matching what the inline blocks logged.
@@ -728,13 +691,6 @@ export function upstreamDurationOrNull(value: unknown): number | null {
  * }
  * ```
  *
- * One block, not three. `deepgram.ts`, `groq.ts` and `xai-stt.ts` carried
- * 41/36/41-line copies differing in three tokens, and they had ALREADY drifted:
- * two carried `upstreamRequestId` on the `no_speech` event and groq carried
- * neither the field nor the comment claiming it, so #381's own telemetry was
- * dead for one of the three providers it was written for. Same seam, same remedy
- * as {@link providerHttpError} above.
- *
  * It returns on one path and throws on the other because the route's grant is
  * the only thing that decides which — see
  * `ProviderRequestContext.mayRefuseEmptyTranscript`. An adapter never re-derives
@@ -745,7 +701,6 @@ export function emptyTranscriptOutcome(
   opts: {
     /** Name used in the thrown error message ('Grok', 'Deepgram', 'Groq'). */
     label: string;
-    /** The adapter's `performance.now()` mark for this attempt. */
     startedAt: number;
     context: ProviderRequestContext;
     /** The upstream's own reported audio length, unvalidated. */
@@ -812,14 +767,6 @@ export function emptyTranscriptOutcome(
   return opts.noSpeechResult;
 }
 
-/**
- * Read a required string field from a successful upstream JSON response.
- *
- * Async job providers use the same two failure modes: unreadable JSON is a
- * malformed response, while valid JSON without the required field is a
- * provider-specific missing-field response. Keep those messages at the call
- * site while sharing the response parsing and field check.
- */
 export async function readRequiredJsonString(
   response: Response,
   options: {

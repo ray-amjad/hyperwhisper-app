@@ -35,9 +35,6 @@ const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
  * Underscores are the documented way to bias a phrase (docs.mistral.ai
  * audio/speech_to_text → `["affordable_health_care", "American_people"]`), so
  * joining beats dropping the term.
- *
- * Returns the phrases as the user wrote them (whitespace collapsed to one space)
- * and as sent, index for index, so `restoreSpacedTerms` can map one to the other.
  */
 function toContextBias(initialPrompt: string): { spaced: string[]; sent: string[] } {
   const spaced = splitVocabularyTerms(initialPrompt, {
@@ -51,14 +48,7 @@ function toContextBias(initialPrompt: string): { spaced: string[]; sent: string[
 /**
  * Voxtral writes a biased phrase back the way it was sent: "HyperWhisper_Cloud"
  * for the term "HyperWhisper Cloud" (seen live on `voxtral-mini-latest` on
- * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544). Put the
- * user's spaces back, and nothing else:
- * - only a term that HAD whitespace is rewritten, so `__init__` passes through,
- *   and a joined form the user also listed as written (`snake_case` beside
- *   "Snake Case") is left alone;
- * - only a whole token, exact case, so `user_id_field` keeps its underscores
- *   when "user id" is in the list;
- * - one pass, longest first, so restored text is never matched again.
+ * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544).
  */
 function restoreSpacedTerms(text: string, bias: { spaced: string[]; sent: string[] }): string {
   const writtenWithUnderscore = new Set(bias.spaced.filter((term, i) => term === bias.sent[i]));
@@ -117,7 +107,7 @@ export async function transcribeWithMistral(
     // the SDK splits it; raw multipart needs the repeated-field encoding.
     // Refs: github.com/mistralai/client-python issue #338 (curl shows repeated
     // `-F context_bias=...`); docs.mistral.ai/api (audio/transcriptions →
-    // context_bias: array). Each term appended individually below.
+    // context_bias: array).
     for (const term of contextBias.sent) {
       formData.append('context_bias', term);
     }

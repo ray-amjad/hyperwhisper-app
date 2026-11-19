@@ -87,9 +87,6 @@ export const INTERACTIONS_TIMEOUT_MS = 45_000;
  * alongside `diarization_mode` or `timestamp_granularities`. `/transcribe`
  * returns text only, so this never sends either; a future word-timings change
  * must not add them next to the vocabulary.
- *
- * Returns a possibly-empty object; the caller omits `generation_config` entirely
- * when nothing is configured (auto-detect, no vocabulary).
  */
 export function buildTranscriptionConfig(
   language: string | undefined,
@@ -140,7 +137,6 @@ interface InteractionsResponse {
   model?: string;
 }
 
-/** Concatenate the text of every content entry across every step. */
 export function collectTranscript(data: InteractionsResponse): string {
   const parts: string[] = [];
   for (const step of data.steps ?? []) {
@@ -197,8 +193,6 @@ export async function transcribeWithGeminiTranscribe(
   const model = context.model || getProviderDef('gemini-transcribe').defaultModel;
 
   if (model === GEMINI_TRANSCRIBE_LIVE_MODEL) {
-    // Fail before spending a round trip, and name the reason. A
-    // ProviderInputError on this self-only chain surfaces as a 400.
     throw new ProviderInputError(
       'Gemini 3.5 Transcribe',
       400,
@@ -255,7 +249,6 @@ export async function transcribeWithGeminiTranscribe(
 
   if (!response.ok) {
     if (response.status === 400) {
-      // Peek at a clone so providerHttpError below still owns the body it logs.
       // `classifierText` is for the auth test only; never logged (#2163).
       const { fields, classifierText } = await readUpstreamError(response.clone());
       if (looksLikeAuthFailure(classifierText)) {
@@ -313,8 +306,6 @@ export async function transcribeWithGeminiTranscribe(
       audioTokens,
       durationSeconds,
       costUsd: noSpeechCostUsd,
-      // NOT `durationSeconds`: that falls back to a byte estimate when the
-      // response carries no usage. Derive from the reported audio tokens alone.
       upstreamDurationSeconds: audioTokens > 0
         ? audioTokens / GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND
         : null,

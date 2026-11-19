@@ -16,9 +16,6 @@ import {
 } from './utils';
 import { isWhisperSilencePhrase } from './whisper-silence';
 
-/**
- * Transcribe audio with Groq Whisper large-v3
- */
 export async function transcribeWithGroq(
   audio: ArrayBuffer,
   contentType: string,
@@ -117,17 +114,13 @@ export async function transcribeWithGroq(
     // No text, but the upstream itself says it processed audio (`duration` is the
     // length of the SUBMITTED audio, not of detected speech). That is worth one
     // sibling call rather than a "No speech detected" the user has to redo — but
-    // only when the ROUTE says a sibling is there to take it. We never inspect
-    // `attempt` for that: the chain is the route's to read. One shared block for
-    // all three covered adapters. See emptyTranscriptOutcome in providers/utils.
-    // (issue ray-amjad/hyperwhisper-app#381)
+    // only when the ROUTE says a sibling is there to take it.
     return emptyTranscriptOutcome(provider, {
       label: 'Groq',
       startedAt: startTime,
       context,
       upstreamDuration: duration,
-      // Groq puts no id in the JSON body; it is on the response header. This
-      // adapter was the one of the three that logged nothing here at all.
+      // Groq puts no id in the JSON body; it is on the response header.
       upstreamRequestId: requestIdHeader,
       logDetails: { language: data.language },
       noSpeechResult,
@@ -143,7 +136,6 @@ export async function transcribeWithGroq(
     return emptyTranscriptOutcome(provider, {
       label: 'Groq',
       startedAt: startTime,
-      // A recovery attempt never refuses in turn: this no_speech is the answer.
       context: { ...context, mayRefuseEmptyTranscript: false },
       upstreamDuration: duration,
       upstreamRequestId: requestIdHeader,

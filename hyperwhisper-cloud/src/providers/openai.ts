@@ -29,12 +29,9 @@ const LIVE_ONLY_MODEL = 'gpt-live-transcribe';
 
 // Models that accept a structured keyword list.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
-// Whether OpenAI bills `model` per audio minute rather than per token — read
-// from its registry row's `billing`. Each such model is billed on the duration
+// Each such model is billed on the duration
 // OpenAI reports when it reports one, and on the conservative byte estimate
-// only when it does not. gpt-transcribe was billed on the byte estimate alone,
-// which reads a 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1
-// and gpt-4o-transcribe to it, that would have tripled their bill.
+// only when it does not.
 function isDurationBilled(model: string): boolean {
   const row = findModelRow('openai', model);
   return row !== undefined && row.billing.kind !== 'tokens';
@@ -46,12 +43,10 @@ const KEYWORDS_FIELD = 'keywords[]';
 const MAX_KEYWORDS = 100;
 // Per-term ceiling, matching MAX_VOCABULARY_TERM_CHARS in the Rust core's
 // `sanitize_vocabulary_word` — the canonical sanitizer the BYOK half of this
-// feature routes through. Without it a pasted 400-character sentence went
-// upstream as one "keyword", and every sibling adapter here caps term length.
+// feature routes through.
 // Like the canonical sanitizer, an over-long term is TRUNCATED, not dropped.
 const MAX_KEYWORD_CHARS = 80;
 
-/** Split a comma/newline vocabulary prompt into `keywords[]` values. */
 function toKeywords(initialPrompt: string): string[] {
   // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF;
   // the sanitize policy removes all of them.
@@ -82,8 +77,7 @@ export async function transcribeWithOpenAI(
   const model = context.model || getProviderDef('openai').defaultModel;
 
   if (model === LIVE_ONLY_MODEL) {
-    // Fail before spending a round trip, and name the reason. A
-    // ProviderInputError on this self-only chain surfaces as a 400.
+    // A ProviderInputError on this self-only chain surfaces as a 400.
     throw new ProviderInputError(
       'OpenAI',
       400,
@@ -120,9 +114,8 @@ export async function transcribeWithOpenAI(
   // parse.
   //
   // ON THE FIELD NAME — deliberately still the SINGULAR `language`, for every
-  // model including `gpt-transcribe`. An earlier revision of this PR switched
-  // the gpt-transcribe family to a plural `languages` on the strength of a doc
-  // reading. That claim is unverified: no OpenAI SDK is vendored here, nothing
+  // model including `gpt-transcribe`. A plural `languages` is unverified:
+  // no OpenAI SDK is vendored here, nothing
   // in this repo pins the field's type, and `scripts/language-code-probe.ts` was
   // written precisely to settle it and has never been run. If `languages` is
   // array-typed, OpenAI's multipart convention wants `languages[]` and a bare
@@ -226,7 +219,6 @@ export async function transcribeWithOpenAI(
 
   // Fail-closed: a duration-billed model's successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate (never $0).
-  // The gpt-4o branch already estimates from bytes above.
   if (isDurationBilled(model) && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
     durationSeconds = estimateSecondsFromBytes(audio.byteLength);
   }

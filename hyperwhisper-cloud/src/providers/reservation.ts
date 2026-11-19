@@ -5,18 +5,6 @@
 // asks this before it reads the body, multiplies by the byte-size duration
 // estimate, and reserves that many credits.
 //
-// This module exists so the route does not have to know THREE provider
-// internals it previously carried inline:
-//   1. which providers meter a keyterm add-on at all (it held the literal
-//      `p === 'elevenlabs' || p === 'assemblyai'`, a second copy of a rule
-//      `estimatedUsdPerMinute` already scopes internally),
-//   2. that AssemblyAI has a sync fast path priced above every async catalog
-//      rate, and what that rate is,
-//   3. AssemblyAI's sync eligibility gate — the route imported the adapter's
-//      `hasExplicitLanguage` and `SYNC_ELIGIBLE_ESTIMATED_SECONDS` directly,
-//      the last adapter import left in the route after dispatch.ts,
-//      audio-limits.ts and geo-availability.ts took the others.
-//
 // Adding a provider with a premium routing tier is a row in the table below,
 // not a new `if` arm in the route. A provider with no entry prices purely off
 // the registry's catalog rates.
@@ -45,9 +33,7 @@ import {
   type SttProviderId,
 } from '../lib/stt-models';
 
-/** Everything the reservation needs to know about a request, in caller terms. */
 export interface ReservationRateInput {
-  /** The provider the caller asked for. Its fallback chain is derived here. */
   provider: SttProviderId;
   /**
    * The model requested for `provider`; siblings price at their own default.
@@ -62,7 +48,6 @@ export interface ReservationRateInput {
    * direction this module must never go.
    */
   model?: string;
-  /** True when the request asked for the medical domain. */
   medical: boolean;
   /** True when the request carries an `initial_prompt` / vocabulary. */
   hasInitialPrompt: boolean;
@@ -90,11 +75,7 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
 };
 
 /**
- * The most expensive USD/min this request could end up paying, across every
- * provider in its registry fallback chain and every routing tier any of them
- * may route it through.
- *
- * Ask this rather than pricing a chain yourself. The keyterm surcharge is
+ * The keyterm surcharge is
  * billed by ANY chain member that meters it whenever an initial_prompt is
  * present — a Deepgram→ElevenLabs fallback still forwards the prompt and bills
  * the +20% — so `hasInitialPrompt` is passed to every member. Providers that do

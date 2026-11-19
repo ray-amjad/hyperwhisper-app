@@ -54,8 +54,7 @@ const INLINE_AUDIO_MAX_SECONDS = 55;
 //      shortest. 45 s keeps margin at that cap while staying inside Fly's
 //      per-request budget.
 // Chirp is selfOnly, so a timeout here is a hard 502 with no fallback — worth
-// being generous. Mirrors the explicit budgets already used for batch polling
-// and GCS upload; only the inline call was left on the bare default.
+// being generous.
 const SYNC_RECOGNIZE_TIMEOUT_MS = 45_000;
 // Submitting a long-running batch operation can have the same upstream startup
 // variance as sync recognize. Pin its budget so this self-only provider never
@@ -99,7 +98,6 @@ function base64Encode(audio: ArrayBuffer): string {
 }
 
 /**
- * Parse an ISO 8601 duration string ("12.345s", "PT1M30S") into seconds.
  * Google Speech V2 returns simple second values like "12.5s" from `metadata`.
  */
 function parseIsoDurationToSeconds(duration: string | undefined): number {
@@ -159,10 +157,6 @@ export function chirpEndpoints(projectId: string, region: string): { syncUrl: st
   return { syncUrl: `${base}:recognize`, batchUrl: `${base}:batchRecognize` };
 }
 
-/**
- * Build the Speech V2 recognition config for a resolved locale (null means
- * auto-detect) and an already-parsed phrase list.
- */
 export function buildChirpConfig(resolvedLocale: string | null, phrases: string[]): Record<string, unknown> {
   const config: Record<string, unknown> = {
     autoDecodingConfig: {},
@@ -194,7 +188,6 @@ export function buildChirpConfig(resolvedLocale: string | null, phrases: string[
   return config;
 }
 
-/** The same config with the advisory `adaptation` block removed. */
 export function configWithoutAdaptation(config: Record<string, unknown>): Record<string, unknown> {
   const { adaptation: _dropped, ...rest } = config;
   return rest;
@@ -236,24 +229,13 @@ export async function transcribeWithGoogleChirp(
   const { syncUrl, batchUrl } = chirpEndpoints(projectId, region);
 
   // Speech V2 expects a canonical BCP-47 LOCALE (`en-US`), not a bare primary
-  // subtag — which is exactly what the desktop pickers send. Passing `language`
-  // through untouched therefore 400'd on 73 of the 75 codes the picker offers
-  // (everything except `auto` and `sw`), and because the client treats a server
-  // error as retryable, a permanent rejection was retried four times before it
-  // surfaced. The user saw a ~27-second hang rather than an error.
-  //
-  // `resolveProviderLanguage` expands the subtag, honours a region/script the
-  // client already qualified, and returns null (logging `language_unmappable`)
-  // when nothing maps — so an unknown code degrades to auto-detect instead of a
-  // request we already know Google will refuse.
+  // subtag — which is exactly what the desktop pickers send.
   const resolvedLocale = resolveProviderLanguage({
     provider, model: 'chirp_3', language, context,
   });
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
   const config = buildChirpConfig(resolvedLocale, phrases);
 
-  // Allocated before the try so the finally block can clean up even when
-  // the upload throws part way through.
   let gcsRef: TranscriptionAudioRef | null = null;
   let currentOperationName: string | null = null;
   const delivery = plan.delivery;
@@ -278,7 +260,6 @@ export async function transcribeWithGoogleChirp(
         audio, syncUrl, config, phraseCount: phrases.length, provider, startedAt, context,
       });
     } else {
-      // Upload to GCS, submit a batchRecognize operation, then poll until done.
       // batchRecognize lifts both the 10 MB and ~60 s caps that sync recognize
       // enforces — necessary for long recordings.
       const upload = await uploadTranscriptionAudio(audio, contentType);
@@ -306,8 +287,6 @@ export async function transcribeWithGoogleChirp(
 
     return buildChirpResult(normalized, audio, contentType, delivery, provider, startedAt, context);
   } finally {
-    // Always delete the scratch object — even on throw. `deleteTranscriptionAudio`
-    // swallows its own errors so we never mask the original failure.
     if (gcsRef) {
       await deleteTranscriptionAudio(gcsRef);
     }
@@ -333,10 +312,6 @@ interface InlineRecognizeParams {
   context: ProviderRequestContext;
 }
 
-/**
- * Sync `recognize` with inline base64 audio. A request rejected because of the
- * advisory phrase set is retried once without it (see `buildChirpConfig`).
- */
 async function recognizeInline(params: InlineRecognizeParams): Promise<NormalizedTranscript> {
   const { audio, syncUrl, config, phraseCount, provider, startedAt, context } = params;
   const content = base64Encode(audio);
@@ -376,7 +351,6 @@ async function recognizeInline(params: InlineRecognizeParams): Promise<Normalize
   return normalizeSpeechResults(data.results, data.metadata);
 }
 
-/** Turn a normalized transcript into the billed result, logging the outcome. */
 function buildChirpResult(
   normalized: NormalizedTranscript,
   audio: ArrayBuffer,
@@ -491,9 +465,6 @@ function normalizeSpeechResults(
 }
 
 /**
- * Decide whether a rejected request should be retried without the advisory
- * `adaptation` block, reading the error body exactly once.
- *
  * The body read is not optional: it is what releases the socket, and it is what
  * keeps this from re-sending a payload that will fail identically.
  *
@@ -572,7 +543,6 @@ interface BatchRecognizeParams {
    * is nothing advisory to drop.
    */
   fallbackConfig?: Record<string, unknown>;
-  /** Phrase count, for the retry log line only. */
   phraseCount?: number;
   provider: string;
   startedAt: number;
@@ -586,10 +556,6 @@ interface BatchRecognizeParams {
 }
 
 /**
- * Submit a batchRecognize long-running operation against the given gs:// URI,
- * then poll the operations endpoint until done (or deadline). Returns the
- * normalized transcript pulled out of `response.results[<uri>].transcript`.
- *
  * batchRecognize is the only Speech V2 path that lifts both the 10 MB payload
  * cap and the ~60 s duration cap that sync `recognize` enforces. We pin
  * `inlineResponseConfig: {}` so results come back in the operation response

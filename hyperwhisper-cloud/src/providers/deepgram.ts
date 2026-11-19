@@ -13,8 +13,6 @@ const MAX_KEYWORDS = 100;
 const MAX_KEYWORD_CHARS = 50;
 
 /**
- * Split an initial prompt into individual vocabulary terms.
- * Input: "HyperWhisper,SwiftUI,Claude" → ["HyperWhisper", "SwiftUI", "Claude"]
  * Deepgram's keyterm/keywords params take ONE repeated query value per term, so
  * the caller appends each term separately — never a single comma-joined string
  * (that boosts one literal phrase containing commas, which does nothing).
@@ -38,14 +36,6 @@ function deepgramModelParam(model: string): string {
 }
 
 /**
- * Build Deepgram API URL with query parameters.
- *
- * `language` is ALREADY RESOLVED — `null` means "this request runs on
- * auto-detect". Deciding the fallback here was the wrong home for it: the
- * caller then had to re-run the resolver just to learn what this function had
- * decided, and the two call sites had to agree forever for the telemetry to be
- * honest. This function now only formats.
- *
  * On the deliberate keyterm behaviour when `language` is null: Nova-3 honours
  * `keyterm` (and Nova-2 `keywords`) only in monolingual mode and silently drops
  * it under `detect_language` — see references/custom-vocab.md. The terms are
@@ -74,7 +64,7 @@ function buildDeepgramUrl(model: string, language: string | null, vocabularyTerm
     // Both keyterm (Nova-3) and keywords (Nova-2) take ONE repeated query value
     // per term — `keyterm=a&keyterm=b`, NOT a comma-joined `keyterm=a,b`. A
     // single joined value boosts one literal phrase (commas and all), so the
-    // boost effectively does nothing. Append each term individually.
+    // boost effectively does nothing.
     // Keyterm prompting is Nova-3 exclusive; Nova-2 uses the legacy `keywords`.
     const param = dgModel.startsWith('nova-3') ? 'keyterm' : 'keywords';
     for (const term of vocabularyTerms) {
@@ -85,9 +75,6 @@ function buildDeepgramUrl(model: string, language: string | null, vocabularyTerm
   return `https://api.deepgram.com/v1/listen?${params.toString()}`;
 }
 
-/**
- * Transcribe audio with Deepgram Nova-3
- */
 export async function transcribeWithDeepgram(
   audio: ArrayBuffer,
   contentType: string,
@@ -109,8 +96,6 @@ export async function transcribeWithDeepgram(
   // English-only, and nova-2 predates the nova-3 language expansion while also
   // keeping two languages (`th`, `zh`) nova-3 dropped. The picker scopes its
   // language list by TIER, so switching models leaves every language selectable.
-  // One call: resolves, logs the fallback if there is one, and returns what to
-  // send.
   const languageSent = resolveProviderLanguage({
     provider, model, language, context, vocabularyTermCount: keyterms.length,
   });
@@ -171,9 +156,7 @@ export async function transcribeWithDeepgram(
     // (`metadata.duration` is the length of the SUBMITTED audio, not of detected
     // speech). That is worth one sibling call rather than a "No speech detected"
     // the user has to redo — but only when the ROUTE says a sibling is there to
-    // take it. We never inspect `attempt` for that: the chain is the route's to
-    // read. One shared block for all three covered adapters. See
-    // emptyTranscriptOutcome in providers/utils.
+    // take it.
     // (issue ray-amjad/hyperwhisper-app#381)
     return emptyTranscriptOutcome(provider, {
       label: 'Deepgram',

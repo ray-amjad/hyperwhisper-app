@@ -1,19 +1,3 @@
-// PROVIDER DISPATCH
-// The providers layer's own answer to "which adapter runs this provider id".
-//
-// The transcribe route walks the fallback chain the registry hands it. Before
-// this file it also had to know, for every provider in that chain, which module
-// the adapter lives in and what the adapter is called — twelve deep imports and
-// a hand-written id → function table, next to a second hand-written id → label
-// table. Adding a provider meant editing `lib/stt-models.ts` AND the route, and
-// the route's tables were private, so the deploy smoke test kept its own copy of
-// the label rule.
-//
-// Now the route asks for a transcription by id and never names an adapter. The
-// label half of the same problem lives in the registry (`servedNameFor()` /
-// `formatProviderName()` in `lib/stt-models.ts`), because a public label is
-// registry data rather than adapter behaviour.
-//
 // To add a provider: register it in `lib/stt-models.ts`, then add its row here.
 // The `Record<SttProviderId, ...>` type makes a missing row a compile error.
 
@@ -36,7 +20,6 @@ import { transcribeWithMistral } from './mistral';
 import { transcribeWithSoniox } from './soniox';
 import { transcribeWithMeta } from './meta';
 
-/** The one shape every STT adapter in this folder implements. */
 export type TranscribeFn = (
   audio: ArrayBuffer,
   contentType: string,
@@ -89,16 +72,11 @@ const MODEL_ADAPTERS: Record<SttModelAdapterId, ModelAdapter> = {
   'assemblyai-dictation': ASSEMBLYAI_DICTATION_ADAPTER,
 };
 
-/** The model-specific adapter for (provider, model), if its registry row names one. */
 export function modelAdapterFor(provider: SttProviderId, model: string | undefined): ModelAdapter | undefined {
   const id = modelAdapterIdFor(provider, model);
   return id ? MODEL_ADAPTERS[id] : undefined;
 }
 
-/**
- * The request-option check for (provider, model): null when the model accepts
- * them. Only a model with its own adapter has rules of its own today.
- */
 export function validateModelOptions(
   provider: SttProviderId,
   model: string | undefined,
@@ -109,11 +87,6 @@ export function validateModelOptions(
 }
 
 /**
- * Run the adapter for `provider` and `context.model`: the model's own adapter
- * when its registry row names one, otherwise `provider`'s. The arguments and the returned
- * `TranscriptionResult` are the adapter contract in `types.ts`, unchanged — the
- * only thing this hides is which function answers.
- *
  * Every error an adapter throws still reaches the caller as thrown: the route's
  * chain logic is built on those types (`ProviderUnavailableError`,
  * `ProviderInputError`, `AudioTooLargeError`, `UnsupportedAudioFormatError`),

@@ -66,11 +66,6 @@ function normalisePhrase(sentence: string): string {
     .trim();
 }
 
-/**
- * True when every sentence of the transcript is a stock Whisper silence phrase.
- * Commas split too, so " Thank you, thank you." matches while "Thank you, see
- * you Friday." does not: "see you friday" is not on the list.
- */
 export function isWhisperSilencePhrase(text: string): boolean {
   const sentences = text
     .split(/[.!?…。！？,，、]+/)

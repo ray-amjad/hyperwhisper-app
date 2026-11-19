@@ -9,7 +9,6 @@ export type BufferedAudioReservationResult =
   | { kind: 'local-input-error' };
 
 export interface ProviderAudioReservation {
-  /** Whether the exact reservation requires the request body. */
   requiresBufferedBody: boolean;
   /** The historical size-only estimate used when no exact duration is known. */
   estimatedAudioSeconds: number;
@@ -45,16 +44,11 @@ const PROVIDER_RESERVATIONS: Partial<Record<SttProviderId, ReservationResolver>>
   }),
 };
 
-/**
- * Return the audio reservation behavior for a provider without exposing its
- * accepted formats, byte rates, parser, or parser error classes to the route.
- */
 export function providerAudioReservation(
   provider: SttProviderId,
   sizeBytes: number,
   model?: string,
 ): ProviderAudioReservation {
-  // A model with its own adapter (registry row `adapter`) owns its reservation.
   const modelAdapter = modelAdapterFor(provider, model);
   if (modelAdapter) return modelAdapter.audioReservation(sizeBytes);
   const providerReservation = PROVIDER_RESERVATIONS[provider];
