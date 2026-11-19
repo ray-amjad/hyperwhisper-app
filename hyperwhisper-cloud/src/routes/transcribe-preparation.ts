@@ -4,6 +4,7 @@ import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
+import { readAccountKey } from '../lib/account-key';
 import { isIPBlocked } from '../lib/redis';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
@@ -188,11 +189,8 @@ export async function prepareTranscriptionRequest(
   });
 
   // Auth (query params only) — Cloud is licensed-only; a valid account key is required.
-  // `account_key` is the canonical param name; `license_key` is the legacy alias
-  // that installed native apps still send, so we accept either.
   const authResult = await validateAuth({
-    licenseKey:
-      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
+    licenseKey: readAccountKey((field) => rawQuery(c.req.url, field)),
   });
   if (!authResult.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {

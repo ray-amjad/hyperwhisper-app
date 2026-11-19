@@ -8,7 +8,7 @@
 // IP, no transcript. See nextjs/src/db/schema/stt-latency-samples.ts for the
 // stored shape and what is deliberately absent.
 
-import { DEFAULT_API_BASE_URL } from './constants';
+import { licenseApiBaseUrl } from './constants';
 import type { ProviderUnavailableKind } from '../providers/types';
 
 /** How long the whole batch POST may take before we abandon it. */
@@ -136,7 +136,7 @@ export function reportLatencySamples(samples: LatencySample[]): void {
 }
 
 async function sendBatch(samples: LatencySample[], secret: string, flyRegion: string): Promise<void> {
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
 
   const payload = {
     samples: samples.slice(0, MAX_SAMPLES_PER_BATCH).map((sample) => ({

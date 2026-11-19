@@ -2,7 +2,7 @@
 // Handles preflight credit checks and post-usage deduction
 
 import { readCreditPoolId, type AuthContext } from './auth';
-import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { CREDITS_PER_MINUTE, LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
@@ -145,7 +145,7 @@ async function recordLicenseUsage(
   creditsUsed: number,
   metadata: Record<string, unknown>
 ): Promise<DeductionFailure | undefined> {
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
   // Set once the license API accepts the write. A later throw (a 2xx with a
   // malformed body, a failed cache write) means the charge landed, so it is
   // warned about below but not reported as a failure.
