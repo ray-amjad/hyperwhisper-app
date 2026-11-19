@@ -1,45 +1,17 @@
-// TRANSCRIPTION ROUTE
-// POST /transcribe - Main transcription endpoint
-// Supports multiple STT providers with automatic fallback
+// POST /transcribe: walks the provider fallback chain the registry gives it.
 
 import type { Context } from 'hono';
 import type { TranscriptionResult } from '../providers/types';
-import { AudioTooLargeError, EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
-// The providers layer's own answer to "which adapter runs this provider id", so
-// the route never imports an adapter or keeps a dispatch table of its own. See
-// providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
-import {
-  fallbackChainFor,
-  getProviderDef,
-  servedNameFor,
-  type SttProviderId,
-} from '../lib/stt-models';
-// Content-type aware, unlike the billing estimators: a failed attempt still has
-// to land in the right clip-length bucket on the public /latency page.
-// runProviderAttempt is how the same page learns whether an attempt ever reached
-// the provider at all.
+import { fallbackChainFor, getProviderDef, type SttProviderId } from '../lib/stt-models';
 import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
-// The providers layer's own answer to "can this Fly region reach this provider",
-// so the route never needs a provider's blocked-region list, its replay region,
-// or its id in a filter. See providers/geo-availability.ts.
 import { reachableFromRegion } from '../providers/geo-availability';
-// The providers layer's own answer to "what is the worst USD/min this request
-// could be billed at", so the route never needs a provider's add-on eligibility
-// or an adapter's internal routing gate. See providers/reservation.ts.
-import { errorResponse, sizeLimitFields, sizeLimitWords } from '../lib/responses';
 import { logEvent } from '../lib/logging';
 import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
-import { providerChainFailureResponse } from './transcribe-failure';
+import { AttemptLedger, classifyAttemptError } from './transcribe-attempts';
 import { createTranscriptionLatencyRecorder } from './transcribe-latency';
 import { withCreditHoldScope } from '../middleware/credit-holds';
-
-// The one message a client sees for a non-retryable failure. A failure's own
-// text can carry an upstream provider's error body or a server env-var name
-// (#2106), so it goes to the `transcribe.request_fail` log only; the client
-// keeps the requestId to find that log line. Same shape as /post-process (#2066).
-const TRANSCRIPTION_FAILURE_MESSAGE = 'The transcription request failed. Please try again.';
 
 export async function transcribeRoute(c: Context) {
   // Every exit below, an early refusal, a failed chain, a `no_speech`, a throw,
@@ -66,105 +38,30 @@ async function handleTranscribe(c: Context) {
     latencyReportable,
   } = preparation;
 
-  let result: TranscriptionResult | undefined;
-  let fallbackFrom: SttProviderId | undefined;
-  let fallbackCount = 0;
-  // The model that actually produced the result. Defaults to the requested
-  // model; on a cross-provider fallback it becomes that sibling's default model.
-  let usedModel = model;
-  // The provider whose attempt produced `result`. `result.source` names it on a
-  // transcript, but a `no_speech` result's source is the literal `'no_speech'`,
-  // so the only record of who answered is this. (review r2)
-  let servedBy: SttProviderId | undefined;
-  // Whether the provider the caller ASKED for was ever actually attempted. It
-  // is not always in the chain: an oversized upload from a region that geo-blocks
-  // the chosen provider drops it, and the request is served by a sibling from
-  // position 0. Attributing that request's outcome to the chosen provider would
-  // name a provider we never called — which is exactly what the `no_speech`
-  // attribution and the `fallback from` note below both used to do.
-  // (review r2)
-  let chosenProviderAttempted = false;
-
-  // Only the chain members this region can actually reach. We fall through to
-  // the next provider instead of failing the chain on a geo-block response the
-  // adapter cannot tell apart from a real answer.
-  //
-  // Filtered UNCONDITIONALLY, not only when the CHOSEN provider is the blocked
-  // one. A `deepgram` request served from `nrt`/`bom`/`maa` used to keep
-  // elevenlabs on the tail of its chain, so a degraded request uploaded the
-  // audio a third time to a host that answers 200 `text/html`. That call could
-  // never produce a transcript, and it also made `chain.length` a count of
-  // providers this request cannot use — which the empty-transcript grant below
-  // reads. One filter, one meaning: `chain` is what this request may actually
-  // call. (issue ray-amjad/hyperwhisper-app#381, review r2)
+  // Filtered unconditionally: a member this region cannot reach answers a
+  // geo-block (200 `text/html`) the adapter cannot tell from a real answer, so
+  // `chain` is only what this request may actually call. (issue #381)
   const chain = reachableFromRegion(fallbackChainFor(provider));
-  let lastError: Error | undefined;
-  let lastInputError: ProviderInputError | undefined;
-  let lastAuthError: ProviderAuthError | undefined;
-  let sawUnavailable = false;
-  // Chain position of the one attempt that refused an empty transcript
-  // (EmptyTranscriptError), if any. It is the single piece of state that makes
-  // this failure class different from every other one in the loop, and it does
-  // exactly two things:
-  //
-  //   1. It marks that `result` already holds a benign `no_speech` — the FLOOR of
-  //      this request. A refusal must never turn what would have been a 200
-  //      `no_speech` into an error, so every later arm (a sibling that is
-  //      rate-limited, one with no API key configured, one that rejects the
-  //      audio) settles on that floor instead of a 429/500/502.
-  //   2. It closes the door. No further attempt is authorised to refuse.
-  //
-  // (issue ray-amjad/hyperwhisper-app#381)
-  let refusalIndex: number | undefined;
-  // How much of the one extra UPSTREAM CALL the spec budgets has been spent.
-  //
-  // Deliberately NOT `index > refusalIndex + 1`. A chain POSITION is not a call:
-  // `DEEPGRAM_API_KEY` unset makes the adapter throw before any fetch, and the
-  // positional rule charged that non-event to the budget and then stopped —
-  // returning a `no_speech` for 22 s of real speech while groq and elevenlabs,
-  // both configured and both able to transcribe, were never asked. The budget is
-  // spent only by an attempt that reached the wire, which the loop already knows
-  // from `ProviderAttemptNetwork.reachedProvider`. (review r2)
-  let recoveryCallsSpent = 0;
-  // Per-attempt failure breadcrumbs, surfaced on the final outcome log so one
-  // line explains a degraded/failed request (which provider failed, why, how
-  // long it hung) without correlating separate provider-level log events.
-  const attemptFailures: Array<{
-    provider: SttProviderId;
-    kind: string;
-    status?: number;
-    attemptMs?: number;
-    /**
-     * The attempt was an empty-transcript refusal, not a provider fault. Inside
-     * the shared `bad_response` kind nothing else separates it from a geo-block
-     * or a truncated body. Log-only, like every other field here: `/transcribe`'s
-     * response body is a client contract (`hyperwhisper-cloud/CLAUDE.md`, "must
-     * land in clients in the same PR cycle") and this is operator data.
-     */
-    emptyTranscript?: true;
-  }> = [];
   const requestAudioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
-  const latency = createTranscriptionLatencyRecorder(
-    audioBuffer,
-    contentType,
-    latencyReportable,
-  );
+  const latency = createTranscriptionLatencyRecorder(requestAudioSeconds, latencyReportable);
+  const ledger = new AttemptLedger(requestId, startTime, chain, latency);
+  let fallbackFrom: SttProviderId | undefined;
+  // Whether the provider the caller ASKED for was ever attempted. An oversized
+  // upload from a region that geo-blocks it drops it from the chain, and the
+  // request is served by a sibling from position 0; its outcome must not be
+  // attributed to a provider we never called. (review r2)
+  let chosenProviderAttempted = false;
 
   try {
     for (const [index, current] of chain.entries()) {
-      // The one extra call this feature is allowed, already spent. Stopping here
-      // is not giving up: the refusal banked a `no_speech` in `result`, so the
-      // request answers with that. Walking on would cost the third and fourth
-      // upstream call the spec priced out. (issue #381)
-      if (refusalIndex !== undefined && recoveryCallsSpent > 0) break;
-
+      if (ledger.recoveryBudgetSpent) break;
       if (current === provider) {
         chosenProviderAttempted = true;
       }
 
       // The chosen model + domain only apply to the provider the caller picked.
-      // Fallback siblings run their own default model (the caller's model id is
-      // meaningless to them) and never inherit the medical add-on.
+      // Fallback siblings run their own default model and never inherit the
+      // medical add-on.
       const attemptModel = current === provider ? model : getProviderDef(current).defaultModel;
       const attemptDomain = current === provider ? domain : undefined;
 
@@ -174,350 +71,63 @@ async function handleTranscribe(c: Context) {
         attempt: index + 1,
       });
 
-      // logEvent's elapsedMs runs from REQUEST start, so it already includes
-      // upload, auth, credits, and every earlier attempt. This clock brackets
-      // this provider call alone — the number the /latency page reports.
       const attemptStart = performance.now();
-      // Flipped by the fetch helpers the instant this attempt's first request
-      // leaves the process. Until then the adapter has only run its own gates —
-      // a missing API key, a size cap, a content-type check — and those are our
-      // `if`s, not an upstream, so they are not measurements. See
-      // ProviderAttemptNetwork in providers/utils.ts for why the signal is taken
-      // at the wire rather than from a list of error types.
       const network: ProviderAttemptNetwork = { reachedProvider: false };
-
+      let attemptResult: TranscriptionResult;
       try {
-        result = await runProviderAttempt(network, () => transcribeWithProvider(current, audioBuffer, contentType, language, initialPrompt, {
+        attemptResult = await runProviderAttempt(network, () => transcribeWithProvider(current, audioBuffer, contentType, language, initialPrompt, {
           requestId,
           attempt: index + 1,
           model: attemptModel,
           domain: attemptDomain,
-          // Granted here and nowhere else. An adapter cannot see this request's
-          // chain — geo filtering can shrink it to a single provider — so it is
-          // told, per attempt, whether refusing an empty transcript has anywhere
-          // to go. See ProviderRequestContext.mayRefuseEmptyTranscript.
-          //
-          // THREE conditions, and the middle one is the spec's, not a fact about
-          // the table: only the provider the CALLER CHOSE may refuse. A sibling
-          // that is already covering for a rate-limited primary refusing in turn
-          // would push the request onto a third provider — on the deepgram/groq/
-          // grok chains that third provider is elevenlabs, ~15x groq's price and
-          // documented as the last resort, called at zero revenue because a
-          // `no_speech` is never billable. Granting it at every non-terminal
-          // position made that the outcome of every silent clip recorded while a
-          // primary was having a bad hour. (issue #381, review r2)
-          mayRefuseEmptyTranscript: refusalIndex === undefined
+          // Only the provider the CALLER CHOSE may refuse, and only with a
+          // sibling after it: a covering sibling refusing in turn would push the
+          // request onto elevenlabs, ~15x groq's price, at zero revenue since a
+          // `no_speech` is never billable. (issue #381, review r2)
+          mayRefuseEmptyTranscript: !ledger.hasRefused
             && current === provider
             && index < chain.length - 1,
-          // The second opinion after a refusal. A Whisper sibling uses it to
-          // drop its own silence hallucination ("Thank you.") instead of
-          // billing it. See ProviderRequestContext.isEmptyTranscriptRecovery.
-          isEmptyTranscriptRecovery: refusalIndex !== undefined,
-          // The request's own measured length, for an adapter whose upstream
-          // reports no duration on an empty transcript (elevenlabs). Read only
-          // by emptyTranscriptOutcome, and only for an adapter that opts in.
-          // See ProviderRequestContext.requestAudioSeconds. (issue #720)
+          isEmptyTranscriptRecovery: ledger.hasRefused,
           requestAudioSeconds,
         }));
-        servedBy = current;
-        // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
-        // universal-3-5-pro → universal-2 fallback for unsupported languages) so the
-        // X-STT-Model header and deduction metadata match what was billed; fall
-        // back to the attempted model when the adapter doesn't report one.
-        usedModel = result.model || attemptModel;
-        // `chosenProviderAttempted`, not just `current !== provider`: a chosen
-        // provider that this region dropped out of the chain was never called, so
-        // nothing fell back FROM it. Without the guard a request whose chosen
-        // provider is geo-blocked reported `X-STT-Provider: elevenlabs/scribe_v2`
-        // for a `no_speech` that deepgram produced and elevenlabs never saw.
-        // (review r2)
-        if (current !== provider && chosenProviderAttempted) {
-          fallbackFrom = provider;
-        }
-        const attemptMs = performance.now() - attemptStart;
-        logEvent(requestId, startTime, 'transcribe.provider_attempt_done', {
-          provider: current,
-          model: attemptModel || 'default',
-          attempt: index + 1,
-          upstreamRequestId: result.requestId,
-          transcriptChars: result.text.length,
-          resultSource: result.source,
-          attemptMs: Math.round(attemptMs),
-        });
-        latency.recordAttempt({
-          provider: current,
-          model: usedModel,
-          index,
-          latencyMs: attemptMs,
-        });
-        break;
       } catch (error) {
-        // ONE row per attempt, recorded here before any branching: the arms
-        // below are pure control flow (log, fall back, or return) and none of
-        // them can forget a sample or file a second one.
-        //
-        // The single condition is whether the attempt ever reached the wire.
-        // Everything an adapter rejects on its own — a missing API key, a size
-        // cap, a content-type it can't take — throws in microseconds without
-        // calling anyone, and a row for it would publish that provider
-        // "answering" in 1 ms and failing a call it never received. Every real
-        // provider failure (timeout, 5xx, rate limit, an unusable 2xx, an
-        // upstream 4xx) happens strictly after the request went out, so it is
-        // still recorded — that direction is the bug this must not reintroduce.
-        if (network.reachedProvider) {
-          latency.recordFailure(current, attemptModel, index, attemptStart, error);
-          // The same signal, read a second way: an attempt made AFTER a refusal
-          // that reached the wire is the one extra upstream call the spec budgets,
-          // spent. One that never reached it (no API key, a size cap, a
-          // content-type gate) cost nothing and must not close the door on a
-          // sibling that could still answer. (issue #381, review r2)
-          if (refusalIndex !== undefined) {
-            recoveryCallsSpent += 1;
-          }
-        }
-
-        // A 200 with no transcript for audio the upstream says it processed.
-        // Handled before the generic ProviderUnavailableError arm it extends,
-        // because this is the one failure in the loop that is not a fault: the
-        // request already has a valid answer in hand and is only asking a sibling
-        // whether it can do better. (issue #381)
-        if (error instanceof EmptyTranscriptError) {
-          const next = chain[index + 1];
-          fallbackCount += 1;
-          refusalIndex = index;
-          // The floor. If nothing after this produces text, THIS is the response:
-          // the same 200, the same 0 credits and the same `no_speech_detected`
-          // the user would have got before the failover existed. Overwritten
-          // wholesale by any later attempt that succeeds.
-          result = error.noSpeechResult;
-          servedBy = current;
-          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'provider_unavailable',
-            unavailableKind: error.kind,
-            attemptMs: error.elapsedMs,
-            message: error.message,
-            // `provider_attempt_done` carries the upstream's id on every other
-            // path; this one never produces a result to read it off, and #381 was
-            // filed about precisely the call an operator now has to report to the
-            // vendor. The adapter's `provider.no_speech` event carries it too.
-            upstreamRequestId: error.noSpeechResult.requestId,
-            upstreamDurationSeconds: error.upstreamDurationSeconds,
-            // Set only when the refusal rested on the request's own length
-            // because the upstream reported none (elevenlabs, issue #720).
-            ...(error.requestAudioSeconds !== null ? { requestAudioSeconds: error.requestAudioSeconds } : {}),
-            nextProvider: next,
-          });
-          attemptFailures.push({
-            provider: current,
-            kind: error.kind,
-            attemptMs: error.elapsedMs,
-            emptyTranscript: true,
-          });
-          lastError = error;
-          sawUnavailable = true;
-          continue;
-        }
-        if (error instanceof ProviderUnavailableError) {
-          const next = chain[chain.indexOf(current) + 1];
-          fallbackCount += 1;
-          // `unavailableKind` distinguishes the root cause inline — `timeout`
-          // (we gave up; upstream may have been fine) vs `upstream_5xx` /
-          // `rate_limit` (upstream actually failed) vs `bad_response` (geo-block
-          // HTML / empty body) — instead of the old catch-all `provider_unavailable`.
-          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'provider_unavailable',
-            unavailableKind: error.kind,
-            upstreamStatus: error.status,
-            attemptMs: error.elapsedMs,
-            message: error.message,
-            nextProvider: next,
-          });
-          attemptFailures.push({
-            provider: current,
-            kind: error.kind,
-            status: error.status,
-            attemptMs: error.elapsedMs,
-          });
-          lastError = error;
-          sawUnavailable = true;
-          continue;
-        }
-        if (error instanceof ProviderInputError) {
-          // The provider rejected this specific input (e.g. ElevenLabs 400 on a
-          // language code it doesn't accept). A sibling provider may accept the
-          // same input, so continue the fallback chain instead of failing the
-          // whole request. (issue ray-amjad/hyperwhisper#333)
-          const next = chain[chain.indexOf(current) + 1];
-          fallbackCount += 1;
-          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'provider_input_rejected',
-            status: error.status,
-            message: error.message,
-            nextProvider: next,
-          });
-          lastError = error;
-          lastInputError = error;
-          continue;
-        }
-        if (error instanceof ProviderAuthError && index < chain.length - 1) {
-          // Our key for THIS provider was rejected. Each sibling has its own
-          // key, so the next one can still serve the request. The last
-          // provider in the chain falls through to the 500 below, as before.
-          const next = chain[index + 1];
-          fallbackCount += 1;
-          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'provider_auth_rejected',
-            status: error.status,
-            message: error.message,
-            nextProvider: next,
-          });
-          attemptFailures.push({
-            provider: current,
-            kind: 'auth_rejected',
-            status: error.status,
-            attemptMs: Math.round(performance.now() - attemptStart),
-          });
-          lastError = error;
-          lastAuthError = error;
-          continue;
-        }
-        // Everything below this line ENDS the request with an error. None of them
-        // may fire once a refusal has banked a benign `no_speech`: the user asked
-        // a question that already has a valid, free answer, and a sibling's 413,
-        // 415, missing API key or 500 is our problem, not theirs. One guard, above
-        // every terminal arm, so a new arm cannot be added below it and quietly
-        // reintroduce the regression. (issue #381)
-        //
-        // It records and CONTINUES rather than breaking, for two reasons. The
-        // budget is counted in wire calls above, so a sibling that failed before
-        // the wire left it unspent and the next sibling is still owed the request
-        // (a bare `break` here answered #381's literal incident — 22 s of real
-        // speech — with a `no_speech`, having called nobody but the provider that
-        // refused). And a bare `break` also bypassed the failure log entirely, so
-        // the final `no_speech` gave an operator no indication that a sibling had
-        // been tried at all, let alone why it failed. (review r2)
-        if (refusalIndex !== undefined) {
-          const terminalKind = error instanceof AudioTooLargeError
-            ? 'audio_too_large'
-            : error instanceof UnsupportedAudioFormatError
-              ? 'unsupported_audio_format'
-              : 'non_retryable';
-          fallbackCount += 1;
-          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: terminalKind,
-            message: error instanceof Error ? error.message : String(error),
-            attemptMs: Math.round(performance.now() - attemptStart),
-            // The request is NOT ending here. Without this an operator reading the
-            // line would expect the matching `request_fail` that never comes.
-            afterEmptyTranscriptRefusal: true,
-            nextProvider: chain[index + 1],
-          });
-          attemptFailures.push({
-            provider: current,
-            kind: terminalKind,
-            attemptMs: Math.round(performance.now() - attemptStart),
-          });
-          lastError = error instanceof Error ? error : new Error(String(error));
-          continue;
-        }
-        if (error instanceof AudioTooLargeError) {
-          logEvent(requestId, startTime, 'transcribe.request_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'audio_too_large',
-            message: error.message,
-            actualBytes: error.actualBytes,
-            maxBytes: error.maxBytes,
-          });
-          const words = sizeLimitWords(error.actualBytes, error.maxBytes);
-          return errorResponse(413, 'Audio too large for provider',
-            `${servedNameFor(current)} accepts at most ${words.max} inline. Your audio is ${words.actual}.`,
-            { requestId, provider: current, ...sizeLimitFields(error.actualBytes, error.maxBytes) },
-          );
-        }
-        if (error instanceof UnsupportedAudioFormatError) {
-          logEvent(requestId, startTime, 'transcribe.request_fail', {
-            provider: current,
-            attempt: index + 1,
-            kind: 'unsupported_audio_format',
-            message: error.message,
-            receivedContentType: error.contentType,
-            acceptedFormats: error.acceptedFormats,
-          });
-          return errorResponse(415, 'Unsupported audio format for provider',
-            `${servedNameFor(current)} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
-            {
-              requestId,
-              provider: current,
-              received_content_type: error.contentType,
-              accepted_formats: error.acceptedFormats,
-            },
-          );
-        }
-        // Non-retryable error (a bad key on the last provider in the chain, etc.)
-        logEvent(requestId, startTime, 'transcribe.request_fail', {
+        const outcome = classifyAttemptError(error, {
           provider: current,
-          attempt: index + 1,
-          kind: 'non_retryable',
-          message: error instanceof Error ? error.message : String(error),
+          model: attemptModel,
+          index,
+          attemptStart,
+          reachedWire: network.reachedProvider,
+          hasNext: index < chain.length - 1,
         });
-        // A rejected key on the last provider keeps its curated text (`<Provider>
-        // API key is invalid`, our own words, the same text transcribe-failure.ts
-        // sends for a key rejected earlier in the chain). Any other error's text
-        // stays in the log line above. (#2106)
-        return errorResponse(500, 'Transcription failed',
-          error instanceof ProviderAuthError ? error.message : TRANSCRIPTION_FAILURE_MESSAGE,
-          { requestId },
-        );
+        const terminal = ledger.recordFailure(outcome);
+        if (terminal) return terminal;
+        continue;
       }
+      ledger.recordSuccess({ provider: current, model: attemptModel, index, attemptStart, result: attemptResult });
+      if (current !== provider && chosenProviderAttempted) {
+        fallbackFrom = provider;
+      }
+      break;
     }
   } finally {
-    // Fire-and-forget, like the credit deduction below: the whole attempt chain
-    // goes in one POST, and a slow or failing website must never delay a
-    // transcript. In a finally so EVERY path out of the loop reports — the
-    // early returns above included — and so it happens exactly once.
-    //
-    // Reportability is checked here rather than at recordAttempt: a request
-    // that must not be reported still collects samples, it just never sends
-    // them, so they die with the request. Gating the single send is what makes
-    // that impossible to leak past — there is no second way out of this loop.
+    // Fire-and-forget, once, on every path out of the loop: a slow or failing
+    // website must never delay a transcript.
     latency.report();
   }
 
-  // All providers in the chain failed.
-  if (!result) {
-    const failure = providerChainFailureResponse({
-      requestId,
-      startTime,
-      provider,
-      fallbackCount,
-      attemptFailures,
-      lastError,
-      lastInputError,
-      lastAuthError,
-      sawUnavailable,
-    });
-    return failure;
+  const { answer } = ledger;
+  if (!answer) {
+    return ledger.chainFailureResponse(provider);
   }
   return completeTranscription({
     c,
     preparation,
-    result,
-    usedModel,
-    servedBy,
+    result: answer.result,
+    usedModel: answer.usedModel ?? model,
+    servedBy: answer.servedBy,
     chosenProviderAttempted,
     fallbackFrom,
-    fallbackCount,
-    attemptFailures,
+    fallbackCount: ledger.fallbackCount,
+    attemptFailures: ledger.attemptFailures,
   });
 }

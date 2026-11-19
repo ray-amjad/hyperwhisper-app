@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { TranscriptionResult } from '../providers/types';
-import { buildTranscriptionSuccess } from './transcribe-success';
+import { buildTranscriptionSuccess } from './transcribe-completion';
 
 function transcript(overrides: Partial<TranscriptionResult> = {}): TranscriptionResult {
   return {

@@ -1431,6 +1431,35 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     ]);
   });
 
+  test('an input-rejected attempt is on the outcome log line like every other failed attempt', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return new Response('{"err_msg":"bad input"}', { status: 400 });
+      }
+      if (url.includes('api.groq.com')) {
+        return Response.json({ text: 'the sibling took it', language: 'en', duration: 8 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' })),
+    );
+    await response.text();
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.fallbackCount).toBe(1);
+    expect(done?.attemptFailures).toEqual([
+      expect.objectContaining({ provider: 'deepgram', kind: 'input_rejected', status: 400 }),
+    ]);
+  });
+
   test('a transient sibling outage is NOT marked as an empty transcript', async () => {
     // The other half of the discriminator: if every degraded request looked like
     // an empty transcript, an operator could not size the failover's rate.
