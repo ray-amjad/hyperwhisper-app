@@ -280,6 +280,19 @@ describe('estimatedUsdPerMinute', () => {
     // the provider's dearest — that path is `resolveModel`, not the fallback.
     expect(estimatedUsdPerMinute('azure-mai')).toBeCloseTo(0.10 / 60, 8);
   });
+
+  test('a flat-rate row never reserves below the rate it bills', () => {
+    // The reservation is derived from the row's `billing`; a row may author a
+    // rounded `reserveUsdPerMinute`, but only ever upward.
+    for (const provider of ALL_STT_PROVIDER_IDS) {
+      for (const model of getProviderDef(provider).models) {
+        const { billing } = model;
+        if (billing.kind === 'tokens') continue;
+        const billed = billing.kind === 'perMinute' ? billing.usdPerMinute : billing.usdPerHour / 60;
+        expect(model.estimatedUsdPerMinute).toBeGreaterThanOrEqual(billed);
+      }
+    }
+  });
 });
 
 describe('getProviderDef', () => {

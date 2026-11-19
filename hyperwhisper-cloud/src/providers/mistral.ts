@@ -1,5 +1,5 @@
 // MISTRAL VOXTRAL PROVIDER
-// Synchronous multipart transcription ($0.003/audio-min). Vocabulary biasing
+// Synchronous multipart transcription. Vocabulary biasing
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';

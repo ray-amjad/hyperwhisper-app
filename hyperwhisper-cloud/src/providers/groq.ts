@@ -1,5 +1,5 @@
 // GROQ WHISPER PROVIDER
-// Fastest and cheapest STT - $0.00185/min using whisper-large-v3
+// Fastest and cheapest STT (Whisper)
 
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
