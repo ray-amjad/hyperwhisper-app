@@ -17,8 +17,9 @@
 // To add a provider: register it in `lib/stt-models.ts`, then add its row here.
 // The `Record<SttProviderId, ...>` type makes a missing row a compile error.
 
-import type { SttProviderId } from '../lib/stt-models';
+import { modelAdapterIdFor, type SttModelAdapterId, type SttProviderId } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import type { ProviderAudioReservation } from './audio-reservation';
 
 import { transcribeWithDeepgram } from './deepgram';
 import { transcribeWithGroq } from './groq';
@@ -30,6 +31,7 @@ import { transcribeWithOpenAI } from './openai';
 import { transcribeWithGemini } from './gemini';
 import { transcribeWithGeminiTranscribe } from './gemini-transcribe';
 import { transcribeWithAssemblyAI } from './assemblyai';
+import { ASSEMBLYAI_DICTATION_ADAPTER } from './assemblyai-dictation';
 import { transcribeWithMistral } from './mistral';
 import { transcribeWithSoniox } from './soniox';
 import { transcribeWithMeta } from './meta';
@@ -59,8 +61,56 @@ const PROVIDER_FN: Record<SttProviderId, TranscribeFn> = {
   meta: transcribeWithMeta,
 };
 
+/** Why a model rejected the request's options; the route turns it into a 400. */
+export interface ModelOptionsRejection {
+  /** `reason` in the `transcribe.request_rejected` log event. */
+  reason: string;
+  /** Error title in the 400 body. */
+  title: string;
+  /** Error message in the 400 body. */
+  message: string;
+}
+
 /**
- * Run `provider`'s adapter. The arguments and the returned
+ * A model that is its own upstream product, named by a registry row's
+ * `adapter` field. It replaces its provider's adapter for that model only.
+ */
+export interface ModelAdapter {
+  transcribe: TranscribeFn;
+  /** Checked before auth or credits; null accepts the options. */
+  validateOptions(language: string | undefined, domain: string | undefined): ModelOptionsRejection | null;
+  /** Replaces the provider's audio reservation (see audio-reservation.ts). */
+  audioReservation(sizeBytes: number): ProviderAudioReservation;
+  /** Whether the provider's premium routing tiers (reservation.ts) can run this model. */
+  usesProviderPremiumRoutes: boolean;
+}
+
+const MODEL_ADAPTERS: Record<SttModelAdapterId, ModelAdapter> = {
+  'assemblyai-dictation': ASSEMBLYAI_DICTATION_ADAPTER,
+};
+
+/** The model-specific adapter for (provider, model), if its registry row names one. */
+export function modelAdapterFor(provider: SttProviderId, model: string | undefined): ModelAdapter | undefined {
+  const id = modelAdapterIdFor(provider, model);
+  return id ? MODEL_ADAPTERS[id] : undefined;
+}
+
+/**
+ * The request-option check for (provider, model): null when the model accepts
+ * them. Only a model with its own adapter has rules of its own today.
+ */
+export function validateModelOptions(
+  provider: SttProviderId,
+  model: string | undefined,
+  language: string | undefined,
+  domain: string | undefined,
+): ModelOptionsRejection | null {
+  return modelAdapterFor(provider, model)?.validateOptions(language, domain) ?? null;
+}
+
+/**
+ * Run the adapter for `provider` and `context.model`: the model's own adapter
+ * when its registry row names one, otherwise `provider`'s. The arguments and the returned
  * `TranscriptionResult` are the adapter contract in `types.ts`, unchanged — the
  * only thing this hides is which function answers.
  *
@@ -77,5 +127,6 @@ export function transcribeWithProvider(
   initialPrompt?: string,
   context?: ProviderRequestContext,
 ): Promise<TranscriptionResult> {
-  return PROVIDER_FN[provider](audio, contentType, language, initialPrompt, context);
+  const transcribe = modelAdapterFor(provider, context?.model)?.transcribe ?? PROVIDER_FN[provider];
+  return transcribe(audio, contentType, language, initialPrompt, context);
 }

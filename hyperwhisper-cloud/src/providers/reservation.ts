@@ -37,6 +37,7 @@
 //     Give one a cross-provider chain and it must move in here.
 
 import { couldRouteThroughSync } from './assemblyai';
+import { modelAdapterFor } from './dispatch';
 import {
   estimatedUsdPerMinute,
   fallbackChainFor,
@@ -83,7 +84,7 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
   // published rate, higher than either async catalog tier. A short clip is
   // exactly sync's target case, so a reservation that only ever priced the
   // requested async model could be deducted beyond what it held.
-  assemblyai: (input) => (input.model !== 'dictation' && couldRouteThroughSync(input)
+  assemblyai: (input) => (couldRouteThroughSync(input)
     ? ASSEMBLYAI_SYNC_USD_PER_MINUTE
     : null),
 };
@@ -117,7 +118,10 @@ export function maxReservationUsdPerMinute(input: ReservationRateInput): number 
     // AssemblyAI has one and it is self-only, so this changes no reservation —
     // it stops a one-line edit to a `fallbackChain` in the registry from
     // silently under-reserving.
-    const premium = PREMIUM_ROUTES[p]?.({ ...input, model, medical }) ?? null;
+    // A model with its own adapter (Dictation) is never routed by its
+    // provider's adapter, so its provider's premium tiers cannot bill it.
+    const providerRoutes = modelAdapterFor(p, model)?.usesProviderPremiumRoutes ?? true;
+    const premium = providerRoutes ? PREMIUM_ROUTES[p]?.({ ...input, model, medical }) ?? null : null;
     if (premium !== null) {
       rates.push(premium);
     }

@@ -2,8 +2,9 @@
 // Contract: https://www.assemblyai.com/docs/dictation
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { parsePcm16Wav } from '../lib/wav-header';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import type { ModelAdapter } from './dispatch';
 import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 export const DICTATION_LANGUAGES = ['en', 'es', 'de', 'fr', 'it', 'pt', 'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'he', 'ur', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu', 'xh', 'nn', 'ar', 'ja', 'zh'] as const;
@@ -96,3 +97,34 @@ export async function transcribeWithAssemblyAIDictation(
     requestId: typeof result.session_id === 'string' ? result.session_id : undefined,
   };
 }
+
+/**
+ * The `adapter: 'assemblyai-dictation'` row of `MODEL_ADAPTERS` (dispatch.ts):
+ * everything about Dictation the route, the reservation and dispatch need, so
+ * none of them compares a model id to 'dictation'.
+ */
+export const ASSEMBLYAI_DICTATION_ADAPTER: ModelAdapter = {
+  transcribe: (audio, contentType, language, initialPrompt, context = {}) =>
+    transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context),
+  validateOptions(language, domain) {
+    try { validateDictationOptions(language, domain); } catch (error) {
+      return { reason: 'invalid_dictation_options', title: 'Invalid Dictation options', message: (error as Error).message };
+    }
+    return null;
+  },
+  // Reserve from the parsed WAV, never from size: only the body says how long it is.
+  audioReservation: () => ({
+    requiresBufferedBody: true,
+    estimatedAudioSeconds: 120,
+    // WAV permits metadata chunks, so size alone has no safe duration floor.
+    preBufferAudioSeconds: 0,
+    resolveBufferedAudio(audio, contentType) {
+      try { return { kind: 'duration', audioSeconds: parseDictationWav(audio, contentType).durationSeconds }; } catch (error) {
+        if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) return { kind: 'local-input-error' };
+        throw error;
+      }
+    },
+  }),
+  // A separate product: AssemblyAI's sync fast path never runs it.
+  usesProviderPremiumRoutes: false,
+};

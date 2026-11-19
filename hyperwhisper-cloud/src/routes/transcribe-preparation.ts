@@ -1,7 +1,7 @@
-import { validateDictationOptions } from '../providers/assemblyai-dictation';
 import type { Context } from 'hono';
 import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
+import { validateModelOptions } from '../providers/dispatch';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
 import { readAccountKey } from '../lib/account-key';
@@ -123,17 +123,18 @@ export async function prepareTranscriptionRequest(
   const language = rawQuery(c.req.url, 'language');
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
-  if (provider === 'assemblyai' && model === 'dictation') {
-    try { validateDictationOptions(language, domain); } catch (error) {
-      logEvent(requestId, startTime, 'transcribe.request_rejected', {
-        reason: 'invalid_dictation_options',
-        flyRequestId,
-        // Caller-supplied query value, so cap what reaches the log.
-        language: language?.slice(0, 35),
-        hasDomain: Boolean(domain),
-      });
-      return errorResponse(400, 'Invalid Dictation options', (error as Error).message, { requestId });
-    }
+  // A model with its own rules (Dictation) rejects its options here, before
+  // any auth or credit work; the rules live with its adapter.
+  const optionsRejection = validateModelOptions(provider, model, language, domain);
+  if (optionsRejection) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', {
+      reason: optionsRejection.reason,
+      flyRequestId,
+      // Caller-supplied query value, so cap what reaches the log.
+      language: language?.slice(0, 35),
+      hasDomain: Boolean(domain),
+    });
+    return errorResponse(400, optionsRejection.title, optionsRejection.message, { requestId });
   }
 
   // Some providers are unreachable from the region this machine runs in. The

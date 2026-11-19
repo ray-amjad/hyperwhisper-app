@@ -1,4 +1,4 @@
-import { parseDictationWav } from './assemblyai-dictation';
+import { modelAdapterFor } from './dispatch';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import type { SttProviderId } from '../lib/stt-models';
 import { parseMetaWav } from './meta';
@@ -54,20 +54,9 @@ export function providerAudioReservation(
   sizeBytes: number,
   model?: string,
 ): ProviderAudioReservation {
-  if (provider === 'assemblyai' && model === 'dictation') {
-    return {
-      requiresBufferedBody: true,
-      estimatedAudioSeconds: 120,
-      // WAV permits metadata chunks, so size alone has no safe duration floor.
-      preBufferAudioSeconds: 0,
-      resolveBufferedAudio(audio, contentType) {
-        try { return durationResult(parseDictationWav(audio, contentType).durationSeconds); } catch (error) {
-          if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) return { kind: 'local-input-error' };
-          throw error;
-        }
-      },
-    };
-  }
+  // A model with its own adapter (registry row `adapter`) owns its reservation.
+  const modelAdapter = modelAdapterFor(provider, model);
+  if (modelAdapter) return modelAdapter.audioReservation(sizeBytes);
   const providerReservation = PROVIDER_RESERVATIONS[provider];
   if (providerReservation) return providerReservation(sizeBytes);
 

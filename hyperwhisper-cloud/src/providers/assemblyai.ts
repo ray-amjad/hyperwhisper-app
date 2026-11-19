@@ -46,7 +46,6 @@
 // `SYNC_AUDIO_CONTENT_TYPE` below.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
-import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN, getProviderDef } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
@@ -430,9 +429,6 @@ export async function transcribeWithAssemblyAI(
   const startedAt = performance.now();
   const provider = 'assemblyai';
   const model = context.model || getProviderDef('assemblyai').defaultModel;
-  if (model === 'dictation') {
-    return transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context);
-  }
   const medical = (context.domain || '').toLowerCase() === MEDICAL_DOMAIN;
 
   const apiKey = process.env.ASSEMBLYAI_API_KEY;

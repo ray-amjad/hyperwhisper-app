@@ -72,7 +72,17 @@ interface SttModelSpec {
    * is the billing rate rounded UP. Leave it out otherwise.
    */
   reserveUsdPerMinute?: number;
+  /**
+   * A model served by its own adapter rather than its provider's, because it is
+   * a separate upstream product (its own endpoint, option rules and audio
+   * reservation). Names the row in `MODEL_ADAPTERS` (providers/dispatch.ts),
+   * which owns all three; leave it out for a model the provider adapter runs.
+   */
+  adapter?: SttModelAdapterId;
 }
+
+/** Model-specific adapters; each id is a row in `MODEL_ADAPTERS` (providers/dispatch.ts). */
+export type SttModelAdapterId = 'assemblyai-dictation';
 
 export interface SttModelDef extends SttModelSpec {
   /**
@@ -436,8 +446,13 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
         billing: { kind: 'perMinute', usdPerMinute: 0.15 / 60 },
         addOns: { medicalUsdPerMinute: ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE },
       },
-      // A separate product with no add-ons.
-      { id: 'dictation', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.62 / 60 } },
+      // A separate product with no add-ons, served by its own adapter.
+      {
+        id: 'dictation',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: 0.62 / 60 },
+        adapter: 'assemblyai-dictation',
+      },
     ],
   },
   soniox: {
@@ -602,6 +617,14 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
  */
 export function findModelRow(provider: SttProviderId, model: string | undefined): SttModelDef | undefined {
   return PROVIDERS[provider].models.find((m) => m.id === model);
+}
+
+/**
+ * The model-specific adapter that serves (provider, model), or undefined when
+ * the provider's own adapter runs it. An omitted or empty model means the default row.
+ */
+export function modelAdapterIdFor(provider: SttProviderId, model: string | undefined): SttModelAdapterId | undefined {
+  return (model ? findModelRow(provider, model) : defaultModelRow(provider))?.adapter;
 }
 
 /** The registry row for `provider`'s default model. */

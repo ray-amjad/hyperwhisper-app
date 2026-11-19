@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { transcribeWithAssemblyAI } from './assemblyai';
+import { transcribeWithProvider, validateModelOptions } from './dispatch';
 import { dictationKeyterms, parseDictationWav, validateDictationOptions } from './assemblyai-dictation';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 const transcribe = (audio = pcm16Wav(), language: string | undefined = 'en', domain?: string) =>
-  transcribeWithAssemblyAI(audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
+  transcribeWithProvider('assemblyai', audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
 
 describe('Dictation transport', () => {
   test('config is typed JSON first, canonical WAV second, cleaned text and exact duration win', async () => {
@@ -148,5 +148,26 @@ describe('Dictation validation and billing', () => {
     expect(reservation.requiresBufferedBody).toBe(true);
     expect(reservation.resolveBufferedAudio(audio, 'audio/wav')).toEqual({ kind: 'duration', audioSeconds: 60 });
     expect(providerAudioReservation('assemblyai', audio.byteLength, 'universal-2').requiresBufferedBody).toBe(false);
+  });
+  test('the registry row names the adapter that owns the option check', () => {
+    expect(validateModelOptions('assemblyai', 'dictation', 'en', undefined)).toBeNull();
+    expect(validateModelOptions('assemblyai', 'dictation', 'auto', undefined)).toMatchObject({
+      reason: 'invalid_dictation_options', title: 'Invalid Dictation options',
+      message: 'AssemblyAI Dictation rejected input (400): Select an explicit supported language instead of Auto for Dictation.',
+    });
+    expect(validateModelOptions('assemblyai', 'dictation', 'en', 'medical')?.message).toContain('Medical Mode');
+    // Other models keep no option rules of their own.
+    expect(validateModelOptions('assemblyai', 'universal-2', 'auto', 'medical')).toBeNull();
+    expect(validateModelOptions('assemblyai', undefined, 'auto', undefined)).toBeNull();
+  });
+  test('no code outside the Dictation adapter branches on its model id', async () => {
+    const { Glob } = await import('bun');
+    const offenders: string[] = [];
+    for await (const file of new Glob('src/**/*.ts').scan({ cwd: `${import.meta.dir}/../..` })) {
+      if (file.endsWith('.test.ts') || file.endsWith('assemblyai-dictation.ts')) continue;
+      const text = await Bun.file(`${import.meta.dir}/../../${file}`).text();
+      if (/[=!]==\s*'dictation'|'dictation'\s*[=!]==/.test(text)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
   });
 });
