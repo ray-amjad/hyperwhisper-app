@@ -32,7 +32,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AuthContext } from './auth';
 import { CREDIT_POOL_ACCOUNT_PREFIX, createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
-import { createRedisGetter } from '../lib/redis-client';
+import { createRedisGetter, RedisNotConfiguredError } from '../lib/redis-client';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { roundToTenth } from '../lib/utils';
 
@@ -60,8 +60,7 @@ function currentStore(): CreditHoldStore {
 let notConfiguredLogged = false;
 
 function logHoldUnavailable(operation: string, error: unknown, licenseKey: string): void {
-  const message = error instanceof Error ? error.message : String(error);
-  const notConfigured = message.includes('UPSTASH_REDIS_CLOUD_URL');
+  const notConfigured = error instanceof RedisNotConfiguredError;
   if (notConfigured) {
     if (notConfiguredLogged) return;
     notConfiguredLogged = true;
