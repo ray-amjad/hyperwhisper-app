@@ -223,6 +223,7 @@ async function handlePostProcess(c: Context) {
 
   let correctedText: string;
   let costUsd = llmResponse.costUsd;
+  let hadLeakage = false;
 
   try {
     const evaluation = evaluateCompletionResponse(llmResponse.raw, text);
@@ -230,6 +231,7 @@ async function handlePostProcess(c: Context) {
     if (evaluation.accepted) {
       correctedText = evaluation.text;
     } else if (evaluation.failure === 'prompt_leakage') {
+      hadLeakage = true;
       // Recomputed only for the outputChars metric below — evaluateCompletionResponse
       // already extracted this successfully, so this call cannot throw.
       const leakedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
@@ -340,7 +342,7 @@ async function handlePostProcess(c: Context) {
     outputChars: correctedText.length,
     costUsd,
     creditsUsed,
-    hadLeakage: correctedText === text && text.length > 0,
+    hadLeakage,
   });
 
   const response = {

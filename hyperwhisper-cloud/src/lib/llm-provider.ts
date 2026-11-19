@@ -1,5 +1,3 @@
-// LLM PROVIDER SELECTION + RETRY
-
 import { retryWithBackoff } from './utils';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
 import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
@@ -8,7 +6,7 @@ import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from '../pro
 
 export type LLMProvider = 'cerebras' | 'groq' | 'anthropic' | 'grok' | 'openai' | 'gemini' | 'mistral';
 
-export const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
+const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
 
 export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   cerebras: 'cerebras-gpt-oss-120b',
@@ -77,7 +75,7 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 // as the request model.
 // Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
-const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
+export const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
   cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
   groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
   anthropic: { default: 'claude-haiku-5-5', allowed: ['claude-haiku-5-5'] },
@@ -153,7 +151,7 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
  * its own rate limit. The fallback call itself keeps the default, because it
  * has no further provider to try (Ray, #1568 decision 2).
  */
-export function isRetryableLLMError(error: Error, retryRateLimit = true): boolean {
+function isRetryableLLMError(error: Error, retryRateLimit = true): boolean {
   if (error instanceof LLMTimeoutError || error instanceof LLMMissingKeyError) return false;
   if (!retryRateLimit && error instanceof LLMRequestError && error.status === 429) return false;
   return true;
@@ -173,7 +171,7 @@ export async function callWithRetry(
 ): Promise<OpenAICompatChatResult> {
   return retryWithBackoff(
     () => provider === 'anthropic'
-      ? requestAnthropicChat(payload, requestId, undefined, model)
+      ? requestAnthropicChat(payload, requestId, model)
       : requestOpenAICompatibleChat(provider, payload, requestId, model),
     {
       maxRetries: LLM_PROVIDER_RETRIES[provider],
@@ -205,8 +203,3 @@ export function shouldFallback(error: unknown): boolean {
 
 export { buildCorrectionRequest };
 
-/** Exported for the parity test only. */
-export const __tables = {
-  LLM_PROVIDER_MODELS,
-  LLM_PROVIDER_RETRIES,
-};

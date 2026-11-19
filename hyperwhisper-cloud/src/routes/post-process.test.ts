@@ -461,6 +461,33 @@ describe('postProcessRoute completion evaluation', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
+  test('request_done reports hadLeakage only when a leak was detected', async () => {
+    async function hadLeakageFor(cerebrasText: string): Promise<unknown> {
+      withProviders({
+        'api.cerebras.ai': () => Response.json(chatCompletion(cerebrasText)),
+        'api.groq.com': () => Response.json(chatCompletion('Clean corrected text.')),
+      });
+      const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        await buildApp().fetch(
+          postProcessRequest({ text: 'the original transcript', prompt: 'fix grammar', account_key: 'lk' })
+        );
+        const done = logSpy.mock.calls
+          .map((call) => String(call[0]))
+          .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.request_done"'))
+          .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+        expect(done).toHaveLength(1);
+        return done[0].hadLeakage;
+      } finally {
+        logSpy.mockRestore();
+      }
+    }
+
+    expect(await hadLeakageFor('--TRANSCRIPT--\nleaked prompt\n--ENDTRANSCRIPT--')).toBe(true);
+    // An LLM that returns the transcript unchanged did not leak the prompt.
+    expect(await hadLeakageFor('the original transcript')).toBe(false);
+  });
+
   test('falls back to the raw transcript when prompt leakage persists on the alternate provider too', async () => {
     withProviders({
       'api.cerebras.ai': () => Response.json(chatCompletion('--TRANSCRIPT--\nleaked once\n--ENDTRANSCRIPT--')),
