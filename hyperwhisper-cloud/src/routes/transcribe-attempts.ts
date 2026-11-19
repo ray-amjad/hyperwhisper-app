@@ -39,7 +39,6 @@ export interface AttemptFailure {
 
 interface OutcomeBase {
   provider: SttProviderId;
-  /** The model the attempt was made with. */
   model: string | undefined;
   /** 0-based chain position. */
   index: number;
@@ -75,11 +74,9 @@ interface AttemptContext {
   index: number;
   attemptStart: number;
   reachedWire: boolean;
-  /** Whether a later chain member exists to take over. */
   hasNext: boolean;
 }
 
-/** Classify what one attempt threw, once. */
 export function classifyAttemptError(error: unknown, ctx: AttemptContext): AttemptOutcome {
   const base = {
     provider: ctx.provider,
@@ -326,10 +323,6 @@ export class AttemptLedger {
     this.latency.record({ provider, model: usedModel, index, latencyMs: attemptMs });
   }
 
-  /**
-   * Record a failed attempt. Returns the response that ends the request, or
-   * undefined when the chain moves on.
-   */
   recordFailure(outcome: AttemptOutcome): Response | undefined {
     if (outcome.reachedWire) {
       this.latency.record({
@@ -359,7 +352,6 @@ export class AttemptLedger {
     return undefined;
   }
 
-  /** The response once every usable provider in the chain has failed. */
   chainFailureResponse(provider: SttProviderId): Response {
     let lastInputError: ProviderInputError | undefined;
     let lastAuthError: ProviderAuthError | undefined;
@@ -395,9 +387,6 @@ interface ProviderChainFailureInput {
   sawUnavailable: boolean;
 }
 
-/**
- * Build the response after every usable provider in the chain has failed.
- */
 export function providerChainFailureResponse({
   requestId,
   startTime,

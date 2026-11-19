@@ -32,8 +32,6 @@ export function buildTranscriptionSuccess({
   chosenProviderAttempted,
   fallbackFrom,
 }: TranscriptionSuccessInput) {
-  // Read `source` once so TypeScript narrows away the 'no_speech' member
-  // itself, instead of needing a cast to re-assert what the ternary proved.
   const resultSource = result.source;
   const noSpeech = resultSource === 'no_speech';
   // Nobody transcribed anything, so there is nothing to attribute to whichever
@@ -65,8 +63,6 @@ export function buildTranscriptionSuccess({
     : resultSource;
   const reportedModel = noSpeech && chosenProviderAttempted ? requestedModel : usedModel;
   const actualProvider = formatProviderName(resultProvider, reportedModel);
-  // A fallback label describes a transcript. No-speech never fell back from
-  // a provider because no provider produced a transcript.
   const providerName = fallbackFrom && !noSpeech
     ? `${actualProvider} (fallback from ${formatProviderName(fallbackFrom, requestedModel)})`
     : actualProvider;

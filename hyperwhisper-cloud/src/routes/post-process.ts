@@ -1,4 +1,3 @@
-// POST-PROCESS ROUTE
 // POST /post-process - standalone text correction via LLM
 
 import type { Context } from 'hono';
@@ -157,9 +156,6 @@ async function handlePostProcess(c: Context) {
   logEvent(requestId, startTime, 'post_process.credits_done');
 
   let providerUsed: LLMProvider = provider;
-  // The model actually served, tracked alongside providerUsed. Starts as the
-  // resolved request model; every fallback/leakage retry routes to the new
-  // provider's default, so we update it in lockstep.
   let modelUsed: string = model;
 
   const userContent = buildTranscriptUserContent(text);
@@ -222,8 +218,6 @@ async function handlePostProcess(c: Context) {
       correctedText = evaluation.text;
     } else if (evaluation.failure === 'prompt_leakage') {
       hadLeakage = true;
-      // Recomputed only for the outputChars metric below — evaluateCompletionResponse
-      // already extracted this successfully, so this call cannot throw.
       const leakedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
       logEvent(requestId, startTime, 'post_process.prompt_leakage_detected', {
         provider: providerUsed,

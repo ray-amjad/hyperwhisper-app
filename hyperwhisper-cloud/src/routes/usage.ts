@@ -1,4 +1,3 @@
-// USAGE ROUTE
 // GET /usage - Query credit balance and rate limits
 
 import type { Context } from 'hono';

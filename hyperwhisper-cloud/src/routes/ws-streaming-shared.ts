@@ -110,7 +110,6 @@ export function durationSecondsForLinear16AudioBytes(byteLength: number): number
   return byteLength / (STREAMING_SAMPLE_RATE * STREAMING_CHANNELS * LINEAR16_BYTES_PER_SAMPLE);
 }
 
-/** Minimum balance required to open a session, expressed as seconds of audio. */
 export const STREAMING_MIN_BALANCE_SECONDS = 30;
 
 /** An upgrade whose socket has not opened by then gives its credit hold back. */
@@ -189,7 +188,6 @@ export interface StreamingVendor {
   openFrames?(session: StreamingSession): string[];
   /** Wrap one raw PCM chunk in whatever the vendor's socket accepts. */
   encodeAudio(pcm: ArrayBuffer): string | ArrayBuffer;
-  /** Upstream `bufferedAmount` ceiling. */
   readonly maxUpstreamBufferedBytes: number;
   /** Decode one upstream frame. Throwing is treated as an unparseable frame. */
   parseUpstream(raw: string): UpstreamEvent[];
@@ -245,12 +243,10 @@ export interface StreamingVendor {
   costForSeconds(seconds: number, transcriptChars?: number): number;
 }
 
-/** `/ws/streaming-{id}` — the one place the route path is derived. */
 export function routePathFor(vendor: Pick<StreamingVendor, 'id'>): string {
   return `/ws/streaming-${vendor.id}`;
 }
 
-/** Credits needed to open a session with this vendor (30 s of its audio). */
 export function minimumCreditsFor(vendor: Pick<StreamingVendor, 'costForSeconds'>): number {
   return creditsForCost(vendor.costForSeconds(STREAMING_MIN_BALANCE_SECONDS));
 }
@@ -264,7 +260,6 @@ export function minimumCreditsFor(vendor: Pick<StreamingVendor, 'costForSeconds'
  */
 export const STREAMING_HOLD_SECONDS = 5 * 60;
 
-/** Credits in one hold block for this vendor (5 minutes of its audio). */
 export function holdCreditsFor(vendor: Pick<StreamingVendor, 'costForSeconds'>): number {
   return creditsForCost(vendor.costForSeconds(STREAMING_HOLD_SECONDS));
 }
@@ -499,7 +494,6 @@ export function createStreamingEventsFor(
    */
   let upstreamReached = false;
   let sessionEnded = false;
-  /** Set once the session is registered for shutdown; run by `endSession`. */
   let unregisterLiveSession: (() => void) | null = null;
   let clientSocket: WSContext | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -692,7 +686,6 @@ export function createStreamingEventsFor(
     await ended;
   }
 
-  /** Forward one already-vetted PCM chunk and meter it. */
   function forwardAudio(data: ArrayBuffer): void {
     if (!upstreamWs) return;
     upstreamWs.send(vendor.encodeAudio(data) as string & ArrayBuffer);
@@ -740,8 +733,6 @@ export function createStreamingEventsFor(
     if (!hold) return;
     topUpPending = true;
     const before = hold.heldCredits;
-    // At least enough to cover what is already metered plus a tenth; at most
-    // one more block on top of the current hold.
     const pendingHold = hold;
     void (async () => {
       const outcome = await pendingHold.reserve(roundToTenth(creditsUsed + 0.1), before + holdBlockCredits);
@@ -809,7 +800,6 @@ export function createStreamingEventsFor(
     }, Math.max(settle.quietMs, untilHold));
   }
 
-  /** Send the vendor's end-of-audio frames and wait out the grace period. */
   function sendStopFrames(frames: string[]): void {
     stopDeferred = false;
     stopRequested = true;
@@ -823,8 +813,6 @@ export function createStreamingEventsFor(
   }
 
   /**
-   * The client asked to stop.
-   *
    * WIRE ORDER IS LOAD-BEARING. The end-of-audio marker must reach the vendor
    * AFTER the audio it terminates. A push-to-talk shorter than the vendor's
    * setup handshake gets here with audio still in `pendingAudio` and the vendor
@@ -965,8 +953,6 @@ export function createStreamingEventsFor(
         // The vendor accepted the handshake, so this session is billable from
         // here on, client still connected or not.
         upstreamReached = true;
-        // If the client already disconnected while we were still handshaking,
-        // tear down the upstream socket instead of leaving it orphaned.
         if (ws.readyState !== 1) {
           closeUpstream();
           return;
@@ -986,8 +972,6 @@ export function createStreamingEventsFor(
         let decodedEvents: UpstreamEvent[];
         try {
           text = decodeUpstreamFrame((event as MessageEvent).data);
-          // Validate the parsed shape instead of asserting it — an unexpected
-          // frame is ignored, not trusted.
           decodedEvents = vendor.parseUpstream(text);
         } catch (error) {
           log('upstream_parse_failed', { errorName: errorName(error), frameLength: text.length });
@@ -1066,9 +1050,6 @@ export function createStreamingEventsFor(
         // cumulative cap and closes the socket instead of looping forever.
         bytesReceived += data.byteLength;
 
-        // Bound total inbound volume so a flood can't OOM the worker. Checked
-        // before the per-frame size guard so oversized frames also count here
-        // and a sustained flood reliably closes the connection.
         if (bytesReceived > MAX_SESSION_AUDIO_BYTES) {
           if (clientSocket) {
             sendToClient(clientSocket, { type: 'error', message: 'Audio stream too large' });
@@ -1077,7 +1058,6 @@ export function createStreamingEventsFor(
           return;
         }
 
-        // Reject an abnormally large single frame outright — never forward it.
         if (data.byteLength > MAX_AUDIO_MESSAGE_BYTES) {
           if (clientSocket) {
             sendToClient(clientSocket, { type: 'error', message: 'Audio chunk too large' });
@@ -1101,8 +1081,6 @@ export function createStreamingEventsFor(
           return;
         }
 
-        // Backpressure: if the upstream socket is already congested, drop this
-        // chunk instead of queueing more memory into the outbound buffer.
         if (upstreamWs.bufferedAmount > vendor.maxUpstreamBufferedBytes) {
           if (clientSocket) {
             sendToClient(clientSocket, { type: 'error', message: 'Transcription service busy, audio dropped' });
@@ -1117,8 +1095,6 @@ export function createStreamingEventsFor(
 
       if (typeof data === 'string') {
         try {
-          // Client-controlled frame: read `type` through a guard rather than
-          // asserting a shape onto it.
           const msg: unknown = JSON.parse(data);
           const msgType = isRecord(msg) ? msg.type : undefined;
           if (msgType === 'stop') {
@@ -1131,7 +1107,6 @@ export function createStreamingEventsFor(
             return;
           }
           if (msgType === 'pong') {
-            // Client pong response — ignore
             return;
           }
         } catch {

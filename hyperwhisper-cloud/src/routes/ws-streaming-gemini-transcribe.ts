@@ -160,8 +160,6 @@ function readText(container: unknown, key: string): string | undefined {
 }
 
 /**
- * Decode one server frame.
- *
  * PARTIAL / FINAL SEMANTICS — verified live, twice, over a two-utterance session:
  *
  * - `interimInputTranscription` repeats and is CUMULATIVE **within the current
@@ -216,11 +214,7 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   //
   // AND THE COMPLETION RIDES ALONG. Google answers the stop's
   // `audio_stream_end` with ONE frame carrying the last committed segment and
-  // `generationComplete` together, so an early return on the final swallowed
-  // the only completion this session would ever get and the socket was closed
-  // by `armStopGrace`'s backstop instead — `session_complete` and its credit
-  // report reached the client ~5 s late on every cloud-Gemini dictation. Both
-  // halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
+  // `generationComplete` together. Both halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
   // already gated on `stopRequested`, so a mid-dictation turn boundary is a
   // no-op there, and a post-stop one starts the short settle wait above
   // (STOP_SETTLE_*) rather than the 5 s backstop — it cannot close on the spot,
@@ -258,8 +252,6 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
 const KEY_REJECTED = /api key not valid|api[_ ]key[_ ]invalid|unauthenticated|permission denied/i;
 
 /**
- * Map the upstream CLOSE frame.
- *
  * This vendor reports setup faults ONLY by closing — verified live, twice: both
  * an invalid API key and the TRAP 3 config path close with **1007** and put the
  * explanation on the close frame, having sent no error frame at all. Without

@@ -46,11 +46,6 @@ export interface PreparedTranscriptionRequest {
   latencyReportable: boolean;
 }
 
-/**
- * Validate and prepare one transcription request before provider routing starts.
- * Early failures keep their existing response and stop before the audio buffer
- * reaches the fallback chain.
- */
 export async function prepareTranscriptionRequest(
   c: Context,
 ): Promise<PreparedTranscriptionRequest | Response> {
@@ -81,7 +76,6 @@ export async function prepareTranscriptionRequest(
   }
   const provider = providerSelection.provider;
 
-  // Resolve + validate the requested model against the server-side registry.
   // An unknown model for the provider is rejected (fail-closed) rather than
   // silently routed to the provider default at a possibly different price.
   const requestedModel = extractModel(c);
