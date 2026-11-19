@@ -29,7 +29,11 @@ const MAX_KEYTERM_CHARS = 50;
 const MAX_KEYTERM_WORDS = 5;
 
 /**
- * A `data` size past the end of the buffer (a streaming
+ * A RIFF/WAVE file's length in seconds from its `fmt ` byte rate and `data`
+ * size, for ANY WAV encoding (PCM at any depth, float, EXTENSIBLE), or null
+ * when the bytes are not a readable WAV. Deliberately more tolerant than
+ * `parsePcm16Wav`, which validates what an upstream accepts: billing only
+ * needs the length. A `data` size past the end of the buffer (a streaming
  * writer's 0xFFFFFFFF, a truncated file) is cut to the bytes actually sent.
  */
 function wavDurationSeconds(audio: ArrayBuffer): number | null {

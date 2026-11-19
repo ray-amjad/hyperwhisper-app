@@ -152,6 +152,9 @@ export function resolveModalityAudioInputTokens(
       .filter((d) => d.modality !== 'AUDIO')
       .reduce((sum, d) => sum + (d.tokenCount ?? 0), 0);
     const remainder = promptTokenCount - nonAudioTokens;
+    // A breakdown that omits the TEXT component leaves remainder ≈ the whole
+    // prompt, so only a genuine subset is trusted; otherwise fall through to the
+    // promptTokenCount tier, which backs out our own text estimate.
     if (remainder > 0 && remainder < promptTokenCount * 0.99) {
       return remainder;
     }

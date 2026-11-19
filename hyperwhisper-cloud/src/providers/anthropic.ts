@@ -10,7 +10,8 @@ const ANTHROPIC_VERSION = '2023-06-01';
 export const ANTHROPIC_MODEL = defaultModelFor('anthropic');
 
 /**
- * The Messages API requires one, so every anthropic row in
+ * `max_tokens` for `model`: its row's output cap (an id with no row takes the
+ * default row's). The Messages API requires one, so every anthropic row in
  * llm-models.ts sets maxOutputTokens (pinned by llm-dispatch.test.ts).
  */
 function anthropicMaxTokens(model: string): number {

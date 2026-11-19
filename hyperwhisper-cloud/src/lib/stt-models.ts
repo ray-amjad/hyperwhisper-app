@@ -253,6 +253,9 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // credits/min it backs in cloud-stt-catalog.json, when the offer ends.
     // Refs: https://microsoft.ai/models/mai-transcribe-2/
     //       https://microsoft.ai/news/mai-transcribe-2-is-the-fastest-most-accurate-and-cheapest-speech-recognition-model-in-the-world/
+    // Reserve at the real rate, not a dearer one: `validateCredits` REFUSES when
+    // the balance is under the estimate, so an inflated reservation turns away
+    // users who can afford the request.
     models: [
       { id: 'mai-transcribe-1.5', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.006 } },
       { id: 'mai-transcribe-2', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 } },

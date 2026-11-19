@@ -75,8 +75,9 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
 };
 
 /**
- * The keyterm surcharge is
- * billed by ANY chain member that meters it whenever an initial_prompt is
+ * The most expensive USD/min this request could end up paying, across every
+ * provider in its registry fallback chain and every routing tier any of them
+ * may route it through. The keyterm surcharge is billed by ANY chain member that meters it whenever an initial_prompt is
  * present — a Deepgram→ElevenLabs fallback still forwards the prompt and bills
  * the +20% — so `hasInitialPrompt` is passed to every member. Providers that do
  * not meter it ignore the flag, so this never over-reserves for, say, a

@@ -38,6 +38,9 @@ export function estimateSecondsFromBytes(byteLength: number): number {
  * 64 kbps assumption behind estimateSecondsFromBytes() overstates their clips
  * by ~4×. Unknown or compressed containers fall back to 16,000 B/s (128 kbps),
  * which is the middle of the range we actually receive.
+ *
+ * A content type carrying two hints (`audio/mp4; codecs=opus`) resolves to the
+ * first entry that matches, so keep this order stable.
  */
 const BYTES_PER_SECOND_BY_CONTAINER: ReadonlyArray<{ hints: readonly string[]; bytesPerSecond: number }> = [
   { hints: ['wav', 'pcm'], bytesPerSecond: 32_000 },

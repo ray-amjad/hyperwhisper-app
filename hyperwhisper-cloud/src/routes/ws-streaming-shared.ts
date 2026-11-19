@@ -1050,6 +1050,7 @@ export function createStreamingEventsFor(
         // cumulative cap and closes the socket instead of looping forever.
         bytesReceived += data.byteLength;
 
+        // Bound total inbound volume so a flood can't OOM the worker.
         if (bytesReceived > MAX_SESSION_AUDIO_BYTES) {
           if (clientSocket) {
             sendToClient(clientSocket, { type: 'error', message: 'Audio stream too large' });
@@ -1081,6 +1082,8 @@ export function createStreamingEventsFor(
           return;
         }
 
+        // Backpressure: if the upstream socket is already congested, drop this
+        // chunk instead of queueing more memory into the outbound buffer.
         if (upstreamWs.bufferedAmount > vendor.maxUpstreamBufferedBytes) {
           if (clientSocket) {
             sendToClient(clientSocket, { type: 'error', message: 'Transcription service busy, audio dropped' });

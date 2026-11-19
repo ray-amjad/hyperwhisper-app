@@ -209,7 +209,8 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
 
 export function computeAzureMaiTranscriptionCost(durationSeconds: number, model?: string): number {
   // Unknown/absent model bills at the dearest row (1.5), so a model string we
-  // don't recognise cannot under-bill.
+  // don't recognise cannot under-bill. `findModelRow` compares ids, so a
+  // prototype key such as 'constructor' cannot turn the rate into a function.
   return computeRowDurationCost(findModelRow('azure-mai', model) ?? dearestModel('azure-mai'), durationSeconds);
 }
 

@@ -250,6 +250,7 @@ export async function transcribeWithGeminiTranscribe(
   if (!response.ok) {
     if (response.status === 400) {
       // `classifierText` is for the auth test only; never logged (#2163).
+      // Peek at a clone so providerHttpError below still owns the body it logs.
       const { fields, classifierText } = await readUpstreamError(response.clone());
       if (looksLikeAuthFailure(classifierText)) {
         logProviderEvent(provider, 'http_error', {
@@ -306,6 +307,8 @@ export async function transcribeWithGeminiTranscribe(
       audioTokens,
       durationSeconds,
       costUsd: noSpeechCostUsd,
+      // NOT `durationSeconds`: that falls back to a byte estimate when the
+      // response carries no usage. Derive from the reported audio tokens alone.
       upstreamDurationSeconds: audioTokens > 0
         ? audioTokens / GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND
         : null,

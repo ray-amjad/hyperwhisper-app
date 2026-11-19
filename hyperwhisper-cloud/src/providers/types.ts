@@ -249,9 +249,9 @@ export class ProviderInputError extends Error {
 
 /**
  * The upstream rejected OUR credentials for this provider (401, or 403 where
- * the adapter opts in). Every provider has its own key, so the transcribe route tries the
- * next sibling when the chain has one, and fails the request with today's 500
- * when it does not. `status` is the upstream HTTP status.
+ * the adapter opts in). Every provider has its own key, so the transcribe route
+ * tries the next sibling when the chain has one, and fails the request with a
+ * 500 when it does not. `status` is the upstream HTTP status.
  */
 export class ProviderAuthError extends Error {
   readonly status: number;

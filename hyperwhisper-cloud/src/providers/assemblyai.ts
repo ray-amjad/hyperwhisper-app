@@ -215,6 +215,9 @@ function authHeaders(apiKey: string): Record<string, string> {
   return { authorization: apiKey };
 }
 
+// The word filter runs before the cap, as in the Rust core (`async_flow.rs`:
+// `filter_keyterm_words(...).take(max_terms)`), so a dropped long phrase never
+// uses up a slot a shorter term could fill.
 function toKeyterms(initialPrompt: string): string[] {
   return splitVocabularyTerms(initialPrompt, {
     maxTerms: MAX_KEYTERMS,

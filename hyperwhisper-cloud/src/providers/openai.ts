@@ -29,9 +29,11 @@ const LIVE_ONLY_MODEL = 'gpt-live-transcribe';
 
 // Models that accept a structured keyword list.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
-// Each such model is billed on the duration
+// Whether OpenAI bills `model` per audio minute rather than per token, read
+// from its registry row's `billing`. Each such model is billed on the duration
 // OpenAI reports when it reports one, and on the conservative byte estimate
-// only when it does not.
+// only when it does not: that estimate reads a 16 kHz mono WAV as ~4x its
+// length.
 function isDurationBilled(model: string): boolean {
   const row = findModelRow('openai', model);
   return row !== undefined && row.billing.kind !== 'tokens';

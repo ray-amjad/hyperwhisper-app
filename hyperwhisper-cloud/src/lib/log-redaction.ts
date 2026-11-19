@@ -258,6 +258,9 @@ export function toRedactedLogLine(error: unknown, byValue: RedactByValue = {}): 
       .replace(GOOGLE_TOKEN_KEY_VALUE, '$1<redacted>')
       .replace(GOOGLE_ACCESS_TOKEN, 'ya29.<redacted>');
     const { ip, licenseKey, secrets = [] } = byValue;
+    // Pass 1 collapsed the LINE's whitespace, so a secret holding a newline or
+    // a run of spaces would no longer match as given. Collapse the needle the
+    // same way, and apply the length gate to what is actually searched for.
     const redactByValue = (value: string, marker: string): void => {
       const needle = value.replace(/\s+/g, ' ').trim();
       if (needle.length >= MIN_BY_VALUE_KEY_CHARS) {

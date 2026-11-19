@@ -211,6 +211,8 @@ export async function transcribeWithSoniox(
         continue;
       }
 
+      // Unreadable or malformed poll body: the helper logs parse_error (never
+      // the body, #1069) and the poll retries.
       const job = await readPollJson<{ status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string }>(
         provider, jobResp, polls, context,
       );

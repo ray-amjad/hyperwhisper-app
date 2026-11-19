@@ -60,6 +60,8 @@ const STT_CHECKS: SttCheck[] = [
   { provider: 'azure-mai',    file: 'de-brian.mp3',     language: 'de' },
   { provider: 'google-chirp', file: 'ja-yuki.mp3',      language: 'ja-JP' },
   { provider: 'google-chirp', file: 'hi-rashmi.mp3',    language: 'hi-IN' },
+  // One run each so the coverage guard is satisfied and a dead key/route fails
+  // the deploy.
   { provider: 'openai',       file: 'es-m.mp3',         language: 'es' },
   { provider: 'gemini',       file: 'fr-lily.mp3',      language: 'fr' },
   { provider: 'assemblyai',   file: 'de-brian.mp3',     language: 'de' },

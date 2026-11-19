@@ -1,4 +1,6 @@
 // HYPERWHISPER FLY.IO TRANSCRIPTION SERVICE
+// Edge-based transcription proxy that can buffer larger audio files in memory,
+// with no R2 upload path.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
