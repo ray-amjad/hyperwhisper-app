@@ -31,22 +31,37 @@ export function licenseCacheKey(licenseKey: string): string {
  * ANY key of one credit pool (#2026). Same `{ credits, cachedAt }` JSON and TTL
  * as the `license:<key>` entry it is written next to.
  */
+export const CREDIT_POOL_BALANCE_KEY_PREFIX = 'credit_pool_balance:';
+export const CREDIT_HOLDS_KEY_PREFIX = 'credit_holds:';
+export const CREDIT_HOLDS_EXPIRY_KEY_PREFIX = 'credit_holds_expiry:';
+
 export function creditPoolBalanceKey(creditPoolId: string): string {
-  return `credit_pool_balance:${creditPoolId}`;
+  return `${CREDIT_POOL_BALANCE_KEY_PREFIX}${creditPoolId}`;
 }
 
 /** `credit_holds:<account>` HASH: holdId -> held milli-credits. */
 export function creditHoldsKey(account: string): string {
-  return `credit_holds:${account}`;
+  return `${CREDIT_HOLDS_KEY_PREFIX}${account}`;
 }
 
 /** `credit_holds_expiry:<account>` ZSET: holdId -> expiry (epoch ms). */
 export function creditHoldsExpiryKey(account: string): string {
-  return `credit_holds_expiry:${account}`;
+  return `${CREDIT_HOLDS_EXPIRY_KEY_PREFIX}${account}`;
 }
 
-/** Key prefixes whose suffix identifies a caller (an IP or a licence key). */
-export const IDENTIFYING_KEY_PREFIXES = [IP_BLOCKED_KEY_PREFIX, LICENSE_KEY_PREFIX] as const;
+/**
+ * Key prefixes whose suffix identifies a caller (an IP, a licence key or an
+ * account). All cloud commands share one Upstash client, which pipelines
+ * same-tick commands, and an Upstash error echoes the whole batch — so every
+ * caller-keyed name can appear in any Redis failure log.
+ */
+export const IDENTIFYING_KEY_PREFIXES = [
+  IP_BLOCKED_KEY_PREFIX,
+  LICENSE_KEY_PREFIX,
+  CREDIT_POOL_BALANCE_KEY_PREFIX,
+  CREDIT_HOLDS_KEY_PREFIX,
+  CREDIT_HOLDS_EXPIRY_KEY_PREFIX,
+] as const;
 
 /** The `@upstash/ratelimit` prefix for one rate-limit bucket's counters. */
 export function rateLimitKeyPrefix(bucket: string): string {
