@@ -772,10 +772,6 @@ export function usdToCredits(usd: number): number {
     return 0.1;
   }
 
-  if (USD_PER_CREDIT <= 0) {
-    return Math.max(0.1, roundUpToTenth(usd * 1000));
-  }
-
   return usd / USD_PER_CREDIT;
 }
 

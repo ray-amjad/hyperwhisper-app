@@ -79,12 +79,3 @@ export function transcribeWithProvider(
 ): Promise<TranscriptionResult> {
   return PROVIDER_FN[provider](audio, contentType, language, initialPrompt, context);
 }
-
-/**
- * Whether an adapter is wired for `provider`. For the completeness test and any
- * future caller that must ask before dispatching; the route never needs it,
- * because it only ever dispatches ids the registry gave it.
- */
-export function hasProviderAdapter(provider: SttProviderId): boolean {
-  return typeof PROVIDER_FN[provider] === 'function';
-}
