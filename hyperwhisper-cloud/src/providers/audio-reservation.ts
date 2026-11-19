@@ -1,22 +1,8 @@
-import { modelAdapterFor } from './dispatch';
+import { modelDescriptorFor, type BufferedAudioReservationResult, type ProviderAudioReservation } from './model-descriptors';
 import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import type { SttProviderId } from '../lib/stt-models';
 import { parseMetaWav } from './meta';
 import { ProviderInputError, UnsupportedAudioFormatError } from './types';
-
-export type BufferedAudioReservationResult =
-  | { kind: 'duration'; audioSeconds: number }
-  | { kind: 'local-input-error' };
-
-export interface ProviderAudioReservation {
-  requiresBufferedBody: boolean;
-  /** The historical size-only estimate used when no exact duration is known. */
-  estimatedAudioSeconds: number;
-  /** A safe duration floor for the credit check before body allocation. */
-  preBufferAudioSeconds: number;
-  /** Resolve the final duration without exposing provider parser errors. */
-  resolveBufferedAudio(audio: ArrayBuffer, contentType: string): BufferedAudioReservationResult;
-}
 
 type ReservationResolver = (sizeBytes: number) => ProviderAudioReservation;
 
@@ -49,8 +35,8 @@ export function providerAudioReservation(
   sizeBytes: number,
   model?: string,
 ): ProviderAudioReservation {
-  const modelAdapter = modelAdapterFor(provider, model);
-  if (modelAdapter) return modelAdapter.audioReservation(sizeBytes);
+  const modelDescriptor = modelDescriptorFor(provider, model);
+  if (modelDescriptor) return modelDescriptor.audioReservation(sizeBytes);
   const providerReservation = PROVIDER_RESERVATIONS[provider];
   if (providerReservation) return providerReservation(sizeBytes);
 

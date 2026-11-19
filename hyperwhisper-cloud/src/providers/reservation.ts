@@ -25,7 +25,7 @@
 //     Give one a cross-provider chain and it must move in here.
 
 import { couldRouteThroughSync } from './assemblyai';
-import { modelAdapterFor } from './dispatch';
+import { modelDescriptorFor } from './model-descriptors';
 import {
   estimatedUsdPerMinute,
   fallbackChainFor,
@@ -102,7 +102,7 @@ export function maxReservationUsdPerMinute(input: ReservationRateInput): number 
     // silently under-reserving.
     // A model with its own adapter (Dictation) is never routed by its
     // provider's adapter, so its provider's premium tiers cannot bill it.
-    const providerRoutes = modelAdapterFor(p, model)?.usesProviderPremiumRoutes ?? true;
+    const providerRoutes = modelDescriptorFor(p, model)?.usesProviderPremiumRoutes ?? true;
     const premium = providerRoutes ? PREMIUM_ROUTES[p]?.({ ...input, model, medical }) ?? null : null;
     if (premium !== null) {
       rates.push(premium);

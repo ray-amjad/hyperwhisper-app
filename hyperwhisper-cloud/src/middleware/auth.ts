@@ -202,8 +202,6 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   }
 }
 
-export { canonicalAccountKey };
-
 export async function validateAuth(input: AuthInput, forceRefresh = false): Promise<AuthResult> {
   const startedAt = performance.now();
   const licenseKey = canonicalAccountKey(input.licenseKey);

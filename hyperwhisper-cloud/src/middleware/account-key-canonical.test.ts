@@ -15,7 +15,8 @@ mock.module('../lib/redis', () => ({
   cacheLicense: async (key: string, license: unknown) => { cache.set(`license:${key}`, license); },
 }));
 
-const { canonicalAccountKey, validateAuth } = await import('./auth');
+const { validateAuth } = await import('./auth');
+const { canonicalAccountKey } = await import('../lib/account-key');
 const { validateCredits } = await import('./credits');
 const { setCreditHoldStoreForTests, withCreditHoldScope, holdAccountFor } = await import('./credit-holds');
 const { createMemoryCreditHoldStore } = await import('../lib/credit-hold-store-memory');

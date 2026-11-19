@@ -1,36 +1,10 @@
 // AssemblyAI Dictation is a separate service with built-in cleanup, never an async STT fallback.
 // Contract: https://www.assemblyai.com/docs/dictation
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
-import { parsePcm16Wav } from '../lib/wav-header';
-import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import type { ModelAdapter } from './dispatch';
+import { parseDictationWav, validateDictationOptions } from './assemblyai-dictation-rules';
 import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
-
-export const DICTATION_LANGUAGES = ['en', 'es', 'de', 'fr', 'it', 'pt', 'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'he', 'ur', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu', 'xh', 'nn', 'ar', 'ja', 'zh'] as const;
-
-export function validateDictationOptions(language?: string, domain?: string): string {
-  if (domain?.trim()) {
-    throw new ProviderInputError('AssemblyAI Dictation', 400, 'Dictation does not support Medical Mode or other domains. Select Dictation without a domain.');
-  }
-  const primary = (language || '').trim().toLowerCase().split(/[-_]/)[0];
-  const code = primary === 'nb' ? 'no' : primary;
-  if (!(DICTATION_LANGUAGES as readonly string[]).includes(code)) {
-    throw new ProviderInputError('AssemblyAI Dictation', 400, 'Select an explicit supported language instead of Auto for Dictation.');
-  }
-  return code;
-}
-
-/** Inspect the actual RIFF chunks, never a MIME label or a byte-size estimate. */
-export function parseDictationWav(audio: ArrayBuffer, contentType: string): { durationSeconds: number } {
-  const { durationSeconds } = parsePcm16Wav(audio, contentType, {
-    provider: 'AssemblyAI Dictation',
-    acceptedFormats: ['PCM16 WAV (convert this recording to WAV)'],
-    maxDurationSeconds: 120,
-    tooLongMessage: 'audio exceeds 120 seconds. Use a shorter recording or another model.',
-  });
-  return { durationSeconds };
-}
 
 /** Match the native vocabulary sanitizer without the async six-word limit. */
 export function dictationKeyterms(prompt: string): string[] {
@@ -97,28 +71,3 @@ export async function transcribeWithAssemblyAIDictation(
     requestId: typeof result.session_id === 'string' ? result.session_id : undefined,
   };
 }
-
-export const ASSEMBLYAI_DICTATION_ADAPTER: ModelAdapter = {
-  transcribe: (audio, contentType, language, initialPrompt, context = {}) =>
-    transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context),
-  validateOptions(language, domain) {
-    try { validateDictationOptions(language, domain); } catch (error) {
-      return { reason: 'invalid_dictation_options', title: 'Invalid Dictation options', message: (error as Error).message };
-    }
-    return null;
-  },
-  audioReservation: () => ({
-    requiresBufferedBody: true,
-    estimatedAudioSeconds: 120,
-    // WAV permits metadata chunks, so size alone has no safe duration floor.
-    preBufferAudioSeconds: 0,
-    resolveBufferedAudio(audio, contentType) {
-      try { return { kind: 'duration', audioSeconds: parseDictationWav(audio, contentType).durationSeconds }; } catch (error) {
-        if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) return { kind: 'local-input-error' };
-        throw error;
-      }
-    },
-  }),
-  // A separate product: AssemblyAI's sync fast path never runs it.
-  usesProviderPremiumRoutes: false,
-};

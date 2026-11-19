@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { transcribeWithProvider, validateModelOptions } from './dispatch';
-import { dictationKeyterms, parseDictationWav, validateDictationOptions } from './assemblyai-dictation';
+import { transcribeWithProvider } from './dispatch';
+import { validateModelOptions } from './model-descriptors';
+import { dictationKeyterms } from './assemblyai-dictation';
+import { parseDictationWav, validateDictationOptions } from './assemblyai-dictation-rules';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { estimatedUsdPerMinute, resolveModel } from '../lib/stt-models';

@@ -6,7 +6,7 @@ import { authDiagnosticsForLog, readCreditPoolId, validateAuth, type AuthDiagnos
 import { generateRequestId } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense, redis } from '../lib/redis';
-import { creditPoolBalanceKey } from '../lib/credit-hold-store';
+import { creditPoolBalanceKey } from '../lib/redis-keys';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { errorResponse, jsonResponse } from '../lib/responses';
 import { openRequestGate } from '../middleware/request-gate';

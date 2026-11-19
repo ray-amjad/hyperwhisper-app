@@ -81,8 +81,6 @@ export interface CreditHoldStore {
 /** The hold account of a credit pool: `pool:<credit_pool_id>`. */
 export const CREDIT_POOL_ACCOUNT_PREFIX = 'pool:';
 
-export { creditPoolBalanceKey };
-
 /** The JSON `cacheLicense` keeps under `creditPoolBalanceKey`. */
 export interface CreditPoolBalanceEntry {
   credits: number;

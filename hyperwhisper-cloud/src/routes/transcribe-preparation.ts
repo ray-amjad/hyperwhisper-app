@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
-import { validateModelOptions } from '../providers/dispatch';
+import { validateModelOptions } from '../providers/model-descriptors';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
 import { readAccountKey } from '../lib/account-key';
