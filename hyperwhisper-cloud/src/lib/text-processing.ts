@@ -17,7 +17,11 @@ export function extractCorrectedText(response: unknown): string {
   if (Array.isArray(choices)) {
     for (const choice of choices) {
       const message = isRecord(choice) ? choice['message'] : undefined;
-      const content = isRecord(message) ? message['content'] : undefined;
+      const raw = isRecord(message) ? message['content'] : undefined;
+      // OpenAI-compatible APIs may send `content` as an array of parts (Mistral
+      // content chunks): their `text` fields are joined, as before this was
+      // narrowed to the shapes in use.
+      const content = Array.isArray(raw) ? joinPartTexts(raw) : raw;
       if (typeof content !== 'string') continue;
       if (content.length > 0) return content;
       sawEmpty = true;
@@ -36,6 +40,14 @@ export function extractCorrectedText(response: unknown): string {
 
   if (sawEmpty) return '';
   throw new Error('Correction response missing text');
+}
+
+/** The `text` of each part that has one, joined; undefined when no part has text. */
+function joinPartTexts(parts: unknown[]): string | undefined {
+  const texts = parts
+    .map((part) => (isRecord(part) ? part['text'] : undefined))
+    .filter((text): text is string => typeof text === 'string');
+  return texts.length > 0 ? texts.join('') : undefined;
 }
 
 /**
