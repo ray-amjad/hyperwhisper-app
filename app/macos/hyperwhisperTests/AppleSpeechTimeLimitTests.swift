@@ -17,7 +17,7 @@
 //  CI runner the Swift pool ran 150 ms timers 18-21 s late, so any test that
 //  raced real time against a sub-second limit, or bounded a wait by 10 s,
 //  failed with correct code. Waits for something that MUST happen are bounded
-//  only by `hangGuard`; one test still runs the default `Task.sleep` timer.
+//  only by `hangGuard`; one test still runs the default `SuspendingClock` timer.
 //
 
 import Foundation
@@ -233,7 +233,7 @@ struct AppleSpeechTimeLimitTests {
 
     /// The provider's real hook: `cancelAndFinishNow()` ends the hung stream.
     /// Here the hook releases the stub, and the abandoned work then finishes.
-    /// The one test on the default `Task.sleep` timer: it only waits for the
+    /// The one test on the default `SuspendingClock` timer: it only waits for the
     /// timeout, so a late timer makes it slower, never wrong.
     @Test func theHookCanEndTheHungWork() async {
         let parking = Parking()
@@ -377,10 +377,19 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: hookRan, seconds: 0.2) == false, "a cancellation ran the timeout hook")
     }
 
-    /// The analyzer ignores the caller's cancel: the limit still ends it, and
-    /// the provider's timeout arm then sees `Task.isCancelled` and throws
-    /// `CancellationError` rather than an error the user would see.
-    @Test func aCancellationTheWorkIgnoresStillEndsAtTheLimit() async {
+    /// #1707: the analyzer ignores the caller's cancel (the #1515 hang does,
+    /// and its own `cancelAndFinishNow()` does not end it either). `run` must
+    /// still return `CancellationError` at once, not at the limit, which for a
+    /// 1 h import is about 61 min away.
+    ///
+    /// "At once" is proved without a real-time bound (#2400): the deadline is
+    /// never fired before `run` returns, so a `run` that waited for the limit
+    /// would hang until `hangGuard` and fail. The real elapsed time is only
+    /// logged, as evidence, never asserted.
+    ///
+    /// The timer stays armed for the abandoned work: firing the deadline while
+    /// it is still hung then runs the hook, the analyzer cleanup a timeout does.
+    @Test func aCancellationTheWorkIgnoresEndsAtOnceAndTheLimitStillCleansUp() async throws {
         let parking = Parking()
         let deadline = ManualDeadline()
         defer {
@@ -388,18 +397,121 @@ struct AppleSpeechTimeLimitTests {
             deadline.fire()
         }
         let started = DispatchSemaphore(value: 0)
+        let hookRan = DispatchSemaphore(value: 0)
+        let ended = DispatchSemaphore(value: 0)
+
+        let caller = Task { () -> (error: Error?, isTaskCancelled: Bool) in
+            defer { ended.signal() }
+            do {
+                _ = try await AppleSpeechTimeLimit.run(
+                    limit: .milliseconds(200),
+                    sleep: { try await deadline.sleep($0) },
+                    onTimeout: { hookRan.signal() },
+                    operation: {
+                        started.signal()
+                        return try await Self.collect(HungResults(parking: parking))
+                    }
+                )
+                return (nil, Task.isCancelled)
+            } catch {
+                return (error, Task.isCancelled)
+            }
+        }
+
+        #expect(await waitOffThePool(for: started, seconds: Self.hangGuard))
+        #expect(await waitOffThePool(for: parking.didPark, seconds: Self.hangGuard), "the operation never parked")
+        #expect(await waitOffThePool(for: deadline.armed, seconds: Self.hangGuard), "run never started its timer")
+        let cancelledAt = ContinuousClock.now
+        caller.cancel()
+        // The deadline is NOT fired here: only the cancel can end `run`.
+        await Self.expectEnds(ended, "the ignored cancel waited for the limit") {
+            deadline.fire()
+            parking.release()
+        }
+        print("AppleSpeechTimeLimit: caller cancel returned after \(ContinuousClock.now - cancelledAt)")
+        let outcome = await caller.value
+
+        let error = try #require(outcome.error)
+        #expect(error is CancellationError, "got \(error)")
+        #expect(!(error is AppleSpeechTimeLimit.TimedOut))
+        #expect(
+            TranscriptionCancellationPolicy.outcome(for: error, isTaskCancelled: outcome.isTaskCancelled)
+                == .genuineCancellation
+        )
+        // A cancel is not a timeout: the hook waits for the limit.
+        #expect(await waitOffThePool(for: hookRan, seconds: 0.2) == false, "the cancel ran the timeout hook")
+        // `run` returned without the hung work, which is still parked.
+        #expect(parking.parkedCount == 1)
+
+        // The limit is up and the abandoned work has still not ended: the
+        // timer runs the hook for it.
+        deadline.fire()
+        #expect(await waitOffThePool(for: hookRan, seconds: Self.hangGuard), "the limit never cleaned up the abandoned work")
+    }
+
+    /// A task cancelled before `run` is even called: `onCancel` runs before the
+    /// continuation exists. `run` must still end with `CancellationError`,
+    /// never hang on a continuation nobody resumes.
+    @Test func aTaskAlreadyCancelledEndsWithCancellationError() async {
+        let parking = Parking()
+        let deadline = ManualDeadline()
+        defer {
+            parking.release()
+            deadline.fire()
+        }
+        let go = DispatchSemaphore(value: 0)
+        let ended = DispatchSemaphore(value: 0)
+
+        let caller = Task { () -> (error: Error?, isTaskCancelled: Bool) in
+            defer { ended.signal() }
+            // Wait, off the pool, until the test has cancelled this task.
+            _ = await waitOffThePool(for: go, seconds: Self.hangGuard)
+            do {
+                _ = try await AppleSpeechTimeLimit.run(
+                    limit: .seconds(30),
+                    sleep: { try await deadline.sleep($0) },
+                    onTimeout: {},
+                    operation: { try await Self.collect(HungResults(parking: parking)) }
+                )
+                return (nil, Task.isCancelled)
+            } catch {
+                return (error, Task.isCancelled)
+            }
+        }
+        caller.cancel()
+        go.signal()
+
+        await Self.expectEnds(ended, "an already-cancelled run hung") {
+            deadline.fire()
+            parking.release()
+        }
+        let outcome = await caller.value
+        #expect(outcome.isTaskCancelled)
+        #expect(outcome.error is CancellationError, "got \(String(describing: outcome.error))")
+    }
+
+    /// The caller cancels and the work honours it: the work's end cancels the
+    /// timer, so a limit that fires anyway later must not run the hook.
+    @Test func aCancelledWorkThatEndsNeverRunsTheHook() async {
+        let deadline = ManualDeadline(ignoresCancel: true)
+        defer { deadline.fire() }
+        let started = DispatchSemaphore(value: 0)
+        let workEnded = DispatchSemaphore(value: 0)
+        let hookRan = DispatchSemaphore(value: 0)
         let ended = DispatchSemaphore(value: 0)
 
         let caller = Task { () -> Error? in
             defer { ended.signal() }
             do {
                 _ = try await AppleSpeechTimeLimit.run(
-                    limit: .milliseconds(200),
+                    limit: .seconds(30),
                     sleep: { try await deadline.sleep($0) },
-                    onTimeout: {},
-                    operation: {
+                    onTimeout: { hookRan.signal() },
+                    operation: { () async throws -> [String] in
+                        defer { workEnded.signal() }
                         started.signal()
-                        return try await Self.collect(HungResults(parking: parking))
+                        try await Task.sleep(for: .seconds(3_600))
+                        return []
                     }
                 )
                 return nil
@@ -411,15 +523,22 @@ struct AppleSpeechTimeLimitTests {
         #expect(await waitOffThePool(for: started, seconds: Self.hangGuard))
         #expect(await waitOffThePool(for: deadline.armed, seconds: Self.hangGuard), "run never started its timer")
         caller.cancel()
-        // The work ignores the cancel, so `run` is still waiting...
-        let endedOnCancel = await waitOffThePool(for: ended, seconds: 0.2)
-        #expect(endedOnCancel == false, "the ignored cancel ended run")
-        if endedOnCancel { ended.signal() } // leave the signal for the wait below
-        // ...until the limit is up.
+        await Self.expectEnds(ended, "the cancel did not end run") { deadline.fire() }
+        #expect(await caller.value is CancellationError)
+        #expect(await waitOffThePool(for: workEnded, seconds: Self.hangGuard), "the work never ended")
+        // The work's end cancels the timer. This deadline sleeps through the
+        // cancel, so firing it now runs the timer path after the work ended.
+        #expect(await waitOffThePool(for: deadline.didCancel, seconds: Self.hangGuard), "the timer was never cancelled")
         deadline.fire()
-        await Self.expectEnds(ended, "the limit did not end run") { parking.release() }
-        let error = await caller.value
-        #expect(error is AppleSpeechTimeLimit.TimedOut, "got \(String(describing: error))")
+        #expect(await waitOffThePool(for: hookRan, seconds: 0.5) == false, "onTimeout ran for work that had ended")
+    }
+
+    /// #1707: the production timer must not count Mac sleep. `ContinuousClock`
+    /// (what `Task.sleep(for:)` uses) does; `SuspendingClock` does not.
+    @Test func theDefaultTimerUsesAClockThatStopsDuringSleep() {
+        let clock: any Clock<Duration> = AppleSpeechTimeLimit.clock
+        #expect(clock is SuspendingClock)
+        #expect(!(clock is ContinuousClock))
     }
 
     /// A timeout on a task nobody cancelled is a provider failure, never a
