@@ -23,6 +23,12 @@ describe('hosted LLM output-limit policy', () => {
     expect(body).not.toHaveProperty('max_tokens');
   });
 
+  test('xAI body keeps its pre-table key order: model, reasoning_effort, payload, stream', () => {
+    const body = buildOpenAICompatBody('grok', buildCorrectionRequest('system', 'transcript'), 'grok-4.3');
+
+    expect(Object.keys(body)).toEqual(['model', 'reasoning_effort', 'messages', 'temperature', 'stream']);
+  });
+
   test('keeps the Groq cap under the free-tier TPM ceiling', () => {
     expect(GROQ_MAX_COMPLETION_TOKENS).toBe(4096);
     expect(GROQ_MAX_COMPLETION_TOKENS).toBeLessThan(8000);

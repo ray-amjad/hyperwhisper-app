@@ -31,6 +31,8 @@ type OpenAICompatAdapter = {
   errorChatLabel: string;
   /** Vendor fields added after the shared payload (`model` goes first, `stream: false` last). */
   extraBody?: (model: string) => Record<string, unknown>;
+  /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
+  extraBodyFirst?: boolean;
   computeCost: (model: string, usage: GroqUsage) => number;
 };
 
@@ -81,6 +83,7 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'SpaceXAI Grok API',
     errorChatLabel: 'SpaceXAI Grok chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
+    extraBodyFirst: true,
     computeCost: (_model, usage) => computeXaiGrokFastChatCost(usage),
   },
   // GPT-5 family on /v1/chat/completions only supports the default
@@ -129,7 +132,11 @@ export function buildOpenAICompatBody(
 ): Record<string, unknown> {
   const { temperature, ...withoutTemperature } = payload;
   const shared = provider === 'openai' ? withoutTemperature : payload;
-  return { model, ...shared, ...OPENAI_COMPAT_ADAPTERS[provider].extraBody?.(model), stream: false };
+  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
+  const extra = adapter.extraBody?.(model);
+  return adapter.extraBodyFirst
+    ? { model, ...extra, ...shared, stream: false }
+    : { model, ...shared, ...extra, stream: false };
 }
 
 // Fail-closed fallback for vendor usage-schema drift: estimate tokens from
