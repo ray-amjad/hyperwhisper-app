@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import {
   BYTES_PER_MINUTE_ESTIMATE,
-  CREDITS_PER_MINUTE,
   DEFAULT_API_BASE_URL,
 } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
@@ -33,9 +32,8 @@ mock.module('../lib/redis', () => ({
   ),
 }));
 
+const { estimateAudioSecondsFromSize } = await import('../lib/audio-duration');
 const {
-  estimateAudioSecondsFromSize,
-  estimateCreditsFromSize,
   validateCredits,
   deductCredits,
   drainPendingDeductions,
@@ -134,46 +132,14 @@ describe('estimateAudioSecondsFromSize', () => {
   });
 });
 
-describe('estimateCreditsFromSize', () => {
-  test('applies the default-route per-minute rate by default', () => {
-    const estimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
-    // One minute at CREDITS_PER_MINUTE (1.67), rounded up to a tenth like every estimate.
-    expect(estimate).toBe(Math.ceil(CREDITS_PER_MINUTE * 10) / 10);
-    expect(estimate).toBe(1.7);
-  });
-
-  test('never returns below the 0.1 credit floor for a tiny upload', () => {
-    expect(estimateCreditsFromSize(0)).toBeGreaterThanOrEqual(0.1);
-  });
-
-  test('when cost estimators are provided, bills off the most expensive fallback provider', () => {
-    // Sized so estimateAudioSecondsFromSize resolves to exactly 100s (well above the 10s floor).
-    const sizeBytes = (100 / 60) * BYTES_PER_MINUTE_ESTIMATE;
-    const cheapEstimator = (durationSeconds: number) => 0.001 * durationSeconds;
-    const expensiveEstimator = (durationSeconds: number) => 0.01 * durationSeconds;
-
-    const estimate = estimateCreditsFromSize(sizeBytes, {
-      costEstimators: [cheapEstimator, expensiveEstimator],
-    });
-
-    expect(estimate).toBe(creditsForCost(expensiveEstimator(100)));
-  });
-
-  test('ignores an empty costEstimators list and falls back to the default-route rate', () => {
-    const withEmptyList = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE, { costEstimators: [] });
-    const withNoOptions = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
-    expect(withEmptyList).toBe(withNoOptions);
-  });
-});
-
 describe('validateCredits', () => {
   test('allows a request when the balance covers the estimate exactly', async () => {
-    const result = await validateCredits(auth(5), 5, '1.2.3.4');
+    const result = await validateCredits(auth(5), 5);
     expect(result.ok).toBe(true);
   });
 
   test('rejects a request when the balance is short, with a 402 and the shortfall in the body', async () => {
-    const result = await validateCredits(auth(4.9), 5, '1.2.3.4');
+    const result = await validateCredits(auth(4.9), 5);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(402);
@@ -183,7 +149,7 @@ describe('validateCredits', () => {
   });
 
   test('rounds the balance to the nearest tenth before comparing, so 5.04 cannot cover a 5.05 estimate', async () => {
-    const result = await validateCredits(auth(5.04), 5.05, '1.2.3.4');
+    const result = await validateCredits(auth(5.04), 5.05);
     expect(result.ok).toBe(false);
   });
 });

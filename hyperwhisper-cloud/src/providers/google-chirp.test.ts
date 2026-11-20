@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
+import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
 import * as realGoogleAuth from '../lib/google-auth';
 import { captureNoSpeechEvent } from './test-support';
-import { saveEnv, stubEnv } from '../test-support/env';
+import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // Mock the GCS scratch-storage module. google-chirp.ts only knows the shape
@@ -64,7 +65,7 @@ type FetchHandler = (url: string, init: RequestInit) => Response | Promise<Respo
 let fetchHandler: FetchHandler = () => new Response('unhandled', { status: 500 });
 const originalFetch = globalThis.fetch;
 
-const { transcribeWithGoogleChirp, INLINE_AUDIO_MAX_BYTES } = await import('./google-chirp');
+const { transcribeWithGoogleChirp } = await import('./google-chirp');
 
 let restoreEnv: Array<() => void> = [];
 
@@ -72,7 +73,6 @@ beforeEach(() => {
   restoreEnv = [
     stubEnv('GOOGLE_PROJECT_ID', 'test-project'),
     stubEnv('GOOGLE_SPEECH_REGION', undefined),
-    saveEnv('STT_PROVIDER_TIMEOUT_MS'),
   ];
 
   gcsConfigured = false;
@@ -158,7 +158,7 @@ describe('transcribeWithGoogleChirp — input gates (no upstream call)', () => {
 
   test('rejects audio over the inline byte cap with AudioTooLargeError when no GCS bucket is configured', async () => {
     gcsConfigured = false;
-    const oversized = new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1);
+    const oversized = new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1);
     await expect(transcribeWithGoogleChirp(oversized, 'audio/wav')).rejects.toThrow(AudioTooLargeError);
     expect((globalThis.fetch as any).mock.calls.length).toBe(0);
     expect(uploadCalls.length).toBe(0);
@@ -471,7 +471,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
   });
 
   function bigAudio() {
-    return new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1); // forces gcs+batch on bytes alone
+    return new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1); // forces gcs+batch on bytes alone
   }
 
   test('uploads to GCS, submits+polls batchRecognize, merges the file-level metadata, and deletes the scratch object on success', async () => {
@@ -510,7 +510,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     expect(result.language).toBe('en-US');
     expect(result.durationSeconds).toBe(12.3);
     expect(result.source).toBe('google-chirp');
-    expect(uploadCalls).toEqual([{ bytes: INLINE_AUDIO_MAX_BYTES + 1, contentType: 'audio/wav' }]);
+    expect(uploadCalls).toEqual([{ bytes: GOOGLE_CHIRP_INLINE_MAX_BYTES + 1, contentType: 'audio/wav' }]);
     expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
     // batchRecognize submit + at least 2 polls (done:false then done:true).
     expect((globalThis.fetch as any).mock.calls.length).toBeGreaterThanOrEqual(3);
@@ -704,7 +704,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
 
 describe('transcribeWithGoogleChirp — explicit network timeout budgets', () => {
   function bigAudio() {
-    return new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1);
+    return new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1);
   }
 
   function completedBatchResponse(transcript = 'batched transcript') {
@@ -722,7 +722,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   }
 
   test('inline recognize keeps its 45s budget when the shared timeout is smaller', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     const requestTimeouts: number[] = [];
 
     await recordTimeouts(async (delays) => {
@@ -739,7 +738,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('batch submit uses 45s and its completed first poll uses 8s', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const requestTimeouts: Record<string, number[]> = { submit: [], poll: [] };
 
@@ -760,7 +758,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('a failed operation uses 8s for cancellation and still deletes the GCS object', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const requestTimeouts: Record<string, number[]> = { poll: [], cancel: [] };
 
@@ -786,7 +783,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('adaptation retries retain the inline and batch submit phase budgets', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     const requestTimeouts: Record<string, number[]> = { inline: [], submit: [], poll: [] };
 
     await recordTimeouts(async (delays) => {
@@ -833,7 +829,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('transient 429 and 5xx poll responses stay inside the operation and keep the 8s per-poll budget', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const pollTimeouts: number[] = [];
     let pollAttempt = 0;

@@ -647,7 +647,7 @@ export function computeAssemblyAITranscriptionCost(
   keyterms: boolean = false,
 ): number {
   if (model === 'dictation') return computeLinearPerMinuteCost(durationSeconds, ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE);
-  const isPro = model === 'universal-3-5-pro' || model === 'universal-3-pro';
+  const isPro = model === 'universal-3-5-pro';
   const basePerMinute = isPro
     ? ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE
     : ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE;
@@ -770,10 +770,6 @@ export function isGroqUsage(value: unknown): value is GroqUsage {
 export function usdToCredits(usd: number): number {
   if (!Number.isFinite(usd) || usd <= 0) {
     return 0.1;
-  }
-
-  if (USD_PER_CREDIT <= 0) {
-    return Math.max(0.1, roundUpToTenth(usd * 1000));
   }
 
   return usd / USD_PER_CREDIT;

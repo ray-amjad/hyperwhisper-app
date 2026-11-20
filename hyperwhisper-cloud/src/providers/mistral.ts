@@ -3,6 +3,7 @@
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -17,7 +18,6 @@ import {
 } from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
-const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
 const MAX_CONTEXT_BIAS_TERM_CHARS = 80;
 
@@ -87,7 +87,7 @@ export async function transcribeWithMistral(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'mistral';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('mistral').defaultModel;
 
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {

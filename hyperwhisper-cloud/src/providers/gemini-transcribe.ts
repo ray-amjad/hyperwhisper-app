@@ -38,6 +38,7 @@ import {
   estimateGeminiTranscribeOutputTokens,
 } from '../lib/cost-calculator';
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { getProviderDef } from '../lib/stt-models';
 // A pure Content-Type → Google audio MIME mapper. Importing it is NOT the
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
@@ -59,7 +60,6 @@ const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/inter
 // the current default revision is, which is not a stable contract — pin it, and
 // re-verify the request/response shape before moving it.
 const API_REVISION = '2026-05-20';
-const DEFAULT_MODEL = 'gemini-3.5-transcribe';
 // WebSocket-only (BidiGenerateContent). `/v1beta/interactions` answers a request
 // for it with a 404 "Model not found", so this adapter rejects it up front
 // rather than spending a round trip — and so the failure names the real reason.
@@ -81,32 +81,12 @@ const MAX_VOCABULARY_TERM_CHARS = 80;
 export const INTERACTIONS_TIMEOUT_MS = 45_000;
 
 /**
- * Optional `transcription_config` extras. Both are dropped when vocabulary terms
- * are present — see {@link buildTranscriptionConfig}.
- *
- * Nothing in this backend requests them: `/transcribe` returns text only, so the
- * word offsets and speaker labels have nowhere to go, and never sending them
- * makes TRAP 2 unreachable in production. They are a parameter, rather than an
- * unwritten convention, so the exclusion rule has one directly testable home —
- * a future word-timings change must go through it instead of adding the field
- * next to the vocabulary and getting a 400 for every dictating user.
- */
-export interface TranscriptionConfigExtras {
-  /** e.g. `'speaker'`. */
-  diarizationMode?: string;
-  /** e.g. `['word']`. */
-  timestampGranularities?: string[];
-}
-
-/**
  * Build `generation_config.transcription_config`.
  *
- * **The single enforcement point for TRAP 2.** Google rejects `custom_vocabulary`
- * with a 400 when it arrives alongside `diarization_mode` or
- * `timestamp_granularities`. Rather than making each call site remember that,
- * this resolves the conflict: when vocabulary terms survive normalization they
- * are sent and the extras are dropped. HyperWhisper is a dictation app — correct
- * spellings of the user's own jargon beat speaker labels and word offsets.
+ * TRAP 2: Google rejects `custom_vocabulary` with a 400 when it arrives
+ * alongside `diarization_mode` or `timestamp_granularities`. `/transcribe`
+ * returns text only, so this never sends either; a future word-timings change
+ * must not add them next to the vocabulary.
  *
  * Returns a possibly-empty object; the caller omits `generation_config` entirely
  * when nothing is configured (auto-detect, no vocabulary).
@@ -114,7 +94,6 @@ export interface TranscriptionConfigExtras {
 export function buildTranscriptionConfig(
   language: string | undefined,
   terms: readonly string[],
-  extras: TranscriptionConfigExtras = {},
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {};
 
@@ -126,17 +105,7 @@ export function buildTranscriptionConfig(
   }
 
   if (terms.length > 0) {
-    // TRAP 2: vocabulary wins. `extras` is discarded, not merged.
     config.custom_vocabulary = [...terms];
-    return config;
-  }
-
-  const diarization = extras.diarizationMode?.trim();
-  if (diarization) {
-    config.diarization_mode = diarization;
-  }
-  if (extras.timestampGranularities && extras.timestampGranularities.length > 0) {
-    config.timestamp_granularities = [...extras.timestampGranularities];
   }
 
   return config;
@@ -225,7 +194,7 @@ export async function transcribeWithGeminiTranscribe(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'gemini-transcribe';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('gemini-transcribe').defaultModel;
 
   if (model === GEMINI_TRANSCRIBE_LIVE_MODEL) {
     // Fail before spending a round trip, and name the reason. A

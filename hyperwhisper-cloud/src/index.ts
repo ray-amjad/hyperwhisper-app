@@ -44,8 +44,8 @@ app.use('*', cors({
   ],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }));
-
-app.options('*', (c) => c.body(null, 204));
+// `cors()` answers every OPTIONS itself (204, without calling `next`), so no
+// route-level OPTIONS handler is needed.
 
 // Health check endpoint - Fly.io uses this for health monitoring
 app.get('/health', (c) => {

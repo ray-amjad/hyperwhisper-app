@@ -5,9 +5,9 @@
 // Auth: Bearer OAuth token derived from a service-account JSON, cached in Redis.
 //
 // Audio delivery path:
-//   - <= INLINE_AUDIO_MAX_BYTES (9.5 MB)  → inline base64 `content` → sync recognize
-//   - >  INLINE_AUDIO_MAX_BYTES + bucket  → upload to GCS → batchRecognize + poll
-//   - >  INLINE_AUDIO_MAX_BYTES + no bucket → 413 AudioTooLargeError
+//   - <= GOOGLE_CHIRP_INLINE_MAX_BYTES (9.5 MB)  → inline base64 `content` → sync recognize
+//   - >  GOOGLE_CHIRP_INLINE_MAX_BYTES + bucket  → upload to GCS → batchRecognize + poll
+//   - >  GOOGLE_CHIRP_INLINE_MAX_BYTES + no bucket → 413 AudioTooLargeError
 //
 // Why two paths: sync `recognize` enforces TWO hard caps on Google's side —
 // payload ≤ 10 MB AND audio duration ≤ ~60s — regardless of inline vs gs://
@@ -39,9 +39,6 @@ import {
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
 
-// Re-exported for the transcribe route's pre-buffer header gate. Kept here
-// historically; the canonical constant now lives in `lib/constants.ts`.
-export const INLINE_AUDIO_MAX_BYTES = GOOGLE_CHIRP_INLINE_MAX_BYTES;
 // Sync `recognize` enforces a ~60 s audio-duration cap independent of the
 // 10 MB byte cap. Use 55 s as the gate to leave headroom for the byte-rate
 // estimator being conservative on compressed audio.
@@ -146,7 +143,7 @@ export function planChirpDelivery(
   gcsConfigured: boolean,
 ): ChirpDeliveryPlan {
   const estimatedSeconds = estimateAudioSeconds(byteLength, contentType);
-  const fitsInlineBytes = byteLength <= INLINE_AUDIO_MAX_BYTES;
+  const fitsInlineBytes = byteLength <= GOOGLE_CHIRP_INLINE_MAX_BYTES;
   const fitsInlineSeconds = estimatedSeconds <= INLINE_AUDIO_MAX_SECONDS;
   const useInlineAudio = fitsInlineBytes && fitsInlineSeconds;
   return {
@@ -229,10 +226,10 @@ export async function transcribeWithGoogleChirp(
   if (plan.tooLarge) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      inlineMaxBytes: INLINE_AUDIO_MAX_BYTES,
+      inlineMaxBytes: GOOGLE_CHIRP_INLINE_MAX_BYTES,
       gcsConfigured: false,
     }, context);
-    throw new AudioTooLargeError('Google Chirp', audio.byteLength, INLINE_AUDIO_MAX_BYTES);
+    throw new AudioTooLargeError('Google Chirp', audio.byteLength, GOOGLE_CHIRP_INLINE_MAX_BYTES);
   }
 
   const region = getRegion();
