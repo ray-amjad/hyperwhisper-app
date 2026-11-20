@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
-import { ANTHROPIC_MAX_TOKENS, GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
+import { llmModelRow } from '../lib/llm-models';
 import { ANTHROPIC_WRAPPER_INSTRUCTION } from './anthropic';
 import { buildCorrectionRequest } from './llm-contract';
 import { buildOpenAICompatBody } from './openai-compat-chat';
+
+// Output caps from the llm-models.ts rows.
+const ANTHROPIC_MAX_TOKENS = llmModelRow('anthropic', 'claude-haiku-5-5').maxOutputTokens;
+const GROQ_MAX_COMPLETION_TOKENS = llmModelRow('groq', 'openai/gpt-oss-120b').maxOutputTokens;
 
 describe('hosted LLM output-limit policy', () => {
   test('does not translate an output cap into the OpenAI request', () => {

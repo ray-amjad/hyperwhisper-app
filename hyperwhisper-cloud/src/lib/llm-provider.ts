@@ -3,49 +3,12 @@ import { buildCorrectionRequest, type CorrectionRequestPayload } from '../provid
 import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { requestAnthropicChat } from '../providers/anthropic';
 import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from '../providers/openai-compat-chat';
+import { defaultModelFor, isAllowedLLMModel, LLM_PROVIDERS, type LLMProvider } from './llm-models';
 
-export type LLMProvider = 'cerebras' | 'groq' | 'anthropic' | 'grok' | 'openai' | 'gemini' | 'mistral';
+// The model registry (allowlist, defaults, served labels, rates) is llm-models.ts.
+export { defaultModelFor, servedLLMName, type LLMProvider } from './llm-models';
 
 const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
-
-export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
-  cerebras: 'cerebras-gpt-oss-120b',
-  groq: 'groq-gpt-oss-120b',
-  anthropic: 'claude-haiku-5-5',
-  grok: 'xai-grok-4.3',
-  openai: 'openai-gpt-5.6-luna',
-  gemini: 'gemini-3.8-flash',
-  mistral: 'mistral-small-latest',
-};
-
-// Served name per (provider, resolved-model) pair, for the X-LLM-Provider
-// response header / log. The default model maps back to LLM_PROVIDER_NAMES so
-// single-model providers (and the default of the multi-model one) are
-// unchanged; the non-default allowlisted models of the multi-model provider
-// (gemini) get their own label so the response reflects the model actually used
-// instead of the provider default. openai has one model since #1018 and needs no
-// entry: servedLLMName falls through to LLM_PROVIDER_NAMES.openai. MUST stay in
-// sync with LLM_PROVIDER_MODELS allowlists.
-const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
-  gemini: {
-    'gemini-2.5-flash': 'gemini-2.5-flash',
-    'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-    'gemini-3.8-flash': 'gemini-3.8-flash',
-  },
-  mistral: { 'mistral-small-latest': 'mistral-small-latest' },
-};
-
-/**
- * Served name for the X-LLM-Provider response header / log: the (provider,
- * model) pair the request was actually answered with. For the single-model
- * providers (and any model not in the served-name map) this is the static
- * LLM_PROVIDER_NAMES label; for the multi-model providers' non-default models it
- * echoes the resolved model so callers (and the smoke test) can tell a
- * non-default model apart from the provider default.
- */
-export function servedLLMName(provider: LLMProvider, model: string): string {
-  return LLM_SERVED_NAMES[provider]?.[model] ?? LLM_PROVIDER_NAMES[provider];
-}
 
 const LLM_PROVIDER_FALLBACKS: Record<LLMProvider, LLMProvider> = {
   anthropic: 'cerebras',
@@ -70,34 +33,6 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
   groq: 3,
 };
 
-// Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
-// resolved model is threaded through callWithRetry to the client, which sends it
-// as the request model.
-// Only gemini allows more than one model today. MUST match the model ids in
-// shared-app-classification/cloud-pp-catalog.json.
-export const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
-  cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
-  groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
-  anthropic: { default: 'claude-haiku-5-5', allowed: ['claude-haiku-5-5'] },
-  grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
-  // gpt-5-mini / gpt-5-nano lose their only snapshots 2026-12-11. They are no
-  // longer allowlisted, so an old client still sending either id resolves to the
-  // default and is billed at the luna rate (the open-mistral-nemo precedent).
-  openai: { default: 'gpt-5.6-luna', allowed: ['gpt-5.6-luna'] },
-  // Google limits gemini-2.5-* to past users, so a request with no (or an
-  // unknown) X-LLM-Model resolves to 3.8 Flash, the cloud-pp-catalog.json
-  // isDefault row. The 2.5 ids stay allowed for clients that ask for them.
-  gemini: {
-    default: 'gemini-3.8-flash',
-    allowed: ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
-  },
-  mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
-};
-
-export function defaultModelFor(provider: LLMProvider): string {
-  return LLM_PROVIDER_MODELS[provider].default;
-}
-
 export function fallbackProviderFor(provider: LLMProvider): LLMProvider {
   return LLM_PROVIDER_FALLBACKS[provider];
 }
@@ -109,18 +44,7 @@ export function fallbackProviderFor(provider: LLMProvider): LLMProvider {
 export function extractLLMProvider(request: Request): LLMProvider {
   const header = request.headers.get('x-llm-provider')?.toLowerCase().trim();
 
-  switch (header) {
-    case 'groq':
-    case 'cerebras':
-    case 'anthropic':
-    case 'grok':
-    case 'openai':
-    case 'gemini':
-    case 'mistral':
-      return header;
-    default:
-      return DEFAULT_LLM_PROVIDER;
-  }
+  return LLM_PROVIDERS.find((provider) => provider === header) ?? DEFAULT_LLM_PROVIDER;
 }
 
 /**
@@ -130,11 +54,10 @@ export function extractLLMProvider(request: Request): LLMProvider {
  */
 export function resolveLLMModel(provider: LLMProvider, request: Request): string {
   const requested = request.headers.get('x-llm-model')?.toLowerCase().trim();
-  const config = LLM_PROVIDER_MODELS[provider];
-  if (requested && config.allowed.includes(requested)) {
+  if (requested && isAllowedLLMModel(provider, requested)) {
     return requested;
   }
-  return config.default;
+  return defaultModelFor(provider);
 }
 
 /**

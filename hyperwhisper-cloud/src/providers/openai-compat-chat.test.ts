@@ -24,22 +24,20 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
 import {
-  computeCerebrasChatCost,
-  computeGeminiChatCost,
-  computeGroqChatCost,
-  computeMistralChatCost,
-  computeOpenAIChatCost,
-  computeXaiGrokFastChatCost,
   estimateUsageFromChars,
   type GroqUsage,
 } from '../lib/cost-calculator';
-import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
+import { computeLLMChatCost } from '../lib/llm-models';
+import { llmModelRow } from '../lib/llm-models';
 import { shouldFallback } from '../lib/llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
+
+// Output caps from the llm-models.ts rows.
+const GROQ_MAX_COMPLETION_TOKENS = llmModelRow('groq', 'openai/gpt-oss-120b').maxOutputTokens;
 
 // ---------------------------------------------------------------------------
 // Global fetch capture
@@ -312,20 +310,20 @@ describe('successful completion', () => {
     expect(result.usage).toEqual(USAGE);
     expect((result.raw as { choices: Array<{ message: { content: string } }> }).choices[0].message.content)
       .toBe('cleaned transcript');
-    expect(result.costUsd).toBe(computeCerebrasChatCost(USAGE));
+    expect(result.costUsd).toBe(computeLLMChatCost('cerebras', 'gpt-oss-120b', USAGE));
     expect(result.costUsd).toBeGreaterThan(0);
   });
 
   test('each provider is priced with its own rate card, not a shared one', async () => {
     const cases: Array<[() => Promise<{ costUsd: number }>, number]> = [
-      [() => requestCerebrasChat(PAYLOAD, 'req-1'), computeCerebrasChatCost(USAGE)],
-      [() => requestGroqChat(PAYLOAD, 'req-1'), computeGroqChatCost(USAGE)],
-      [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeXaiGrokFastChatCost(USAGE)],
-      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeOpenAIChatCost('gpt-5.6-luna', USAGE)],
-      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeGeminiChatCost('gemini-2.5-flash', USAGE)],
+      [() => requestCerebrasChat(PAYLOAD, 'req-1'), computeLLMChatCost('cerebras', 'gpt-oss-120b', USAGE)],
+      [() => requestGroqChat(PAYLOAD, 'req-1'), computeLLMChatCost('groq', 'openai/gpt-oss-120b', USAGE)],
+      [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeLLMChatCost('grok', 'grok-4.3', USAGE)],
+      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeLLMChatCost('openai', 'gpt-5.6-luna', USAGE)],
+      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE)],
       [
         () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
-        computeMistralChatCost('mistral-small-latest', USAGE),
+        computeLLMChatCost('mistral', 'mistral-small-latest', USAGE),
       ],
     ];
 
@@ -340,8 +338,8 @@ describe('successful completion', () => {
     const flash = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
     const flashLite = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
 
-    expect(flash.costUsd).toBe(computeGeminiChatCost('gemini-2.5-flash', USAGE));
-    expect(flashLite.costUsd).toBe(computeGeminiChatCost('gemini-2.5-flash-lite', USAGE));
+    expect(flash.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE));
+    expect(flashLite.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', USAGE));
     // Billing the cheap model at the expensive model's rate (or the reverse)
     // is invisible in the response, so pin that they differ.
     expect(flash.costUsd).not.toBe(flashLite.costUsd);
@@ -366,7 +364,7 @@ describe('missing or unrecognized usage', () => {
     const estimate = estimateUsageFromChars(promptChars, 'cleaned transcript'.length);
 
     expect(result.usage).toBeUndefined();
-    expect(result.costUsd).toBe(computeCerebrasChatCost(estimate));
+    expect(result.costUsd).toBe(computeLLMChatCost('cerebras', 'gpt-oss-120b', estimate));
     // The whole point of the fallback: a vendor schema change must not make
     // the call free.
     expect(result.costUsd).toBeGreaterThan(0);

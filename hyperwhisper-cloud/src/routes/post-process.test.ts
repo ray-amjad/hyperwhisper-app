@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
-import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
+import { creditsForCost } from '../lib/cost-calculator';
+import { computeLLMChatCost } from '../lib/llm-models';
 import { stubEnv } from '../test-support/env';
 
 // A valid, well-funded licensed user so auth + credit checks pass entirely
@@ -549,7 +550,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
     );
     const body = await response.json() as { corrected: string; cost: { usd: number; credits: number } };
 
-    const expectedUsd = computeCerebrasChatCost(usage(50, 20)) + computeGroqChatCost(usage(400, 300));
+    const expectedUsd = computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(50, 20)) + computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(400, 300));
 
     expect(response.status).toBe(200);
     expect(body.corrected).toBe(TRANSCRIPT);
@@ -576,7 +577,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
 
     expect(response.status).toBe(200);
     expect(body.corrected).toBe(TRANSCRIPT);
-    expect(body.cost.usd).toBeCloseTo(computeCerebrasChatCost(usage(50, 20)), 9);
+    expect(body.cost.usd).toBeCloseTo(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(50, 20)), 9);
     // groq's retry budget is 3, so a failing retry is 1 attempt + 3 retries.
     expect(groqAttempts).toBe(4);
     // Nothing was served by groq, so the header must still name cerebras.
@@ -613,7 +614,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
     // deductCredits is fired without being awaited, so wait for the write.
     await deducted;
     expect(deduction).not.toBeNull();
-    expect(deduction!.amount).toBe(creditsForCost(computeCerebrasChatCost(usage(120, 90))));
+    expect(deduction!.amount).toBe(creditsForCost(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(120, 90))));
     expect(deduction!.metadata.endpoint).toBe('/post-process');
     expect(deduction!.metadata.llm_provider).toBe('cerebras');
     expect(deduction!.metadata.input_length).toBe(TRANSCRIPT.length);
