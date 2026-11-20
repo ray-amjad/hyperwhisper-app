@@ -273,8 +273,23 @@ public partial class ParakeetTranscriptionService : ITranscriptionProvider, ILoc
     /// Requested language code. Parakeet TDT auto-detects language and does not
     /// apply this at decode time; engines that support language hints receive it.
     /// </param>
-    public Task InitializeAsync(string modelDirectory, string? language) =>
-        InitializeCoreAsync(modelDirectory, language, advanceTeardownGeneration: true);
+    public async Task InitializeAsync(string modelDirectory, string? language)
+    {
+        // Counted in for the whole load, READY wait included (30–90 s, outside the lock),
+        // so ReloadWhenIdleAsync and the housekeeping unload see a busy daemon and do not
+        // stop the one this load is starting (#1618).
+        EnterRequest();
+        try
+        {
+            // ConfigureAwait(false): ExitRequest must not wait for the UI thread; the
+            // caller's own await still resumes on it.
+            await InitializeCoreAsync(modelDirectory, language, advanceTeardownGeneration: true).ConfigureAwait(false);
+        }
+        finally
+        {
+            ExitRequest();
+        }
+    }
 
     // =========================================================================
     // TRANSCRIPTION

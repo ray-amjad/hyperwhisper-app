@@ -4,12 +4,13 @@
 // process-wide and leaks into every other file in the same `bun test src` run,
 // so the multipart body is inspected off the intercepted RequestInit instead.
 
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { transcribeWithOpenAI } from './openai';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
+import { captureMultipartRequest, stubErrorResponse } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
 let restoreKey: () => void;
@@ -27,32 +28,9 @@ afterEach(() => {
   restoreKey();
 });
 
-/** Intercepts the upstream call and exposes the multipart body it was sent. */
-function captureRequest(body: unknown, init?: ResponseInit) {
-  const captured: { url?: string; headers?: HeadersInit; form?: FormData } = {};
-  globalThis.fetch = mock(async (url: string, requestInit: RequestInit) => {
-    captured.url = url;
-    captured.headers = requestInit.headers;
-    captured.form = requestInit.body as FormData;
-    return typeof body === 'string'
-      ? new Response(body, { status: 200, ...init })
-      : Response.json(body, init);
-  }) as unknown as typeof fetch;
-  return captured;
-}
-
-function errorResponse(status: number, text = 'upstream said no') {
-  let called = false;
-  globalThis.fetch = mock(async () => {
-    called = true;
-    return new Response(text, { status });
-  }) as unknown as typeof fetch;
-  return () => called;
-}
-
 describe('transcribeWithOpenAI — gates that run before any upstream call', () => {
   test('rejects audio over the 25 MB inline cap with AudioTooLargeError and never calls fetch', async () => {
-    const wasCalled = errorResponse(200);
+    const wasCalled = stubErrorResponse(200);
 
     await expect(transcribeWithOpenAI(audio(OPENAI_INLINE_MAX_BYTES + 1), 'audio/wav'))
       .rejects.toThrow(AudioTooLargeError);
@@ -60,7 +38,7 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
   });
 
   test('accepts audio exactly at the cap', async () => {
-    const captured = captureRequest({ text: 'ok', duration: 1 });
+    const captured = captureMultipartRequest({ text: 'ok', duration: 1 });
 
     await transcribeWithOpenAI(audio(OPENAI_INLINE_MAX_BYTES), 'audio/wav');
     expect(captured.url).toBe('https://api.openai.com/v1/audio/transcriptions');
@@ -68,7 +46,7 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
 
   test('throws a plain Error (not a fallback signal) when OPENAI_API_KEY is missing', async () => {
     delete process.env.OPENAI_API_KEY;
-    const wasCalled = errorResponse(200);
+    const wasCalled = stubErrorResponse(200);
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(Error);
@@ -78,7 +56,7 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
   });
 
   test('refuses the WebSocket-only gpt-live-transcribe with a 400 ProviderInputError and never calls fetch', async () => {
-    const wasCalled = errorResponse(200);
+    const wasCalled = stubErrorResponse(200);
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, {
       model: 'gpt-live-transcribe',
@@ -93,18 +71,18 @@ describe('transcribeWithOpenAI — gates that run before any upstream call', () 
 
 describe('transcribeWithOpenAI — multipart request shape', () => {
   test('sends verbose_json only for whisper-1; gpt-4o models get json', async () => {
-    const whisper = captureRequest({ text: 'hi', duration: 3 });
+    const whisper = captureMultipartRequest({ text: 'hi', duration: 3 });
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'whisper-1' });
     expect(whisper.form?.get('response_format')).toBe('verbose_json');
     expect(whisper.form?.get('model')).toBe('whisper-1');
 
-    const gpt4o = captureRequest({ text: 'hi', usage: { input_tokens: 10, output_tokens: 5 } });
+    const gpt4o = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 10, output_tokens: 5 } });
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
     expect(gpt4o.form?.get('response_format')).toBe('json');
   });
 
   test('defaults to gpt-4o-transcribe when the context names no model', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 10 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 10 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav');
     expect(captured.form?.get('model')).toBe('gpt-4o-transcribe');
@@ -112,34 +90,34 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('strips a BCP-47 region subtag to the bare ISO-639-1 code', async () => {
-    const captured = captureRequest({ text: 'olá', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'olá', usage: { input_tokens: 1 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav', 'pt-BR');
     expect(captured.form?.get('language')).toBe('pt');
   });
 
   test('omits the language field for "auto" and for an unset language', async () => {
-    const auto = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const auto = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/wav', 'AUTO');
     expect(auto.form?.has('language')).toBe(false);
 
-    const unset = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const unset = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/wav');
     expect(unset.form?.has('language')).toBe(false);
   });
 
   test('forwards an initial prompt as `prompt`, and omits the field without one', async () => {
-    const withPrompt = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const withPrompt = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper, Drizzle');
     expect(withPrompt.form?.get('prompt')).toBe('HyperWhisper, Drizzle');
 
-    const without = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const without = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/wav');
     expect(without.form?.has('prompt')).toBe(false);
   });
 
   test('sends the vocabulary as keywords[] on gpt-transcribe, not as prompt', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper, Drizzle', {
       model: 'gpt-transcribe',
@@ -149,7 +127,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('de-duplicates keywords, strips angle brackets, and caps the list at 100', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     const terms = ['<b>Bold', 'Kept', 'kept', ...Array.from({ length: 120 }, (_, i) => `term${i}`)];
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, terms.join(', '), {
@@ -162,7 +140,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('truncates a keyword longer than 80 characters, like the canonical sanitizer', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     const longSentence = 'a'.repeat(90);
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, `${longSentence}, Kept`, {
@@ -172,7 +150,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('keeps a leading dash or asterisk that is part of the term', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, '-Xmx, *args, - bulleted', {
       model: 'gpt-transcribe',
@@ -181,7 +159,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('collapses whitespace runs inside a keyword', async () => {
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'Hyper   Whisper', {
       model: 'gpt-transcribe',
@@ -191,7 +169,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
 
   test('keeps the prompt path for whisper-1 and the gpt-4o models', async () => {
     for (const model of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-mini-transcribe-2025-12-15']) {
-      const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+      const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
       await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper', { model });
       expect(captured.form?.get('prompt')).toBe('HyperWhisper');
       expect(captured.form?.has('keywords[]')).toBe(false);
@@ -199,18 +177,18 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('names the file part from the content type, falling back to .wav', async () => {
-    const mp3 = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const mp3 = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/mpeg');
     expect((mp3.form?.get('file') as File).name).toBe('audio.mp3');
 
-    const unknown = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const unknown = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'application/octet-stream');
     expect((unknown.form?.get('file') as File).name).toBe('audio.wav');
   });
 
   test('sends the API key as a bearer token', async () => {
     process.env.OPENAI_API_KEY = 'sk-unit-test';
-    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav');
     expect((captured.headers as Record<string, string>).Authorization).toBe('Bearer sk-unit-test');
@@ -220,7 +198,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
 describe('transcribeWithOpenAI — HTTP error classification', () => {
   test('401 and 403 throw a plain Error so the chain does NOT retry a bad key', async () => {
     for (const status of [401, 403]) {
-      errorResponse(status);
+      stubErrorResponse(status);
       const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
       expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
       expect(thrown).not.toBeInstanceOf(ProviderInputError);
@@ -229,7 +207,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
   });
 
   test('402 fails over as insufficient funds so a sibling provider can still serve', async () => {
-    errorResponse(402);
+    stubErrorResponse(402);
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -237,7 +215,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
   });
 
   test('429 fails over as a rate limit', async () => {
-    errorResponse(429);
+    stubErrorResponse(429);
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -245,7 +223,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
   });
 
   test('5xx fails over as upstream_5xx', async () => {
-    errorResponse(503);
+    stubErrorResponse(503);
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -253,7 +231,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
   });
 
   test('other 4xx becomes ProviderInputError carrying the status, the body preview for the client only', async () => {
-    errorResponse(400, 'unsupported language code');
+    stubErrorResponse(400, 'unsupported language code');
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
@@ -263,7 +241,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {
-    captureRequest('<html>edge proxy</html>');
+    captureMultipartRequest('<html>edge proxy</html>');
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -273,7 +251,7 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
 
 describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   test('returns the transcript, language and duration whisper-1 reports', async () => {
-    captureRequest({ text: 'hello world', language: 'english', duration: 12.5 });
+    captureMultipartRequest({ text: 'hello world', language: 'english', duration: 12.5 });
 
     const result = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'whisper-1' });
     expect(result.text).toBe('hello world');
@@ -284,14 +262,14 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   });
 
   test('whisper-1 falls back to usage.seconds when the body omits duration', async () => {
-    captureRequest({ text: 'hello', usage: { type: 'duration', seconds: 30 } });
+    captureMultipartRequest({ text: 'hello', usage: { type: 'duration', seconds: 30 } });
 
     const result = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'whisper-1' });
     expect(result.durationSeconds).toBe(30);
   });
 
   test('whisper-1 fails closed: a transcript with no usable duration bills a byte estimate, never $0', async () => {
-    captureRequest({ text: 'hello', duration: 0 });
+    captureMultipartRequest({ text: 'hello', duration: 0 });
 
     const result = await transcribeWithOpenAI(
       audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'whisper-1' },
@@ -305,14 +283,14 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
     // as 240 s. whisper-1 and gpt-4o-transcribe now alias to gpt-transcribe, so
     // billing it on the estimate would have tripled their bill.
     const wav60s = 44 + 60 * 32_000;
-    captureRequest({ text: 'hello', usage: { type: 'duration', seconds: 60 } });
+    captureMultipartRequest({ text: 'hello', usage: { type: 'duration', seconds: 60 } });
     const result = await transcribeWithOpenAI(
       audio(wav60s), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' },
     );
     expect(result.durationSeconds).toBe(60);
     expect(result.costUsd).toBeCloseTo(0.0045, 6);
 
-    captureRequest({ text: 'hello', duration: 60 });
+    captureMultipartRequest({ text: 'hello', duration: 60 });
     const whisper = await transcribeWithOpenAI(
       audio(wav60s), 'audio/wav', undefined, undefined, { model: 'whisper-1' },
     );
@@ -320,7 +298,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   });
 
   test('gpt-transcribe fails closed to the byte estimate when OpenAI reports no seconds', async () => {
-    captureRequest({ text: 'hello', usage: { type: 'duration', seconds: 0 } });
+    captureMultipartRequest({ text: 'hello', usage: { type: 'duration', seconds: 0 } });
     const result = await transcribeWithOpenAI(
       audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' },
     );
@@ -329,7 +307,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   });
 
   test('gpt-4o ignores any echoed duration and estimates seconds from the payload size', async () => {
-    captureRequest({ text: 'hello', duration: 999, usage: { input_tokens: 100, output_tokens: 20 } });
+    captureMultipartRequest({ text: 'hello', duration: 999, usage: { input_tokens: 100, output_tokens: 20 } });
 
     const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav');
     expect(result.durationSeconds).toBeCloseTo(120, 6);
@@ -338,10 +316,10 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   test('gpt-4o bills on tokens — mini is cheaper than the full model for identical usage', async () => {
     const usage = { input_tokens: 100_000, output_tokens: 20_000 };
 
-    captureRequest({ text: 'hello', usage });
+    captureMultipartRequest({ text: 'hello', usage });
     const full = await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
 
-    captureRequest({ text: 'hello', usage });
+    captureMultipartRequest({ text: 'hello', usage });
     const mini = await transcribeWithOpenAI(
       audio(), 'audio/wav', undefined, undefined, { model: 'gpt-4o-mini-transcribe' },
     );
@@ -353,7 +331,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
 
   test('a per-minute model: an empty or whitespace-only transcript returns no_speech at zero duration and zero cost', async () => {
     for (const text of ['', '   \n ']) {
-      captureRequest({ text, language: 'en', duration: 42 });
+      captureMultipartRequest({ text, language: 'en', duration: 42 });
 
       // gpt-transcribe: the route's default, billed per audio minute.
       const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' });
@@ -366,7 +344,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   });
 
   test('whisper-1 no_speech stays free too: a per-minute model keeps the goodwill $0', async () => {
-    captureRequest({ text: '', language: 'en', duration: 42 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 42 });
     const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'whisper-1' });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
@@ -377,9 +355,9 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   test('a token-billed gpt-4o*-transcribe no_speech bills the tokens OpenAI reported', async () => {
     for (const model of ['gpt-4o-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-mini-transcribe-2025-12-15']) {
       const usage = { input_tokens: 600_000, output_tokens: 0 };
-      captureRequest({ text: '', language: 'en', usage });
+      captureMultipartRequest({ text: '', language: 'en', usage });
       const silent = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model });
-      captureRequest({ text: 'hello', language: 'en', usage });
+      captureMultipartRequest({ text: 'hello', language: 'en', usage });
       const spoken = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model });
       expect(silent.source).toBe('no_speech');
       expect(silent.text).toBe('');
@@ -389,7 +367,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   });
 
   test('a token-billed no_speech with no usage block falls back to the byte-estimate floor, never $0', async () => {
-    captureRequest({ text: '  ', language: 'en' });
+    captureMultipartRequest({ text: '  ', language: 'en' });
     const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBeGreaterThan(0);
@@ -399,14 +377,14 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   test('the no_speech log event never records the gpt-4o byte estimate as the upstream duration', async () => {
     // gpt-4o returns no `duration`, so this adapter's `durationSeconds` is
     // already our own 120 s byte estimate by the time the empty check runs.
-    captureRequest({ text: '', language: 'en' });
+    captureMultipartRequest({ text: '', language: 'en' });
     const estimated = await captureNoSpeechEvent(() => transcribeWithOpenAI(
       audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' },
     ));
     expect(estimated.upstreamDurationSeconds).toBeNull();
     expect(estimated.upstreamDurationSeconds).not.toBe(120);
 
-    captureRequest({ text: '', language: 'en', duration: 42 });
+    captureMultipartRequest({ text: '', language: 'en', duration: 42 });
     const reported = await captureNoSpeechEvent(
       () => transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav'),
     );

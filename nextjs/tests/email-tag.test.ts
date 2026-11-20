@@ -42,7 +42,7 @@ test("emailTag: different addresses give different tags", () => {
 });
 
 test("redactRecipient: the recipient becomes its tag in any case; the reason survives", () => {
-  // Stripe hands the address padded and mixed-case; Resend echoes it lower-cased.
+  // Stripe hands the address padded and mixed-case; a provider echoes it lower-cased.
   assert.equal(
     redactRecipient(
       "validation_error: buyer@example.com is not a valid recipient",
@@ -104,7 +104,7 @@ test("redactRecipient: an 8,000-char domain returns, fast, with no domain in it"
     "x.x",
     "x.com",
   ]);
-  // Fails closed, but the reason Resend gave survives.
+  // Fails closed, but the reason the provider gave survives.
   assert.equal(out, "[redacted] is not a valid recipient");
 });
 
@@ -149,9 +149,9 @@ test("redactAddresses: at the size caps the PRECISE path runs, fast, on hostile 
 });
 
 test("redactAddresses: the fail-closed form keeps the key= diagnosis of a structured line", () => {
-  const line = `sendMagicLink failed: resend error name=validation_error statusCode=422 recipientHash=0123456789ab message=${"a".repeat(20_000)}@corp.com is not a valid recipient.`;
+  const line = `sendMagicLink failed: email error code=E_VALIDATION_ERROR recipientHash=0123456789ab message=${"a".repeat(20_000)}@corp.com is not a valid recipient.`;
   assert.equal(
     redactAddresses(line, "corp.com"),
-    "sendMagicLink failed: resend error name=validation_error statusCode=422 recipientHash=0123456789ab message=[redacted] is not a valid [redacted]",
+    "sendMagicLink failed: email error code=E_VALIDATION_ERROR recipientHash=0123456789ab message=[redacted] is not a valid [redacted]",
   );
 });

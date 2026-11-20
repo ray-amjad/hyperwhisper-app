@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { readBoundedText } from "@/src/lib/bounded-body";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { upsertDeviceValidation, getCreditBalance } from "@/src/lib/db-layer";
 import {
@@ -116,11 +117,14 @@ async function trackDeviceValidation(
   }
 }
 
+/** A licence key plus a device id and name; 16 KB is far above any real request (#3039). */
+const MAX_BODY_BYTES = 16 * 1024;
+
 export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup, capping what an unauthenticated
   // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
-  // Fails open (`countFailOpen`): an Upstash outage must not turn every
+  // Fails open (`countFailOpen`): a rate-limiter failure must not turn every
   // licence check into a bare 500 with no `reason` (#2058).
   const rateLimit = await countFailOpen(
     () => licenseValidateRateLimiter.limit(clientIP),
@@ -140,7 +144,10 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+
+    if (text instanceof NextResponse) return text;
+    body = JSON.parse(text);
   } catch (err) {
     console.error(
       "License validate: request JSON did not parse",

@@ -3,6 +3,7 @@ import { transcribeWithElevenLabs } from './elevenlabs';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
+import { mockFetchOnce } from '../test-support/fetch-stubs';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { pcm16Wav, wav as buildWav, type WavOptions } from '../test-support/wav';
 
@@ -22,21 +23,6 @@ const AUDIO = new ArrayBuffer(1_000);
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
-function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  let capturedUrl = '';
-  let capturedInit: RequestInit | undefined;
-  globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-    capturedUrl = String(input);
-    capturedInit = init;
-    return handler(capturedUrl, init);
-  }) as unknown as typeof fetch;
-  return {
-    url: () => capturedUrl,
-    init: () => capturedInit,
-    formData: () => capturedInit!.body as FormData,
-  };
 }
 
 describe('transcribeWithElevenLabs — configuration', () => {

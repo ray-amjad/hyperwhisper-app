@@ -36,9 +36,25 @@ export const TWITTER_CREATOR = "@theramjad";
 export const TWITTER_IMAGES = [OG_IMAGE_URL];
 
 /**
+ * The Open Graph fields every page sends whatever its path: type, locale,
+ * site name and the share card. A page's `openGraph` replaces the layout's
+ * whole object (shallow merge), so the layout, `localizedPageMetadata` and
+ * `englishStaticPageMetadata` all spread this one list (#2338).
+ */
+export function localeOpenGraphBase(locale: string) {
+  return {
+    type: "website" as const,
+    locale: toOpenGraphLocale(locale),
+    siteName: SITE_NAME,
+    images: OG_IMAGES,
+  };
+}
+
+/**
  * The [locale] layout's Open Graph object, without a `url`. A layout cannot
- * know the child path without reading the request (#843), so each page adds
- * its own `url` through `localizedPageMetadata`, which spreads this object.
+ * know the child path without reading the request (#843), so each page sends
+ * its own `url` through `localizedPageMetadata`, on top of
+ * `localeOpenGraphBase`.
  */
 export function localeOpenGraph(
   locale: string,
@@ -46,12 +62,9 @@ export function localeOpenGraph(
   description: string,
 ) {
   return {
-    type: "website" as const,
-    locale: toOpenGraphLocale(locale),
+    ...localeOpenGraphBase(locale),
     title,
     description,
-    siteName: SITE_NAME,
-    images: OG_IMAGES,
   };
 }
 
@@ -85,16 +98,13 @@ export function englishStaticPageMetadata({
       canonical: url,
     },
     openGraph: {
-      type: "website" as const,
-      locale: "en_US",
+      ...localeOpenGraphBase("en"),
       url,
       title: fullTitle,
       description,
-      siteName: SITE_NAME,
-      images: OG_IMAGES,
     },
-    // The layout sets twitter.title, so Next does not fill it from og:title;
-    // the page must send the whole twitter object (shallow merge again).
+    // The page's `twitter` replaces the layout's whole object (shallow merge
+    // again), so it restates the card, creator and images beside its title.
     twitter: {
       card: TWITTER_CARD,
       title: fullTitle,

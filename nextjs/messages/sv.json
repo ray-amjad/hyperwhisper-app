@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funktioner",
+    "modes": "Lägen",
     "faq": "FAQ",
     "support": "Support",
     "download": "Ladda ner",
@@ -16,26 +17,36 @@
       "switchTo": "Byt språk"
     },
     "cloud": "Cloud",
-    "githubAria": "Visa HyperWhisper på GitHub"
+    "githubAria": "Visa HyperWhisper på GitHub",
+    "skipToContent": "Hoppa till innehållet"
   },
   "hero": {
-    "logoAlt": "HyperWhisper-logotyp",
-    "headline": "Skriv, skapa och komponera",
-    "headlineAccent": "5x snabbare med AI",
-    "subheadline": "HyperWhisper transkriberar din röst med imponerande noggrannhet. Prata naturligt och se orden visas direkt.",
-    "downloadCta": "Ladda ner nu",
-    "demoCta": "Se demo",
-    "availableOn": "Finns för",
+    "badge": "Nytt",
+    "headline": "Prata bara.",
+    "headlineAccent": "Vi skriver.",
+    "subheadline": "Välskriven text i vilken app som helst.",
+    "downloadMac": "Ladda ner för Mac",
+    "freeForever": "Gratis för alltid",
+    "worksOffline": "Fungerar offline",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Scrolla",
+    "closing": {
+      "line1": "Sluta skriva.",
+      "line2": "Börja prata.",
+      "meta": "Gratis och öppen källkod. Inget konto behövs."
+    }
   },
   "features": {
-    "title": "Byggd för proffs",
-    "subtitle": "Varje funktion är utformad för att hjälpa dig arbeta snabbare och mer effektivt",
+    "title": "Byggt för dig som skriver hela dagarna.",
     "customVocabulary": {
       "title": "Anpassat ordförråd",
       "description": "Lägg till namn, akronymer och specialtermer för bästa möjliga precision varje gång."
+    },
+    "realTime": {
+      "title": "Strömning i realtid",
+      "description": "Se dina ord visas direkt medan du pratar. Branschledande precision med under 700 ms fördröjning."
     },
     "languages": {
       "title": "100+ språk",
@@ -45,25 +56,9 @@
       "title": "Offline-stöd",
       "description": "Fungerar helt offline. Din data lämnar aldrig din enhet."
     },
-    "privacy": {
-      "title": "Fokus på integritet",
-      "description": "Inget konto krävs. Ingen spårning. Din röstdata stannar på din Mac eller PC."
-    },
-    "hybridProcessing": {
-      "title": "Hybridbearbetning",
-      "description": "Välj mellan lokala modeller för integritet eller moln-API:er för hastighet. Det bästa av två världar."
-    },
-    "customizable": {
-      "title": "Mycket anpassningsbar",
-      "description": "Välj bland över 9 API-leverantörer och 30+ transkriptionsmodeller."
-    },
-    "realTime": {
-      "title": "Strömning i realtid",
-      "description": "Se dina ord visas direkt medan du pratar. Branschledande precision med under 700 ms fördröjning."
-    },
-    "fileImport": {
-      "title": "Filimport",
-      "description": "Importera ljud- eller videofiler för transkribering. Stöd för alla större format med automatisk tystnadsdetektering."
+    "openSource": {
+      "title": "Öppen källkod",
+      "description": "Licensierad under Apache-2.0. Granska varje rad, forka den eller kör i egen regi. Inga svarta lådor, ingen inlåsning."
     },
     "screenOcr": {
       "title": "Skärm-OCR",
@@ -73,28 +68,57 @@
       "title": "Lokalt API och MCP-server",
       "description": "Den inbyggda MCP-servern låter Claude, Cursor och andra AI-agenter styra HyperWhisper. Lokalt HTTP-API för skript och automatiseringar."
     },
+    "fileImport": {
+      "title": "Filimport",
+      "description": "Importera ljud- eller videofiler för transkribering. Stöd för alla större format med automatisk tystnadsdetektering."
+    },
     "modes": {
-      "title": "Lägen för varje situation",
-      "description": "Växla mellan olika transkriptionslägen optimerade för möten, anteckningar, e-post, kodning och mer. Varje läge använder anpassade prompts för att formatera din text perfekt.",
-      "meeting": "Möte",
+      "heading": "En röst. Alla format.",
+      "lead": "Varje läge skriver om det du sa efter vart det ska.",
       "email": "E-post",
       "note": "Anteckning",
       "code": "Kod",
+      "meeting": "Möte",
       "legal": "Juridik",
       "medical": "Medicinsk",
-      "presetModes": "Förinställda lägen",
-      "customModes": "Anpassade lägen"
-    },
-    "openSource": {
-      "title": "Öppen källkod",
-      "description": "Licensierad under Apache-2.0. Granska varje rad, forka den eller kör i egen regi. Inga svarta lådor, ingen inlåsning."
+      "youSaid": "Du sa",
+      "hyperWhisperWrote": "HyperWhisper skrev",
+      "sample": "eh så säg till john att lanseringen flyttas till torsdag eftersom linux QA inte är klart än och öh tack för tålamodet",
+      "output": {
+        "email": "Hej John,\n\nLanseringen flyttas till torsdag medan vi slutför Linux-QA. Tack för ditt tålamod.\n\nVänliga hälsningar,",
+        "note": "• Lansering → torsdag\n• Hinder: Linux-QA inte klart\n• Meddela John",
+        "code": "// TODO(john): lanseringen flyttad till torsdag, Linux-QA pågår fortfarande",
+        "meeting": "Beslut: lanseringen flyttas till torsdag.\nOrsak: Linux-QA ej slutfört.\nAnsvarig: meddela John.",
+        "legal": "Härmed meddelas att lanseringsdatumet har flyttats till torsdag, i avvaktan på att kvalitetssäkringen för Linux slutförs.",
+        "medical": "Plan: skjut upp lanseringen till torsdag. Status: Linux-QA väntar. Uppföljning: informera John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Fungerar överallt där du skriver",
+    "eyebrow": "Så fungerar det",
+    "titleLine1": "Tryck på en tangent.",
+    "titleLine2": "Säg det.",
+    "titleAccent": "Klart.",
+    "lead": "Dina ord hamnar, uppstädade, där markören står.",
+    "step1": "Tryck på ditt kortkommando",
+    "step2Key": "Prata",
+    "step2": "Prata som du brukar",
+    "step3Key": "Tryck igen",
+    "step3": "Ren text, inklistrad på plats",
+    "watchVideo": "Se hela demon",
+    "closeVideo": "Stäng video",
+    "exampleLabel": "Animerat exempel: ett talat svar skrivs in i ett Slack-meddelande",
+    "message1": "Håller vi fortfarande på att släppa Linux-bygget på torsdag?",
+    "message2": "QA godkänt på min sida 👍",
+    "composePlaceholder": "Meddelande till #launch",
+    "typed": "Ja, Linux-QA gick igenom i morse, så torsdag gäller. Jag lägger upp release notes till lunch.",
+    "listening": "Lyssnar",
+    "cleaningUp": "Städar upp…",
     "fasterThanTyping": "Snabbare än att skriva",
     "accuracyRate": "Precision",
     "languagesSupported": "Språk som stöds",
-    "providersSupported": "Leverantörer som stöds"
+    "modelsSupported": "Transkriberingsmodeller"
   },
   "faq": {
     "title": "Vanliga frågor",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Vilka offline-modeller finns tillgängliga?",
-        "answer": "För offline-transkribering erbjuder vi flera storlekar av Whisper-modellen (skapad av OpenAI, stödjer 99+ språk). Vi erbjuder också NVidia's Parakeet-modeller (stödjer 25+ språk).\n      \n      För offline-efterbehandling erbjuder vi flera storlekar av Gemma 3-modellen (skapad av Google)."
+        "answer": "För offline-transkribering erbjuder vi flera storlekar av Whisper-modellen (skapad av OpenAI, stödjer 99+ språk). Vi erbjuder också NVidia's Parakeet-modeller (stödjer 25+ språk).\n      \n      För offline-efterbehandling erbjuder vi flera storlekar av Gemma 4-modellen (skapad av Google)."
       },
       "compatibility": {
         "question": "Fungerar det med alla mina appar?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper supportförfrågan",
       "body": "Hej,\n\nVersion: \n[du kan kontrollera i Inställningar > Om]\n\nProblem: \n[Beskriv ditt problem]\n\nDetaljer: \n[Ange relevanta detaljer, vad du gjorde innan kraschen]\n\n[Ditt meddelande här]\n\nVänliga hälsningar,"
-    }
+    },
+    "helpCenterHint": "Installation, kortkommandon och modeller.",
+    "chooseModelHint": "Rangordna modellerna efter hur du arbetar.",
+    "accountHint": "Logga in med din kontonyckel.",
+    "chooseModelTitle": "Välj en modell"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper-logotyp",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Logga ut och in igen när du har gått med i gruppen input. Medlemskap är valfritt, men globala kortkommandon och automatisk inklistring kräver det.",
     "aptTitle": "Kör ett eget APT-förråd",
     "aptBody": "Linux-versionerna innehåller också ett statiskt APT-förrådsarkiv. HyperWhisper driver för närvarande ingen offentlig APT-slutpunkt; se installationsguiden för Linux för signerad installation i egen regi, kompletterande skrivbordsfiler, integritetsinformation och avinstallation.",
-    "linuxGuideCta": "Läs installationsguiden för Linux"
+    "linuxGuideCta": "Läs installationsguiden för Linux",
+    "heroLead": "Gratis och öppen källkod. Välj din plattform.",
+    "releaseNotes": "Versionsinformation",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon och Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 och ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Äldre versioner",
@@ -280,6 +313,7 @@
       "dataTraining": "Dataintegritet"
     },
     "copyright": "© 2026 HyperWhisper. Alla rättigheter förbehållna.",
+    "madeBy": "Skapad av Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Följ HyperWhisper på X (Twitter)",
     "githubAria": "HyperWhisper på GitHub"
@@ -373,7 +407,33 @@
     "sendingLink": "Skickar…",
     "linkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och byt sedan nyckeln.",
     "linkFailed": "Det gick inte att skicka inloggningslänken. Försök igen.",
-    "errorUnavailable": "Den här nyckeln kan inte bytas längre. Dess aktuella status visas ovan."
+    "errorUnavailable": "Den här nyckeln kan inte bytas längre. Dess aktuella status visas ovan.",
+    "delete": "Ta bort nyckel",
+    "deleteConfirmTitle": "Ta bort den här kontonyckeln?",
+    "deleteConfirmBody": "Den här nyckeln slutar fungera direkt, på alla enheter. Enheter som använder den behöver någon av dina andra nycklar: ange den i HyperWhisper på varje enhet. Dina krediter och din köphistorik finns kvar på ditt konto. Du loggas också ut från den här webbplatsen i dina andra webbläsare.",
+    "deleteConfirm": "Ta bort nyckel",
+    "deleting": "Tar bort…",
+    "deleted": "Nyckeln har tagits bort. Enheter som använde den behöver någon av dina andra nycklar.",
+    "deleteLastKey": "Det här är din enda aktiva nyckel, så den kan inte tas bort.",
+    "deleteVerifyBody": "Om du vill ta bort en nyckel måste du först bekräfta via e-post att det är du. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och ta sedan bort nyckeln från den här sidan.",
+    "deleteLinkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och ta sedan bort nyckeln.",
+    "deleteErrorStale": "Den här nyckeln har ändrats sedan sidan laddades. Den aktuella nyckeln visas ovan.",
+    "deleteErrorUnavailable": "Den här nyckeln kan inte tas bort längre.",
+    "deleteErrorGeneric": "Det gick inte att ta bort nyckeln. Försök igen.",
+    "issue": "Lägg till en ny nyckel",
+    "issueConfirmTitle": "Lägga till en ny kontonyckel?",
+    "issueConfirmBody": "Du får ytterligare en nyckel för det här kontot. Den använder samma krediter som dina andra nycklar, som fortsätter att fungera.",
+    "issueConfirm": "Lägg till nyckel",
+    "issuing": "Lägger till…",
+    "issued": "Ny nyckel tillagd. Använd 'Visa' för att se och kopiera den.",
+    "issueCap": "Du har {max} aktiva nycklar, vilket är max för ett konto. Ta bort en för att lägga till en ny.",
+    "issueVerifyBody": "Om du vill lägga till en nyckel måste du först bekräfta via e-post att det är du. Vi skickar en inloggningslänk till e-postadressen för ditt konto. Öppna den och lägg sedan till nyckeln från den här sidan.",
+    "issueLinkSent": "Inloggningslänken har skickats. Öppna den från din inkorg och lägg sedan till nyckeln.",
+    "issueErrorUnavailable": "Endast ett konto med en aktiv nyckel kan lägga till ytterligare en.",
+    "issueErrorGeneric": "Det gick inte att lägga till en nyckel. Försök igen.",
+    "manageErrorRateLimited": "För många nyckeländringar. Försök igen om en minut.",
+    "cloudPurgePending": "Den gamla nyckeln kan fortsätta fungera i HyperWhisper Cloud i upp till en timme.",
+    "deleteCloudPurgePending": "Den här nyckeln kan fortsätta fungera i HyperWhisper Cloud i upp till en timme."
   },
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Den här inloggningslänken har gått ut eller redan använts. Ange din e-postadress för att få en ny.",
     "magicLinkFailed": "Vi kunde inte logga in dig med den länken. Ange din e-postadress för att få en ny."
+  },
+  "legal": {
+    "onThisPage": "På den här sidan"
   }
 }
