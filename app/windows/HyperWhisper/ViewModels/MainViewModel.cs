@@ -810,6 +810,16 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// The status-bar line for a failed transcription (issue #2830). It carries the same
+    /// text as <see cref="TranscriptionFailureToast"/>: a TranscriptionException shows its
+    /// GetUserMessage() (e.g. "Insufficient credits. Add more credits in Settings."), never
+    /// the raw diagnostic Message that History stores as FailedReason. Any other exception
+    /// keeps its Message.
+    /// </summary>
+    internal static string TranscriptionFailureStatusText(Exception ex) =>
+        Loc.S("status.failed", ex is TranscriptionException txEx ? txEx.GetUserMessage() : ex.Message);
+
+    /// <summary>
     /// The status line a job leaves when it ends (issue #1519). While a job runs the
     /// bar shows its busy line. If that line is still there at the end, nothing put a
     /// result up (a failure, a cancel, an undelivered transcript), so the bar goes back
@@ -2835,7 +2845,7 @@ public partial class MainViewModel : ViewModelBase
                 if (failureWrittenForTxEx)
                 {
                     ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
-                    StatusText = Loc.S("status.failed", ex.Message);
+                    StatusText = TranscriptionFailureStatusText(txEx);
                 }
             }
             else
@@ -2844,7 +2854,7 @@ public partial class MainViewModel : ViewModelBase
                 if (failureWritten)
                 {
                     ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
-                    StatusText = Loc.S("status.failed", ex.Message);
+                    StatusText = TranscriptionFailureStatusText(ex);
                 }
             }
         }
