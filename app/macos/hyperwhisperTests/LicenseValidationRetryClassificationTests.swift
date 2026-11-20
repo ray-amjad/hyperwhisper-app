@@ -245,4 +245,78 @@ struct LicenseValidationRetryClassificationTests {
         #expect(result.status == .active)
         #expect(!result.networkFailureFallback)
     }
+
+    // MARK: - #2916: a 200 that is not the validate JSON is not a verdict
+
+    /// A captive portal answers 200 with its own HTML login page. That is not
+    /// the server's word on the key: the cached Active verdict must be served
+    /// and the cache left stale, so the next check goes back to the server.
+    @Test func captivePortal200ServesTheCachedVerdictAndCachesNothing() async {
+        for body in ["<html><body>Please log in to Hotel WiFi</body></html>", ""] {
+            let key = "captive-\(UUID().uuidString)"
+            let store = makeStore()
+            // Validated Active two days ago: past the 24 h cache, inside grace.
+            let validatedAt = RustLicenseTime.nowUTC() - 2 * 86_400
+            licensePersistValidationVerdict(
+                store: store,
+                status: .active,
+                attemptedKey: key,
+                nowUnixSecs: validatedAt
+            )
+            let service = makeService(key: key, replies: [.http(status: 200, body: body)], store: store)
+
+            let result = await service.validateLicense(
+                key,
+                isLaunchValidation: true,
+                expectedStoredLicenseKey: key
+            )
+
+            let now = RustLicenseTime.nowUTC()
+            #expect(!ScriptedLicenseURLProtocol.requests(for: key).isEmpty)
+            #expect(result.isValid, "\(body.debugDescription)")
+            #expect(result.status == .active, "\(body.debugDescription)")
+            #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) == .active)
+            #expect(licenseShouldRevalidate(store: store, nowUnixSecs: now))
+            #expect(licenseStoredLicenseKey(store: store) == key)
+        }
+    }
+
+    /// An onboarding probe has no cache to fall back on: a captive-portal 200
+    /// reads as "could not reach the server", not as "this key is invalid".
+    @Test func captivePortal200ProbeIsUnreachableNotInvalid() async {
+        let key = "captive-probe-\(UUID().uuidString)"
+        let service = makeService(key: key, replies: [.http(status: 200, body: "<html>login</html>")])
+
+        let result = await service.probeLicense(key)
+
+        #expect(!result.isValid)
+        #expect(result.errorMessage == Self.offlineMessage)
+    }
+
+    /// Guard against over-fixing: a real `{"valid":false}` for the stored key is
+    /// still a verdict, cached as Invalid and trusted for the cache window.
+    @Test func realValidFalseForTheStoredKeyStillCachesInvalid() async {
+        let key = "real-invalid-\(UUID().uuidString)"
+        let store = makeStore()
+        licensePersistValidationVerdict(
+            store: store,
+            status: .active,
+            attemptedKey: key,
+            nowUnixSecs: RustLicenseTime.nowUTC() - 2 * 86_400
+        )
+        let service = makeService(key: key, replies: [.http(status: 200, body: #"{"valid":false}"#)], store: store)
+
+        let result = await service.validateLicense(
+            key,
+            isLaunchValidation: true,
+            expectedStoredLicenseKey: key
+        )
+
+        let now = RustLicenseTime.nowUTC()
+        #expect(ScriptedLicenseURLProtocol.requests(for: key).count == 1)
+        #expect(!result.isValid)
+        #expect(result.status == .invalid)
+        #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) == .invalid)
+        #expect(!licenseShouldRevalidate(store: store, nowUnixSecs: now))
+    }
 }
