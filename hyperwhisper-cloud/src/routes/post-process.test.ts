@@ -461,6 +461,33 @@ describe('postProcessRoute completion evaluation', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
+  test('request_done reports hadLeakage only when a leak was detected', async () => {
+    async function hadLeakageFor(cerebrasText: string): Promise<unknown> {
+      withProviders({
+        'api.cerebras.ai': () => Response.json(chatCompletion(cerebrasText)),
+        'api.groq.com': () => Response.json(chatCompletion('Clean corrected text.')),
+      });
+      const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        await buildApp().fetch(
+          postProcessRequest({ text: 'the original transcript', prompt: 'fix grammar', account_key: 'lk' })
+        );
+        const done = logSpy.mock.calls
+          .map((call) => String(call[0]))
+          .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.request_done"'))
+          .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+        expect(done).toHaveLength(1);
+        return done[0].hadLeakage;
+      } finally {
+        logSpy.mockRestore();
+      }
+    }
+
+    expect(await hadLeakageFor('--TRANSCRIPT--\nleaked prompt\n--ENDTRANSCRIPT--')).toBe(true);
+    // An LLM that returns the transcript unchanged did not leak the prompt.
+    expect(await hadLeakageFor('the original transcript')).toBe(false);
+  });
+
   test('falls back to the raw transcript when prompt leakage persists on the alternate provider too', async () => {
     withProviders({
       'api.cerebras.ai': () => Response.json(chatCompletion('--TRANSCRIPT--\nleaked once\n--ENDTRANSCRIPT--')),
@@ -888,7 +915,9 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
   });
 
   test('a missing provider key is not named to the client', async () => {
+    // A missing key fails over (503) without retries, so both keys go.
     delete process.env.CEREBRAS_API_KEY;
+    delete process.env.GROQ_API_KEY;
     withProviders({});
 
     const body = await readFailure(await buildApp().fetch(
@@ -896,6 +925,24 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
     ));
 
     expect(JSON.stringify(body)).not.toContain('CEREBRAS_API_KEY');
+    expect(JSON.stringify(body)).not.toContain('GROQ_API_KEY');
+  });
+
+  test('a missing provider key falls back to the fallback provider', async () => {
+    delete process.env.CEREBRAS_API_KEY;
+    withProviders({
+      'api.groq.com': () => Response.json({
+        choices: [{ message: { content: '<<CLEANED>>hello world<<END>>' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-llm-provider')).toBe('groq-gpt-oss-120b');
   });
 
   test('the fallback provider\'s error body is not echoed when both providers fail', async () => {

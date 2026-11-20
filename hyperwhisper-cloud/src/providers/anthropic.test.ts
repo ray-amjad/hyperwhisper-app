@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
 
 import {
   ANTHROPIC_MODEL,
@@ -123,7 +124,7 @@ describe('requestAnthropicChat', () => {
   test('a model that needs no thinking switch gets no thinking field', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }));
 
-    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, undefined, 'claude-sonnet-4-6');
+    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, 'claude-sonnet-4-6');
 
     const body = requestBody();
     expect(body.model).toBe('claude-sonnet-4-6');
@@ -251,7 +252,18 @@ function routeAnthropicTo(localUrl: string): string[] {
 
 describe('requestAnthropicChat bounded wait', () => {
   let upstream: TestUpstream | undefined;
+  // Shrink the request bound so the real abort fires in milliseconds.
+  let timerSpy: ReturnType<typeof spyOn> | undefined;
+  beforeEach(() => {
+    const realSetTimeout = globalThis.setTimeout;
+    timerSpy = spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: (...args: unknown[]) => void,
+      ms?: number,
+      ...args: unknown[]
+    ) => realSetTimeout(handler, ms === LLM_REQUEST_TIMEOUT_MS ? TIMEOUT_MS : ms, ...args)) as unknown as typeof setTimeout);
+  });
   afterEach(() => {
+    timerSpy?.mockRestore();
     upstream?.stop();
     upstream = undefined;
   });
@@ -261,7 +273,7 @@ describe('requestAnthropicChat bounded wait', () => {
     const requested = routeAnthropicTo(upstream.url);
 
     const startedAt = performance.now();
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
     const elapsedMs = performance.now() - startedAt;
 
     expect(requested).toEqual(['https://api.anthropic.com/v1/messages']);
@@ -276,7 +288,7 @@ describe('requestAnthropicChat bounded wait', () => {
     upstream = stalledBodyUpstream();
     routeAnthropicTo(upstream.url);
 
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
     expect((error as LLMRequestError).status).toBe(504);
     expect(shouldFallback(error)).toBe(true);
@@ -287,7 +299,7 @@ describe('requestAnthropicChat bounded wait', () => {
   test('passes a refused connection through untagged, not as a timeout', async () => {
     routeAnthropicTo(refusedUrl());
 
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(LLMRequestError);
@@ -298,7 +310,7 @@ describe('requestAnthropicChat bounded wait', () => {
 
 // The non-streaming bound scales with the transcript (review rounds 1 and 2):
 // the request arms its timer with computeLLMRequestTimeoutMs(transcript chars)
-// unless a test injects its own. Spy on setTimeout to read the delay armed.
+// Spy on setTimeout to read the delay armed.
 describe('requestAnthropicChat timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
@@ -330,14 +342,6 @@ describe('requestAnthropicChat timeout scales with the transcript', () => {
       requestAnthropicChat(correctionPayload('s'.repeat(30_000), 'user'), REQUEST_ID));
     expect(delays).toContain(20_000);
     expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
-  });
-
-  test('an injected timeout still wins over the computed one', async () => {
-    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
-    const delays = await armedDelays(() =>
-      requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID, 1_234));
-    expect(delays).toContain(1_234);
-    expect(delays).not.toContain(50_000);
   });
 });
 

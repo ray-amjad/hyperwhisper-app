@@ -1,33 +1,143 @@
-// SHARED OPENAI-COMPATIBLE CHAT COMPLETION CLIENT
-//
-// groq/cerebras/xai/mistral/openai/gemini all expose an OpenAI-compatible
-// `/chat/completions` endpoint and follow the same fetch -> check-ok ->
-// parse -> cost sequence; this factors out that plumbing. Per-provider API
-// key resolution, missing-key error shape, and request-body construction
-// stay in each provider's own file so provider-specific quirks (fixed vs
-// allowlisted model, tagged vs untagged missing-key errors, extra body
-// fields) are unchanged.
+// The six LLM providers with an OpenAI-compatible `/chat/completions`
+// endpoint, as rows of one table, and the one client that sends to any of them.
 
 import { isRecord } from '../lib/utils';
-import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
+import {
+  computeCerebrasChatCost,
+  computeGeminiChatCost,
+  computeGroqChatCost,
+  computeMistralChatCost,
+  computeOpenAIChatCost,
+  computeXaiGrokFastChatCost,
+  estimateUsageFromChars,
+  isGroqUsage,
+  type GroqUsage,
+} from '../lib/cost-calculator';
+import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
-export type OpenAICompatChatConfig = {
+export type OpenAICompatProvider = 'cerebras' | 'groq' | 'grok' | 'openai' | 'gemini' | 'mistral';
+
+type OpenAICompatAdapter = {
   baseUrl: string;
-  apiKey: string;
-  providerTag: string;
+  /** Env vars holding the API key, first set one wins; the first is named when none is. */
+  apiKeyEnv: [string, ...string[]];
   errorLogLabel: string;
   errorChatLabel: string;
-  buildBody: (payload: CorrectionRequestPayload, model: string) => Record<string, unknown>;
-  computeCost: (usage: GroqUsage) => number;
-  /** Per-attempt bound, headers and body. Defaults to computeLLMRequestTimeoutMs(transcript chars); tests shorten it. */
-  timeoutMs?: number;
+  /** Vendor fields added after the shared payload (`model` goes first, `stream: false` last). */
+  extraBody?: (model: string) => Record<string, unknown>;
+  /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
+  extraBodyFirst?: boolean;
+  computeCost: (model: string, usage: GroqUsage) => number;
 };
+
+// The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
+// bill thinking tokens as output — wasted latency/cost for simple text cleanup —
+// so each is sent the lowest reasoning_effort it accepts. Listed per family rather
+// than matched on a generic /gemini-\d+.*flash/ so an id we have not checked (e.g.
+// a future 3.x flash, or any -pro id) keeps its own default instead of silently
+// inheriting one of these. First match wins, so keep a longer prefix above a
+// shorter one it extends.
+//
+// - 2.5-flash: 'none' turns thinking off.
+// - 3.8-flash: thinking cannot be turned off; its levels are low/medium/high
+//   (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07). Measured on
+//   the OpenAI-compat surface 2026-10-15: 'minimal' is a 400 ("Thinking level
+//   MINIMAL is not supported for this model"), while 'none' is a 200 that still
+//   thinks — about the same hidden tokens as 'low'. So send 'low', the floor the
+//   docs name, rather than rely on Google quietly remapping 'none'. A 400 here
+//   would NOT fall back: shouldFallback() fails over on a 5xx or 429 only. This
+//   matches the transcription client (gemini.ts thinkingConfig).
+const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
+  ['gemini-2.5-flash', 'none'],
+  ['gemini-3.8-flash', 'low'],
+];
+
+const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> = {
+  cerebras: {
+    baseUrl: 'https://api.cerebras.ai/v1',
+    apiKeyEnv: ['CEREBRAS_API_KEY'],
+    errorLogLabel: 'Cerebras API',
+    errorChatLabel: 'Cerebras chat',
+    extraBody: () => ({ reasoning_effort: 'low' }),
+    computeCost: (_model, usage) => computeCerebrasChatCost(usage),
+  },
+  groq: {
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKeyEnv: ['GROQ_API_KEY'],
+    errorLogLabel: 'Groq LLM API',
+    errorChatLabel: 'Groq chat',
+    // Groq is the one hosted provider that needs an explicit output ceiling;
+    // see GROQ_MAX_COMPLETION_TOKENS.
+    extraBody: () => ({ max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS, reasoning_effort: 'low' }),
+    computeCost: (_model, usage) => computeGroqChatCost(usage),
+  },
+  grok: {
+    baseUrl: 'https://api.x.ai/v1',
+    apiKeyEnv: ['XAI_API_KEY', 'GROK_API_KEY'],
+    errorLogLabel: 'SpaceXAI Grok API',
+    errorChatLabel: 'SpaceXAI Grok chat',
+    extraBody: () => ({ reasoning_effort: 'none' }),
+    extraBodyFirst: true,
+    computeCost: (_model, usage) => computeXaiGrokFastChatCost(usage),
+  },
+  // GPT-5 family on /v1/chat/completions only supports the default
+  // `temperature` (1), so `temperature: 0` errors and buildBody drops it.
+  // `reasoning_effort: 'none'` is the lowest-latency setting gpt-5.6-luna accepts
+  // (none|low|medium|high|xhigh|max, default medium; `'minimal'` is NOT accepted)
+  // and keeps post-processing fast/cheap. Verified against the OpenAI model doc
+  // 2026-09-25: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyEnv: ['OPENAI_API_KEY'],
+    errorLogLabel: 'OpenAI API',
+    errorChatLabel: 'OpenAI chat',
+    extraBody: () => ({ reasoning_effort: 'none' }),
+    computeCost: computeOpenAIChatCost,
+  },
+  // Gemini exposes an OpenAI-compatible surface that accepts the shared chat
+  // payload unchanged. Verified 2026-06-19.
+  gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    apiKeyEnv: ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY'],
+    errorLogLabel: 'Gemini API',
+    errorChatLabel: 'Gemini chat',
+    extraBody: (model) => {
+      const effort = GEMINI_REASONING_EFFORT_BY_PREFIX.find(([prefix]) => model.startsWith(prefix))?.[1];
+      return effort ? { reasoning_effort: effort } : {};
+    },
+    computeCost: computeGeminiChatCost,
+  },
+  // Mistral's chat/completions accepts the shared chat payload unchanged.
+  // Verified 2026-06-19.
+  mistral: {
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiKeyEnv: ['MISTRAL_API_KEY'],
+    errorLogLabel: 'Mistral API',
+    errorChatLabel: 'Mistral chat',
+    computeCost: computeMistralChatCost,
+  },
+};
+
+/** The request body sent to `provider` for `model`. */
+export function buildOpenAICompatBody(
+  provider: OpenAICompatProvider,
+  payload: CorrectionRequestPayload,
+  model: string,
+): Record<string, unknown> {
+  const { temperature, ...withoutTemperature } = payload;
+  const shared = provider === 'openai' ? withoutTemperature : payload;
+  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
+  const extra = adapter.extraBody?.(model);
+  return adapter.extraBodyFirst
+    ? { model, ...extra, ...shared, stream: false }
+    : { model, ...shared, ...extra, stream: false };
+}
 
 // Fail-closed fallback for vendor usage-schema drift: estimate tokens from
 // character counts so a missing/unrecognized `usage` block is billed instead
@@ -59,21 +169,23 @@ function reportMissingUsage(
 }
 
 export async function requestOpenAICompatibleChat(
-  config: OpenAICompatChatConfig,
+  provider: OpenAICompatProvider,
   payload: CorrectionRequestPayload,
   requestId: string,
-  model: string
+  model: string,
 ): Promise<OpenAICompatChatResult> {
+  const config = OPENAI_COMPAT_ADAPTERS[provider];
+  const apiKey = requireLLMApiKey(provider, ...config.apiKeyEnv);
   const { json, usage } = await fetchLLMWithTimeout(
-    config.providerTag,
+    provider,
     `${config.baseUrl}/chat/completions`,
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify(config.buildBody(payload, model)),
+      body: JSON.stringify(buildOpenAICompatBody(provider, payload, model)),
     },
     async (response) => {
       if (!response.ok) {
@@ -87,19 +199,19 @@ export async function requestOpenAICompatibleChat(
         throw new LLMRequestError(
           `${config.errorChatLabel} failed with status ${response.status}`,
           response.status,
-          config.providerTag,
+          provider,
         );
       }
 
-      const json = await readLLMJson(response, config.providerTag, requestId);
+      const json = await readLLMJson(response, provider, requestId);
       const usage = isRecord(json) && isGroqUsage(json['usage']) ? (json['usage'] as GroqUsage) : undefined;
       return { json, usage };
     },
     requestId,
-    config.timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+    computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
-  const costUsd = config.computeCost(usage ?? reportMissingUsage(config.providerTag, payload, json, requestId));
+  const costUsd = config.computeCost(model, usage ?? reportMissingUsage(provider, payload, json, requestId));
 
   return {
     raw: json,

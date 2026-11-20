@@ -4,7 +4,7 @@
 import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError } from './upstream-error';
 import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, readLLMJson, transcriptCharCount } from './llm-fetch';
 
@@ -62,13 +62,9 @@ function toTokenCount(value: unknown): number {
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
-  timeoutMs?: number,
   model: string = ANTHROPIC_MODEL,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
+  const apiKey = requireLLMApiKey('anthropic', 'ANTHROPIC_API_KEY');
 
   // Convert OpenAI chat format to Anthropic format:
   // messages[0] = system prompt, messages[1] = user message
@@ -124,7 +120,7 @@ export async function requestAnthropicChat(
       }>(response, 'anthropic', requestId);
     },
     requestId,
-    timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+    computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
   const inputTokens = toTokenCount(data.usage?.input_tokens);
