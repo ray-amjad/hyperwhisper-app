@@ -46,6 +46,8 @@ export interface LLMModelRow {
 
 const M = 1_000_000;
 
+// Rates are USD per-1M ÷ 1e6, the ACTUAL billing constants (cloud-pp-catalog.json
+// is the display source of truth). Re-confirmed against live provider pricing 2026-06-19.
 export const LLM_MODELS: readonly LLMModelRow[] = [
   // Cerebras GPT-OSS-120B.
   { provider: 'cerebras', model: 'gpt-oss-120b', servedName: 'cerebras-gpt-oss-120b', isDefault: true,
@@ -68,6 +70,8 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
   // input tokens $0.10 / $0.50 per 1M, above it $0.50 / $2.50 for the whole
   // request. Cache writes 1.25x and reads 0.10x the tier's input rate (5-minute
   // TTL) — ASSUMED unchanged from Haiku 4.5, Anthropic's standard multipliers.
+  // The tier a request lands in prices EVERY token of that request, output and
+  // both cache buckets included, not just the tokens past the threshold.
   // The Messages API requires an explicit output ceiling.
   { provider: 'anthropic', model: 'claude-haiku-5-5', servedName: 'claude-haiku-5-5', isDefault: true,
     rate: { promptPerToken: 0.10 / M, completionPerToken: 0.50 / M },
@@ -95,7 +99,8 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
   // model watch of 2027 and update this rate AND the pricePerMInput /
   // pricePerMOutput + priceNote on the gemini-3.8-flash row in
   // cloud-pp-catalog.json together (and the GEMINI_RATES transcription row in
-  // cost-calculator.ts for the same id).
+  // cost-calculator.ts for the same id). An unknown id bills at 3.8 Flash, the
+  // dearest row here, so drift never under-bills.
   { provider: 'gemini', model: 'gemini-3.8-flash', servedName: 'gemini-3.8-flash', isDefault: true,
     rate: { promptPerToken: 0.75 / M, completionPerToken: 3.75 / M } },
   { provider: 'gemini', model: 'gemini-2.5-flash', servedName: 'gemini-2.5-flash',
@@ -109,6 +114,7 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
   // bill at the higher (model-docs) rate, the billing-safe choice. The retired
   // Nemo model is no longer a row; old clients still sending its id resolve to
   // `mistral-small-latest` and are billed at that rate.
+  // Re-confirm against live provider pages before secrets go live.
   { provider: 'mistral', model: 'mistral-small-latest', servedName: 'mistral-small-latest', isDefault: true,
     rate: { promptPerToken: 0.15 / M, completionPerToken: 0.60 / M } },
 ];
