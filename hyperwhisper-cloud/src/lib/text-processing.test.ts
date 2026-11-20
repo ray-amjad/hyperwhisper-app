@@ -7,6 +7,13 @@ import {
 } from './text-processing';
 
 describe('extractCorrectedText', () => {
+  test('joins array-of-parts message content (Mistral content chunks)', () => {
+    const response = {
+      choices: [{ message: { content: [{ type: 'text', text: 'Hello ' }, { type: 'text', text: 'world' }] } }],
+    };
+    expect(extractCorrectedText(response)).toBe('Hello world');
+  });
+
   test('extracts from OpenAI-style choices[].message.content', () => {
     const response = {
       choices: [{ message: { content: 'corrected transcript' } }],
