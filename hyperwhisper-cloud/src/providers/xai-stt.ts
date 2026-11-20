@@ -1,5 +1,5 @@
 // XAI GROK STT PROVIDER
-// xAI Speech to Text REST API - $0.10/hour
+// xAI Speech to Text REST API
 // Model: Grok Voice Transcribe 2.0. The endpoint took no `model` parameter
 // before 2026-09-19 and this adapter sent none; it now sends the resolved model
 // on every request. Ref: https://x.ai/news/grok-voice-transcribe-2

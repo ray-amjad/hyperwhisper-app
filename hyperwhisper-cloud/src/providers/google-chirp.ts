@@ -1,5 +1,5 @@
 // GOOGLE CLOUD SPEECH-TO-TEXT V2 — CHIRP 3 PROVIDER
-// Standard tier: $0.016/min, phrase-list biasing (up to 1000 terms),
+// Standard tier, phrase-list biasing (up to 1000 terms),
 // 100+ languages, word timestamps.
 //
 // Auth: Bearer OAuth token derived from a service-account JSON, cached in Redis.
