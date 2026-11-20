@@ -16,7 +16,9 @@ import { Redis } from '@upstash/redis';
 export class RedisNotConfiguredError extends Error {
   constructor() {
     super('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
-    this.name = 'RedisNotConfiguredError';
+    // `name` stays 'Error' on purpose: log lines print `${name}: ${message}`,
+    // and they must read exactly as they did before this type existed.
+    // Callers detect it with `instanceof`, never by name.
   }
 }
 
