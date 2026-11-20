@@ -75,6 +75,8 @@ export function createLicenseCacheInvalidateRoute(deps: LicenseCacheInvalidateDe
 
     // `account_key` only: the site is the one caller and sends no legacy alias.
     const fields = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+    // The same spelling the cache is keyed on: trimmed, case kept
+    // (`canonicalAccountKey` in lib/account-key.ts).
     const licenseKey = readAccountKey((field) => fields[field], ['account_key']);
     if (!licenseKey || licenseKey.length > MAX_KEY_LENGTH) {
       return c.json({ error: 'account_key is required' }, 400);

@@ -72,6 +72,7 @@ export const MAX_POST_PROCESS_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
 // Ref: https://fly.io/docs/networking/dynamic-request-routing/
 export const FLY_REPLAY_MAX_BODY_BYTES = 900_000;
 
+// API base
 export const DEFAULT_API_BASE_URL = 'https://www.hyperwhisper.com';
 
 /** The Next.js license API origin, without a trailing slash. Read per call so tests can set the env. */

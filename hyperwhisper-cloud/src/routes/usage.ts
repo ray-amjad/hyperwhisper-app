@@ -126,6 +126,7 @@ export async function usageRoute(c: Context) {
 
   // `/usage` alone also takes `identifier`: the macOS and Windows clients
   // (`NetworkConfig` / `CloudManager`) send the key under that name here.
+  // Trimmed (#2461): the cache and the balance lookup below key on it directly.
   const licenseKey =
     readAccountKey((field) => rawQuery(c.req.url, field), [...ACCOUNT_KEY_FIELDS, 'identifier']) ?? null;
   const forceRefresh = rawQuery(c.req.url, 'force_refresh') === 'true';
