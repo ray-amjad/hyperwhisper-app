@@ -237,4 +237,201 @@ extension PersistenceController {
         let url = LocalModelManager.modelsDirectory.appendingPathComponent(modelId)
         return FileManager.default.fileExists(atPath: url.path)
     }
+
+    // MARK: - One-time sweep of orphaned VAD upload copies (#1524)
+
+    /// UserDefaults flag for the one-time launch sweep of `*_trimmed.m4a` VAD
+    /// upload copies that no transcript references. Set only after a run that
+    /// listed the folder, read every row's paths and removed every orphan.
+    static let orphanedTrimmedUploadCopySweepDefaultsKey = "didSweepOrphanedTrimmedUploadCopiesV1"
+
+    /// Only files last modified at least this long ago are swept (Ray, #1524):
+    /// a younger file can belong to a job whose row is not written yet.
+    static let orphanedTrimmedUploadCopyMinimumAge: TimeInterval = 24 * 60 * 60
+
+    /// Starts the one-time sweep on a background task at launch. Returns at
+    /// once; never blocks launch.
+    ///
+    /// Builds before #1520 deleted a row's trimmed WAV but not its `.m4a`
+    /// upload copy, so those copies stay on disk with no row (the #1513 fuzz
+    /// found 11, 159 MB). The sweep looks only in the configured recordings
+    /// folder, and only once the user has answered the Documents access
+    /// question: listing `~/Documents` before that would raise the system
+    /// prompt the app holds back until it has explained it. Until then the
+    /// flag stays unset and a later launch runs the sweep.
+    func scheduleOrphanedTrimmedUploadCopySweepOnLaunch(defaults: UserDefaults = .standard) {
+        // The unit-test host is this app on the user's own profile: a test
+        // run must never delete files from the real recordings folder. Same
+        // check as `SingleInstanceGuard.isRunningUnitTests`, which is
+        // main-actor isolated.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        guard !defaults.bool(forKey: Self.orphanedTrimmedUploadCopySweepDefaultsKey) else { return }
+        guard let folder = Self.recordingsFolderForLaunchSweep(defaults: defaults) else { return }
+        Task.detached(priority: .utility) { [self] in
+            await self.sweepOrphanedTrimmedUploadCopiesIfNeeded(recordingsFolder: folder, defaults: defaults)
+        }
+    }
+
+    /// The recordings folder `StorageSettingsManager.recordingsFolder` holds,
+    /// read straight from its `@AppStorage` key, or nil while that folder sits
+    /// under Documents and the access question is unanswered.
+    static func recordingsFolderForLaunchSweep(defaults: UserDefaults = .standard) -> URL? {
+        let configured = defaults.string(forKey: "recordingsFolder")
+        let folder: URL
+        if let configured, !configured.isEmpty {
+            folder = URL(fileURLWithPath: configured, isDirectory: true)
+        } else if let fallback = StorageSettingsManager.defaultRecordingsFolderURL {
+            folder = fallback
+        } else {
+            return nil
+        }
+
+        if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first,
+           folder.path.hasPrefix(documents.path),
+           !defaults.bool(forKey: "documentsPermissionExplained"),
+           !defaults.bool(forKey: "documentsAccessDenied") {
+            return nil
+        }
+        return folder
+    }
+
+    /// Deletes the `*_trimmed.m4a` files directly in `recordingsFolder` that
+    /// no transcript references and that are at least 24 h old, then sets the
+    /// one-time flag. Returns the files it deleted, or nil when it did not run
+    /// (already ran, or the folder or the rows could not be read; the flag
+    /// then stays unset so a later launch tries again).
+    ///
+    /// Never deletes outside `recordingsFolder`, nor a file whose name any
+    /// row's original, trimmed or derived path carries
+    /// (`TranscriptAudioFiles.orphanedUploadCopies`). A file's date is read
+    /// again just before its delete, so one a run rewrote meanwhile is kept.
+    @discardableResult
+    func sweepOrphanedTrimmedUploadCopiesIfNeeded(
+        recordingsFolder: URL,
+        now: Date = Date(),
+        defaults: UserDefaults = .standard
+    ) async -> [URL]? {
+        let flag = Self.orphanedTrimmedUploadCopySweepDefaultsKey
+        guard !defaults.bool(forKey: flag) else { return nil }
+
+        guard let entries = await Self.recordingsFolderEntries(recordingsFolder) else {
+            AppLogger.coreData.info("Orphaned upload copy sweep skipped: the recordings folder could not be listed")
+            return nil
+        }
+        let minimumAge = Self.orphanedTrimmedUploadCopyMinimumAge
+        let candidates = TranscriptAudioFiles.orphanedUploadCopies(
+            in: entries,
+            referencedPaths: [],
+            now: now,
+            minimumAge: minimumAge
+        )
+        guard !candidates.isEmpty else {
+            defaults.set(true, forKey: flag)
+            return []
+        }
+
+        guard let referenced = await referencedAudioPathsForSweep() else {
+            AppLogger.coreData.error("Orphaned upload copy sweep skipped: could not read the transcripts' audio paths")
+            return nil
+        }
+        let orphans = TranscriptAudioFiles.orphanedUploadCopies(
+            in: entries,
+            referencedPaths: referenced,
+            now: now,
+            minimumAge: minimumAge
+        )
+
+        let outcome = await Self.removeOrphanedUploadCopies(
+            orphans,
+            in: recordingsFolder,
+            olderThan: now.addingTimeInterval(-minimumAge)
+        )
+        if outcome.allRemoved {
+            defaults.set(true, forKey: flag)
+        }
+        AppLogger.coreData.info("Orphaned upload copy sweep removed \(outcome.deleted.count, privacy: .public) file(s)")
+        return outcome.deleted
+    }
+
+    /// Every path a Transcript row records or derives, plus every
+    /// RecordingSession path, read on the writer. Nil if a fetch failed.
+    private func referencedAudioPathsForSweep() async -> Set<String>? {
+        await performWrite { context -> Set<String>? in
+            let transcripts = NSFetchRequest<NSDictionary>(entityName: "Transcript")
+            transcripts.resultType = .dictionaryResultType
+            transcripts.propertiesToFetch = ["audioFilePath", "trimmedAudioFilePath"]
+            let sessions = NSFetchRequest<NSDictionary>(entityName: "RecordingSession")
+            sessions.resultType = .dictionaryResultType
+            sessions.propertiesToFetch = ["audioFilePath"]
+            do {
+                let rows = try context.fetch(transcripts).map { row in
+                    TranscriptRecordedAudioPaths(
+                        audioFilePath: row["audioFilePath"] as? String,
+                        trimmedAudioFilePath: row["trimmedAudioFilePath"] as? String
+                    )
+                }
+                var paths = TranscriptAudioFiles.protectedPaths(for: rows)
+                for row in try context.fetch(sessions) {
+                    if let path = row["audioFilePath"] as? String, !path.isEmpty {
+                        paths.insert(path)
+                    }
+                }
+                return paths
+            } catch {
+                return nil
+            }
+        }
+    }
+
+    /// The regular files directly in `folder` with their modification dates,
+    /// listed off the calling thread. Nil if the folder cannot be listed.
+    private static func recordingsFolderEntries(_ folder: URL) async -> [TranscriptAudioFiles.FolderEntry]? {
+        await Task.detached(priority: .utility) { () -> [TranscriptAudioFiles.FolderEntry]? in
+            let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey]
+            guard let urls = try? FileManager.default.contentsOfDirectory(
+                at: folder,
+                includingPropertiesForKeys: keys,
+                options: []
+            ) else {
+                return nil
+            }
+            return urls.compactMap { url in
+                guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                      values.isRegularFile == true,
+                      let modified = values.contentModificationDate else {
+                    return nil
+                }
+                return TranscriptAudioFiles.FolderEntry(url: url, modified: modified)
+            }
+        }.value
+    }
+
+    /// Removes `orphans`, each only if it sits directly in `folder` and its
+    /// modification date, read again now, is still before `cutoff`.
+    private static func removeOrphanedUploadCopies(
+        _ orphans: [URL],
+        in folder: URL,
+        olderThan cutoff: Date
+    ) async -> (deleted: [URL], allRemoved: Bool) {
+        await Task.detached(priority: .utility) { () -> (deleted: [URL], allRemoved: Bool) in
+            let fileManager = FileManager.default
+            let folderPath = folder.resolvingSymlinksInPath().path
+            var deleted: [URL] = []
+            var allRemoved = true
+            for url in orphans {
+                guard url.deletingLastPathComponent().resolvingSymlinksInPath().path == folderPath,
+                      let modified = (try? fileManager.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date,
+                      modified <= cutoff else {
+                    continue
+                }
+                do {
+                    try fileManager.removeItem(at: url)
+                    deleted.append(url)
+                } catch {
+                    if fileManager.fileExists(atPath: url.path) { allRemoved = false }
+                }
+            }
+            return (deleted, allRemoved)
+        }.value
+    }
 }

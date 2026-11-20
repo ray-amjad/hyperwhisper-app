@@ -145,6 +145,48 @@ enum TranscriptAudioFiles {
         return paths
     }
 
+    // MARK: - Orphaned upload copies (#1524)
+
+    /// How every VAD upload copy's name ends: `SilenceTrimmer` names its WAV
+    /// `<name>_<ext>_trimmed.wav`, and `uploadCopyURL(forTrimmedWAV:)` swaps
+    /// the extension for `.m4a`.
+    static let trimmedUploadCopyNameSuffix = "_trimmed.m4a"
+
+    /// A file found directly in the recordings folder.
+    struct FolderEntry: Sendable, Equatable {
+        let url: URL
+        let modified: Date
+    }
+
+    /// Of `entries`, the VAD upload copies (`*_trimmed.m4a`) that no
+    /// transcript records or derives, last modified at least `minimumAge`
+    /// before `now`. The rule behind the one-time launch sweep (#1524).
+    ///
+    /// A file is kept when its NAME matches the name of any path in
+    /// `referencedPaths`, in any folder and in any letter case, not only when
+    /// the full path matches. A recorded path can differ from the folder
+    /// listing by a symlink, `/private`, or letter case, and the sweep must
+    /// never take a file a row plays; a kept orphan only costs disk space.
+    /// The age guard spares a file whose row is still being written.
+    static func orphanedUploadCopies(
+        in entries: [FolderEntry],
+        referencedPaths: Set<String>,
+        now: Date,
+        minimumAge: TimeInterval
+    ) -> [URL] {
+        let referencedNames = Set(referencedPaths.map { URL(fileURLWithPath: $0).lastPathComponent.lowercased() })
+        let cutoff = now.addingTimeInterval(-minimumAge)
+        return entries.compactMap { entry in
+            let name = entry.url.lastPathComponent.lowercased()
+            guard name.hasSuffix(trimmedUploadCopyNameSuffix),
+                  !referencedNames.contains(name),
+                  entry.modified <= cutoff else {
+                return nil
+            }
+            return entry.url
+        }
+    }
+
     private static func nonEmpty(_ path: String?) -> String? {
         guard let path, !path.isEmpty else { return nil }
         return path
