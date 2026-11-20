@@ -97,6 +97,7 @@ Assert(!File.Exists(completedAudio), "keep-audio off deletes completed owned rec
 Assert(retentionStore.Item is { AudioFilePath: null, Status: TranscriptStatus.Completed },
     "history clears deleted audio path before deletion");
 Console.WriteLine("PASS keep-audio off clears history path then deletes completed app-owned audio");
+await DeleteStaleItemTests.RunAsync();
 Console.WriteLine("Storage application integration verification passed (7/7 scenarios).");
 
 static void Assert(bool condition, string name)
