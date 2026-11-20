@@ -44,11 +44,24 @@ export function rawQuery(url: string, name: string): string | undefined {
       value = decodeURIComponent(rawValue);
     } catch {
       // Malformed escape (e.g. a stray `%`): fall back to the raw value rather
-      // than throwing a 500 for one bad byte.
-      value = rawValue;
+      // than throwing a 500 for one bad byte. The well-formed escapes around it
+      // are still decoded, as `URLSearchParams` does, so one stray `%` in a
+      // live-dictation `vocabulary` does not send every term undecoded.
+      value = decodeWellFormedEscapes(rawValue);
     }
     return value === '' ? undefined : value;
   }
 
   return undefined;
+}
+
+/** Decode each run of well-formed `%XX` escapes that is valid UTF-8; leave anything else as written. */
+function decodeWellFormedEscapes(raw: string): string {
+  return raw.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
 }
