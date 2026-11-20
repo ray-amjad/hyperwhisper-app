@@ -359,6 +359,20 @@ struct MenuBarIconView: View {
                 .onReceive(qwen3AsrModelManager.$isDownloaded) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Qwen3 ASR download prepares the selected mode again, so
+                // a mode that showed "(Download)" turns Ready without a mode switch
+                // (#2708). A mode already Ready is not reloaded.
+                .onReceive(
+                    qwen3AsrModelManager.$isDownloaded
+                        .dropFirst()
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(nemotronModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
