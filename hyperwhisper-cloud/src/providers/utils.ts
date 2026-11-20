@@ -308,6 +308,15 @@ export function markProviderNetworkCall(): void {
   }
 }
 
+function resolveProviderTimeoutMs(): number {
+  const configured = Number.parseInt(process.env.STT_PROVIDER_TIMEOUT_MS || '', 10);
+  if (Number.isFinite(configured) && configured > 0) {
+    return configured;
+  }
+
+  return DEFAULT_PROVIDER_TIMEOUT_MS;
+}
+
 function serializeError(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -449,7 +458,7 @@ export async function fetchWithTimeout(
 ): Promise<Response> {
   const timeoutMs = typeof timeoutMsOverride === 'number' && timeoutMsOverride > 0
     ? timeoutMsOverride
-    : DEFAULT_PROVIDER_TIMEOUT_MS;
+    : resolveProviderTimeoutMs();
   const startedAt = performance.now();
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
