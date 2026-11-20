@@ -65,14 +65,16 @@ export interface LatencySample {
 // `durationSeconds`. That estimator is content-type aware: the desktop apps
 // upload 16 kHz/16-bit mono WAV (32,000 B/s), so the flat 64 kbps heuristic
 // used for billing would report a 3-second dictation as ~12 seconds and file it
-// under 'medium'. Neither billing estimator is used here: estimateSecondsFromBytes()
-// has the wrong rate — and IS what the adapters fall back to when an upstream
-// omits a duration, which is why the adapter's number cannot be trusted as a
-// measurement — and middleware/credits.ts's estimateAudioSecondsFromSize()
-// additionally clamps to a 10-second floor so billing never under-charges,
-// which would push every short clip into 'medium'. Billing wants a floor;
-// bucketing wants the truth, applied identically to every row so a cell
-// compares like with like.
+// under 'medium'. Neither billing nor reservation estimators are used here:
+// estimateSecondsFromBytes() (64 kbps) has the wrong rate — and IS what the
+// adapters fall back to when an upstream omits a duration, which is why the
+// adapter's number cannot be trusted as a measurement — and
+// lib/audio-duration.ts's estimateAudioSecondsFromSize() is the credit HOLD's
+// size-only fallback: it assumes 8 kbps so low-bitrate audio is never
+// under-reserved (#2483), which inflates a WAV's length ~32x, and it clamps to
+// a 10-second floor, which would push every short clip into 'medium'. Holds
+// want an over-estimate; bucketing wants the truth, applied identically to
+// every row so a cell compares like with like.
 
 // In-flight tracking for graceful shutdown. Reporting is fired without
 // awaiting so it never adds wall time to the very latency it measures — which

@@ -140,6 +140,12 @@ export class CreditHold {
    * here on and callers fall back to the pre-hold rules. See the file header.
    */
   degraded = false;
+  /**
+   * What it holds is provisional (#2483): a floor taken before the request's
+   * cost is known, which no other request's firm hold counts. The next firm
+   * reservation replaces it.
+   */
+  provisional = false;
   private state: 'active' | 'settling' | 'released' = 'active';
   private everGranted = false;
   // Store calls on one hold run in order, so a release can never overtake the
@@ -183,8 +189,10 @@ export class CreditHold {
    * Set this hold's TOTAL to `maxCredits`, or to whatever the balance has left
    * after every other hold if that is less, as long as it is at least
    * `minCredits`. A refusal leaves the current total in place.
+   * `provisional` takes it as a provisional hold (see `ReserveHoldRequest`).
    */
-  reserve(minCredits: number, maxCredits: number): Promise<HoldOutcome> {
+  reserve(minCredits: number, maxCredits: number, options: { provisional?: boolean } = {}): Promise<HoldOutcome> {
+    const provisional = options.provisional === true;
     return this.enqueue(async (): Promise<HoldOutcome> => {
       if (this.state === 'released') return { kind: 'refused', availableCredits: 0 };
       if (this.degraded) return { kind: 'unavailable' };
@@ -199,10 +207,12 @@ export class CreditHold {
           balanceMilli: toMilliCredits(roundToTenth(this.auth.credits)),
           nowMs: Date.now(),
           ttlMs: this.ttlMs,
+          provisional,
         });
         this.heldCredits = fromMilliCredits(result.holdMilli);
         if (result.granted) {
           this.everGranted = true;
+          this.provisional = provisional;
           return { kind: 'granted' };
         }
         return { kind: 'refused', availableCredits: fromMilliCredits(result.availableMilli) };
@@ -226,9 +236,12 @@ export class CreditHold {
    * it holds. A degraded hold covers everything (fail open).
    */
   async cover(credits: number): Promise<number> {
-    if (this.degraded || credits <= this.heldCredits) return credits;
-    const outcome = await this.reserve(this.heldCredits, credits);
+    if (this.degraded || (!this.provisional && credits <= this.heldCredits)) return credits;
+    // A provisional hold is not counted by others, so it guarantees nothing:
+    // the minimum to keep is then whatever a firm hold can get.
+    const outcome = await this.reserve(this.provisional ? Math.min(credits, 0.1) : this.heldCredits, credits);
     if (outcome.kind === 'unavailable') return credits;
+    if (this.provisional) return 0;
     return Math.min(credits, this.heldCredits);
   }
 
