@@ -374,7 +374,7 @@ struct OnboardingFlowContainer: View {
             Button("onboarding.tryIt.record".localized, action: flow.toggleTestRecording)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-        } else {
+        } else if flow.tryItPill == .recorded {
             OnboardingStatusPill(
                 text: "onboarding.tryIt.recorded".localized,
                 symbol: "checkmark",
