@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using HyperWhisper.Linux.Platform.Desktop;
@@ -51,19 +52,30 @@ public sealed class LinuxMicrophoneVolumeService : IMicrophoneVolumeService
         .Where(value => value.EndsWith('%')).Select(value => int.TryParse(value.AsSpan(0, value.Length - 1), out var parsed) ? parsed : -1).Where(value => value >= 0).ToArray();
 }
 
+// #2818: one thread, so no lock. Every caller runs on the Avalonia UI thread: SuspendForRecording from the
+// recording session's PrepareAudio; ResumeAfterRecording from LinuxRecordingAudioRestorer.RestoreAsync (the
+// session's restore after a failed start, Stop and Cancel; nothing on that chain uses ConfigureAwait(false),
+// so it resumes on the UI context); Configure from MainWindow's ApplyDesktopSettings and the mic picker's
+// ResolvedDeviceChanged (posted to the UI context before it is raised); Dispose from LinuxDesktopServices.
+// So a Configure(false) cannot land between Resume's `_enabled && _source is null` check and its Start, and
+// `_enabled`, `_suspended`, `_source` and `_device` need no lock. A caller off that thread needs one lock over
+// the three methods, as #2501 gave Windows, and Stop must still never block the UI thread on the source (#1186).
+// DEBUG builds assert the single thread; Dispose is exempt (the last call, which tests make after joining the
+// thread that configured), and GetCapabilities reads no mutable state.
 public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
 {
     private readonly IStreamingAudioSourceFactory _factory; private IStreamingAudioSource? _source;
     private CancellationTokenSource? _cancellation; private Task? _drain; private bool _enabled; private bool _suspended; private string? _device; private bool _disposed;
+    private int _ownerThread;
     public LinuxMicrophoneKeepWarmService() : this(new ChildProcessStreamingAudioSourceFactory()) { }
     internal LinuxMicrophoneKeepWarmService(IStreamingAudioSourceFactory factory) => _factory = factory;
     public PulseAudioCapabilities GetCapabilities() => new(_factory.IsAvailable, _factory.Backend,
         _factory.IsAvailable ? "cancellable-child-capture" : "capture-helper-unavailable");
-    public void Configure(bool enabled, string? deviceId) { if (_disposed) return; Stop(); _enabled = enabled; _device = deviceId; if (enabled && !_suspended) Start(); }
-    public void SuspendForRecording() { if (_disposed) return; _suspended = true; Stop(); }
+    public void Configure(bool enabled, string? deviceId) { AssertOwnerThread(); if (_disposed) return; Stop(); _enabled = enabled; _device = deviceId; if (enabled && !_suspended) Start(); }
+    public void SuspendForRecording() { AssertOwnerThread(); if (_disposed) return; _suspended = true; Stop(); }
     // A second resume (the quit's cancel after the recording's own restore, #1038) must not open a
     // second capture child over the first one, which nothing would then stop.
-    public void ResumeAfterRecording(string? deviceId) { if (_disposed) return; _device = deviceId ?? _device; _suspended = false; if (_enabled && _source is null) Start(); }
+    public void ResumeAfterRecording(string? deviceId) { AssertOwnerThread(); if (_disposed) return; _device = deviceId ?? _device; _suspended = false; if (_enabled && _source is null) Start(); }
     private void Start()
     {
         // #627: keep the SELECTED microphone warm, never the server default. `_device` is null exactly
@@ -94,6 +106,11 @@ public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
         try { teardown.Wait(TimeSpan.FromSeconds(4)); } catch { }
     }
     public void Dispose() { if (_disposed) return; _disposed = true; Stop(); }
+    [Conditional("DEBUG")] private void AssertOwnerThread()
+    {
+        var current = Environment.CurrentManagedThreadId; if (_ownerThread == 0) _ownerThread = current;
+        Debug.Assert(_ownerThread == current, $"Keep-warm called from thread {current} after thread {_ownerThread}: it is UI-thread-only and has no lock (#2818).");
+    }
 }
 
 public sealed class LinuxSoundEffectsService : ISoundEffectsService

@@ -230,6 +230,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone keep-warm reconfigure returns on a blocked UI context", MicrophoneKeepWarmReconfigureOnBlockedContext),
     ("microphone keep-warm suspend returns on a blocked UI context", MicrophoneKeepWarmSuspendOnBlockedContext),
     ("microphone keep-warm stuck teardown never touches the replacement source", MicrophoneKeepWarmStuckTeardownSparesReplacement),
+    ("microphone keep-warm turned off during a recording stays off after the restore", KeepWarmThreadContractTests.TurnedOffWhileRecordingStaysOff),
+    ("microphone keep-warm turned on during a recording opens one source on resume", KeepWarmThreadContractTests.TurnedOnWhileRecordingOpensOnceOnResume),
     ("Linux child process terminate and dispose return on a blocked UI context", ChildProcessTeardownOnBlockedContext),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("a sound effect does not block the caller while the player runs", SoundEffectDoesNotBlockCaller),
