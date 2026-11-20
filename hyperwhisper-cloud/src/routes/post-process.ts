@@ -17,6 +17,7 @@ import { withCreditHoldScope } from '../middleware/credit-holds';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
 import { isRecord } from '../lib/utils';
+import { readAccountKey } from '../lib/account-key';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
@@ -29,10 +30,6 @@ const LLM_FAILURE_MESSAGE = 'The language model request failed. Please try again
 interface PostProcessBody {
   text?: string;
   prompt?: string;
-  // `account_key` is the canonical field; `license_key` is the legacy alias that
-  // installed native apps still send. Either is accepted.
-  account_key?: string;
-  license_key?: string;
 }
 
 function rawResponseLength(raw: unknown): number | undefined {
@@ -144,7 +141,7 @@ async function handlePostProcess(c: Context) {
   });
 
   const authResult = await validateAuth({
-    licenseKey: body.account_key || body.license_key,
+    licenseKey: readAccountKey((field) => parsed[field]),
   });
   if (!authResult.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', {

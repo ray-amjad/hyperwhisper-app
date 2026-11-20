@@ -50,6 +50,8 @@ import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
+import { readAccountKey } from '../lib/account-key';
+import { liveSessionsClosed, registerLiveSession } from '../lib/background-work';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -319,12 +321,7 @@ export function makeStreamingPreflight(
       return c.text('Access denied', 403);
     }
 
-    // `account_key` is the canonical param; `license_key` is the legacy alias that
-    // installed native apps still send, so we accept either.
-    const licenseKey =
-      rawQuery(c.req.url, 'account_key') ||
-      rawQuery(c.req.url, 'license_key') ||
-      undefined;
+    const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));
 
     if (!licenseKey) {
       logRejected('missing_account_key', 401);
@@ -406,47 +403,12 @@ function errorName(error: unknown): string {
   return error instanceof Error ? error.name.slice(0, 64) : typeof error;
 }
 
-// Every live session past its API-key check, keyed by its shutdown handler.
-// `gracefulShutdown` (index.ts) ends them all on SIGTERM, because Bun runs no
-// socket `close` handler on `process.exit` and `endSession` is the only place a
-// live session is billed (#1235). An entry removes itself in `endSession`.
-const activeSessions = new Set<() => Promise<void>>();
-/** Set once by `endActiveStreamingSessions`; no live session opens after it. */
-let machineShuttingDown = false;
-
-/**
- * End every open live session for a machine shutdown: bill it and log
- * `session_end` now, close the vendor socket, and close the client with 1012
- * (Service Restart) so the native clients reconnect to another machine.
- *
- * Call it BEFORE `drainPendingDeductions`, so the drain awaits these charges.
- * It does not wait for a vendor's trailing final — the whole grace period is 5 s.
- * Resolves to the number of sessions ended.
- */
-export async function endActiveStreamingSessions(): Promise<number> {
-  // Latch first: the machine keeps accepting upgrades during the drain, and a
-  // preflight already awaiting auth can open after this snapshot. Every session
-  // whose `onOpen` runs from now on is refused with 1012 before it can meter.
-  machineShuttingDown = true;
-  const sessions = [...activeSessions];
-  // Settled, not `Promise.all`: one session's fault must not reject this and
-  // make `gracefulShutdown` skip the drains and the exit.
-  const results = await Promise.allSettled(sessions.map((shutdown) => shutdown()));
-  let ended = 0;
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      ended += 1;
-    } else {
-      console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(result.reason) });
-    }
-  }
-  return ended;
-}
-
-/** Test-only: bun runs every test file in one process, and the latch is module state. */
-export function resetStreamingShutdownForTests(): void {
-  machineShuttingDown = false;
-}
+// Every live session past its API-key check registers its shutdown handler in
+// `lib/background-work.ts`, which the graceful shutdown ends on SIGTERM: Bun
+// runs no socket `close` handler on `process.exit`, and `endSession` is the
+// only place a live session is billed (#1235). An entry removes itself in
+// `endSession`. Once the shutdown has begun (`liveSessionsClosed`), a session
+// that would open is refused with 1012 before it can meter.
 
 function decodeUpstreamFrame(raw: unknown): string {
   // `event.data` is typed `any` by the WebSocket lib and a vendor can deliver a
@@ -539,6 +501,8 @@ export function createStreamingEventsFor(
    */
   let upstreamReached = false;
   let sessionEnded = false;
+  /** Set once the session is registered for shutdown; run by `endSession`. */
+  let unregisterLiveSession: (() => void) | null = null;
   let clientSocket: WSContext | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
   // `true` once the vendor will accept audio. A vendor with a setup handshake
@@ -592,7 +556,7 @@ export function createStreamingEventsFor(
   async function endSession(options: { notifyClient?: boolean } = {}): Promise<void> {
     if (sessionEnded) return;
     sessionEnded = true;
-    activeSessions.delete(shutdownSession);
+    unregisterLiveSession?.();
     if (openDeadline) {
       clock.clearTimeout(openDeadline);
       openDeadline = null;
@@ -713,7 +677,12 @@ export function createStreamingEventsFor(
     }
   }
 
-  /** The machine is shutting down: see {@link endActiveStreamingSessions}. */
+  /**
+   * The machine is shutting down (`endLiveSessions`): bill the session and log
+   * `session_end` now, close the vendor socket, and close the client with 1012
+   * (Service Restart) so the native clients reconnect to another machine. It
+   * does not wait for a vendor's trailing final.
+   */
   async function shutdownSession(): Promise<void> {
     const ended = endSession({ notifyClient: false });
     // Client first, so the upstream close handler finds it already closed and
@@ -971,7 +940,7 @@ export function createStreamingEventsFor(
         return;
       }
 
-      if (machineShuttingDown) {
+      if (liveSessionsClosed()) {
         // Opened after shutdown began, so it would miss the snapshot and be
         // dropped unbilled by the exit. Refuse it before any upstream socket or
         // metering exists; 1012 sends the client to another machine. Nothing
@@ -984,7 +953,11 @@ export function createStreamingEventsFor(
       }
 
       log('session_start', { language: language || 'auto', hasVocabulary: Boolean(vocabulary) });
-      activeSessions.add(shutdownSession);
+      // A failed shutdown is logged here and still rejects, so it is not counted as ended.
+      unregisterLiveSession = registerLiveSession(() => shutdownSession().catch((error: unknown) => {
+        console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(error) });
+        throw error;
+      }));
 
       upstreamWs = protocols === undefined
         ? new WebSocket(upstreamUrl)

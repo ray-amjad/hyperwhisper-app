@@ -16,9 +16,9 @@ import {
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { ipRateLimit } from './middleware/rate-limit';
-import { trackInFlightRequests } from './middleware/in-flight-requests';
+import { trackInFlightRequests } from './lib/in-flight-requests';
 import { runGracefulShutdown, SHUTDOWN_DRAIN_MS } from './lib/graceful-shutdown';
-import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
+import { MAX_AUDIO_SIZE_BYTES, licenseApiBaseUrl } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
 import { captureServerError, initErrorTracking } from './lib/error-tracking';
 
@@ -178,5 +178,5 @@ console.log('machine.boot', {
 });
 console.log(`HyperWhisper Fly.io service starting on port ${process.env.PORT || 8080}`);
 console.log(`Region: ${process.env.FLY_REGION || 'local'}`);
-console.log(`License API: ${process.env.NEXTJS_LICENSE_API_URL || 'https://www.hyperwhisper.com (default)'}`);
+console.log(`License API: ${licenseApiBaseUrl()}${process.env.NEXTJS_LICENSE_API_URL ? '' : ' (default)'}`);
 console.log('Started server: http://localhost:' + (process.env.PORT || 8080));

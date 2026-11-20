@@ -75,6 +75,11 @@ export const FLY_REPLAY_MAX_BODY_BYTES = 900_000;
 // API base
 export const DEFAULT_API_BASE_URL = 'https://www.hyperwhisper.com';
 
+/** The Next.js license API origin, without a trailing slash. Read per call so tests can set the env. */
+export function licenseApiBaseUrl(): string {
+  return (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+}
+
 // Hard timeout for every call to the Next.js license API (validate / credits).
 // Without it a hung upstream (Vercel cold start, downstream DB stall, edge
 // retry storm) leaves an unresolved `fetch` Promise pinning the request scope,
