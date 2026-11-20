@@ -41,6 +41,10 @@ describe('rawQuery', () => {
     );
   });
 
+  test('an invalid UTF-8 escape becomes U+FFFD, as URLSearchParams does', () => {
+    expect(rawQuery('http://x/t?vocabulary=bad%E0%A4%A,a+b', 'vocabulary')).toBe('bad\uFFFD%A,a+b');
+  });
+
   test('ignores a fragment', () => {
     expect(rawQuery('http://x/t?language=en#frag', 'language')).toBe('en');
   });

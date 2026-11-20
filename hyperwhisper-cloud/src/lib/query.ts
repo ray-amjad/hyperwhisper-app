@@ -47,7 +47,7 @@ export function rawQuery(url: string, name: string): string | undefined {
       // than throwing a 500 for one bad byte. The well-formed escapes around it
       // are still decoded, as `URLSearchParams` does, so one stray `%` in a
       // live-dictation `vocabulary` does not send every term undecoded.
-      value = decodeWellFormedEscapes(rawValue);
+      value = decodeLikeSearchParams(rawValue);
     }
     return value === '' ? undefined : value;
   }
@@ -55,13 +55,10 @@ export function rawQuery(url: string, name: string): string | undefined {
   return undefined;
 }
 
-/** Decode each run of well-formed `%XX` escapes that is valid UTF-8; leave anything else as written. */
-function decodeWellFormedEscapes(raw: string): string {
-  return raw.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
-    try {
-      return decodeURIComponent(run);
-    } catch {
-      return run;
-    }
-  });
+/**
+ * Decode the way `URLSearchParams` does (a stray `%` stays, an invalid UTF-8
+ * escape becomes U+FFFD) except that a literal `+` stays `+`.
+ */
+function decodeLikeSearchParams(raw: string): string {
+  return new URLSearchParams(`v=${raw.replace(/\+/g, '%2B')}`).get('v') ?? raw;
 }
