@@ -14,6 +14,12 @@ on:
   pull_request:
     paths: &ci-paths
       - 'hyperwhisper-cloud/**'
+      # Files the cloud parity tests read at runtime: a catalog-only edit must
+      # run the tests that pin the cloud to it.
+      - 'shared-app-classification/**'
+      - 'shared-models/**'
+      - 'shared-conformance/**'
+      - 'nextjs/lib/credits-per-minute.ts'
       - '.github/workflows/cloud-*.yml'
   push:
     branches: [main]

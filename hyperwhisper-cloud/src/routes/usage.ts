@@ -13,6 +13,7 @@ import { errorResponse, jsonResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { roundToTenth } from '../lib/utils';
+import { rawQuery } from '../lib/query';
 
 export function readFiniteCredits(data: unknown): number | null {
   if (
@@ -126,11 +127,11 @@ export async function usageRoute(c: Context) {
   // installed native apps still send, so we accept either.
   // Trimmed (#2461): the cache and the balance lookup below key on it directly.
   const licenseKey =
-    canonicalAccountKey(c.req.query('account_key')) ||
-    canonicalAccountKey(c.req.query('license_key')) ||
-    canonicalAccountKey(c.req.query('identifier')) ||
+    canonicalAccountKey(rawQuery(c.req.url, 'account_key')) ||
+    canonicalAccountKey(rawQuery(c.req.url, 'license_key')) ||
+    canonicalAccountKey(rawQuery(c.req.url, 'identifier')) ||
     null;
-  const forceRefresh = c.req.query('force_refresh') === 'true';
+  const forceRefresh = rawQuery(c.req.url, 'force_refresh') === 'true';
 
   if (licenseKey) {
     // Per-key rate limit (#2010), BEFORE any lookup: a force refresh calls the
