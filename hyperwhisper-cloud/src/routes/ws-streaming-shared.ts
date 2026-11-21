@@ -49,6 +49,9 @@ import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../mid
 import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
+import { rawQuery } from '../lib/query';
+import { readAccountKey } from '../lib/account-key';
+import { liveSessionsClosed, registerLiveSession } from '../lib/background-work';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -208,6 +211,25 @@ export interface StreamingVendor {
   stopFrames?(): string[];
   readonly stopGraceMs?: number;
   /**
+   * For a vendor whose post-stop `complete` cannot be told apart from an EARLIER
+   * turn's completion that was still in flight when the stop frames went out
+   * (Gemini live, #2920). When set, a `complete` after the stop does not close
+   * the upstream at once:
+   * - one arriving within `inFlightWindowMs` of the stop frames is presumed to
+   *   be an earlier turn's, already in flight, and holds the session until
+   *   `inFlightHoldMs` after the stop unless a later completion arrives first;
+   * - one arriving after that window is presumed to be the stop's answer.
+   * The upstream then closes after `quietMs` with no further transcript or
+   * completion (each re-arms the wait). Always capped by `stopGraceMs`.
+   * Omitted means the first post-stop `complete` closes the upstream
+   * immediately (Deepgram).
+   */
+  readonly stopSettle?: {
+    readonly quietMs: number;
+    readonly inFlightWindowMs: number;
+    readonly inFlightHoldMs: number;
+  };
+  /**
    * Cost in USD of `seconds` of audio, and of `transcriptChars` characters of
    * committed transcript for a vendor whose bill depends on both.
    *
@@ -299,13 +321,7 @@ export function makeStreamingPreflight(
       return c.text('Access denied', 403);
     }
 
-    const url = new URL(c.req.url);
-    // `account_key` is the canonical param; `license_key` is the legacy alias that
-    // installed native apps still send, so we accept either.
-    const licenseKey =
-      url.searchParams.get('account_key') ||
-      url.searchParams.get('license_key') ||
-      undefined;
+    const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));
 
     if (!licenseKey) {
       logRejected('missing_account_key', 401);
@@ -333,7 +349,7 @@ export function makeStreamingPreflight(
 
     const requiredCredits = minimumCredits();
     // A floor check only: the session's real hold is `reserveSessionHold` below.
-    const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP, { hold: false });
+    const creditCheck = await validateCredits(authResult.value, requiredCredits, { hold: false });
     if (!creditCheck.ok) {
       logRejected('insufficient_credits', creditCheck.response.status, {
         // The rounded balance validateCredits compared, which the 402 body reports too.
@@ -387,47 +403,12 @@ function errorName(error: unknown): string {
   return error instanceof Error ? error.name.slice(0, 64) : typeof error;
 }
 
-// Every live session past its API-key check, keyed by its shutdown handler.
-// `gracefulShutdown` (index.ts) ends them all on SIGTERM, because Bun runs no
-// socket `close` handler on `process.exit` and `endSession` is the only place a
-// live session is billed (#1235). An entry removes itself in `endSession`.
-const activeSessions = new Set<() => Promise<void>>();
-/** Set once by `endActiveStreamingSessions`; no live session opens after it. */
-let machineShuttingDown = false;
-
-/**
- * End every open live session for a machine shutdown: bill it and log
- * `session_end` now, close the vendor socket, and close the client with 1012
- * (Service Restart) so the native clients reconnect to another machine.
- *
- * Call it BEFORE `drainPendingDeductions`, so the drain awaits these charges.
- * It does not wait for a vendor's trailing final — the whole grace period is 5 s.
- * Resolves to the number of sessions ended.
- */
-export async function endActiveStreamingSessions(): Promise<number> {
-  // Latch first: the machine keeps accepting upgrades during the drain, and a
-  // preflight already awaiting auth can open after this snapshot. Every session
-  // whose `onOpen` runs from now on is refused with 1012 before it can meter.
-  machineShuttingDown = true;
-  const sessions = [...activeSessions];
-  // Settled, not `Promise.all`: one session's fault must not reject this and
-  // make `gracefulShutdown` skip the drains and the exit.
-  const results = await Promise.allSettled(sessions.map((shutdown) => shutdown()));
-  let ended = 0;
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      ended += 1;
-    } else {
-      console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(result.reason) });
-    }
-  }
-  return ended;
-}
-
-/** Test-only: bun runs every test file in one process, and the latch is module state. */
-export function resetStreamingShutdownForTests(): void {
-  machineShuttingDown = false;
-}
+// Every live session past its API-key check registers its shutdown handler in
+// `lib/background-work.ts`, which the graceful shutdown ends on SIGTERM: Bun
+// runs no socket `close` handler on `process.exit`, and `endSession` is the
+// only place a live session is billed (#1235). An entry removes itself in
+// `endSession`. Once the shutdown has begun (`liveSessionsClosed`), a session
+// that would open is refused with 1012 before it can meter.
 
 function decodeUpstreamFrame(raw: unknown): string {
   // `event.data` is typed `any` by the WebSocket lib and a vendor can deliver a
@@ -479,9 +460,8 @@ export function createStreamingEventsFor(
   const startTime = performance.now();
   const auth = c.get('wsAuth');
   const clientIP = c.get('wsClientIP');
-  const url = new URL(c.req.url);
-  const language = url.searchParams.get('language') || undefined;
-  const vocabulary = url.searchParams.get('vocabulary') || undefined;
+  const language = rawQuery(c.req.url, 'language');
+  const vocabulary = rawQuery(c.req.url, 'vocabulary');
   const apiKey = vendor.apiKey();
   const endpoint = routePathFor(vendor);
 
@@ -521,6 +501,8 @@ export function createStreamingEventsFor(
    */
   let upstreamReached = false;
   let sessionEnded = false;
+  /** Set once the session is registered for shutdown; run by `endSession`. */
+  let unregisterLiveSession: (() => void) | null = null;
   let clientSocket: WSContext | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
   // `true` once the vendor will accept audio. A vendor with a setup handshake
@@ -534,6 +516,13 @@ export function createStreamingEventsFor(
    */
   let stopDeferred = false;
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
+  /** `clock.now()` when the stop frames went out; `stopSettle`'s windows count from it. */
+  let stopSentAt = 0;
+  /** A `complete` arrived after the stop; from then on `settleTimer` decides the close. */
+  let stopCompletionSeen = false;
+  /** A post-stop `complete` arrived too late to have been in flight: the stop's answer. */
+  let stopAnswerSeen = false;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set when a terminal upstream fault should close the client with 1011. */
   let clientCloseCode: number | null = null;
   /**
@@ -567,7 +556,7 @@ export function createStreamingEventsFor(
   async function endSession(options: { notifyClient?: boolean } = {}): Promise<void> {
     if (sessionEnded) return;
     sessionEnded = true;
-    activeSessions.delete(shutdownSession);
+    unregisterLiveSession?.();
     if (openDeadline) {
       clock.clearTimeout(openDeadline);
       openDeadline = null;
@@ -580,6 +569,10 @@ export function createStreamingEventsFor(
     if (stopTimer) {
       clearTimeout(stopTimer);
       stopTimer = null;
+    }
+    if (settleTimer) {
+      clock.clearTimeout(settleTimer);
+      settleTimer = null;
     }
 
     // The metered charge, then the clamp. `enforceCreditCutoff` ends a session
@@ -684,7 +677,12 @@ export function createStreamingEventsFor(
     }
   }
 
-  /** The machine is shutting down: see {@link endActiveStreamingSessions}. */
+  /**
+   * The machine is shutting down (`endLiveSessions`): bill the session and log
+   * `session_end` now, close the vendor socket, and close the client with 1012
+   * (Service Restart) so the native clients reconnect to another machine. It
+   * does not wait for a vendor's trailing final.
+   */
   async function shutdownSession(): Promise<void> {
     const ended = endSession({ notifyClient: false });
     // Client first, so the upstream close handler finds it already closed and
@@ -792,10 +790,32 @@ export function createStreamingEventsFor(
     }, vendor.stopGraceMs ?? 5000);
   }
 
+  /**
+   * (Re)arm the post-stop settle wait — see `StreamingVendor.stopSettle`. Runs
+   * on the first post-stop `complete` and on every transcript or completion
+   * after it, so a turn that closed while the stop was in flight cannot end the
+   * session ahead of the stop's own final (#2920). The grace backstop stays
+   * armed underneath, so a vendor that keeps talking still closes at
+   * `stopGraceMs`.
+   */
+  function armStopSettle(settle: NonNullable<StreamingVendor['stopSettle']>): void {
+    if (sessionEnded) return;
+    if (settleTimer) clock.clearTimeout(settleTimer);
+    // Until the stop's answer is seen, only an in-flight earlier turn has
+    // completed, so hold for the answer; after it, only the quiet window.
+    const untilHold = stopAnswerSeen ? 0 : stopSentAt + settle.inFlightHoldMs - clock.now();
+    settleTimer = clock.setTimeout(() => {
+      settleTimer = null;
+      log('stop_settled', { answerSeen: stopAnswerSeen });
+      closeUpstream('Session ended');
+    }, Math.max(settle.quietMs, untilHold));
+  }
+
   /** Send the vendor's end-of-audio frames and wait out the grace period. */
   function sendStopFrames(frames: string[]): void {
     stopDeferred = false;
     stopRequested = true;
+    stopSentAt = clock.now();
     if (upstreamWs && upstreamWs.readyState === WebSocket.OPEN) {
       for (const frame of frames) upstreamWs.send(frame);
     }
@@ -863,14 +883,24 @@ export function createStreamingEventsFor(
             speech_final: event.speechFinal,
           });
         }
+        // The stop's own final may still be behind this one: keep waiting.
+        if (stopCompletionSeen && vendor.stopSettle) armStopSettle(vendor.stopSettle);
         return;
       }
       case 'complete': {
         // Only terminal once the client asked to stop: vendors that emit this at
         // every turn boundary would otherwise cut a live dictation short.
-        if (stopRequested) {
+        if (!stopRequested) return;
+        if (!vendor.stopSettle) {
           closeUpstream('Session ended');
+          return;
         }
+        // A completion after the stop is not necessarily the stop's answer: an
+        // earlier turn's closing frame can still have been in flight when the
+        // stop frames went out (#2920). Settle instead of closing outright.
+        stopCompletionSeen = true;
+        if (clock.now() - stopSentAt >= vendor.stopSettle.inFlightWindowMs) stopAnswerSeen = true;
+        armStopSettle(vendor.stopSettle);
         return;
       }
       case 'error': {
@@ -910,7 +940,7 @@ export function createStreamingEventsFor(
         return;
       }
 
-      if (machineShuttingDown) {
+      if (liveSessionsClosed()) {
         // Opened after shutdown began, so it would miss the snapshot and be
         // dropped unbilled by the exit. Refuse it before any upstream socket or
         // metering exists; 1012 sends the client to another machine. Nothing
@@ -923,7 +953,11 @@ export function createStreamingEventsFor(
       }
 
       log('session_start', { language: language || 'auto', hasVocabulary: Boolean(vocabulary) });
-      activeSessions.add(shutdownSession);
+      // A failed shutdown is logged here and still rejects, so it is not counted as ended.
+      unregisterLiveSession = registerLiveSession(() => shutdownSession().catch((error: unknown) => {
+        console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(error) });
+        throw error;
+      }));
 
       upstreamWs = protocols === undefined
         ? new WebSocket(upstreamUrl)

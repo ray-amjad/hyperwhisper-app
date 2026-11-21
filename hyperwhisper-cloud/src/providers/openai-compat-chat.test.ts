@@ -22,29 +22,22 @@
 // calculator, the real usage type guard and the real error classes all run.
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
 import {
-  computeCerebrasChatCost,
-  computeGeminiChatCost,
-  computeGroqChatCost,
-  computeMistralChatCost,
-  computeOpenAIChatCost,
-  computeXaiGrokFastChatCost,
   estimateUsageFromChars,
   type GroqUsage,
 } from '../lib/cost-calculator';
-import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
+import { computeLLMChatCost } from '../lib/llm-models';
+import { llmModelRow } from '../lib/llm-models';
 import { shouldFallback } from '../lib/llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { requestGroqChat } from './groq-llm';
-import { requestCerebrasChat } from './cerebras';
-import { requestOpenAIChat } from './openai-llm';
-import { requestGeminiChat } from './gemini-llm';
-import { requestMistralChat } from './mistral-llm';
-import { requestXaiGrokChat } from './xai-llm';
-import { requestOpenAICompatibleChat, type OpenAICompatChatConfig } from './openai-compat-chat';
+import { requestOpenAICompatibleChat } from './openai-compat-chat';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
+
+// Output caps from the llm-models.ts rows.
+const GROQ_MAX_COMPLETION_TOKENS = llmModelRow('groq', 'openai/gpt-oss-120b').maxOutputTokens;
 
 // ---------------------------------------------------------------------------
 // Global fetch capture
@@ -82,6 +75,14 @@ function chatResponse(body: Record<string, unknown> = {}): Response {
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 }
+
+type Payload = CorrectionRequestPayload;
+const requestCerebrasChat = (p: Payload, id: string) => requestOpenAICompatibleChat('cerebras', p, id, 'gpt-oss-120b');
+const requestGroqChat = (p: Payload, id: string) => requestOpenAICompatibleChat('groq', p, id, 'openai/gpt-oss-120b');
+const requestXaiGrokChat = (p: Payload, id: string) => requestOpenAICompatibleChat('grok', p, id, 'grok-4.3');
+const requestOpenAIChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('openai', p, id, model);
+const requestGeminiChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('gemini', p, id, model);
+const requestMistralChat = (p: Payload, id: string, model: string) => requestOpenAICompatibleChat('mistral', p, id, model);
 
 const PAYLOAD: CorrectionRequestPayload = buildCorrectionRequest('system prompt', 'user transcript');
 
@@ -291,15 +292,11 @@ describe('request body construction', () => {
     expect(lastBody().reasoning_effort).toBe('low');
   });
 
-  test('xai lets the payload override its reasoning_effort default', async () => {
-    // xai spreads `reasoning_effort` BEFORE the payload. This asymmetry with
-    // cerebras is easy to erase in a refactor, so it is pinned deliberately.
+  test('xai sends reasoning_effort none', async () => {
+    // The payload type has no reasoning_effort, so the order of the old spread
+    // (xai put it before the payload) could never be observed.
     await requestXaiGrokChat(PAYLOAD, 'req-1');
     expect(lastBody().reasoning_effort).toBe('none');
-
-    const withOverride = { ...PAYLOAD, reasoning_effort: 'high' } as CorrectionRequestPayload;
-    await requestXaiGrokChat(withOverride, 'req-1');
-    expect(lastBody().reasoning_effort).toBe('high');
   });
 });
 
@@ -313,20 +310,20 @@ describe('successful completion', () => {
     expect(result.usage).toEqual(USAGE);
     expect((result.raw as { choices: Array<{ message: { content: string } }> }).choices[0].message.content)
       .toBe('cleaned transcript');
-    expect(result.costUsd).toBe(computeCerebrasChatCost(USAGE));
+    expect(result.costUsd).toBe(computeLLMChatCost('cerebras', 'gpt-oss-120b', USAGE));
     expect(result.costUsd).toBeGreaterThan(0);
   });
 
   test('each provider is priced with its own rate card, not a shared one', async () => {
     const cases: Array<[() => Promise<{ costUsd: number }>, number]> = [
-      [() => requestCerebrasChat(PAYLOAD, 'req-1'), computeCerebrasChatCost(USAGE)],
-      [() => requestGroqChat(PAYLOAD, 'req-1'), computeGroqChatCost(USAGE)],
-      [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeXaiGrokFastChatCost(USAGE)],
-      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeOpenAIChatCost('gpt-5.6-luna', USAGE)],
-      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeGeminiChatCost('gemini-2.5-flash', USAGE)],
+      [() => requestCerebrasChat(PAYLOAD, 'req-1'), computeLLMChatCost('cerebras', 'gpt-oss-120b', USAGE)],
+      [() => requestGroqChat(PAYLOAD, 'req-1'), computeLLMChatCost('groq', 'openai/gpt-oss-120b', USAGE)],
+      [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeLLMChatCost('grok', 'grok-4.3', USAGE)],
+      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeLLMChatCost('openai', 'gpt-5.6-luna', USAGE)],
+      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE)],
       [
         () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
-        computeMistralChatCost('mistral-small-latest', USAGE),
+        computeLLMChatCost('mistral', 'mistral-small-latest', USAGE),
       ],
     ];
 
@@ -341,8 +338,8 @@ describe('successful completion', () => {
     const flash = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
     const flashLite = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
 
-    expect(flash.costUsd).toBe(computeGeminiChatCost('gemini-2.5-flash', USAGE));
-    expect(flashLite.costUsd).toBe(computeGeminiChatCost('gemini-2.5-flash-lite', USAGE));
+    expect(flash.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE));
+    expect(flashLite.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', USAGE));
     // Billing the cheap model at the expensive model's rate (or the reverse)
     // is invisible in the response, so pin that they differ.
     expect(flash.costUsd).not.toBe(flashLite.costUsd);
@@ -367,7 +364,7 @@ describe('missing or unrecognized usage', () => {
     const estimate = estimateUsageFromChars(promptChars, 'cleaned transcript'.length);
 
     expect(result.usage).toBeUndefined();
-    expect(result.costUsd).toBe(computeCerebrasChatCost(estimate));
+    expect(result.costUsd).toBe(computeLLMChatCost('cerebras', 'gpt-oss-120b', estimate));
     // The whole point of the fallback: a vendor schema change must not make
     // the call free.
     expect(result.costUsd).toBeGreaterThan(0);
@@ -497,11 +494,13 @@ describe('missing API key', () => {
     expect(calls).toHaveLength(0);
   });
 
-  test('the four late-added providers report an unconfigured key as failover-eligible', async () => {
+  test('every provider reports an unconfigured key as a failover-eligible 503', async () => {
     // A provider we have no key for is, from the route's point of view, down —
     // tagging it 503 lets post-process serve the request off the fallback
     // instead of returning the raw transcript.
     const cases: Array<[() => Promise<unknown>, string, string]> = [
+      [() => requestCerebrasChat(PAYLOAD, 'req-1'), 'cerebras', 'CEREBRAS_API_KEY'],
+      [() => requestGroqChat(PAYLOAD, 'req-1'), 'groq', 'GROQ_API_KEY'],
       [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), 'openai', 'OPENAI_API_KEY'],
       [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), 'gemini', 'GEMINI_API_KEY'],
       [() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'), 'mistral', 'MISTRAL_API_KEY'],
@@ -519,23 +518,6 @@ describe('missing API key', () => {
       expect(errorProvider(error)).toBe(provider);
       expect(shouldFallback(error)).toBe(true);
     }
-  });
-
-  test('cerebras and groq report an unconfigured key as a plain, non-failover error', async () => {
-    // Documenting current behaviour, which differs from the four above: these
-    // two throw untagged, so shouldFallback() is false and the request does
-    // NOT move to another provider.
-    for (const key of API_KEY_ENV) delete process.env[key];
-
-    const cerebrasError = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
-    expect((cerebrasError as Error).message).toBe('CEREBRAS_API_KEY not configured');
-    expect(errorStatus(cerebrasError)).toBeUndefined();
-    expect(shouldFallback(cerebrasError)).toBe(false);
-
-    const groqError = await captureError(() => requestGroqChat(PAYLOAD, 'req-1'));
-    expect((groqError as Error).message).toBe('GROQ_API_KEY not configured');
-    expect(errorStatus(groqError)).toBeUndefined();
-    expect(shouldFallback(groqError)).toBe(false);
   });
 
   test('treats an empty-string key as unconfigured', async () => {
@@ -558,23 +540,27 @@ describe('missing API key', () => {
 describe('bounded wait on a silent upstream', () => {
   const TIMEOUT_MS = 200;
   let upstream: TestUpstream | undefined;
+  // Shrink the request bound so the real abort fires in milliseconds.
+  let timerSpy: ReturnType<typeof spyOn> | undefined;
+  beforeEach(() => {
+    const realSetTimeout = globalThis.setTimeout;
+    timerSpy = spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: (...args: unknown[]) => void,
+      ms?: number,
+      ...args: unknown[]
+    ) => realSetTimeout(handler, ms === LLM_REQUEST_TIMEOUT_MS ? TIMEOUT_MS : ms, ...args)) as unknown as typeof setTimeout);
+  });
 
   afterEach(() => {
+    timerSpy?.mockRestore();
     upstream?.stop();
     upstream = undefined;
   });
 
-  function configFor(baseUrl: string): OpenAICompatChatConfig {
-    return {
-      baseUrl,
-      apiKey: 'test-key',
-      providerTag: 'groq',
-      errorLogLabel: 'test chat',
-      errorChatLabel: 'test chat',
-      buildBody: () => ({ model: 'm' }),
-      computeCost: () => 0,
-      timeoutMs: TIMEOUT_MS,
-    };
+  /** Send the groq client's request to `url` (the real fetch). */
+  function sendTo(url: string, requestId: string) {
+    globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => originalFetch(url, init)) as typeof fetch;
+    return requestOpenAICompatibleChat('groq', PAYLOAD, requestId, 'm');
   }
 
   async function timedError(fn: () => Promise<unknown>): Promise<{ error: unknown; elapsedMs: number }> {
@@ -584,27 +570,23 @@ describe('bounded wait on a silent upstream', () => {
   }
 
   test('rejects with a 504 within the timeout when the upstream never answers', async () => {
-    globalThis.fetch = originalFetch;
     upstream = silentUpstream();
 
-    const { error, elapsedMs } = await timedError(() =>
-      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-silent', 'm'));
+    const { error, elapsedMs } = await timedError(() => sendTo(upstream!.url, 'req-silent'));
 
     expect(error).toBeInstanceOf(LLMRequestError);
     expect(errorStatus(error)).toBe(504);
     expect(errorProvider(error)).toBe('groq');
-    expect((error as Error).message).toContain(`timeout after ${TIMEOUT_MS}ms`);
+    expect((error as Error).message).toContain(`timeout after ${LLM_REQUEST_TIMEOUT_MS}ms`);
     expect(shouldFallback(error)).toBe(true);
     expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
 
   test('rejects with a 504 when the headers arrive but the body stalls', async () => {
-    globalThis.fetch = originalFetch;
     upstream = stalledBodyUpstream();
 
-    const { error, elapsedMs } = await timedError(() =>
-      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-stalled-body', 'm'));
+    const { error, elapsedMs } = await timedError(() => sendTo(upstream!.url, 'req-stalled-body'));
 
     expect(errorStatus(error)).toBe(504);
     expect(shouldFallback(error)).toBe(true);
@@ -614,10 +596,7 @@ describe('bounded wait on a silent upstream', () => {
   // Only our timer is mapped. A real network error stays the untagged error
   // it was before #782 (retried, not failed over), as the #210 test pins.
   test('passes a refused connection through untagged, not as a timeout', async () => {
-    globalThis.fetch = originalFetch;
-
-    const error = await captureError(() =>
-      requestOpenAICompatibleChat(configFor(refusedUrl()), PAYLOAD, 'req-refused', 'm'));
+    const error = await captureError(() => sendTo(refusedUrl(), 'req-refused'));
 
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(LLMRequestError);
@@ -642,7 +621,7 @@ describe('bounded wait on a silent upstream', () => {
 
 // The non-streaming bound scales with the transcript (review rounds 1 and 2):
 // the shared client arms its timer with computeLLMRequestTimeoutMs(transcript
-// chars) unless the config injects timeoutMs. Spy on setTimeout to read it.
+// chars). Spy on setTimeout to read it.
 describe('timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
@@ -679,21 +658,5 @@ describe('timeout scales with the transcript', () => {
       requestGroqChat(buildCorrectionRequest('s'.repeat(30_000), 'user transcript'), 'req-long-system'));
     expect(delays).toContain(20_000);
     expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
-  });
-
-  test('an injected timeoutMs still wins over the computed one', async () => {
-    const config: OpenAICompatChatConfig = {
-      baseUrl: 'https://llm.test',
-      apiKey: 'test-key',
-      providerTag: 'groq',
-      errorLogLabel: 'test chat',
-      errorChatLabel: 'test chat',
-      buildBody: () => ({ model: 'm' }),
-      computeCost: () => 0,
-      timeoutMs: 1_234,
-    };
-    const delays = await armedDelays(() => requestOpenAICompatibleChat(config, LONG_PAYLOAD, 'req-override', 'm'));
-    expect(delays).toContain(1_234);
-    expect(delays).not.toContain(50_000);
   });
 });

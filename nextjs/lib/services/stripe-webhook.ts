@@ -7,6 +7,7 @@ import { emailTag } from "@/lib/shared/redact";
 import { refundedCreditsTotal } from "@/lib/services/credit-refund";
 import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
 import type { AccountKeyRow } from "@/src/lib/db-layer";
+import { ACCOUNT_KEY_DELETED_STATUS } from "@/lib/account-key-limits";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -37,6 +38,8 @@ const accountKeyId = z.string().uuid();
  * 1. by ROW ID (`metadata.account_key_id`), which never changes;
  * 2. by the key string (`metadata.license_key`), which still works when no
  *    rotation happened;
+ *    (A row found by 1 or 2 that the owner deleted resolves to the user's
+ *    newest live key: `liveSiblingIfDeleted`.)
  * 3. by the session's Stripe customer. Checkouts opened before the id was
  *    written carry only the string, which a rotation kills, but every top-up
  *    checkout runs under the customer cached on its key row
@@ -52,13 +55,13 @@ async function findTopUpAccount(
   if (id && accountKeyId.safeParse(id).success) {
     const byId = await findAccountById(id);
 
-    if (byId) return byId;
+    if (byId) return liveSiblingIfDeleted(byId);
   }
 
   const key = session.metadata?.license_key;
   const byKey = key ? await findAccountByKey(key) : null;
 
-  if (byKey) return byKey;
+  if (byKey) return liveSiblingIfDeleted(byKey);
 
   const customerId = getStripeCustomerId(session.customer);
 
@@ -72,6 +75,26 @@ async function findTopUpAccount(
   if (new Set(rows.map((r) => r.userId)).size > 1) return null;
 
   return rows.find((r) => r.status === "granted") ?? rows[0];
+}
+
+/**
+ * A top-up checkout opened on a key the owner has since deleted from the
+ * dashboard lands on the same user's newest live key instead: credits belong
+ * to the user, not the key, and the owner always keeps one live key. Any
+ * other status (revoked, refunded) is returned as is, and the top-up refuses
+ * it as before. With no live sibling (an admin revoked the rest), the deleted
+ * row is returned and refused too.
+ */
+async function liveSiblingIfDeleted(
+  row: AccountKeyRow,
+): Promise<AccountKeyRow> {
+  if (row.status !== ACCOUNT_KEY_DELETED_STATUS) return row;
+
+  const live = (await getAccountKeysByEmail(row.email)).find(
+    (k) => k.userId === row.userId && k.status === "granted",
+  );
+
+  return live ?? row;
 }
 
 /** Why a top-up's key row could not be found, for logs (never the full key). */
@@ -267,7 +290,6 @@ async function handleCreditMint(
   // key should top that key up, not get a second key with a split balance.
   // Only when the session hasn't already resolved a license (retry-safe), and
   // only for granted keys (a revoked key is dead — mint a fresh one instead).
-  let pooledIntoExisting = false;
   if (!license) {
     // An email can own several keys (e.g. a revoked key plus a live one), so
     // scan all of them newest-first and pool into the most recent GRANTED key.
@@ -279,7 +301,6 @@ async function handleCreditMint(
     const existing = existingKeys.find((k) => k.status === "granted");
     if (existing) {
       license = existing;
-      pooledIntoExisting = true;
     }
   }
 
@@ -356,10 +377,15 @@ async function handleCreditMint(
     return;
   }
 
-  // STEP 3: Email. When we pooled into an existing key, send a top-up receipt
-  // with the new balance (the buyer already has this key). A genuinely new key
-  // gets the mint email with its starting balance.
-  if (pooledIntoExisting) {
+  // STEP 3: Email. A key this session minted gets the mint email, the only
+  // email that carries the full key. A key minted earlier (pooled by email)
+  // gets a top-up receipt with the new balance: the buyer already has it.
+  // Decided from the row's stripe_session_id, never from which lookup found
+  // it: a concurrent delivery of this same session can miss the session
+  // lookup, then find the key the other delivery just minted by email, and
+  // win the grant. It must still send the mint email (#2947).
+  const mintedByThisSession = license.stripeSessionId === session.id;
+  if (!mintedByThisSession) {
     console.log(
       `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerTag}`
     );

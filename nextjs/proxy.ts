@@ -71,6 +71,11 @@ function hasSessionCookie(request: NextRequest): boolean {
  * `runtime`/`config.runtime` export here throws a build error). This is
  * expected framework behavior, not a bug: see
  * https://nextjs.org/docs/messages/middleware-to-proxy
+ *
+ * On Cloudflare Workers, @opennextjs/cloudflare bundles this as Node.js
+ * middleware, which it labels experimental. Checked with wrangler dev on
+ * 2026-10-29 (locale redirects, /docs skip). If it ever breaks, the fallback
+ * is an edge `middleware.ts`: this file uses only next-intl and cookies.
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -143,10 +148,15 @@ export const config = {
   // - API routes (/api and /api/*)
   // - Raw model inventory endpoint (/models and /models/*)
   // - Next.js internals (/_next and /_next/*)
-  // - Vercel internals (/_vercel and /_vercel/*)
-  // - Documentation (/docs and /docs/* only)
+  // - Documentation (/docs and /docs/* only) and Mintlify's own paths
+  //   (/_mintlify/*, /mintlify-assets/*). These are next.config rewrites
+  //   (config/mintlify-rewrites.mjs), and middleware runs BEFORE rewrites, so
+  //   without the exclusion next-intl would redirect them to /en/....
+  //   (/api/request is covered by the /api exclusion.)
   // - Static files with extensions (*.*)
   // Each prefix is anchored with (?:/|$), so /docsx or /apix still goes
   // through the locale proxy and 404s (#1125).
-  matcher: ["/((?!(?:api|models|_next|_vercel|docs)(?:/|$)|.*\\..*).*)"],
+  matcher: [
+    "/((?!(?:api|models|_next|_mintlify|mintlify-assets|docs)(?:/|$)|.*\\..*).*)",
+  ],
 };

@@ -1,7 +1,7 @@
 // MICROSOFT MAI-TRANSCRIBE PROVIDER (Azure Speech / Foundry)
 // Two multilingual transcription models behind one provider id:
-//   - mai-transcribe-1.5 — 42 documented locales, $0.006/min
-//   - mai-transcribe-2   — 60 documented locales, $0.10/hr (limited-time offer)
+//   - mai-transcribe-1.5 — 42 documented locales
+//   - mai-transcribe-2   — 60 documented locales
 // Both take phrase-list biasing. The model is chosen by `X-STT-Model`; the
 // per-model locale tables live in `lib/language-codes.ts`.
 //

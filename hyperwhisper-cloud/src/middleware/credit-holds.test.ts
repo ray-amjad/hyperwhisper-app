@@ -86,7 +86,7 @@ afterEach(async () => {
 describe('withCreditHoldScope', () => {
   test('releases the hold when the handler throws', async () => {
     await expect(withCreditHoldScope(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4)).ok).toBe(true);
       expect(store.outstandingMilli(ACCOUNT)).toBe(4000);
       throw new Error('handler blew up');
     })).rejects.toThrow('handler blew up');
@@ -96,7 +96,7 @@ describe('withCreditHoldScope', () => {
 
   test('releases the hold of a request that billed nothing', async () => {
     await withCreditHoldScope(async () => {
-      await validateCredits(auth(10), 4, 'ip');
+      await validateCredits(auth(10), 4);
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
@@ -105,8 +105,8 @@ describe('withCreditHoldScope', () => {
   test('a second check in one request resizes its hold instead of taking another', async () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 2, 'ip');
-      await validateCredits(a, 5, 'ip');
+      await validateCredits(a, 2);
+      await validateCredits(a, 5);
       expect(store.holds(ACCOUNT).size).toBe(1);
       expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
     });
@@ -114,14 +114,14 @@ describe('withCreditHoldScope', () => {
 
   test('a floor check (`hold: false`) takes no hold', async () => {
     await withCreditHoldScope(async () => {
-      expect((await validateCredits(auth(10), 2, 'ip', { hold: false })).ok).toBe(true);
+      expect((await validateCredits(auth(10), 2, { hold: false })).ok).toBe(true);
       expect(store.outstandingMilli(ACCOUNT)).toBe(0);
     });
   });
 
   test('outside a scope, validateCredits fails open, holds nothing, and logs credits_hold.no_scope once (#2043)', async () => {
     const lines = await captureErrors(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4)).ok).toBe(true);
     });
     expect(store.calls).toEqual([]);
     const noScope = lines.filter((line) => line.includes('credits_hold.no_scope'));
@@ -132,7 +132,7 @@ describe('withCreditHoldScope', () => {
 
   test('outside a scope, `hold: false` logs nothing', async () => {
     const lines = await captureErrors(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip', { hold: false })).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4, { hold: false })).ok).toBe(true);
     });
     expect(store.calls).toEqual([]);
     expect(lines).toEqual([]);
@@ -141,7 +141,7 @@ describe('withCreditHoldScope', () => {
   test('inside a scope, a holding call logs no credits_hold.no_scope', async () => {
     const lines = await captureErrors(async () => {
       await withCreditHoldScope(async () => {
-        expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+        expect((await validateCredits(auth(10), 4)).ok).toBe(true);
       });
     });
     expect(lines.filter((line) => line.includes('credits_hold.no_scope'))).toEqual([]);
@@ -152,9 +152,9 @@ describe('withCreditHoldScope', () => {
     const keyA: AuthContext = { identifier: 'key-a', licenseKey: 'key-a', credits: 10, creditPoolId: pool };
     const keyB: AuthContext = { identifier: 'key-b', licenseKey: 'key-b', credits: 10, creditPoolId: pool };
     await withCreditHoldScope(async () => {
-      expect((await validateCredits(keyA, 6, 'ip')).ok).toBe(true);
+      expect((await validateCredits(keyA, 6)).ok).toBe(true);
       await withCreditHoldScope(async () => {
-        const refused = await validateCredits(keyB, 6, 'ip');
+        const refused = await validateCredits(keyB, 6);
         expect(refused.ok).toBe(false);
       });
       expect(store.outstandingMilli(`pool:${pool}`)).toBe(6000);
@@ -184,7 +184,7 @@ describe('settling a hold through deductCredits', () => {
 
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 3, 'ip');
+      await validateCredits(a, 3);
       void deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip');
     });
     await settle();
@@ -196,7 +196,7 @@ describe('settling a hold through deductCredits', () => {
   test('a charge above the hold is grown into the free balance and charged in full', async () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
+      await validateCredits(a, 1);
       // 2.5 credits.
       expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }, 'ip')).toBe(2.5);
     });
@@ -212,7 +212,7 @@ describe('settling a hold through deductCredits', () => {
     });
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
+      await validateCredits(a, 1);
       // 3 credits used against 1 held and 1 more free: 2 charged, 1 written off.
       expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip')).toBe(2);
     });
@@ -237,7 +237,7 @@ describe('settling a hold through deductCredits', () => {
     globalThis.fetch = mock(async () => Response.json({ error: 'nope' }, { status: 500 })) as unknown as typeof fetch;
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
+      await validateCredits(a, 1);
       void deductCredits(a, 0.001, { endpoint: '/transcribe' }, 'ip');
     });
     await settle();

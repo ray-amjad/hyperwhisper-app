@@ -1,8 +1,9 @@
 // ELEVENLABS SCRIBE PROVIDER
-// High accuracy STT - $0.00983/min using Scribe v2
+// High accuracy STT using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -113,7 +114,7 @@ export async function transcribeWithElevenLabs(
 
   const ext = audioExtensionFromContentType(contentType, ELEVENLABS_AUDIO_EXTENSIONS) ?? 'mp3';
 
-  const modelId = context.model || 'scribe_v2';
+  const modelId = context.model || getProviderDef('elevenlabs').defaultModel;
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model_id', modelId);
@@ -136,13 +137,11 @@ export async function transcribeWithElevenLabs(
     formData.append('language_code', langCode);
   }
 
-  // Keyterm biasing is a scribe_v2-only feature. `keyterms` is an ARRAY field:
-  // over multipart it must be sent as ONE repeated field per term (the official
-  // SDKs append one `keyterms` per item), NOT a JSON-array string — the API
-  // forbids literal `[`/`]`, so a JSON blob would be a single invalid term.
-  // scribe_v1 has no biasing (registry marks supportsVocabulary:false), so terms
-  // are dropped there rather than sent and ignored.
-  const keyterms = initialPrompt && modelId === 'scribe_v2' ? toKeyterms(initialPrompt) : [];
+  // `keyterms` is an ARRAY field: over multipart it must be sent as ONE repeated
+  // field per term (the official SDKs append one `keyterms` per item), NOT a
+  // JSON-array string — the API forbids literal `[`/`]`, so a JSON blob would be
+  // a single invalid term.
+  const keyterms = initialPrompt ? toKeyterms(initialPrompt) : [];
   for (const term of keyterms) {
     formData.append('keyterms', term);
   }

@@ -1,18 +1,28 @@
 // ANTHROPIC LLM CLIENT (MESSAGES API)
 // Used by the /post-process endpoint for text correction.
 
-import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
-import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
+import type { GroqUsage } from '../lib/cost-calculator';
+import { computeAnthropicCost, defaultModelFor, llmModelRow } from '../lib/llm-models';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError } from './upstream-error';
 import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-// Undated id on purpose: Anthropic's undated aliases are the supported form, and
-// a pinned snapshot is what left this file on Haiku 4.5 after Haiku 5.5 shipped.
-export const ANTHROPIC_MODEL = 'claude-haiku-5-5';
 const ANTHROPIC_VERSION = '2023-06-01';
+// The default anthropic row of llm-models.ts.
+export const ANTHROPIC_MODEL = defaultModelFor('anthropic');
+
+/**
+ * `max_tokens` for `model`: its row's output cap (an id with no row takes the
+ * default row's). The Messages API requires one, so every anthropic row in
+ * llm-models.ts sets maxOutputTokens (pinned by llm-dispatch.test.ts).
+ */
+function anthropicMaxTokens(model: string): number {
+  const cap = llmModelRow('anthropic', model).maxOutputTokens;
+  if (cap === undefined) throw new Error(`llm-models: anthropic/${model} has no maxOutputTokens`);
+  return cap;
+}
 
 /**
  * The `thinking` field that turns extended thinking OFF for `model`, or
@@ -62,13 +72,9 @@ function toTokenCount(value: unknown): number {
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
-  timeoutMs?: number,
   model: string = ANTHROPIC_MODEL,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
+  const apiKey = requireLLMApiKey('anthropic', 'ANTHROPIC_API_KEY');
 
   // Convert OpenAI chat format to Anthropic format:
   // messages[0] = system prompt, messages[1] = user message
@@ -93,7 +99,7 @@ export async function requestAnthropicChat(
       },
       body: JSON.stringify(withThinking(model, {
         model,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
+        max_tokens: anthropicMaxTokens(model),
         system: systemContent,
         messages: [{ role: 'user', content: userContent }],
         stream: false,
@@ -124,14 +130,14 @@ export async function requestAnthropicChat(
       }>(response, 'anthropic', requestId);
     },
     requestId,
-    timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+    computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
   const inputTokens = toTokenCount(data.usage?.input_tokens);
   const outputTokens = toTokenCount(data.usage?.output_tokens);
   const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens);
   const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens);
-  const costUsd = computeAnthropicCost(inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
+  const costUsd = computeAnthropicCost(model, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
   console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
 

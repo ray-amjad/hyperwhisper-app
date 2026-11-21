@@ -123,6 +123,18 @@ pub struct ValidationOutcome {
     pub expires_at: Option<String>,
     /// Error message when validation failed (or offline-fallback note).
     pub error_message: Option<String>,
+    /// Whether the server stated a verdict about this key (issue #2916).
+    ///
+    /// `true` for a decoded validate reply and for [`http_error_outcome`].
+    /// `false` for a 200 whose body is not the validate JSON (a captive-portal
+    /// login page, a proxy's HTML, an empty body), for
+    /// [`crate::cache::offline_fallback_outcome`] and for [`empty_key_outcome`]:
+    /// none of those is the server's word on the key. A head persists an
+    /// outcome through [`crate::cache::persist_validation_verdict`] only when
+    /// this is `true`; on `false` it takes its network-failure path (offline
+    /// fallback to the cached verdict), so the cache is left untouched and the
+    /// next check retries.
+    pub is_verdict: bool,
 }
 
 /// An empty/whitespace-only license key — rejected before any network call.
@@ -135,6 +147,8 @@ pub fn empty_key_outcome() -> ValidationOutcome {
         customer_email: None,
         expires_at: None,
         error_message: Some("License key cannot be empty".to_string()),
+        // Rejected before any request: the server said nothing about the key.
+        is_verdict: false,
     }
 }
 
@@ -157,6 +171,9 @@ pub fn http_error_outcome(status_code: u16, body: &[u8]) -> ValidationOutcome {
         customer_email: None,
         expires_at: None,
         error_message: Some(message),
+        // A terminal non-200 stays a verdict here; whether a 4xx should be one
+        // is #2060, not this function's call.
+        is_verdict: true,
     }
 }
 
@@ -169,23 +186,50 @@ pub fn http_error_outcome(status_code: u16, body: &[u8]) -> ValidationOutcome {
 /// 2. Otherwise use the macOS booleans: `valid` → Active; else `expired` →
 ///    Expired; else Invalid.
 ///
-/// On a body that is not valid JSON, returns an `Invalid` outcome with a parse
-/// error message (mirrors macOS' "invalid response" fallback).
+/// A 200 whose body is not the validate JSON is **not a verdict** (#2916): a
+/// captive portal or proxy answering 200 with its own login page, or an empty
+/// body, says nothing about the key. Such a body returns an `Invalid` outcome
+/// with the "Invalid server response" message (so a head that ignores the flag
+/// degrades no worse than before) and `is_verdict: false`, which tells the head
+/// to take its network-failure path instead of caching the status.
+///
+/// "The validate JSON" means a JSON object carrying `valid` and/or `status`
+/// that decodes into [`ValidateResponse`]. Every 200 the validate route sends
+/// carries `valid` (`nextjs/app/api/license/validate/route.ts`: each 200 is
+/// `{ valid: true, ... }`; every `valid: false` reply is a 4xx/5xx), so a 200
+/// whose JSON has neither key (`{}`, `[]`, `"ok"`, `null`) is not from the
+/// route either. A real `{"valid":false}` or `{"status":"revoked"}` stays an
+/// `Invalid` verdict.
 pub fn parse_validate_response(body: &[u8]) -> ValidationOutcome {
-    let resp: ValidateResponse = match serde_json::from_slice(body) {
-        Ok(r) => r,
-        Err(_) => {
-            return ValidationOutcome {
-                is_valid: false,
-                status: LicenseStatus::Invalid,
-                customer_id: None,
-                customer_email: None,
-                expires_at: None,
-                error_message: Some("Invalid server response".to_string()),
-            };
-        }
-    };
-    outcome_from_response(&resp)
+    match decode_validate_body(body) {
+        Some(resp) => outcome_from_response(&resp),
+        None => ValidationOutcome {
+            is_valid: false,
+            status: LicenseStatus::Invalid,
+            customer_id: None,
+            customer_email: None,
+            expires_at: None,
+            error_message: Some("Invalid server response".to_string()),
+            is_verdict: false,
+        },
+    }
+}
+
+/// Decode a 200 body as the validate reply: a JSON object that names `valid`
+/// or `status` and decodes into [`ValidateResponse`]. `None` for anything else.
+///
+/// The struct is decoded straight from the bytes, so a duplicated field
+/// (`{"valid":false,"valid":true}`) is still rejected as malformed, exactly as
+/// before #2916. Going through `serde_json::Value` first would keep only the
+/// last duplicate and could turn a malformed body into an Active verdict. The
+/// key-presence check is a separate pass and decides nothing on its own.
+fn decode_validate_body(body: &[u8]) -> Option<ValidateResponse> {
+    let resp: ValidateResponse = serde_json::from_slice(body).ok()?;
+    let object: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(body).ok()?;
+    if !object.contains_key("valid") && !object.contains_key("status") {
+        return None;
+    }
+    Some(resp)
 }
 
 /// Map an already-parsed [`ValidateResponse`] to a [`ValidationOutcome`].
@@ -205,6 +249,7 @@ pub fn outcome_from_response(resp: &ValidateResponse) -> ValidationOutcome {
         } else {
             resp.error.clone()
         },
+        is_verdict: true,
     }
 }
 
@@ -315,10 +360,81 @@ mod tests {
     }
 
     #[test]
-    fn malformed_json_is_invalid() {
+    fn malformed_json_is_invalid_but_not_a_verdict() {
         let out = parse_validate_response(b"not json");
         assert_eq!(out.status, LicenseStatus::Invalid);
+        assert!(!out.is_valid);
         assert_eq!(out.error_message.as_deref(), Some("Invalid server response"));
+        assert!(!out.is_verdict);
+    }
+
+    #[test]
+    fn undecodable_200_bodies_are_not_verdicts() {
+        // #2916: a captive portal, an empty body, JSON that is not the validate
+        // reply (neither `valid` nor `status`), and a validate-shaped object with
+        // a field of the wrong type.
+        let bodies: [&[u8]; 10] = [
+            b"<html><body>Please log in to Hotel WiFi</body></html>",
+            b"",
+            b"   ",
+            b"{}",
+            b"[]",
+            b"\"ok\"",
+            b"null",
+            b"true",
+            br#"{"error":"nope"}"#,
+            br#"{"valid":"yes"}"#,
+        ];
+        for body in bodies {
+            let out = parse_validate_response(body);
+            let shown = String::from_utf8_lossy(body);
+            assert!(!out.is_verdict, "{shown:?} was a verdict");
+            assert_eq!(out.status, LicenseStatus::Invalid, "{shown:?}");
+            assert!(!out.is_valid, "{shown:?}");
+            assert_eq!(
+                out.error_message.as_deref(),
+                Some("Invalid server response"),
+                "{shown:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn duplicate_fields_are_a_non_verdict_not_active() {
+        // A duplicated key is malformed. It must never become the last
+        // duplicate's verdict (review of #2916: `valid` false then true).
+        let bodies: [&[u8]; 3] = [
+            br#"{"valid":false,"valid":true}"#,
+            br#"{"valid":true,"valid":false}"#,
+            br#"{"status":"revoked","status":"active"}"#,
+        ];
+        for body in bodies {
+            let out = parse_validate_response(body);
+            let shown = String::from_utf8_lossy(body);
+            assert!(!out.is_verdict, "{shown:?} was a verdict");
+            assert_eq!(out.status, LicenseStatus::Invalid, "{shown:?}");
+            assert!(!out.is_valid, "{shown:?}");
+        }
+    }
+
+    #[test]
+    fn decoded_validate_replies_are_verdicts() {
+        let bodies: [&[u8]; 6] = [
+            br#"{"valid":true}"#,
+            br#"{"valid":false}"#,
+            br#"{"valid":false,"expired":true}"#,
+            br#"{"status":"revoked"}"#,
+            br#"{"status":"invalid"}"#,
+            br#"{"status":"active","customer_id":"cust_1"}"#,
+        ];
+        for body in bodies {
+            let out = parse_validate_response(body);
+            assert!(out.is_verdict, "{:?}", String::from_utf8_lossy(body));
+        }
+        // A real rejection is still an Invalid verdict, not a non-verdict.
+        let rejected = parse_validate_response(br#"{"valid":false}"#);
+        assert_eq!(rejected.status, LicenseStatus::Invalid);
+        assert!(rejected.is_verdict);
     }
 
     #[test]
@@ -326,12 +442,14 @@ mod tests {
         let out = http_error_outcome(403, br#"{"error":"license suspended"}"#);
         assert_eq!(out.status, LicenseStatus::Invalid);
         assert_eq!(out.error_message.as_deref(), Some("license suspended"));
+        assert!(out.is_verdict);
     }
 
     #[test]
     fn http_error_falls_back_to_generic_message() {
         let out = http_error_outcome(500, b"<html>oops</html>");
         assert_eq!(out.error_message.as_deref(), Some("Server error (HTTP 500)"));
+        assert!(out.is_verdict);
     }
 
     #[test]
@@ -339,5 +457,6 @@ mod tests {
         let out = empty_key_outcome();
         assert_eq!(out.status, LicenseStatus::Invalid);
         assert_eq!(out.error_message.as_deref(), Some("License key cannot be empty"));
+        assert!(!out.is_verdict);
     }
 }

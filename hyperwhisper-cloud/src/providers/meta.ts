@@ -4,6 +4,7 @@
 import { META_MUSE_MAX_BYTES } from '../lib/constants';
 import { computeMetaMuseTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { parsePcm16Wav } from '../lib/wav-header';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
@@ -16,7 +17,6 @@ import {
 } from './utils';
 
 const META_TRANSCRIBE_URL = 'https://api.meta.ai/v1/asr/transcribe';
-const META_MODEL = 'muse-voice-transcribe-1.0';
 const META_MAX_DURATION_SECONDS = 10 * 60;
 const META_ACCEPTED_FORMATS = ['wav'] as const;
 
@@ -52,7 +52,7 @@ export async function transcribeWithMeta(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'meta';
-  const model = context.model || META_MODEL;
+  const model = context.model || getProviderDef('meta').defaultModel;
 
   const wav = parseMetaWav(audio, contentType);
   if (audio.byteLength > META_MUSE_MAX_BYTES) {

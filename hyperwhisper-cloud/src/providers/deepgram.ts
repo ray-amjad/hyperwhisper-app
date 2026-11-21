@@ -1,10 +1,11 @@
 // DEEPGRAM NOVA-3 PROVIDER
-// Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
+// Primary STT provider - best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
@@ -101,7 +102,7 @@ export async function transcribeWithDeepgram(
   }
 
   const keyterms = initialPrompt ? convertToKeyterms(initialPrompt) : [];
-  const model = context.model || 'nova-3-general';
+  const model = context.model || getProviderDef('deepgram').defaultModel;
   const provider = 'deepgram';
 
   // Language support is per-MODEL here, not per-provider: the medical models are

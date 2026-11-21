@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Funkciók",
+    "modes": "Módok",
     "faq": "GYIK",
     "support": "Támogatás",
     "download": "Letöltés",
@@ -16,26 +17,36 @@
       "switchTo": "Nyelvváltás"
     },
     "cloud": "Cloud",
-    "githubAria": "A HyperWhisper megtekintese a GitHubon"
+    "githubAria": "A HyperWhisper megtekintese a GitHubon",
+    "skipToContent": "Ugrás a tartalomhoz"
   },
   "hero": {
-    "logoAlt": "HyperWhisper logó",
-    "headline": "Írj, alkoss és hozz létre",
-    "headlineAccent": "5x gyorsabban AI-val",
-    "subheadline": "A HyperWhisper elképesztő pontossággal írja át a hangodat. Csak beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek.",
-    "downloadCta": "Letöltés most",
-    "demoCta": "Demó megtekintése",
-    "availableOn": "Elérhető",
+    "badge": "Új",
+    "headline": "Csak beszéljen.",
+    "headlineAccent": "Mi gépelünk.",
+    "subheadline": "Igényes szöveg bármelyik alkalmazásban.",
+    "downloadMac": "Letöltés Macre",
+    "freeForever": "Örökre ingyenes",
+    "worksOffline": "Offline is működik",
     "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Görgessen",
+    "closing": {
+      "line1": "Ne gépeljen.",
+      "line2": "Beszéljen.",
+      "meta": "Ingyenes és nyílt forráskódú. Fiók nélkül."
+    }
   },
   "features": {
-    "title": "Profiknak tervezve",
-    "subtitle": "Minden funkciót azért terveztünk, hogy gyorsabban és hatékonyabban dolgozhass",
+    "title": "Azoknak, akik egész nap írnak.",
     "customVocabulary": {
       "title": "Egyéni szókincs",
       "description": "Adj hozzá neveket, rövidítéseket és speciális kifejezéseket a tökéletes pontosságért minden alkalommal."
+    },
+    "realTime": {
+      "title": "Valós idejű streamelés",
+      "description": "Lásd, ahogy a szavaid azonnal megjelennek beszéd közben. Iparágvezető pontosság 700 ms alatti késleltetéssel."
     },
     "languages": {
       "title": "100+ nyelv",
@@ -45,25 +56,9 @@
       "title": "Offline támogatás",
       "description": "Teljesen offline működik. Az adataid soha nem hagyják el az eszközödet."
     },
-    "privacy": {
-      "title": "Adatvédelem-központú",
-      "description": "Nincs szükség fiókra. Nincs követés. A hangadataid a Maceden vagy PC-den maradnak."
-    },
-    "hybridProcessing": {
-      "title": "Hibrid feldolgozás",
-      "description": "Válassz helyi modelleket az adatvédelemhez vagy felhős API-kat a sebességhez. A legjobb mindkét világból."
-    },
-    "customizable": {
-      "title": "Erősen testreszabható",
-      "description": "Válassz 9+ API-szolgáltató és 30+ átírási modell közül."
-    },
-    "realTime": {
-      "title": "Valós idejű streamelés",
-      "description": "Lásd, ahogy a szavaid azonnal megjelennek beszéd közben. Iparágvezető pontosság 700 ms alatti késleltetéssel."
-    },
-    "fileImport": {
-      "title": "Fájlimport",
-      "description": "Importálj hang- vagy videófájlokat átíráshoz. Minden fő formátum támogatott automatikus csendérzékeléssel."
+    "openSource": {
+      "title": "Nyilt forraskod",
+      "description": "Apache-2.0 licenc alatt. Vizsgaljon meg minden sort, forkolja, vagy uzemeltesse sajat maga. Nincsenek fekete dobozok, nincs bezartsag."
     },
     "screenOcr": {
       "title": "Képernyő OCR",
@@ -73,28 +68,57 @@
       "title": "Helyi API és MCP-kiszolgáló",
       "description": "A beépített MCP-kiszolgáló lehetővé teszi a Claude, a Cursor és más AI-ügynökök számára a HyperWhisper vezérlését. Csak helyi HTTP API szkriptekhez és automatizáláshoz."
     },
+    "fileImport": {
+      "title": "Fájlimport",
+      "description": "Importálj hang- vagy videófájlokat átíráshoz. Minden fő formátum támogatott automatikus csendérzékeléssel."
+    },
     "modes": {
-      "title": "Módok minden helyzetre",
-      "description": "Válts különböző átírási módok között, amelyek meetingekhez, jegyzeteléshez, emailekhez, kódoláshoz és más feladatokhoz optimalizáltak. Minden mód egyedi promptokat használ, hogy tökéletesen formázza a szövegedet.",
-      "meeting": "Meeting",
+      "heading": "Egy hang. Minden formátum.",
+      "lead": "Minden mód átírja, amit mondott, ahhoz igazítva, ahová kerül.",
       "email": "Email",
       "note": "Jegyzet",
       "code": "Kód",
+      "meeting": "Meeting",
       "legal": "Jogi",
       "medical": "Orvosi",
-      "presetModes": "Előre beállított módok",
-      "customModes": "Egyéni módok"
-    },
-    "openSource": {
-      "title": "Nyilt forraskod",
-      "description": "Apache-2.0 licenc alatt. Vizsgaljon meg minden sort, forkolja, vagy uzemeltesse sajat maga. Nincsenek fekete dobozok, nincs bezartsag."
+      "youSaid": "Ön ezt mondta",
+      "hyperWhisperWrote": "HyperWhisper ezt írta",
+      "sample": "öö szóval mondd meg johnnak hogy a launch csütörtökre csúszik mert a linux QA még nincs kész és hát köszi a türelmet",
+      "output": {
+        "email": "Szia John!\n\nA launch csütörtökre csúszik, amíg befejezzük a Linux QA-t. Köszönöm a türelmed.\n\nÜdv,",
+        "note": "• Launch → csütörtök\n• Akadály: a Linux QA nincs kész\n• Szólni Johnnak",
+        "code": "// TODO(john): a launch csütörtökre csúszott, a Linux QA még folyamatban",
+        "meeting": "Döntés: a launch csütörtökre csúszik.\nIndok: a Linux QA nincs kész.\nFelelős: John értesítése.",
+        "legal": "Tájékoztatjuk, hogy a bevezetés időpontja csütörtökre módosult, a Linux minőségbiztosítás lezárásáig.",
+        "medical": "Terv: a launch halasztása csütörtökre. Állapot: Linux QA függőben. Követés: John tájékoztatása."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Bárhol működik, ahol ír",
+    "eyebrow": "Hogyan működik",
+    "titleLine1": "Nyomjon le egy billentyűt.",
+    "titleLine2": "Mondja ki.",
+    "titleAccent": "Kész.",
+    "lead": "A szavai letisztázva oda kerülnek, ahol a kurzor áll.",
+    "step1": "Nyomja le a billentyűparancsot",
+    "step2Key": "Beszéljen",
+    "step2": "Beszéljen úgy, ahogy szokott",
+    "step3Key": "Újra",
+    "step3": "Tiszta szöveg, a helyére beillesztve",
+    "watchVideo": "A teljes demó megtekintése",
+    "closeVideo": "Videó bezárása",
+    "exampleLabel": "Animált példa: egy kimondott válasz begépelődik egy Slack-üzenetbe",
+    "message1": "Még mindig tartjuk a csütörtöki Linux kiadást?",
+    "message2": "Nálam átment a QA 👍",
+    "composePlaceholder": "Üzenet ide: #launch",
+    "typed": "Igen, a Linux QA ma reggel átment, úgyhogy csütörtökre minden rendben. Délig kiteszem a kiadási jegyzeteket.",
+    "listening": "Figyelek",
+    "cleaningUp": "Tisztázás…",
     "fasterThanTyping": "Gyorsabb, mint a gépelés",
     "accuracyRate": "Pontossági arány",
     "languagesSupported": "Támogatott nyelvek",
-    "providersSupported": "Támogatott szolgáltatók"
+    "modelsSupported": "Átírási modellek"
   },
   "faq": {
     "title": "Gyakran ismételt kérdések",
@@ -119,7 +143,7 @@
       },
       "offlineModels": {
         "question": "Milyen offline modellek érhetők el?",
-        "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 3 modell több méretét kínáljuk (Google fejlesztés)."
+        "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 4 modell több méretét kínáljuk (Google fejlesztés)."
       },
       "compatibility": {
         "question": "Minden alkalmazásommal működik?",
@@ -189,7 +213,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper támogatási kérés",
       "body": "Szia,\n\nVerzió: \n[ezt a Beállítások > Névjegy menüben ellenőrizheted]\n\nHiba: \n[Írd le a problémát]\n\nRészletek: \n[Adj meg minden releváns részletet, mit csináltál a leállás előtt]\n\n[Ide írd az üzeneted]\n\nÜdv,"
-    }
+    },
+    "helpCenterHint": "Beállítás, billentyűparancsok és modellek.",
+    "chooseModelHint": "Rangsorolja a modelleket a munkamódja szerint.",
+    "accountHint": "Jelentkezzen be a fiókkulcsával.",
+    "chooseModelTitle": "Modell kiválasztása"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper logó",
@@ -228,7 +256,12 @@
     "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
     "aptTitle": "Saját APT-tároló üzemeltetése",
     "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
-    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót"
+    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót",
+    "heroLead": "Ingyenes és nyílt forráskódú. Válassza ki a platformját.",
+    "releaseNotes": "Kiadási megjegyzések",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon és Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 és ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Korábbi verziók",
@@ -280,6 +313,7 @@
       "dataTraining": "Adatvédelem"
     },
     "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
+    "madeBy": "Készítette: Ray Amjad",
     "linkedinAria": "LinkedIn",
     "xAria": "Kövesd a HyperWhispert az X-en (Twitter)",
     "githubAria": "A HyperWhisper a GitHubon"
@@ -373,7 +407,33 @@
     "sendingLink": "Küldés…",
     "linkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd cserélje le a kulcsot.",
     "linkFailed": "Nem sikerült elküldeni a bejelentkezési hivatkozást. Kérjük, próbálja újra.",
-    "errorUnavailable": "Ez a kulcs már nem cserélhető le. Az aktuális állapota fent látható."
+    "errorUnavailable": "Ez a kulcs már nem cserélhető le. Az aktuális állapota fent látható.",
+    "delete": "Kulcs törlése",
+    "deleteConfirmTitle": "Törli ezt a fiókkulcsot?",
+    "deleteConfirmBody": "Ez a kulcs azonnal érvényét veszti minden eszközön. Az ezt használó eszközöknek szükségük lesz valamelyik másik kulcsára: adja meg a HyperWhisperben minden eszközön. Kreditjei és vásárlási előzményei a fiókjában maradnak. Emellett a többi böngészőjében kijelentkeztetjük erről a webhelyről.",
+    "deleteConfirm": "Kulcs törlése",
+    "deleting": "Törlés folyamatban…",
+    "deleted": "A kulcs törölve. Az azt használó eszközöknek valamelyik másik kulcsára van szükségük.",
+    "deleteLastKey": "Ez az egyetlen aktív kulcsa, ezért nem törölhető.",
+    "deleteVerifyBody": "A kulcs törléséhez először erősítse meg e-mailben, hogy Ön az. Bejelentkezési hivatkozást küldünk a fiókjához tartozó e-mail-címre. Nyissa meg, majd törölje a kulcsot ezen az oldalon.",
+    "deleteLinkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd törölje a kulcsot.",
+    "deleteErrorStale": "Ez a kulcs megváltozott az oldal betöltése óta. Az aktuális kulcs fent látható.",
+    "deleteErrorUnavailable": "Ez a kulcs már nem törölhető.",
+    "deleteErrorGeneric": "Nem sikerült törölni a kulcsot. Kérjük, próbálja újra.",
+    "issue": "Új kulcs hozzáadása",
+    "issueConfirmTitle": "Hozzáad egy új fiókkulcsot?",
+    "issueConfirmBody": "Kap egy további kulcsot ehhez a fiókhoz. Ugyanazokat a krediteket használja, mint a többi kulcsa, amelyek továbbra is működnek.",
+    "issueConfirm": "Kulcs hozzáadása",
+    "issuing": "Hozzáadás folyamatban…",
+    "issued": "Új kulcs hozzáadva. A 'Megjelenítés' gombbal megtekintheti és másolhatja.",
+    "issueCap": "Aktív kulcsainak száma {max}, ez egy fiók maximuma. Töröljön egyet, ha újat szeretne hozzáadni.",
+    "issueVerifyBody": "A kulcs hozzáadásához először erősítse meg e-mailben, hogy Ön az. Bejelentkezési hivatkozást küldünk a fiókjához tartozó e-mail-címre. Nyissa meg, majd adja hozzá a kulcsot ezen az oldalon.",
+    "issueLinkSent": "Elküldtük a bejelentkezési hivatkozást. Nyissa meg a beérkező levelei között, majd adja hozzá a kulcsot.",
+    "issueErrorUnavailable": "Csak aktív kulccsal rendelkező fiók adhat hozzá újabb kulcsot.",
+    "issueErrorGeneric": "Nem sikerült hozzáadni a kulcsot. Kérjük, próbálja újra.",
+    "manageErrorRateLimited": "Túl sok kulcsmódosítás. Kérjük, próbálja újra egy perc múlva.",
+    "cloudPurgePending": "A régi kulcs még legfeljebb egy óráig működhet a HyperWhisper Cloudban.",
+    "deleteCloudPurgePending": "Ez a kulcs még legfeljebb egy óráig működhet a HyperWhisper Cloudban."
   },
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
@@ -412,5 +472,8 @@
   "signIn": {
     "magicLinkExpired": "Ez a bejelentkezési hivatkozás lejárt, vagy már felhasználták. Adja meg e-mail-címét, és küldünk egy újat.",
     "magicLinkFailed": "Ezzel a hivatkozással nem tudtuk bejelentkeztetni. Adja meg e-mail-címét, és küldünk egy újat."
+  },
+  "legal": {
+    "onThisPage": "Ezen az oldalon"
   }
 }

@@ -73,3 +73,41 @@ test("an injected source controls charge and dispute spend rules", async () => {
     "unresolved-dispute",
   ]);
 });
+
+test("the breakdown lists every charge, and the net spend is its total", async () => {
+  const { createCustomerSpendReader } = await load();
+  const reader = createCustomerSpendReader({
+    listCharges: async () => [
+      { id: "kept", status: "succeeded" as const, disputed: false, amount: 1_500, amount_refunded: 200, created: 1_735_776_000, description: "License" },
+      { id: "failed", status: "failed" as const, disputed: false, amount: 900, amount_refunded: 0 },
+      { id: "lost", status: "succeeded" as const, disputed: true, amount: 700, amount_refunded: 0 },
+    ],
+    getLatestDisputeStatus: async () => "lost" as const,
+  });
+
+  const breakdown = await reader.getSpendBreakdownForStripeCustomer("cus");
+
+  assert.deepEqual(breakdown, {
+    netCents: 1_300,
+    charges: [
+      { id: "kept", createdAt: "2025-01-02T00:00:00.000Z", description: "License", amountCents: 1_500, refundedCents: 200, countedCents: 1_300 },
+      { id: "failed", createdAt: null, description: null, amountCents: 900, refundedCents: 0, countedCents: 0, excluded: "not_succeeded" },
+      { id: "lost", createdAt: null, description: null, amountCents: 700, refundedCents: 0, countedCents: 0, excluded: "dispute_not_won" },
+    ],
+  });
+  assert.equal(await reader.getNetSpendCentsForStripeCustomer("cus"), 1_300);
+});
+
+test("an account's total sums its Stripe customers and is null if any failed", async () => {
+  const { accountNetSpendCents } = await load();
+  const spend = new Map<string, number | null>([
+    ["a", 1_000],
+    ["b", 535],
+    ["down", null],
+  ]);
+
+  assert.equal(accountNetSpendCents(["a", "b"], spend), 1_535);
+  assert.equal(accountNetSpendCents(new Set(["a", "down"]), spend), null);
+  assert.equal(accountNetSpendCents(["a", "missing"], spend), null);
+  assert.equal(accountNetSpendCents([], spend), 0);
+});
