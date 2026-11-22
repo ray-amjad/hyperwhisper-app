@@ -185,7 +185,7 @@ describe('settling a hold through deductCredits', () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
       await validateCredits(a, 3);
-      void deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip');
+      void deductCredits(a, 0.003, { endpoint: '/transcribe' });
     });
     await settle();
 
@@ -198,7 +198,7 @@ describe('settling a hold through deductCredits', () => {
       const a = auth(10);
       await validateCredits(a, 1);
       // 2.5 credits.
-      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }, 'ip')).toBe(2.5);
+      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }).recorded).toBe(2.5);
     });
     await settle();
     expect(events).toEqual(['charge:2.5']);
@@ -214,7 +214,7 @@ describe('settling a hold through deductCredits', () => {
       const a = auth(10);
       await validateCredits(a, 1);
       // 3 credits used against 1 held and 1 more free: 2 charged, 1 written off.
-      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip')).toBe(2);
+      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }).recorded).toBe(2);
     });
     await settle();
 
@@ -238,7 +238,7 @@ describe('settling a hold through deductCredits', () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
       await validateCredits(a, 1);
-      void deductCredits(a, 0.001, { endpoint: '/transcribe' }, 'ip');
+      void deductCredits(a, 0.001, { endpoint: '/transcribe' });
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { creditsForCost, formatUsd } from '../lib/cost-calculator';
+import { formatUsd } from '../lib/cost-calculator';
 import { logEvent, machineUptimeMs } from '../lib/logging';
 import { deductCredits, logDeductionFailure } from '../middleware/credits';
 import type { TranscriptionResult } from '../providers/types';
@@ -80,15 +80,16 @@ export function buildTranscriptionSuccess({
   // unmetered channel to a paid upstream. The adapter's cost is the gate, so
   // this route never needs a per-provider table.
   const billable = !noSpeech || result.costUsd > 0;
-  const creditsUsed = billable ? creditsForCost(result.costUsd) : 0;
 
-  const response = {
+  // The body takes the credits the deduction charged (capped at the hold), not
+  // a price of its own, so it never reports credits that were not charged.
+  const responseFor = (creditsCharged: number) => ({
     text: result.text,
     language: result.language,
     duration: result.durationSeconds,
     cost: {
       usd: result.costUsd,
-      credits: creditsUsed,
+      credits: creditsCharged,
     },
     metadata: {
       request_id: requestId,
@@ -96,15 +97,14 @@ export function buildTranscriptionSuccess({
       stt_model: reportedModel || undefined,
     },
     ...(noSpeech ? { no_speech_detected: true } : {}),
-  };
+  });
 
   return {
     noSpeech,
     providerName,
     reportedModel,
     billable,
-    creditsUsed,
-    response,
+    responseFor,
   };
 }
 
@@ -126,7 +126,7 @@ interface TranscriptionCompletionInput {
  * This keeps response projection, billing, headers, and the final outcome log
  * together and leaves the route responsible for request and provider control flow.
  */
-export function completeTranscription({
+export async function completeTranscription({
   c,
   preparation,
   result,
@@ -140,7 +140,6 @@ export function completeTranscription({
   const {
     requestId,
     startTime,
-    clientIP,
     provider,
     model,
     mode,
@@ -162,8 +161,7 @@ export function completeTranscription({
     providerName,
     reportedModel,
     billable,
-    creditsUsed,
-    response,
+    responseFor,
   } = buildTranscriptionSuccess({
     result,
     requestId,
@@ -175,8 +173,9 @@ export function completeTranscription({
     fallbackFrom,
   });
 
+  let creditsUsed = 0;
   if (billable) {
-    deductCredits(
+    const deduction = deductCredits(
       auth,
       result.costUsd,
       {
@@ -188,9 +187,10 @@ export function completeTranscription({
         stt_provider: providerName,
         stt_model: reportedModel || undefined,
       },
-      clientIP,
       { onFailure: logDeductionFailure(requestId, startTime, '/transcribe') }
-    ).catch(console.error);
+    );
+    deduction.recorded.catch(console.error);
+    creditsUsed = await deduction.credits;
   }
 
   c.header('X-Request-ID', requestId);
@@ -227,5 +227,5 @@ export function completeTranscription({
     machineUptimeMs: machineUptimeMs(),
     rssMb: memUsageMb,
   });
-  return c.json(response);
+  return c.json(responseFor(creditsUsed));
 }
