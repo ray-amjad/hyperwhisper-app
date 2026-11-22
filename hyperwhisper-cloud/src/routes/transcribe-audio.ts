@@ -21,6 +21,8 @@ import { maxReservationUsdPerMinute } from '../providers/reservation';
  * byte→seconds→credits arithmetic, plus the prompt-token allowance, which is
  * still `lib/cost-calculator.ts`'s and is applied to the primary provider only
  * — see the note in providers/reservation.ts for when that has to move.
+ * `model`/`medical` are optional to keep the historical two-field call
+ * (`sizeBytes` + `provider` only) working.
  */
 export interface ReservationEstimateInput {
   sizeBytes: number;

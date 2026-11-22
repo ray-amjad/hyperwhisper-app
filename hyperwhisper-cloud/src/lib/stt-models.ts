@@ -418,7 +418,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // DIFFERENT per-token rates on Flash models, so both are authored. Pro models
     // (2.5-pro, 3.1-pro) bill every input modality at one rate but switch to a
     // higher long-context tier above 200k prompt tokens. The prices the
-    // /post-process LLM rows bill too come from gemini-prices.ts.
+    // /post-process LLM rows bill too come from gemini-prices.ts. Rates:
+    // Standard paid tier, per-1M ÷ 1e6. Ref: https://ai.google.dev/gemini-api/docs/pricing
     //
     // `thinking` is the generationConfig.thinkingConfig the adapter sends: keep
     // thinking as low as each model allows (only 2.5-flash/flash-lite can zero
