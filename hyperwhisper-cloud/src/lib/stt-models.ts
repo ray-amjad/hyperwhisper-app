@@ -100,6 +100,14 @@ interface SttModelSpec {
   billing: SttBilling;
   addOns?: SttAddOns;
   /**
+   * Prompt/context TEXT tokens a non-`tokens` row bills ON TOP of `billing`
+   * (Soniox's custom context). `tokensPerChar` is the upstream tokenizer's
+   * ratio, which differs from the service's 4-chars/token heuristic. A
+   * `tokens` row bills its prompt at `billing.textInputPerToken` instead, and
+   * a row with neither does not bill prompt text at all.
+   */
+  contextText?: { usdPerToken: number; tokensPerChar: number };
+  /**
    * Preflight USD/min, authored only where it is NOT simply the billing rate:
    * every `tokens` row (no flat rate exists), and a flat row whose reservation
    * is the billing rate rounded UP. Leave it out otherwise.
@@ -571,6 +579,9 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
         supportsVocabulary: true,
         billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 },
         reserveUsdPerMinute: 0.00167,
+        // Custom-context input-text tokens at $3.50/1M (async); Soniox bills
+        // ~0.3 tokens per character.
+        contextText: { usdPerToken: 3.50 / M, tokensPerChar: 0.3 },
       },
     ],
   },

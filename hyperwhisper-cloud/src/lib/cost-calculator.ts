@@ -8,6 +8,8 @@ import {
   dearestModel,
   defaultModelRow,
   findModelRow,
+  getProviderDef,
+  isValidProviderId,
   tokenBillingFor,
   withAdditiveAddOns,
   type SttModelDef,
@@ -94,13 +96,16 @@ export const GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND = 25;
 const GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND = 12.5 / CHARS_PER_TOKEN_ESTIMATE;
 
 // Soniox — the flat ≈ $0.10/hr rate is on its stt-models.ts row; custom-context
-// INPUT-text tokens are charged ON TOP at $3.50/1M (async). Soniox bills ~0.3
-// tokens per character. Ref: https://soniox.com/pricing
-const SONIOX_INPUT_TEXT_COST_PER_TOKEN = 3.50 / 1_000_000;            // async context tokens
-const SONIOX_TOKENS_PER_CHAR = 0.3;
+// INPUT-text tokens are charged ON TOP at the row's `contextText` rate ($3.50/1M,
+// async; Soniox bills ~0.3 tokens per character). Ref: https://soniox.com/pricing
+function sonioxContextText(): NonNullable<SttModelDef['contextText']> {
+  const rate = defaultModelRow('soniox').contextText;
+  if (!rate) throw new Error('Soniox STT row authors no contextText rate');
+  return rate;
+}
 export function estimateSonioxContextTokens(contextText: string | undefined): number {
   if (!contextText) return 0;
-  return Math.ceil(contextText.length * SONIOX_TOKENS_PER_CHAR);
+  return Math.ceil(contextText.length * sonioxContextText().tokensPerChar);
 }
 
 // LLM post-processing rates live on the model rows in llm-models.ts.
@@ -285,46 +290,57 @@ export function computeGeminiTranscriptionCost(model: string, usage: GeminiTrans
 
 
 /**
- * Conservative USD for the prompt-text INPUT tokens a TOKEN-BILLED provider will
- * charge for `initial_prompt` (Gemini, all models; OpenAI gpt-4o-transcribe /
- * gpt-4o-mini-transcribe). Used ONLY by the preflight reservation so a large
- * vocabulary prompt on a short clip can't be deducted beyond what was reserved.
- * Duration-billed providers (whisper-1, deepgram/groq/grok/elevenlabs/azure/
- * soniox/mistral) don't bill prompt tokens → 0; the ElevenLabs /
+ * USD a row bills for `text` sent as its prompt/context, or undefined when the
+ * row bills no prompt text. A token-billed row bills it as text input tokens
+ * (4-chars/token heuristic); a row with a `contextText` rate bills it at that
+ * rate with its own tokenizer ratio.
+ */
+function promptInputUsd(row: SttModelDef, text: string): number | undefined {
+  if (row.billing.kind === 'tokens') {
+    return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE) * row.billing.textInputPerToken;
+  }
+  if (row.contextText) {
+    return Math.ceil(text.length * row.contextText.tokensPerChar) * row.contextText.usdPerToken;
+  }
+  return undefined;
+}
+
+/**
+ * Conservative USD for the prompt-text INPUT tokens a provider will charge for
+ * `initial_prompt` (token-billed rows: Gemini, Gemini Transcribe, OpenAI
+ * gpt-4o-transcribe / gpt-4o-mini-transcribe; Soniox's custom-context rate).
+ * Used ONLY by the preflight reservation so a large vocabulary prompt on a
+ * short clip can't be deducted beyond what was reserved. Duration-billed rows
+ * (whisper-1, gpt-transcribe, gpt-live-transcribe, deepgram/groq/grok/
+ * elevenlabs/azure/mistral) don't bill prompt tokens → 0; the ElevenLabs /
  * AssemblyAI keyterm add-ons are reserved separately via the per-minute surcharge.
+ *
+ * Gemini Transcribe sends the vocabulary upstream as `custom_vocabulary`, a
+ * structured field rather than prose, and it bills as TEXT input tokens at the
+ * same per-token rate as the audio. (Live traffic reports only ~1 text token
+ * even with terms attached, so this over-reserves — which is the safe
+ * direction.) Soniox charges the custom-context terms as async input-text
+ * tokens on top of the audio/output blend.
+ *
+ * An absent/unknown model id reserves at the dearest prompt-billing row of the
+ * provider (OpenAI: the more expensive gpt-4o-transcribe input rate), the same
+ * fail-closed rule as `tokenBillingFor`.
  */
 export function estimatePromptInputReservationUsd(
   provider: string,
   model: string | undefined,
   initialPrompt: string | undefined,
 ): number {
-  if (!initialPrompt) return 0;
-  const tokens = Math.ceil(initialPrompt.length / CHARS_PER_TOKEN_ESTIMATE);
-  if (provider === 'gemini') {
-    return tokens * tokenBillingFor('gemini', model).textInputPerToken;
-  }
-  if (provider === 'openai') {
-    // A duration-billed row (whisper-1, gpt-transcribe, gpt-live-transcribe)
-    // has no separate prompt-token charge. An absent/unknown id and the
-    // explicit gpt-4o-transcribe use the (more expensive) transcribe input rate.
-    const row = findModelRow('openai', model);
-    if (row && row.billing.kind !== 'tokens') return 0;
-    return tokens * tokenBillingFor('openai', model).textInputPerToken;
-  }
-  if (provider === 'gemini-transcribe') {
-    // The vocabulary goes upstream as `custom_vocabulary`, a structured field
-    // rather than prose, and bills as TEXT input tokens at the same per-token
-    // rate as the audio. (Live traffic reports only ~1 text token even with
-    // terms attached, so this over-reserves — which is the safe direction.)
-    return tokens * tokenBillingFor('gemini-transcribe', model).textInputPerToken;
-  }
-  if (provider === 'soniox') {
-    // Soniox charges the custom-context terms as async input-text tokens on top
-    // of the audio/output blend. Its tokenizer (~0.3 tok/char) differs from the
-    // 4-chars/token heuristic above, so use the Soniox-specific estimate.
-    return estimateSonioxContextTokens(initialPrompt) * SONIOX_INPUT_TEXT_COST_PER_TOKEN;
-  }
-  return 0;
+  if (!initialPrompt || !isValidProviderId(provider)) return 0;
+  const own = findModelRow(provider, model);
+  if (own) return promptInputUsd(own, initialPrompt) ?? 0;
+  const billing = getProviderDef(provider).models
+    .filter((m) => promptInputUsd(m, initialPrompt) !== undefined);
+  if (billing.length === 0) return 0;
+  const dearest = billing.reduce(
+    (best, m) => (m.estimatedUsdPerMinute > best.estimatedUsdPerMinute ? m : best),
+  );
+  return promptInputUsd(dearest, initialPrompt) ?? 0;
 }
 
 // CJK scripts tokenize FAR denser than the ~4 chars/token that holds for Latin
@@ -492,7 +508,7 @@ export function computeMistralTranscriptionCost(durationSeconds: number): number
 
 export function computeSonioxTranscriptionCost(durationSeconds: number, contextTextTokens: number = 0): number {
   const audioAndOutput = (durationSeconds / 60) * perMinuteRate(defaultModelRow('soniox'));
-  const contextCost = Math.max(0, contextTextTokens) * SONIOX_INPUT_TEXT_COST_PER_TOKEN;
+  const contextCost = Math.max(0, contextTextTokens) * sonioxContextText().usdPerToken;
   return roundUsd(audioAndOutput + contextCost);
 }
 
