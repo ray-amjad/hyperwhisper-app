@@ -3,7 +3,7 @@
 //   - mai-transcribe-1.5 — 42 documented locales
 //   - mai-transcribe-2   — 60 documented locales
 // Both take phrase-list biasing. The model is chosen by `X-STT-Model`; the
-// per-model locale tables live in `lib/language-codes.ts`.
+// per-model locale tables live in `language-codes.ts`.
 //
 // API: POST https://<resource>.cognitiveservices.azure.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15
 // Auth: Ocp-Apim-Subscription-Key
@@ -17,7 +17,7 @@
 
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
@@ -73,7 +73,7 @@ function parsePhraseList(initialPrompt: string): string[] {
   });
 }
 
-// Locale normalization lives in `lib/language-codes.ts`. Stripping the region
+// Locale normalization lives in `language-codes.ts`. Stripping the region
 // was never the whole job: the picker offers Norwegian as `no`, and Azure's
 // operational table lists only `nb`. `resolveProviderLanguage` applies that
 // alias and checks the result against the codes Azure documents FOR THE MODEL

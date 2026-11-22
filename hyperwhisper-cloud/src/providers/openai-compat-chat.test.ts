@@ -4,7 +4,7 @@
 //
 // Three behaviours here are load-bearing outside this file:
 //
-//   1. Fallback routing. completeWithFailover (lib/llm-provider.ts) decides
+//   1. Fallback routing. completeWithFailover (providers/llm-provider.ts) decides
 //      whether to retry on another provider by calling
 //      `isTransientLLMError(error)`, which only says yes for a
 //      5xx or 429 `status` on the error object. That `status` is attached here.
@@ -30,7 +30,7 @@ import {
 } from '../lib/cost-calculator';
 import { computeLLMChatCost } from '../lib/llm-models';
 import { llmModelRow } from '../lib/llm-models';
-import { isTransientLLMError } from '../lib/llm-provider';
+import { isTransientLLMError } from './llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';

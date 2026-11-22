@@ -10,7 +10,7 @@ import {
 import { computeAnthropicCost, llmModelRow } from '../lib/llm-models';
 import { estimateUsageFromChars } from '../lib/cost-calculator';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
-import { isTransientLLMError } from '../lib/llm-provider';
+import { isTransientLLMError } from './llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';

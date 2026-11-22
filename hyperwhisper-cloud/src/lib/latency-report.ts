@@ -10,7 +10,7 @@
 
 import { licenseApiBaseUrl } from './constants';
 import { backgroundWork } from './background-work';
-import type { ProviderUnavailableKind } from '../providers/types';
+import type { ProviderUnavailableKind } from './errors';
 
 /** How long the whole batch POST may take before we abandon it. */
 const REPORT_TIMEOUT_MS = 5_000;

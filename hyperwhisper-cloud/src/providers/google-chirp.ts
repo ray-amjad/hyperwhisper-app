@@ -24,7 +24,7 @@ import {
   type TranscriptionAudioRef,
 } from './gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {

@@ -1,12 +1,12 @@
-import { retryWithBackoff } from './utils';
-import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
-import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
-import { requestAnthropicChat } from '../providers/anthropic';
-import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from '../providers/openai-compat-chat';
-import { defaultModelFor, isAllowedLLMModel, LLM_PROVIDERS, type LLMProvider } from './llm-models';
+import { retryWithBackoff } from '../lib/utils';
+import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
+import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from './llm-errors';
+import { requestAnthropicChat } from './anthropic';
+import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from './openai-compat-chat';
+import { defaultModelFor, isAllowedLLMModel, LLM_PROVIDERS, type LLMProvider } from '../lib/llm-models';
 
 // The model registry (allowlist, defaults, served labels, rates) is llm-models.ts.
-export { defaultModelFor, servedLLMName, type LLMProvider } from './llm-models';
+export { defaultModelFor, servedLLMName, type LLMProvider } from '../lib/llm-models';
 
 const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
 
