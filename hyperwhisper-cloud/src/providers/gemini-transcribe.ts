@@ -43,6 +43,7 @@ import { getProviderDef } from '../lib/stt-models';
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
 import { geminiMimeType } from './gemini';
+import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -211,7 +212,7 @@ export async function transcribeWithGeminiTranscribe(
   }
 
   // Same key as the Gemini LLM adapter — same Google project, no new secret.
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  const apiKey = readApiKey(GEMINI_API_KEY_ENV);
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }

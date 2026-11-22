@@ -4,6 +4,7 @@
 import { isRecord } from '../lib/utils';
 import { isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import { computeLLMChatCost, llmModelRow, type LLMProvider } from '../lib/llm-models';
+import { GEMINI_API_KEY_ENV, XAI_API_KEY_ENV } from './vendor-api-keys';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
@@ -26,6 +27,8 @@ type OpenAICompatAdapter = {
   extraBody?: (model: string) => Record<string, unknown>;
   /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
   extraBodyFirst?: boolean;
+  /** Leave the shared payload's `temperature` out of the body (the model accepts only its default). */
+  omitTemperature?: boolean;
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
@@ -69,7 +72,7 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
   },
   grok: {
     baseUrl: 'https://api.x.ai/v1',
-    apiKeyEnv: ['XAI_API_KEY', 'GROK_API_KEY'],
+    apiKeyEnv: [...XAI_API_KEY_ENV],
     errorLogLabel: 'SpaceXAI Grok API',
     errorChatLabel: 'SpaceXAI Grok chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
@@ -87,12 +90,13 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'OpenAI API',
     errorChatLabel: 'OpenAI chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
+    omitTemperature: true,
   },
   // Gemini exposes an OpenAI-compatible surface that accepts the shared chat
   // payload unchanged. Verified 2026-06-19.
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    apiKeyEnv: ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY'],
+    apiKeyEnv: [...GEMINI_API_KEY_ENV],
     errorLogLabel: 'Gemini API',
     errorChatLabel: 'Gemini chat',
     extraBody: (model) => {
@@ -116,11 +120,11 @@ export function buildOpenAICompatBody(
   payload: CorrectionRequestPayload,
   model: string,
 ): Record<string, unknown> {
+  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const { temperature, ...withoutTemperature } = payload;
-  const shared = provider === 'openai' ? withoutTemperature : payload;
+  const shared = adapter.omitTemperature ? withoutTemperature : payload;
   const { maxOutputTokens } = llmModelRow(provider, model);
   const cap = maxOutputTokens === undefined ? {} : { max_completion_tokens: maxOutputTokens };
-  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const extra = adapter.extraBody?.(model);
   return adapter.extraBodyFirst
     ? { model, ...extra, ...shared, ...cap, stream: false }

@@ -6,6 +6,7 @@
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
+import { XAI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -89,7 +90,7 @@ export async function transcribeWithXaiGrok(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'grok';
-  const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+  const apiKey = readApiKey(XAI_API_KEY_ENV);
   if (!apiKey) {
     throw new ProviderUnavailableError('Grok', 'XAI_API_KEY not configured');
   }

@@ -6,7 +6,7 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { findModelRow, getProviderDef } from '../lib/stt-models';
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError, ProviderInputError } from './types';

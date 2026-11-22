@@ -2,7 +2,7 @@
 // POST /post-process - standalone text correction via LLM
 
 import type { Context } from 'hono';
-import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
+import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../providers/llm-provider';
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
@@ -18,6 +18,7 @@ import { logEvent } from '../lib/logging';
 import { isRecord } from '../lib/utils';
 import { readAccountKey } from '../lib/account-key';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
+import { machineLabels } from '../lib/fly-machine';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -130,7 +131,7 @@ async function handlePostProcess(c: Context) {
 
   const { clientPlatform, clientVersion } = readClientInfo(c);
   logEvent(requestId, startTime, 'post_process.request_start', {
-    flyRegion: process.env.FLY_REGION || 'local',
+    flyRegion: machineLabels().region,
     clientPlatform,
     clientVersion,
     provider,

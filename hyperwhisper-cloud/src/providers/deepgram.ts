@@ -3,7 +3,7 @@
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { billableSeconds, emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
@@ -111,7 +111,7 @@ export async function transcribeWithDeepgram(
   // One call: resolves, logs the fallback if there is one, and returns what to
   // send.
   const languageSent = resolveProviderLanguage({
-    provider, model, language, context, vocabularyTermCount: keyterms.length,
+    provider, model, language, context, vocabularyTermsAtRisk: keyterms.length,
   });
   const url = buildDeepgramUrl(model, languageSent, keyterms);
 

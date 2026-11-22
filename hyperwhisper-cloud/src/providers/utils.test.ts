@@ -128,6 +128,8 @@ describe('audioExtensionFromContentType (multipart filename extension)', () => {
       ['audio/mp4', 'm4a'],
       ['audio/webm', 'webm'],
       ['audio/ogg', 'ogg'],
+      ['audio/opus', 'ogg'],
+      ['audio/webm; codecs=opus', 'webm'],
       ['audio/flac', 'flac'],
     ];
 
