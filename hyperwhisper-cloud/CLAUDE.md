@@ -139,7 +139,7 @@ to the vocabulary.
 
 Billing quirks, both load-bearing:
 - Audio bills at **25 tokens/sec**, not the 32 tok/s of the `:generateContent`
-  models. `GEMINI_AUDIO_TOKENS_PER_MINUTE` / `GEMINI_RATES` /
+  models. `GEMINI_AUDIO_TOKENS_PER_MINUTE` / the gemini rows' token rates /
   `computeGeminiTranscriptionCost` are for the LLM path — never reuse them here.
 - `usage.total_output_tokens` is **always 0** on this endpoint, so the output half
   of the bill is *estimated* from the transcript length (~4 chars/token) in

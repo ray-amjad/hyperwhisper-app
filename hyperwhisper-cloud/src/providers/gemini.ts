@@ -5,10 +5,10 @@
 // per-model (only 2.5-flash/flash-lite can zero it) to avoid runaway output
 // tokens. There is no vocabulary API — terms are injected into the prompt.
 
-import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
+import { CHARS_PER_TOKEN_ESTIMATE, GEMINI_AUDIO_TOKENS_PER_SECOND, computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
-import { getProviderDef } from '../lib/stt-models';
+import { defaultModelRow, findModelRow, getProviderDef } from '../lib/stt-models';
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
@@ -18,7 +18,6 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Read from the registry, never restated, so the adapter cannot disagree with
 // `stt-models.ts` about the default (same pattern as azure-mai.ts).
 const DEFAULT_MODEL = getProviderDef('gemini').defaultModel;
-const AUDIO_TOKENS_PER_SECOND = 32;
 // Vocabulary terms named in the prompt, matching the sibling adapters' cap.
 const MAX_PROMPT_TERMS = 100;
 // Total request (incl. base64) must stay under 20 MB; base64 inflates ~33%, so
@@ -47,16 +46,13 @@ export function geminiMimeType(contentType: string): string {
   return 'audio/wav';
 }
 
-/** Per-model thinking config — keep thinking as low as each model allows. */
+/**
+ * Per-model thinking config — keep thinking as low as each model allows. Each
+ * gemini row in stt-models.ts authors its own (`thinking`, checked at load);
+ * an id with no row (the route never sends one) gets the default model's.
+ */
 function thinkingConfig(model: string): Record<string, unknown> {
-  if (model === 'gemini-3.1-pro-preview') return { thinkingLevel: 'low' };
-  // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
-  // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
-  // Sending the gemini-3 'minimal' below would be refused, so pin its floor.
-  if (model === 'gemini-3.8-flash') return { thinkingLevel: 'low' };
-  if (model.startsWith('gemini-3')) return { thinkingLevel: 'minimal' };
-  if (model === 'gemini-2.5-pro') return { thinkingBudget: 128 }; // 0 invalid on Pro
-  return { thinkingBudget: 0 }; // 2.5-flash / 2.5-flash-lite
+  return { ...(findModelRow('gemini', model) ?? defaultModelRow('gemini')).thinking };
 }
 
 function buildPrompt(language?: string, initialPrompt?: string): string {
@@ -127,7 +123,7 @@ export function resolveAudioInputTokens(
 
   // Last resort (tier 4): no usage total at all — estimate audio seconds from payload size.
   const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
-  return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
+  return Math.round(estimatedSeconds * GEMINI_AUDIO_TOKENS_PER_SECOND);
 }
 
 /**
@@ -210,7 +206,6 @@ export function resolveUpstreamAudioInputTokens(
 // prompt we send alongside the audio, so it can be backed out of promptTokenCount
 // instead of being billed at the audio rate. Approximate by design — a small
 // over/under-estimate only nudges the audio count by a few percent.
-const CHARS_PER_TOKEN_ESTIMATE = 4;
 export function estimatePromptTextTokens(promptText: string): number {
   return Math.ceil(promptText.length / CHARS_PER_TOKEN_ESTIMATE);
 }
@@ -305,7 +300,7 @@ export async function transcribeWithGemini(
   // only candidatesTokenCount is the visible transcript; thoughtsTokenCount is
   // the (often non-zero on Pro/3.x) thinking output that's charged the same.
   const outputTokens = (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0);
-  const durationSeconds = audioInputTokens / AUDIO_TOKENS_PER_SECOND;
+  const durationSeconds = audioInputTokens / GEMINI_AUDIO_TOKENS_PER_SECOND;
 
   const costUsd = computeGeminiTranscriptionCost(model, {
     audioInputTokens,
@@ -326,7 +321,7 @@ export async function transcribeWithGemini(
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt),
       upstreamDurationSeconds: upstreamAudioTokens !== null && upstreamAudioTokens > 0
-        ? upstreamAudioTokens / AUDIO_TOKENS_PER_SECOND
+        ? upstreamAudioTokens / GEMINI_AUDIO_TOKENS_PER_SECOND
         : null,
       audioInputTokens,
       outputTokens,
