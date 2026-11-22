@@ -98,7 +98,7 @@ test('/usage on key B reflects a spend on sibling key A of the same pool', async
     { identifier: 'KEY-A', licenseKey: 'KEY-A', credits: 50, creditPoolId: POOL } as never,
     0.5,
     { endpoint: '/transcribe' },
-    { credits: 50 } as never,
+    { exactCredits: 50, coveredByHold: true },
   ).recorded;
   expect((store.get(`credit_pool_balance:${POOL}`) as { credits: number }).credits).toBe(0);
   // B's own entry still says 50: the stale read the fix has to cap.

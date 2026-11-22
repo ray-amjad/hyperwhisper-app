@@ -240,10 +240,31 @@ export function deductCredits(
   // Taken synchronously, so the request scope that ends right after this call
   // finds the hold already handed over and leaves its release to the charge.
   const hold = takeHoldForSettle(auth);
-  const credits = settleAgainstHold(costUsd, metadata, options, hold);
+  const charged = settleAgainstHold(costUsd, metadata, options, hold);
   // Errors are logged inside performDeduction / by callers.
-  const recorded = inFlightDeductions.track(performDeduction(auth, credits, metadata, options, hold));
-  return { credits, recorded };
+  const recorded = inFlightDeductions.track(performDeduction(auth, charged, metadata, options, hold));
+  const uncapped = options.exactCredits ?? creditsForCost(costUsd);
+  return { credits: withReportDeadline(charged, uncapped), recorded };
+}
+
+/**
+ * How long a response waits to learn the capped charge. Settling above the
+ * hold asks Redis to grow it, and the Upstash client has no request timeout of
+ * its own: a stalled Redis must not hold a transcript the upstream already
+ * produced (and billed). Past the deadline the response reports the uncapped
+ * amount, as it did before the cap existed; the charge itself still settles.
+ */
+const SETTLE_REPORT_DEADLINE_MS = 2_000;
+
+function withReportDeadline(charged: Promise<number>, uncapped: number): Promise<number> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<number>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(JSON.stringify({ event: 'credits.settle_report_deadline', deadlineMs: SETTLE_REPORT_DEADLINE_MS }));
+      resolve(uncapped);
+    }, SETTLE_REPORT_DEADLINE_MS);
+  });
+  return Promise.race([charged, deadline]).finally(() => clearTimeout(timer));
 }
 
 /** What this deduction charges: the amount, capped at what the hold covers. */
