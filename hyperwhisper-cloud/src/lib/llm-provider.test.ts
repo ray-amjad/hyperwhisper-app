@@ -1,8 +1,9 @@
 // callWithRetry's retry policy (#782 review round 2). A timeout from OUR
 // per-attempt timer is not retried on the same provider: the provider has just
-// been silent for the whole bound, and post-process.ts can only reach its
-// fallback once callWithRetry gives up. Every other failure keeps the old
-// retries.
+// been silent for the whole bound, and completeWithFailover can only reach the
+// fallback once callWithRetry gives up. Every other transient failure
+// (isTransientLLMError: a 5xx, a 429, a network error) keeps the old retries;
+// any other 4xx is our own bad request and is not retried at all.
 //
 // The seam is globalThis.fetch and real sockets on 127.0.0.1 (never
 // mock.module, which leaks across test files in bun). setTimeout is spied to
@@ -11,9 +12,9 @@
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
-import { callWithRetry, shouldFallback, type LLMProvider } from './llm-provider';
+import { callWithRetry, isTransientLLMError, type LLMProvider } from './llm-provider';
 import { buildCorrectionRequest } from '../providers/llm-contract';
-import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
+import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { LLM_REQUEST_TIMEOUT_MS } from '../providers/llm-fetch';
 import { refusedUrl, silentUpstream, type TestUpstream } from '../providers/test-upstreams';
 import { saveEnv } from '../test-support/env';
@@ -88,7 +89,7 @@ describe('callWithRetry', () => {
 
       expect(error).toBeInstanceOf(LLMTimeoutError);
       expect((error as LLMRequestError).status).toBe(504);
-      expect(shouldFallback(error)).toBe(true);
+      expect(isTransientLLMError(error)).toBe(true);
       expect(counter.calls).toBe(1);
       // One request bound armed, and no backoff delay after it.
       expect(armed.filter((ms) => ms === LLM_REQUEST_TIMEOUT_MS)).toHaveLength(1);
@@ -103,7 +104,7 @@ describe('callWithRetry', () => {
       expect(error).toBeInstanceOf(LLMRequestError);
       expect(error).not.toBeInstanceOf(LLMTimeoutError);
       expect(counter.calls).toBe(attempts);
-      expect(shouldFallback(error)).toBe(true);
+      expect(isTransientLLMError(error)).toBe(true);
     });
 
     test(`${provider}: an upstream-RETURNED 504 is still retried (only our timer skips retries)`, async () => {
@@ -122,7 +123,7 @@ describe('callWithRetry', () => {
       const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model, { retryRateLimit: false }).catch((e) => e);
 
       expect((error as LLMRequestError).status).toBe(429);
-      expect(shouldFallback(error)).toBe(true);
+      expect(isTransientLLMError(error)).toBe(true);
       expect(counter.calls).toBe(1);
       expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
     });
@@ -151,7 +152,7 @@ describe('callWithRetry', () => {
       const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
 
       expect((error as LLMRequestError).status).toBe(503);
-      expect(shouldFallback(error)).toBe(true);
+      expect(isTransientLLMError(error)).toBe(true);
       expect(counter.calls).toBe(0);
       expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
     });
@@ -161,8 +162,22 @@ describe('callWithRetry', () => {
 
       const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
 
-      expect(error).not.toBeInstanceOf(LLMRequestError);
+      expect(error).toBeInstanceOf(LLMNetworkError);
+      expect(isTransientLLMError(error)).toBe(true);
       expect(counter.calls).toBe(attempts);
+    });
+
+    test(`${provider}: a 400 or 401 is NOT retried, and does not fail over`, async () => {
+      for (const status of [400, 401]) {
+        const counter = respondWith(status);
+
+        const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
+
+        expect((error as LLMRequestError).status).toBe(status);
+        expect(isTransientLLMError(error)).toBe(false);
+        expect(counter.calls).toBe(1);
+        expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
+      }
     });
   }
 });

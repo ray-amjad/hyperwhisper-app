@@ -21,7 +21,7 @@ export class LLMRequestError extends Error {
 
 /**
  * Our own per-attempt timer ended an LLM request (#782). A 504, so
- * shouldFallback() fails over exactly as for any other 5xx; the subclass only
+ * isTransientLLMError() fails over exactly as for any other 5xx; the subclass only
  * tells callWithRetry not to retry the same provider, which has just stayed
  * silent for the whole bound. An upstream that RETURNS a 504 is a plain
  * LLMRequestError and keeps the usual retries.
@@ -34,7 +34,22 @@ export class LLMTimeoutError extends LLMRequestError {
 }
 
 /**
- * No API key is configured for an LLM provider. A 503, so shouldFallback()
+ * The request never got an HTTP answer: a refused or reset connection, a DNS
+ * failure. A 502, so isTransientLLMError() treats it like any other upstream
+ * 5xx: retried on the same provider, then failed over. It was an untagged
+ * error before, which callWithRetry retried but the fallback refused, two
+ * answers to one question.
+ */
+export class LLMNetworkError extends LLMRequestError {
+  constructor(message: string, provider: string, options?: { cause?: unknown }) {
+    super(message, 502, provider);
+    this.name = 'LLMNetworkError';
+    if (options && 'cause' in options) this.cause = options.cause;
+  }
+}
+
+/**
+ * No API key is configured for an LLM provider. A 503, so isTransientLLMError()
  * moves the request to the fallback provider as if this one were down; the
  * subclass tells callWithRetry not to retry, since the env will not change
  * between attempts.

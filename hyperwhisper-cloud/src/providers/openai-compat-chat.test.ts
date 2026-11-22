@@ -4,8 +4,9 @@
 //
 // Three behaviours here are load-bearing outside this file:
 //
-//   1. Fallback routing. post-process.ts decides whether to retry on another
-//      provider by calling `shouldFallback(error)`, which only says yes for a
+//   1. Fallback routing. completeWithFailover (lib/llm-provider.ts) decides
+//      whether to retry on another provider by calling
+//      `isTransientLLMError(error)`, which only says yes for a
 //      5xx or 429 `status` on the error object. That `status` is attached here.
 //      So the status this file puts on a thrown error IS the fallback decision:
 //      a 429 fails over (#1565), and a 400 must stay on the same provider.
@@ -29,9 +30,9 @@ import {
 } from '../lib/cost-calculator';
 import { computeLLMChatCost } from '../lib/llm-models';
 import { llmModelRow } from '../lib/llm-models';
-import { shouldFallback } from '../lib/llm-provider';
+import { isTransientLLMError } from '../lib/llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
@@ -412,7 +413,7 @@ describe('upstream error propagation', () => {
     expect(errorStatus(error)).toBe(status);
     expect(errorProvider(error)).toBe('cerebras');
     expect((error as Error).message).toBe(`Cerebras chat failed with status ${status}`);
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
   test.each([400, 401, 403, 404, 422])('keeps an upstream %i on the same provider', async (status) => {
@@ -423,7 +424,7 @@ describe('upstream error propagation', () => {
     expect(errorStatus(error)).toBe(status);
     // A 4xx other than 429 is our own bad request. It is not fixed by
     // re-sending the same request to a different vendor.
-    expect(shouldFallback(error)).toBe(false);
+    expect(isTransientLLMError(error)).toBe(false);
   });
 
   test('tags an upstream 429 so post-process falls back to the next provider', async () => {
@@ -437,7 +438,7 @@ describe('upstream error propagation', () => {
     expect((error as Error).message).toBe('Cerebras chat failed with status 429');
     // #1565: a 429 is the provider rate-limiting us. The fallback vendor has its
     // own, separate rate limit, so a different vendor does fix it.
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
   test('tags the failing provider, not the one that will take over', async () => {
@@ -463,17 +464,20 @@ describe('upstream error propagation', () => {
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
     expect(errorStatus(error)).toBe(503);
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
-  test('lets a transport failure through untagged so it is retried, not failed over', async () => {
+  // A transport failure used to pass through untagged (retried, not failed
+  // over). It is now an LLMNetworkError 502: retried, then failed over.
+  test('tags a transport failure as a 502 network error so it is retried and then failed over', async () => {
     handler = () => { throw new TypeError('connection reset by peer'); };
 
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
     expect((error as Error).message).toContain('connection reset by peer');
-    expect(errorStatus(error)).toBeUndefined();
-    expect(shouldFallback(error)).toBe(false);
+    expect(error).toBeInstanceOf(LLMNetworkError);
+    expect(errorStatus(error)).toBe(502);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 });
 
@@ -516,7 +520,7 @@ describe('missing API key', () => {
       expect((error as Error).message).toBe(`${envName} not configured`);
       expect(errorStatus(error)).toBe(503);
       expect(errorProvider(error)).toBe(provider);
-      expect(shouldFallback(error)).toBe(true);
+      expect(isTransientLLMError(error)).toBe(true);
     }
   });
 
@@ -578,7 +582,7 @@ describe('bounded wait on a silent upstream', () => {
     expect(errorStatus(error)).toBe(504);
     expect(errorProvider(error)).toBe('groq');
     expect((error as Error).message).toContain(`timeout after ${LLM_REQUEST_TIMEOUT_MS}ms`);
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
     expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
@@ -589,19 +593,21 @@ describe('bounded wait on a silent upstream', () => {
     const { error, elapsedMs } = await timedError(() => sendTo(upstream!.url, 'req-stalled-body'));
 
     expect(errorStatus(error)).toBe(504);
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
 
-  // Only our timer is mapped. A real network error stays the untagged error
-  // it was before #782 (retried, not failed over), as the #210 test pins.
-  test('passes a refused connection through untagged, not as a timeout', async () => {
+  // A real network error is not a timeout. It used to stay the untagged error
+  // it was before #782 (retried, not failed over); it is now an
+  // LLMNetworkError 502, so the one transient classifier retries it and then
+  // fails over, like any other 5xx.
+  test('maps a refused connection to a 502 network error, not a timeout', async () => {
     const error = await captureError(() => sendTo(refusedUrl(), 'req-refused'));
 
-    expect(error).toBeInstanceOf(Error);
-    expect(error).not.toBeInstanceOf(LLMRequestError);
-    expect(errorStatus(error)).toBeUndefined();
-    expect(shouldFallback(error)).toBe(false);
+    expect(error).toBeInstanceOf(LLMNetworkError);
+    expect(error).not.toBeInstanceOf(LLMTimeoutError);
+    expect(errorStatus(error)).toBe(502);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
   test('every provider built on the shared client sends an abort signal', async () => {

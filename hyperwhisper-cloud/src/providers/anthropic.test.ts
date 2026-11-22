@@ -9,9 +9,9 @@ import {
 } from './anthropic';
 import { llmModelRow } from '../lib/llm-models';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
-import { shouldFallback } from '../lib/llm-provider';
+import { isTransientLLMError } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
-import { LLMRequestError } from './llm-errors';
+import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 import { stubEnv } from '../test-support/env';
 
@@ -222,7 +222,7 @@ describe('requestAnthropicChat', () => {
     expect((error as { status?: number }).status).toBe(529);
     expect('provider' in error).toBe(false);
     expect((error as Error).message).toContain('529');
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
   test('a 4xx is surfaced with its status and does NOT trigger provider fallback', async () => {
@@ -232,7 +232,7 @@ describe('requestAnthropicChat', () => {
 
     expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as { status?: number }).status).toBe(400);
-    expect(shouldFallback(error)).toBe(false);
+    expect(isTransientLLMError(error)).toBe(false);
   });
 });
 
@@ -283,7 +283,7 @@ describe('requestAnthropicChat bounded wait', () => {
     expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as LLMRequestError).status).toBe(504);
     expect((error as LLMRequestError).provider).toBe('anthropic');
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
 
@@ -294,20 +294,21 @@ describe('requestAnthropicChat bounded wait', () => {
     const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
     expect((error as LLMRequestError).status).toBe(504);
-    expect(shouldFallback(error)).toBe(true);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 
-  // Only our timer is mapped. A real network error stays the untagged error it
-  // was before #782 (retried by callWithRetry, not failed over).
-  test('passes a refused connection through untagged, not as a timeout', async () => {
+  // A real network error is not a timeout. It used to stay the untagged error
+  // it was before #782 (retried by callWithRetry, not failed over); it is now
+  // an LLMNetworkError 502, retried and then failed over like any other 5xx.
+  test('maps a refused connection to a 502 network error, not a timeout', async () => {
     routeAnthropicTo(refusedUrl());
 
     const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
-    expect(error).toBeInstanceOf(Error);
-    expect(error).not.toBeInstanceOf(LLMRequestError);
-    expect((error as { status?: number }).status).toBeUndefined();
-    expect(shouldFallback(error)).toBe(false);
+    expect(error).toBeInstanceOf(LLMNetworkError);
+    expect(error).not.toBeInstanceOf(LLMTimeoutError);
+    expect((error as LLMRequestError).status).toBe(502);
+    expect(isTransientLLMError(error)).toBe(true);
   });
 });
 

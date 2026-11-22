@@ -397,6 +397,34 @@ describe('postProcessRoute LLM provider chain', () => {
     expect(groqCalled).toBe(false);
   });
 
+  // One classifier drives retry and fallback: a 401 is not transient, so groq
+  // (3 retries for a transient error) is called once and nothing fails over.
+  test('a groq 401 is neither retried nor failed over', async () => {
+    let groqCalls = 0;
+    let cerebrasCalled = false;
+    withProviders({
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return new Response('unauthorized', { status: 401 });
+      },
+      'api.cerebras.ai': () => {
+        cerebrasCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest(
+        { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' },
+        { 'X-LLM-Provider': 'groq' }
+      )
+    );
+
+    expect(response.status).toBe(500);
+    expect(groqCalls).toBe(1);
+    expect(cerebrasCalled).toBe(false);
+  });
+
   test('returns 500 when both the primary and fallback providers fail', async () => {
     withProviders({
       'api.cerebras.ai': () => new Response('server error', { status: 500 }),

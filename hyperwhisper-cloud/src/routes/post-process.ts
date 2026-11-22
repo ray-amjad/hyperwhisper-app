@@ -2,7 +2,7 @@
 // POST /post-process - standalone text correction via LLM
 
 import type { Context } from 'hono';
-import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
+import { buildCorrectionRequest, completeWithFailover, extractLLMProvider, fallbackStepFor, llmChainFor, servedLLMName, resolveLLMModel, type LLMProvider } from '../lib/llm-provider';
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
@@ -165,45 +165,36 @@ async function handlePostProcess(c: Context) {
   const userContent = buildTranscriptUserContent(text);
   const payload = buildCorrectionRequest(prompt, userContent);
 
-  let llmResponse: Awaited<ReturnType<typeof callWithRetry>>;
-
   logEvent(requestId, startTime, 'post_process.llm_attempt_start', { provider, attempt: 1 });
 
-  try {
-    // A 429 goes straight to the fallback below, with no same-provider retry (#1568).
-    llmResponse = await callWithRetry(provider, payload, requestId, model, { retryRateLimit: false });
-  } catch (error) {
-    logEvent(requestId, startTime, 'post_process.llm_attempt_fail', {
-      provider,
-      attempt: 1,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    if (shouldFallback(error)) {
-      providerUsed = fallbackProviderFor(provider);
-      modelUsed = defaultModelFor(providerUsed);
-
-      logEvent(requestId, startTime, 'post_process.llm_fallback_start', { requestedProvider: provider, provider: providerUsed });
-
-      try {
-        llmResponse = await callWithRetry(providerUsed, payload, requestId, modelUsed);
-      } catch (fallbackError) {
-        logEvent(requestId, startTime, 'post_process.request_fail', {
-          reason: 'llm_fallback_failed',
-          provider: providerUsed,
-          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-        });
-        return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
-      }
-    } else {
-      logEvent(requestId, startTime, 'post_process.request_fail', {
-        reason: 'llm_failed_no_fallback',
-        provider,
+  // The requested provider, then its fallback. completeWithFailover owns the
+  // retries and the move: a 429 goes straight to the fallback, with no
+  // same-provider retry (#1568), and only a transient error fails over.
+  const outcome = await completeWithFailover(llmChainFor(provider, model), payload, requestId, {
+    onStepFailed: (failed, error, index, next) => {
+      logEvent(requestId, startTime, 'post_process.llm_attempt_fail', {
+        provider: failed.provider,
+        attempt: index + 1,
         error: error instanceof Error ? error.message : String(error),
       });
-      return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
-    }
+      if (next) {
+        logEvent(requestId, startTime, 'post_process.llm_fallback_start', { requestedProvider: failed.provider, provider: next.provider });
+      }
+    },
+  });
+
+  if (!outcome.ok) {
+    logEvent(requestId, startTime, 'post_process.request_fail', {
+      reason: outcome.failedOver ? 'llm_fallback_failed' : 'llm_failed_no_fallback',
+      provider: outcome.step.provider,
+      error: outcome.error instanceof Error ? outcome.error.message : String(outcome.error),
+    });
+    return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
   }
+
+  const llmResponse = outcome.result;
+  providerUsed = outcome.step.provider;
+  modelUsed = outcome.step.model;
 
   logEvent(requestId, startTime, 'post_process.llm_attempt_done', {
     provider: providerUsed,
@@ -231,19 +222,29 @@ async function handlePostProcess(c: Context) {
         outputChars: leakedText.length,
       });
 
-      const alternateProvider: LLMProvider = fallbackProviderFor(providerUsed);
+      const alternate = fallbackStepFor(providerUsed);
+      const alternateProvider: LLMProvider = alternate.provider;
 
       logEvent(requestId, startTime, 'post_process.llm_leakage_retry_start', { requestedProvider: providerUsed, provider: alternateProvider });
 
-      try {
-        const alternateModel = defaultModelFor(alternateProvider);
-        const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateModel);
+      // The alternate is a one-step chain: it has no provider after it, so it
+      // keeps its 429 retries, and its failure keeps the raw transcript.
+      const retryOutcome = await completeWithFailover([alternate], payload, requestId);
+      if (!retryOutcome.ok) {
+        logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
+          provider: alternateProvider,
+          error: retryOutcome.error instanceof Error ? retryOutcome.error.message : String(retryOutcome.error),
+          fallbackToRaw: true,
+        });
+        correctedText = text;
+      } else {
+        const retryResponse = retryOutcome.result;
 
         // Bill the retry the moment it succeeds, before any evaluation step
         // below can throw — otherwise a successful (and billed-by-the-provider)
         // retry's cost would be silently dropped if extraction failed.
         providerUsed = alternateProvider;
-        modelUsed = alternateModel;
+        modelUsed = alternate.model;
         costUsd += retryResponse.costUsd;
 
         const retryEvaluation = evaluateCompletionResponse(retryResponse.raw, text);
@@ -265,13 +266,6 @@ async function handlePostProcess(c: Context) {
           });
           correctedText = text;
         }
-      } catch (retryError) {
-        logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
-          provider: alternateProvider,
-          error: retryError instanceof Error ? retryError.message : String(retryError),
-          fallbackToRaw: true,
-        });
-        correctedText = text;
       }
     } else {
       // output_limit, incomplete_response, or empty_cleaned_text: keep the

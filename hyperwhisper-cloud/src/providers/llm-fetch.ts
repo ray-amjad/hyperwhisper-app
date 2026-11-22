@@ -9,24 +9,27 @@
 // response headers arrive, so a body that stalls after the headers still hangs.
 // Here one timer covers the request AND the body read done in `read`.
 //
-// Error mapping. shouldFallback() only accepts an LLMRequestError with a 5xx
-// or 429 status, so the mapping is what lets a silent upstream reach the
-// FALLBACK:
+// Error mapping. isTransientLLMError() only accepts an LLMRequestError with a
+// 5xx or 429 status, so the mapping is what lets a silent or unreachable
+// upstream reach the FALLBACK:
 //   - our timer fired           -> LLMTimeoutError (an LLMRequestError, 504,
 //                                  provider). callWithRetry does NOT retry it on
 //                                  the same provider (review round 2): it goes
-//                                  straight to post-process.ts's fallback.
+//                                  straight to the next provider in the chain.
+//   - fetch() itself rejected    -> LLMNetworkError (502, provider): a refused or
+//                                  reset connection. Retried, then failed over,
+//                                  like any other 5xx. It used to stay an
+//                                  untagged error (retried, not failed over).
 //   - any other failure          -> rethrown unchanged, exactly as before #782:
-//                                  a network error stays an untagged error
-//                                  (retried, not failed over), and the non-2xx
-//                                  handling in each caller keeps its own status
-//                                  (retried, and a 5xx or 429 then fails over).
+//                                  the non-2xx handling in each caller keeps its
+//                                  own status (a 5xx or 429 is retried and then
+//                                  fails over; any other 4xx does neither).
 //   - a 200 whose body is not JSON  -> LLMRequestError 502 via readLLMJson (#2065):
 //                                  an outage or proxy page is an upstream
 //                                  failure, so it is retried and then fails
 //                                  over like any other 5xx.
 
-import { LLMRequestError, LLMTimeoutError } from './llm-errors';
+import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 
 /**
  * Floor of the per-attempt bound for one non-streaming LLM chat request
@@ -100,7 +103,14 @@ export async function fetchLLMWithTimeout<T>(
   };
 
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (timedOut) throw error; // becomes the timeout below
+      console.error('llm.transport_error', { provider, requestId, kind: 'network', elapsedMs: Math.round(performance.now() - startedAt) });
+      throw new LLMNetworkError(`${provider} LLM request failed: ${error instanceof Error ? error.message : String(error)}`, provider, { cause: error });
+    }
     return await read(response);
   } catch (error) {
     // Only our own timer becomes an LLMTimeoutError (504). The non-2xx LLMRequestError thrown by
@@ -117,7 +127,7 @@ export async function fetchLLMWithTimeout<T>(
  * so an abort from fetchLLMWithTimeout's timer still surfaces as an abort (and
  * becomes its LLMTimeoutError); only a body that arrived whole and is not JSON
  * (an HTML outage page, a truncated body) becomes an LLMRequestError 502, which
- * shouldFallback() fails over on. No part of the body goes in the message or
+ * isTransientLLMError() fails over on. No part of the body goes in the message or
  * the log: a 200 body can carry the user's transcript.
  */
 export async function readLLMJson<T = unknown>(response: Response, provider: string, requestId: string): Promise<T> {

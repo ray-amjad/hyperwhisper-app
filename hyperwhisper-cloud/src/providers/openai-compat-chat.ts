@@ -44,7 +44,7 @@ type OpenAICompatAdapter = {
 //   MINIMAL is not supported for this model"), while 'none' is a 200 that still
 //   thinks — about the same hidden tokens as 'low'. So send 'low', the floor the
 //   docs name, rather than rely on Google quietly remapping 'none'. A 400 here
-//   would NOT fall back: shouldFallback() fails over on a 5xx or 429 only. This
+//   would NOT fall back: isTransientLLMError() fails over on a 5xx or 429 only. This
 //   matches the transcription client (gemini.ts thinkingConfig).
 const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
   ['gemini-2.5-flash', 'none'],

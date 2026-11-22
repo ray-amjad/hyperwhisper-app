@@ -1,6 +1,6 @@
 // #2065: a 200 from the primary LLM whose body is not JSON (a CDN/proxy HTML
 // page, a truncated body) escaped openai-compat-chat.ts / anthropic.ts
-// `response.json()` as a raw SyntaxError. shouldFallback() only accepts an
+// `response.json()` as a raw SyntaxError. isTransientLLMError() only accepts an
 // LLMRequestError, so /post-process answered 500 with no failover, while a
 // 5xx/429 from the same vendor failed over. readLLMJson (llm-fetch.ts) now maps
 // it to an LLMRequestError 502: retried per the provider's budget, then failed
