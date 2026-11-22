@@ -214,6 +214,8 @@ describe('requestAnthropicChat', () => {
       // Only the unreadable input count is estimated; the reported output is billed as reported.
       const estimatedInput = estimateUsageFromChars(PROMPT_CHARS, 'ok'.length).prompt_tokens;
       expect(result.usage).toEqual({ prompt_tokens: estimatedInput, completion_tokens: 500, total_tokens: estimatedInput + 500 });
+      // The 500 well-formed output tokens are billed as reported, plus the input estimate.
+      expect(result.costUsd).toBeCloseTo(computeAnthropicCost(ANTHROPIC_MODEL, estimatedInput, 500, 0, 0), 12);
     } finally {
       warnSpy.mockRestore();
     }
