@@ -4,6 +4,7 @@
 import { isRecord } from '../lib/utils';
 import { isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import { computeLLMChatCost, llmModelRow, type LLMProvider } from '../lib/llm-models';
+import { GEMINI_API_KEY_ENV } from './gemini-api-key';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
@@ -92,7 +93,7 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
   // payload unchanged. Verified 2026-06-19.
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    apiKeyEnv: ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY'],
+    apiKeyEnv: [...GEMINI_API_KEY_ENV],
     errorLogLabel: 'Gemini API',
     errorChatLabel: 'Gemini chat',
     extraBody: (model) => {
