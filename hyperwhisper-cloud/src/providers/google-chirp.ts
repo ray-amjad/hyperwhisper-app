@@ -16,7 +16,7 @@
 // the operation poll loop, saving ~3–5 s on the hot path.
 
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
-import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import {
   deleteTranscriptionAudio,
   isGcsTranscriptionBucketConfigured,
@@ -38,6 +38,9 @@ import {
   type ProviderHttpErrorPolicy,
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
+
+// The sync `recognize` inline cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['google-chirp'].adapterMaxBytes;
 
 // Sync `recognize` enforces a ~60 s audio-duration cap independent of the
 // 10 MB byte cap. Use 55 s as the gate to leave headroom for the byte-rate
@@ -143,7 +146,7 @@ export function planChirpDelivery(
   gcsConfigured: boolean,
 ): ChirpDeliveryPlan {
   const estimatedSeconds = estimateAudioSeconds(byteLength, contentType);
-  const fitsInlineBytes = byteLength <= GOOGLE_CHIRP_INLINE_MAX_BYTES;
+  const fitsInlineBytes = byteLength <= INLINE_MAX_BYTES;
   const fitsInlineSeconds = estimatedSeconds <= INLINE_AUDIO_MAX_SECONDS;
   const useInlineAudio = fitsInlineBytes && fitsInlineSeconds;
   return {
@@ -226,10 +229,10 @@ export async function transcribeWithGoogleChirp(
   if (plan.tooLarge) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      inlineMaxBytes: GOOGLE_CHIRP_INLINE_MAX_BYTES,
+      inlineMaxBytes: INLINE_MAX_BYTES,
       gcsConfigured: false,
     }, context);
-    throw new AudioTooLargeError('Google Chirp', audio.byteLength, GOOGLE_CHIRP_INLINE_MAX_BYTES);
+    throw new AudioTooLargeError('Google Chirp', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const region = getRegion();

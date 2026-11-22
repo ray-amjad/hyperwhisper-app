@@ -37,7 +37,7 @@ import {
   computeGeminiTranscribeCost,
   estimateGeminiTranscribeOutputTokens,
 } from '../lib/cost-calculator';
-import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { getProviderDef } from '../lib/stt-models';
 // A pure Content-Type → Google audio MIME mapper. Importing it is NOT the
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
@@ -56,6 +56,9 @@ import {
   splitVocabularyTerms,
 } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
+
+// The inline base64 cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['gemini-transcribe'].adapterMaxBytes;
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // Google versions this endpoint by date. Omitting the header selects whatever
@@ -216,11 +219,11 @@ export async function transcribeWithGeminiTranscribe(
 
   // No Files-API overflow path exists on this endpoint, so an oversized payload
   // is a hard 413 (defense in depth behind the route's pre-buffer gate).
-  if (audio.byteLength > GEMINI_TRANSCRIBE_INLINE_MAX_BYTES) {
+  if (audio.byteLength > INLINE_MAX_BYTES) {
     logProviderEvent(provider, 'audio_too_large', {
-      model, audioBytes: audio.byteLength, maxBytes: GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
+      model, audioBytes: audio.byteLength, maxBytes: INLINE_MAX_BYTES,
     }, context);
-    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
+    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const terms = initialPrompt ? toVocabularyTerms(initialPrompt) : [];

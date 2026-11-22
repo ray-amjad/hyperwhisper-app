@@ -15,7 +15,7 @@
 // IMPORTANT: the `definition` part MUST be sent as application/json. The
 // service rejects text/plain JSON with HTTP 400.
 
-import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
@@ -31,6 +31,9 @@ import {
   splitVocabularyTerms,
   readJson200,
 } from './utils';
+
+// Azure's upload cap, from the one per-provider table (audio-limits.ts).
+const MAX_UPLOAD_BYTES = PROVIDER_AUDIO_CAPS['azure-mai'].adapterMaxBytes;
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -118,12 +121,12 @@ export async function transcribeWithAzureMai(
   const startedAt = performance.now();
   const provider = 'azure-mai';
 
-  if (audio.byteLength > AZURE_MAI_MAX_BYTES) {
+  if (audio.byteLength > MAX_UPLOAD_BYTES) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      maxBytes: AZURE_MAI_MAX_BYTES,
+      maxBytes: MAX_UPLOAD_BYTES,
     }, context);
-    throw new AudioTooLargeError('Azure MAI', audio.byteLength, AZURE_MAI_MAX_BYTES);
+    throw new AudioTooLargeError('Azure MAI', audio.byteLength, MAX_UPLOAD_BYTES);
   }
 
   // MAI takes only wav/mp3/flac, so an unmatched content type is a hard 415

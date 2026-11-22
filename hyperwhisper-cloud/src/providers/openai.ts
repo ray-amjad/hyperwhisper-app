@@ -6,9 +6,9 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { findModelRow, getProviderDef } from '../lib/stt-models';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -100,8 +100,9 @@ export async function transcribeWithOpenAI(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  if (audio.byteLength > OPENAI_INLINE_MAX_BYTES) {
-    throw new AudioTooLargeError('OpenAI', audio.byteLength, OPENAI_INLINE_MAX_BYTES);
+  const maxBytes = PROVIDER_AUDIO_CAPS.openai.adapterMaxBytes;
+  if (audio.byteLength > maxBytes) {
+    throw new AudioTooLargeError('OpenAI', audio.byteLength, maxBytes);
   }
 
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
