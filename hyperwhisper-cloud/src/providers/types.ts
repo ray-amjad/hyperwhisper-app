@@ -1,18 +1,7 @@
-export type TranscriptionSource =
-  | 'deepgram'
-  | 'elevenlabs'
-  | 'groq'
-  | 'grok'
-  | 'azure-mai'
-  | 'google-chirp'
-  | 'openai'
-  | 'gemini'
-  | 'gemini-transcribe'
-  | 'assemblyai'
-  | 'mistral'
-  | 'soniox'
-  | 'meta'
-  | 'no_speech';
+import type { SttProviderId } from '../lib/stt-models';
+
+/** Who produced a result: the adapter's own provider id, or the `no_speech` floor. */
+export type TranscriptionSource = SttProviderId | 'no_speech';
 
 export interface TranscriptionResult {
   text: string;
