@@ -22,6 +22,7 @@ import { runGracefulShutdown, SHUTDOWN_DRAIN_MS } from './lib/graceful-shutdown'
 import { MAX_AUDIO_SIZE_BYTES, licenseApiBaseUrl } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
 import { captureServerError, initErrorTracking } from './lib/error-tracking';
+import { machineLabels } from './lib/fly-machine';
 
 // Server error tracking (#2013): a no-op unless SENTRY_DSN is set.
 initErrorTracking();
@@ -49,7 +50,7 @@ app.use('*', cors({
 app.get('/health', (c) => {
   return c.json({
     status: 'ok',
-    region: process.env.FLY_REGION || 'local',
+    region: machineLabels().region,
     timestamp: new Date().toISOString(),
   });
 });
@@ -167,14 +168,13 @@ export default {
 };
 
 console.log('machine.boot', {
-  region: process.env.FLY_REGION || 'local',
-  machineId: process.env.FLY_MACHINE_ID || 'local',
+  ...machineLabels(),
   allocId: process.env.FLY_ALLOC_ID || undefined,
   imageRef: process.env.FLY_IMAGE_REF || undefined,
   port: Number(process.env.PORT) || 8080,
   bootAt: new Date().toISOString(),
 });
 console.log(`HyperWhisper Fly.io service starting on port ${process.env.PORT || 8080}`);
-console.log(`Region: ${process.env.FLY_REGION || 'local'}`);
+console.log(`Region: ${machineLabels().region}`);
 console.log(`License API: ${licenseApiBaseUrl()}${process.env.NEXTJS_LICENSE_API_URL ? '' : ' (default)'}`);
 console.log('Started server: http://localhost:' + (process.env.PORT || 8080));

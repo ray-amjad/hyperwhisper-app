@@ -31,6 +31,7 @@ import {
   splitVocabularyTerms,
   readJson200,
 } from './utils';
+import { flyRegion as currentFlyRegion } from '../lib/fly-machine';
 
 // Azure's upload cap, from the one per-provider table (audio-limits.ts).
 const MAX_UPLOAD_BYTES = PROVIDER_AUDIO_CAPS['azure-mai'].adapterMaxBytes;
@@ -91,7 +92,7 @@ const APAC_FLY_REGIONS = new Set(['hkg', 'nrt', 'sin', 'syd', 'maa']);
 const EU_FLY_REGIONS = new Set(['ams', 'arn', 'cdg', 'fra', 'lhr', 'mad', 'otp', 'waw', 'jnb']);
 
 function pickAzureRegion(): AzureMaiRegion {
-  const flyRegion = (process.env.FLY_REGION || '').toLowerCase();
+  const flyRegion = (currentFlyRegion() ?? '').toLowerCase();
   let preferred: AzureMaiRegion = 'eastus';
   if (APAC_FLY_REGIONS.has(flyRegion)) preferred = 'southeastasia';
   else if (EU_FLY_REGIONS.has(flyRegion)) preferred = 'northeurope';
@@ -214,7 +215,7 @@ export async function transcribeWithAzureMai(
     localeSent: resolvedLocale ?? 'auto',
     phraseCount: phrases.length,
     azureRegion,
-    flyRegion: process.env.FLY_REGION,
+    flyRegion: currentFlyRegion(),
   }, context);
 
   const response = await fetchWithTimeout(provider, url, {

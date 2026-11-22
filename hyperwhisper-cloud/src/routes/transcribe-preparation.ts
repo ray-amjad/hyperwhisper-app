@@ -26,6 +26,7 @@ import {
   validateStreamingHeaders,
 } from './transcribe-request';
 import { clientOffersLatencyOptOut } from '../lib/latency-eligibility';
+import { flyMachineId, machineLabels } from '../lib/fly-machine';
 
 export interface PreparedTranscriptionRequest {
   requestId: string;
@@ -172,8 +173,8 @@ export async function prepareTranscriptionRequest(
     flyRequestId,
     clientPlatform,
     clientVersion,
-    flyRegion: process.env.FLY_REGION || 'local',
-    flyMachineId: process.env.FLY_MACHINE_ID,
+    flyRegion: machineLabels().region,
+    flyMachineId: flyMachineId(),
     proxyOverheadMs,
     provider,
     model: model || 'default',

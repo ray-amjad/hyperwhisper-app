@@ -18,6 +18,7 @@ import { logEvent } from '../lib/logging';
 import { isRecord } from '../lib/utils';
 import { readAccountKey } from '../lib/account-key';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
+import { machineLabels } from '../lib/fly-machine';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -130,7 +131,7 @@ async function handlePostProcess(c: Context) {
 
   const { clientPlatform, clientVersion } = readClientInfo(c);
   logEvent(requestId, startTime, 'post_process.request_start', {
-    flyRegion: process.env.FLY_REGION || 'local',
+    flyRegion: machineLabels().region,
     clientPlatform,
     clientVersion,
     provider,
