@@ -138,6 +138,12 @@ export async function fetchLLMWithTimeout<T>(
     // Only our own timer becomes an LLMTimeoutError (504). The non-2xx LLMRequestError thrown by
     // `read` keeps its upstream status even if the timer fired meanwhile.
     if (timedOut && !(error instanceof LLMRequestError)) throw timeoutError();
+    // A body that broke off mid-read is the same transport fault as a refused
+    // connection, so it is retried and failed over like one.
+    if (!(error instanceof LLMRequestError)) {
+      console.error('llm.transport_error', { provider, requestId, kind: 'network', elapsedMs: Math.round(performance.now() - startedAt) });
+      throw new LLMNetworkError(`${provider} LLM response failed: ${error instanceof Error ? error.message : String(error)}`, provider, { cause: error });
+    }
     throw error;
   } finally {
     clearTimeout(timeoutHandle);

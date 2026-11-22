@@ -230,41 +230,50 @@ async function handlePostProcess(c: Context) {
       // The alternate is a one-step chain: it has no provider after it, so it
       // keeps its 429 retries, and its failure keeps the raw transcript.
       const retryOutcome = await completeWithFailover([alternate], payload, requestId);
-      if (!retryOutcome.ok) {
+      // A failed retry, or a retry answer that cannot be read, keeps the raw
+      // transcript: the retry is best-effort, never a reason to fail the request.
+      const retryFailed = (error: unknown): string => {
         logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
           provider: alternateProvider,
-          error: retryOutcome.error instanceof Error ? retryOutcome.error.message : String(retryOutcome.error),
+          error: error instanceof Error ? error.message : String(error),
           fallbackToRaw: true,
         });
-        correctedText = text;
+        return text;
+      };
+      if (!retryOutcome.ok) {
+        correctedText = retryFailed(retryOutcome.error);
       } else {
-        const retryResponse = retryOutcome.result;
+        try {
+          const retryResponse = retryOutcome.result;
 
-        // Bill the retry the moment it succeeds, before any evaluation step
-        // below can throw — otherwise a successful (and billed-by-the-provider)
-        // retry's cost would be silently dropped if extraction failed.
-        providerUsed = alternateProvider;
-        modelUsed = alternate.model;
-        costUsd += retryResponse.costUsd;
+          // Bill the retry the moment it succeeds, before any evaluation step
+          // below can throw — otherwise a successful (and billed-by-the-provider)
+          // retry's cost would be silently dropped if extraction failed.
+          providerUsed = alternateProvider;
+          modelUsed = alternate.model;
+          costUsd += retryResponse.costUsd;
 
-        const retryEvaluation = evaluateCompletionResponse(retryResponse.raw, text);
+          const retryEvaluation = evaluateCompletionResponse(retryResponse.raw, text);
 
-        if (retryEvaluation.accepted) {
-          correctedText = retryEvaluation.text;
-        } else if (retryEvaluation.failure === 'prompt_leakage') {
-          logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
-            provider: alternateProvider,
-            fallbackToRaw: true,
-          });
-          correctedText = text;
-        } else {
-          logEvent(requestId, startTime, 'post_process.llm_incomplete', {
-            provider: alternateProvider,
-            state: retryEvaluation.state,
-            reason: retryEvaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : retryEvaluation.reason,
-            fallbackToRaw: true,
-          });
-          correctedText = text;
+          if (retryEvaluation.accepted) {
+            correctedText = retryEvaluation.text;
+          } else if (retryEvaluation.failure === 'prompt_leakage') {
+            logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
+              provider: alternateProvider,
+              fallbackToRaw: true,
+            });
+            correctedText = text;
+          } else {
+            logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+              provider: alternateProvider,
+              state: retryEvaluation.state,
+              reason: retryEvaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : retryEvaluation.reason,
+              fallbackToRaw: true,
+            });
+            correctedText = text;
+          }
+        } catch (retryError) {
+          correctedText = retryFailed(retryError);
         }
       }
     } else {

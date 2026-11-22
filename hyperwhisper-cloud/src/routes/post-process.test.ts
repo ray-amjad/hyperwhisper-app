@@ -588,6 +588,23 @@ describe('postProcessRoute billing when the output is unusable', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
+  test('keeps the raw transcript (200) when the leakage retry answers with no readable text', async () => {
+    // The retry is best-effort: an answer it cannot extract text from falls
+    // back to the raw transcript, it never fails the request.
+    withProviders({
+      'api.cerebras.ai': () => Response.json(completion(LEAKED, 50, 20)),
+      'api.groq.com': () => Response.json({ choices: [], usage: usage(400, 300) }),
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: TRANSCRIPT, prompt: 'fix grammar', account_key: 'lk' })
+    );
+    const body = await response.json() as { corrected: string };
+
+    expect(response.status).toBe(200);
+    expect(body.corrected).toBe(TRANSCRIPT);
+  });
+
   test('bills only the primary when the leakage retry itself never succeeds', async () => {
     let groqAttempts = 0;
     withProviders({
