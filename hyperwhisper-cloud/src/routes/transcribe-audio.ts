@@ -18,17 +18,27 @@ import { maxReservationUsdPerMinute } from '../providers/reservation';
  * byte→seconds→credits arithmetic, plus the prompt-token allowance, which is
  * still `lib/cost-calculator.ts`'s and is applied to the primary provider only
  * — see the note in providers/reservation.ts for when that has to move.
- * `model`/`medical` are optional to keep the historical 2-arg signature working.
  */
-export function estimateCreditsForProviderFallbacks(
-  sizeBytes: number,
-  provider: SttProviderId,
-  model?: string,
-  medical: boolean = false,
-  initialPrompt?: string,
-  language?: string,
-  exactAudioSeconds?: number,
-): number {
+export interface ReservationEstimateInput {
+  sizeBytes: number;
+  provider: SttProviderId;
+  model?: string;
+  medical?: boolean;
+  initialPrompt?: string;
+  language?: string;
+  /** A measured duration, when the body has been read; otherwise the size decides. */
+  exactAudioSeconds?: number;
+}
+
+export function estimateCreditsForProviderFallbacks({
+  sizeBytes,
+  provider,
+  model,
+  medical = false,
+  initialPrompt,
+  language,
+  exactAudioSeconds,
+}: ReservationEstimateInput): number {
   const estimatedSeconds = exactAudioSeconds
     ?? providerAudioReservation(provider, sizeBytes, model).estimatedAudioSeconds;
   const usdPerMinute = maxReservationUsdPerMinute({
@@ -103,10 +113,10 @@ export async function prepareTranscriptionAudio({
   // Some providers need the buffered audio to calculate an exact reservation.
   // Before that allocation, check the provider boundary's safe duration floor.
   if (audioReservation.requiresBufferedBody) {
-    const minimumEstimatedCredits = estimateCreditsForProviderFallbacks(
-      contentLength, provider, model, medical, initialPrompt, language,
-      audioReservation.preBufferAudioSeconds,
-    );
+    const minimumEstimatedCredits = estimateCreditsForProviderFallbacks({
+      sizeBytes: contentLength, provider, model, medical, initialPrompt, language,
+      exactAudioSeconds: audioReservation.preBufferAudioSeconds,
+    });
     // A floor check only, so it takes no hold: concurrent requests that each
     // held a floor here could leave none of them room for its exact hold below.
     const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, { hold: false });
@@ -143,9 +153,9 @@ export async function prepareTranscriptionAudio({
   // The raw request values go in as they arrived — the initial_prompt, the
   // domain and the language are all things the reservation prices for itself.
   // See providers/reservation.ts for which of them cost what, and why.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(
-    contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
-  );
+  const estimatedCredits = estimateCreditsForProviderFallbacks({
+    sizeBytes: contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
+  });
   if (!skipCreditValidationForLocalInputError) {
     const creditCheck = await validateCredits(auth, estimatedCredits);
     if (!creditCheck.ok) {
