@@ -82,7 +82,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 - `openai-compat-chat.ts` — one adapter row each for Cerebras `gpt-oss-120b` (default), Groq `gpt-oss-120b`, SpaceXAI Grok, OpenAI, Gemini and Mistral.
 - `anthropic.ts` — Anthropic Claude Haiku 5.5.
 
-Provider selection is per-request via the `X-STT-Provider` / `X-LLM-Provider` header. STT fallback chains are defined in `src/lib/stt-models.ts` (each provider's `fallbackChain`); LLM chains are in `src/lib/llm-provider.ts`.
+Provider selection is per-request via the `X-STT-Provider` / `X-LLM-Provider` header. STT fallback chains are defined in `src/lib/stt-models.ts` (each provider's `fallbackChain`); LLM chains are in `src/providers/llm-provider.ts`.
 
 ## Credits and rate limiting
 

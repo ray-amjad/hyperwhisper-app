@@ -3,7 +3,7 @@
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { billableSeconds, emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 

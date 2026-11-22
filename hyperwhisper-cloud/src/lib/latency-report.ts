@@ -11,7 +11,7 @@
 import { INTERNAL_SECRET_HEADER, internalSecret } from './internal-secret';
 import { licenseApiBaseUrl } from './constants';
 import { backgroundWork } from './background-work';
-import type { ProviderUnavailableKind } from '../providers/types';
+import type { ProviderUnavailableKind } from './errors';
 import { flyRegion as currentFlyRegion } from './fly-machine';
 
 /** How long the whole batch POST may take before we abandon it. */

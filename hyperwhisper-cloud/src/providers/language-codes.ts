@@ -49,8 +49,8 @@
 // an upstream offers several for one language, and the picker-code aliases the
 // catalogs cannot express.
 
-import type { ProviderRequestContext } from '../providers/types';
-import { isExplicitLanguage, logProviderEvent } from '../providers/utils';
+import type { ProviderRequestContext } from './types';
+import { isExplicitLanguage, logProviderEvent } from './utils';
 
 /**
  * Strip a region/script subtag down to the primary subtag, lowercased.

@@ -7,7 +7,7 @@
 
 import { CHARS_PER_TOKEN_ESTIMATE, GEMINI_AUDIO_TOKENS_PER_SECOND, computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
-import { describeLanguage } from '../lib/language-codes';
+import { describeLanguage } from './language-codes';
 import { defaultModelRow, findModelRow, getProviderDef } from '../lib/stt-models';
 import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';

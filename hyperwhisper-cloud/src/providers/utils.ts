@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
-import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
+import type { ProviderUnavailableKind } from '../lib/errors';
+import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 

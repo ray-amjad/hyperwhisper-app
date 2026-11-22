@@ -1,4 +1,5 @@
 import type { SttProviderId } from '../lib/stt-models';
+import type { ProviderUnavailableKind } from '../lib/errors';
 
 /** Who produced a result: the adapter's own provider id, or the `no_speech` floor. */
 export type TranscriptionSource = SttProviderId | 'no_speech';
@@ -95,22 +96,6 @@ export interface ProviderRequestContext {
    */
   domain?: string;
 }
-
-/**
- * Why a provider attempt was deemed unavailable. Lets the route and dashboards
- * distinguish "the upstream was slow and we gave up" (`timeout` — the request
- * might have succeeded with more budget) from "the upstream actually failed"
- * (`upstream_5xx` / `rate_limit`) and from "we got a 2xx we couldn't use"
- * (`bad_response` — e.g. ElevenLabs' geo-block HTML or an empty gzip body),
- * WITHOUT having to correlate a separate provider-level log line by requestId.
- */
-export type ProviderUnavailableKind =
-  | 'timeout'        // our per-request budget elapsed; upstream may have succeeded given more time
-  | 'network_error'  // connection failed/reset before any response
-  | 'rate_limit'     // upstream 429
-  | 'upstream_5xx'   // upstream 5xx server error
-  | 'bad_response'   // 2xx with an unusable body (geo-block HTML, empty, non-JSON)
-  | 'unknown';
 
 /**
  * Thrown when a provider is temporarily unavailable (429, 403 edge block, etc.)

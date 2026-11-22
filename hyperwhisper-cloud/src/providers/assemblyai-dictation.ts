@@ -1,7 +1,7 @@
 // AssemblyAI Dictation is a separate service with built-in cleanup, never an async STT fallback.
 // Contract: https://www.assemblyai.com/docs/dictation
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
-import { parsePcm16Wav } from '../lib/wav-header';
+import { parsePcm16Wav } from './wav-header';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ModelVariant } from './model-variants';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
