@@ -2,7 +2,8 @@
 // Contract: https://www.assemblyai.com/docs/dictation
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { parsePcm16Wav } from '../lib/wav-header';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
+import type { ModelVariant } from './model-variants';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
@@ -89,3 +90,24 @@ export async function transcribeWithAssemblyAIDictation(
     requestId: typeof result.session_id === 'string' ? result.session_id : undefined,
   };
 }
+
+/** AssemblyAI Dictation's row in `model-variants.ts`. */
+export const DICTATION_VARIANT: ModelVariant = {
+  transcribe: (audio, contentType, language, initialPrompt, context = {}) =>
+    transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context),
+  audioReservation: () => ({
+    requiresBufferedBody: true,
+    estimatedAudioSeconds: 120,
+    // WAV permits metadata chunks, so size alone has no safe duration floor.
+    preBufferAudioSeconds: 0,
+    resolveBufferedAudio(audio, contentType) {
+      try {
+        return { kind: 'duration', audioSeconds: parseDictationWav(audio, contentType).durationSeconds };
+      } catch (error) {
+        if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) return { kind: 'local-input-error' };
+        throw error;
+      }
+    },
+  }),
+  checkOptions: ({ language, domain }) => { validateDictationOptions(language, domain); },
+};
