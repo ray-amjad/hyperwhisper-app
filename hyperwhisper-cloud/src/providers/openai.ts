@@ -14,6 +14,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  billableSeconds,
   estimateSecondsFromBytes,
   fetchWithTimeout,
   logProviderEvent,
@@ -223,8 +224,8 @@ export async function transcribeWithOpenAI(
   // Fail-closed: a duration-billed model's successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate (never $0).
   // The gpt-4o branch already estimates from bytes above.
-  if (isDurationBilled(model) && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
-    durationSeconds = estimateSecondsFromBytes(audio.byteLength);
+  if (isDurationBilled(model)) {
+    durationSeconds = billableSeconds(durationSeconds, audio.byteLength);
   }
 
   const costUsd = computeOpenAITranscriptionCost(model, {

@@ -6,6 +6,7 @@ import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   emptyTranscriptOutcome,
@@ -152,10 +153,12 @@ export async function transcribeWithGroq(
     });
   }
 
+  const billedSeconds = billableSeconds(data.duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startTime),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     language: data.language,
     formDataMs: Math.round(formDataMs),
     fetchMs: Math.round(fetchMs),
@@ -164,8 +167,8 @@ export async function transcribeWithGroq(
   return {
     text: transcript,
     language: data.language,
-    durationSeconds: duration,
-    costUsd: computeGroqTranscriptionCost(duration, model),
+    durationSeconds: billedSeconds,
+    costUsd: computeGroqTranscriptionCost(billedSeconds, model),
     source: 'groq',
   };
 }

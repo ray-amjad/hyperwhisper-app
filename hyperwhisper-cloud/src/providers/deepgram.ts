@@ -5,7 +5,7 @@ import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
-import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
+import { billableSeconds, emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -187,18 +187,20 @@ export async function transcribeWithDeepgram(
     });
   }
 
+  const billedSeconds = billableSeconds(data.metadata?.duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     detectedLanguage: channel?.detected_language,
   }, context);
 
   return {
     text: transcript,
     language: channel?.detected_language,
-    durationSeconds: duration,
-    costUsd: computeDeepgramTranscriptionCost(duration),
+    durationSeconds: billedSeconds,
+    costUsd: computeDeepgramTranscriptionCost(billedSeconds),
     source: 'deepgram',
     requestId: data.metadata?.request_id,
   };

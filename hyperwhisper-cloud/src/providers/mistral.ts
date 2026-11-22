@@ -8,7 +8,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
-  estimateSecondsFromBytes,
+  billableSeconds,
   explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
@@ -166,9 +166,7 @@ export async function transcribeWithMistral(
 
   // Fail-closed: a successful transcript with a missing/non-positive duration
   // falls back to a byte-size estimate so we never bill $0.
-  const durationSeconds = (rawDurationSeconds > 0 && Number.isFinite(rawDurationSeconds))
-    ? rawDurationSeconds
-    : estimateSecondsFromBytes(audio.byteLength);
+  const durationSeconds = billableSeconds(rawDurationSeconds, audio.byteLength);
 
   logProviderEvent(provider, 'success', {
     model,

@@ -10,7 +10,7 @@ import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, billableSeconds, computeUploadTimeoutMs, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields } from './upstream-error';
 
 const SONIOX_BASE = 'https://api.soniox.com';
@@ -302,15 +302,13 @@ export async function transcribeWithSoniox(
 
     // Fail-closed: a successful transcript with a missing/non-positive duration
     // falls back to a byte-size estimate so we never bill $0.
-    const billableSeconds = (durationSeconds > 0 && Number.isFinite(durationSeconds))
-      ? durationSeconds
-      : estimateSecondsFromBytes(audio.byteLength);
+    const billedSeconds = billableSeconds(durationSeconds, audio.byteLength);
 
     logProviderEvent(provider, 'success', {
       model, polls,
       elapsedMs: Math.round(performance.now() - startedAt),
       transcriptChars: transcript.length,
-      durationSeconds: billableSeconds,
+      durationSeconds: billedSeconds,
       language: language_,
     }, context);
 
@@ -321,8 +319,8 @@ export async function transcribeWithSoniox(
     return {
       text: transcript,
       language: language_,
-      durationSeconds: billableSeconds,
-      costUsd: computeSonioxTranscriptionCost(billableSeconds, contextTextTokens),
+      durationSeconds: billedSeconds,
+      costUsd: computeSonioxTranscriptionCost(billedSeconds, contextTextTokens),
       source: 'soniox',
       requestId: transcriptionId,
     };

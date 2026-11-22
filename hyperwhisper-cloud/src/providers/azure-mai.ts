@@ -22,6 +22,7 @@ import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   audioExtensionFromContentType,
   computeUploadTimeoutMs,
   fetchWithTimeout,
@@ -282,18 +283,20 @@ export async function transcribeWithAzureMai(
     };
   }
 
+  const billedSeconds = billableSeconds(durationSeconds, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds,
+    durationSeconds: billedSeconds,
     detectedLanguage,
   }, context);
 
   return {
     text: transcript,
     language: detectedLanguage,
-    durationSeconds,
-    costUsd: computeAzureMaiTranscriptionCost(durationSeconds, model),
+    durationSeconds: billedSeconds,
+    costUsd: computeAzureMaiTranscriptionCost(billedSeconds, model),
     source: 'azure-mai',
   };
 }
