@@ -137,3 +137,11 @@ describe('toRedactedLogLine — the google_oauth_token key and the ya29. token f
     );
   });
 });
+
+describe('toRedactedLogLine — rate-limit keys carry the raw client IP', () => {
+  test('a ratelimit:ip key echoed in a batch error loses its identifier', () => {
+    const line = toRedactedLogLine(new Error('WRONGTYPE Operation against a key holding the wrong kind of value: ratelimit:ip:203.0.113.7:2894021'));
+    expect(line).not.toContain('203.0.113.7');
+    expect(line).toContain('ratelimit:<redacted>');
+  });
+});

@@ -50,6 +50,12 @@ export function creditHoldsExpiryKey(account: string): string {
 }
 
 /**
+ * `ratelimit:<bucket>:<identifier>`: the `ip` bucket's identifier is the raw
+ * client IP, so the whole suffix is caller-identifying.
+ */
+export const RATE_LIMIT_KEY_PREFIX = 'ratelimit:';
+
+/**
  * Key prefixes whose suffix identifies a caller (an IP, a licence key or an
  * account). All cloud commands share one Upstash client, which pipelines
  * same-tick commands, and an Upstash error echoes the whole batch — so every
@@ -63,9 +69,10 @@ export const IDENTIFYING_KEY_PREFIXES = [
   CREDIT_POOL_BALANCE_KEY_PREFIX,
   CREDIT_HOLDS_KEY_PREFIX,
   CREDIT_HOLDS_EXPIRY_KEY_PREFIX,
+  RATE_LIMIT_KEY_PREFIX,
 ] as const;
 
 /** The `@upstash/ratelimit` prefix for one rate-limit bucket's counters. */
 export function rateLimitKeyPrefix(bucket: string): string {
-  return `ratelimit:${bucket}`;
+  return `${RATE_LIMIT_KEY_PREFIX}${bucket}`;
 }
