@@ -326,8 +326,8 @@ describe('new STT provider cost functions', () => {
       .toBe(Math.ceil(100 + japanese.length / 2));
   });
 
-  test('an unknown model falls back to the pre-recorded rate, never $0', () => {
-    const known = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+  test('an unknown model falls back to the dearest (live) rate, never $0', () => {
+    const known = computeGeminiTranscribeCost('gemini-3.5-transcribe-live', {
       audioInputTokens: 1500, outputTokens: 188,
     });
     expect(computeGeminiTranscribeCost('gemini-3.5-transcribe-vnext', {

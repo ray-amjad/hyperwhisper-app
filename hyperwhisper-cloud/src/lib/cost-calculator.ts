@@ -8,8 +8,10 @@ import {
   dearestModel,
   defaultModelRow,
   findModelRow,
+  tokenBillingFor,
   withAdditiveAddOns,
   type SttModelDef,
+  type SttTokenRates,
 } from './stt-models';
 
 // =============================================================================
@@ -18,7 +20,8 @@ import {
 
 // STT duration prices (per-minute and per-hour rates, minimum billable
 // seconds, medical/keyterms add-ons) live on the model rows in stt-models.ts,
-// which the preflight reservation reads too. Only token rates are here.
+// which the preflight reservation reads too, and so do the token rates of the
+// token-billed rows. This file holds the formulas.
 
 // ── New HyperWhisper Cloud STT proxy providers (per-model) ──────────────────
 // Each provider exposes one or more models with distinct pricing. Token-billed
@@ -29,63 +32,20 @@ import {
 
 // OpenAI — whisper-1, gpt-transcribe and gpt-live-transcribe are flat
 // per-audio-minute billed (their rows in stt-models.ts carry the rate; verified
-// against developers.openai.com/api/docs/pricing); gpt-4o-* are token-billed.
-const OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN = 2.50 / 1_000_000;
-const OPENAI_GPT4O_TRANSCRIBE_OUTPUT_COST_PER_TOKEN = 10.00 / 1_000_000;
-const OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN = 1.25 / 1_000_000;
-const OPENAI_GPT4O_MINI_TRANSCRIBE_OUTPUT_COST_PER_TOKEN = 5.00 / 1_000_000;
-// Per-minute floors used only when the token `usage` object is missing/changed,
-// so a gpt-4o transcription never bills $0 (fail-closed).
-const OPENAI_GPT4O_TRANSCRIBE_FLOOR_PER_MINUTE = 0.006;
-const OPENAI_GPT4O_MINI_TRANSCRIBE_FLOOR_PER_MINUTE = 0.003;
-// The mini tier's ids. `gpt-4o-mini-transcribe-2025-12-15` is the dated
-// snapshot OpenAI names as the replacement for the deprecated
-// `gpt-4o-mini-transcribe` (stt-models.ts aliases one to the other). It is
-// token-billed at the same mini rates, so it must not fall through to the
-// dearer gpt-4o-transcribe branch below.
-const OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS: ReadonlySet<string> = new Set([
-  'gpt-4o-mini-transcribe',
-  'gpt-4o-mini-transcribe-2025-12-15',
-]);
-// Gemini — audio billed at 32 tokens/sec; cost read from usageMetadata. Input
-// is multi-modal: TEXT (the instruction+vocab prompt) and AUDIO bill at
-// DIFFERENT per-token rates on Flash models, so both must be tracked. Pro models
-// (2.5-pro, 3.1-pro) bill every input modality at one rate but switch to a
-// higher long-context tier above 200k prompt tokens. Rates: Standard paid tier,
-// per-1M ÷ 1e6. Ref: https://ai.google.dev/gemini-api/docs/pricing
-interface GeminiRate {
-  textInputPerToken: number;
-  audioInputPerToken: number;
-  outputPerToken: number;
-  // Override rates for prompts above GEMINI_LONG_CONTEXT_THRESHOLD tokens.
-  // Present only for models with tiered (Pro) pricing; flat models omit it.
-  longContext?: { textInputPerToken: number; audioInputPerToken: number; outputPerToken: number };
-}
+// against developers.openai.com/api/docs/pricing); gpt-4o-* are token-billed,
+// at the token rates on their rows.
+//
+// Gemini — audio billed at 32 tokens/sec; cost read from usageMetadata at the
+// rates on each model's row in stt-models.ts (text and audio input bill at
+// different rates on Flash models; Pro models switch to a higher long-context
+// tier above this many prompt tokens).
 const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
-const M = 1_000_000;
-const GEMINI_RATES: Record<string, GeminiRate> = {
-  'gemini-2.5-flash': { textInputPerToken: 0.30 / M, audioInputPerToken: 1.00 / M, outputPerToken: 2.50 / M },
-  'gemini-2.5-flash-lite': { textInputPerToken: 0.10 / M, audioInputPerToken: 0.30 / M, outputPerToken: 0.40 / M },
-  'gemini-2.5-pro': {
-    textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
-    longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
-  },
-  // #1019. Google lists ONE input price for 3.8 Flash (audio included), and it is
-  // INTRODUCTORY: $0.75/$3.75 through 2026-12-31, $1.50/$7.50 from 2027-01-01.
-  // Change it together with the chat rate for the same id in llm-models.ts.
-  'gemini-3.8-flash': { textInputPerToken: 0.75 / M, audioInputPerToken: 0.75 / M, outputPerToken: 3.75 / M },
-  'gemini-3.1-pro-preview': {
-    textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M,
-    longContext: { textInputPerToken: 4.00 / M, audioInputPerToken: 4.00 / M, outputPerToken: 18.00 / M },
-  },
-};
-const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 
 // ── Gemini 3.5 Transcribe (the dedicated speech models) ─────────────────────
 // A DIFFERENT product from the Gemini LLM rates above, on a different endpoint
 // (`/v1beta/interactions`, not `:generateContent`), with a different audio
-// tokenisation. Nothing here may be expressed in terms of GEMINI_RATES or
-// GEMINI_AUDIO_TOKENS_PER_MINUTE:
+// tokenisation. Nothing here may be expressed in terms of the `gemini` rows' rates
+// or GEMINI_AUDIO_TOKENS_PER_MINUTE:
 //
 //   * Audio bills at 25 tokens/sec, NOT the 32 tok/s of the multimodal models.
 //     Measured against the live API: a 9.456 s clip reports exactly 236 audio
@@ -114,17 +74,9 @@ const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 // and ≈ $0.0092/min live, which is what `cloudTier.creditsPerMinute` 5.5 / 9.6 in
 // shared-app-classification/cloud-stt-catalog.json is derived from (both inside
 // that file's AGENTS.md ≤10% drift rule).
+// The rates are on the two models' rows in stt-models.ts (one input rate for
+// every modality there).
 export const GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND = 25;
-interface GeminiTranscribeRate {
-  /** One rate for every input modality — audio and text bill the same here. */
-  inputPerToken: number;
-  outputPerToken: number;
-}
-const GEMINI_TRANSCRIBE_RATES: Record<string, GeminiTranscribeRate> = {
-  'gemini-3.5-transcribe': { inputPerToken: 2.00 / M, outputPerToken: 12.00 / M },
-  'gemini-3.5-transcribe-live': { inputPerToken: 3.50 / M, outputPerToken: 21.00 / M },
-};
-const GEMINI_TRANSCRIBE_FALLBACK_RATE = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe'];
 // Output tokens per second of audio, used ONLY where no transcript is in hand
 // (the live path bills per second as the session runs). 12.5 chars/sec ÷
 // RESERVATION_CHARS_PER_TOKEN — i.e. the same char estimate applied to ~150 wpm
@@ -250,15 +202,12 @@ export function computeOpenAITranscriptionCost(model: string, usage: OpenAITrans
     return computeRowDurationCost(row, usage.durationSeconds);
   }
 
+  // An id with no row bills at the dearest token-billed row (gpt-4o-transcribe).
+  const rate = tokenBillingFor('openai', model);
   const inputTokens = Math.max(0, usage.inputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens ?? 0);
-  const isMini = OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS.has(model);
 
-  const tokenCost = isMini
-    ? inputTokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN
-      + outputTokens * OPENAI_GPT4O_MINI_TRANSCRIBE_OUTPUT_COST_PER_TOKEN
-    : inputTokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN
-      + outputTokens * OPENAI_GPT4O_TRANSCRIBE_OUTPUT_COST_PER_TOKEN;
+  const tokenCost = inputTokens * rate.audioInputPerToken + outputTokens * rate.outputPerToken;
 
   if (tokenCost > 0) {
     return roundUsd(tokenCost);
@@ -267,9 +216,9 @@ export function computeOpenAITranscriptionCost(model: string, usage: OpenAITrans
   // Missing/changed `usage` schema would otherwise bill $0 — fall back to a
   // duration-based estimate so token-billed models fail closed, mirroring the
   // LLM `estimateUsageFromChars` safety net.
-  const floorPerMinute = isMini
-    ? OPENAI_GPT4O_MINI_TRANSCRIBE_FLOOR_PER_MINUTE
-    : OPENAI_GPT4O_TRANSCRIBE_FLOOR_PER_MINUTE;
+  // A token row that authors no floor bills the provider's dearest rate: never $0.
+  const floorPerMinute = rate.missingUsageUsdPerMinute
+    ?? dearestModel('openai').estimatedUsdPerMinute;
   return roundUsd((usage.durationSeconds / 60) * floorPerMinute);
 }
 
@@ -300,7 +249,8 @@ const GEMINI_AUDIO_TOKENS_PER_MINUTE = 1_920;
  * duration-based estimate so a transcription never bills $0 (fail-closed).
  */
 export function computeGeminiTranscriptionCost(model: string, usage: GeminiTranscriptionUsage): number {
-  const rateDef = GEMINI_RATES[model] ?? GEMINI_FALLBACK_RATE;
+  // An id with no row bills at the dearest row, never a cheaper one.
+  const rateDef = tokenBillingFor('gemini', model);
   const audioTokens = Math.max(0, usage.audioInputTokens);
   const textTokens = Math.max(0, usage.textInputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens);
@@ -343,8 +293,7 @@ export function estimatePromptInputReservationUsd(
   if (!initialPrompt) return 0;
   const tokens = Math.ceil(initialPrompt.length / RESERVATION_CHARS_PER_TOKEN);
   if (provider === 'gemini') {
-    const rate = GEMINI_RATES[model ?? ''] ?? GEMINI_FALLBACK_RATE;
-    return tokens * rate.textInputPerToken;
+    return tokens * tokenBillingFor('gemini', model).textInputPerToken;
   }
   if (provider === 'openai') {
     // A duration-billed row (whisper-1, gpt-transcribe, gpt-live-transcribe)
@@ -352,16 +301,14 @@ export function estimatePromptInputReservationUsd(
     // explicit gpt-4o-transcribe use the (more expensive) transcribe input rate.
     const row = findModelRow('openai', model);
     if (row && row.billing.kind !== 'tokens') return 0;
-    if (OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS.has(model ?? '')) return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
-    return tokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN;
+    return tokens * tokenBillingFor('openai', model).textInputPerToken;
   }
   if (provider === 'gemini-transcribe') {
     // The vocabulary goes upstream as `custom_vocabulary`, a structured field
     // rather than prose, and bills as TEXT input tokens at the same per-token
     // rate as the audio. (Live traffic reports only ~1 text token even with
     // terms attached, so this over-reserves — which is the safe direction.)
-    const rate = GEMINI_TRANSCRIBE_RATES[model ?? ''] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
-    return tokens * rate.inputPerToken;
+    return tokens * tokenBillingFor('gemini-transcribe', model).textInputPerToken;
   }
   if (provider === 'soniox') {
     // Soniox charges the custom-context terms as async input-text tokens on top
@@ -454,12 +401,15 @@ export interface GeminiTranscribeUsage {
  * a partial usage object can only ever raise the bill toward the truth.
  */
 export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscribeUsage): number {
-  const rate = GEMINI_TRANSCRIBE_RATES[model] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
+  // An id with no row bills at the dearest row (the live model), never cheaper.
+  const rate = tokenBillingFor('gemini-transcribe', model);
   const audioInputTokens = Math.max(0, usage.audioInputTokens);
-  const inputTokens = audioInputTokens + Math.max(0, usage.textInputTokens ?? 0);
+  const textInputTokens = Math.max(0, usage.textInputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens);
 
-  const tokenCost = inputTokens * rate.inputPerToken + outputTokens * rate.outputPerToken;
+  const tokenCost = audioInputTokens * rate.audioInputPerToken
+    + textInputTokens * rate.textInputPerToken
+    + outputTokens * rate.outputPerToken;
   if (audioInputTokens > 0) {
     return roundUsd(tokenCost);
   }
@@ -469,8 +419,8 @@ export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscri
 }
 
 /** Per-second cost at `rate`, with output estimated from the audio duration. */
-function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate): number {
-  return seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+function geminiTranscribeSecondsCost(seconds: number, rate: SttTokenRates): number {
+  return seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.audioInputPerToken
     + seconds * GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND * rate.outputPerToken;
 }
 
@@ -496,14 +446,14 @@ function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate
  * saying less.
  */
 export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcriptChars?: number): number {
-  const rate = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe-live'];
+  const rate = tokenBillingFor('gemini-transcribe', 'gemini-3.5-transcribe-live');
   const seconds = Math.max(0, durationSeconds);
   if (transcriptChars === undefined) {
     return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
   }
   const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);
   return roundUsd(
-    seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+    seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.audioInputPerToken
       + outputTokens * rate.outputPerToken,
   );
 }

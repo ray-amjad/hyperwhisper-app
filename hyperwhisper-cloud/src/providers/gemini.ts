@@ -8,7 +8,7 @@
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
-import { getProviderDef } from '../lib/stt-models';
+import { defaultModelRow, findModelRow, getProviderDef } from '../lib/stt-models';
 import { geminiApiKey } from './gemini-api-key';
 import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
@@ -47,16 +47,13 @@ export function geminiMimeType(contentType: string): string {
   return 'audio/wav';
 }
 
-/** Per-model thinking config — keep thinking as low as each model allows. */
+/**
+ * Per-model thinking config — keep thinking as low as each model allows. Each
+ * gemini row in stt-models.ts authors its own (`thinking`, checked at load);
+ * an id with no row (the route never sends one) gets the default model's.
+ */
 function thinkingConfig(model: string): Record<string, unknown> {
-  if (model === 'gemini-3.1-pro-preview') return { thinkingLevel: 'low' };
-  // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
-  // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
-  // Sending the gemini-3 'minimal' below would be refused, so pin its floor.
-  if (model === 'gemini-3.8-flash') return { thinkingLevel: 'low' };
-  if (model.startsWith('gemini-3')) return { thinkingLevel: 'minimal' };
-  if (model === 'gemini-2.5-pro') return { thinkingBudget: 128 }; // 0 invalid on Pro
-  return { thinkingBudget: 0 }; // 2.5-flash / 2.5-flash-lite
+  return { ...(findModelRow('gemini', model) ?? defaultModelRow('gemini')).thinking };
 }
 
 function buildPrompt(language?: string, initialPrompt?: string): string {

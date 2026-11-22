@@ -131,7 +131,7 @@ export function toVocabularyTerms(initialPrompt: string): string[] {
 interface InteractionsUsage {
   input_tokens_by_modality?: Array<{ modality?: string; tokens?: number }>;
   total_input_tokens?: number;
-  /** Always 0 on this endpoint — see cost-calculator's GEMINI_TRANSCRIBE_RATES. */
+  /** Always 0 on this endpoint — see the Gemini 3.5 Transcribe block in cost-calculator.ts. */
   total_output_tokens?: number;
 }
 
@@ -325,7 +325,7 @@ export async function transcribeWithGeminiTranscribe(
 
   // `usage.total_output_tokens` is 0 on every response from this endpoint, so
   // the output half of the bill is estimated from the transcript we just
-  // received. See GEMINI_TRANSCRIBE_RATES in lib/cost-calculator.ts.
+  // received. See the Gemini 3.5 Transcribe block in lib/cost-calculator.ts.
   const outputTokens = estimateGeminiTranscribeOutputTokens(transcript);
   const costUsd = computeGeminiTranscribeCost(model, {
     audioInputTokens: audioTokens,

@@ -45,7 +45,8 @@ type OpenAICompatAdapter = {
 //   thinks — about the same hidden tokens as 'low'. So send 'low', the floor the
 //   docs name, rather than rely on Google quietly remapping 'none'. A 400 here
 //   would NOT fall back: isTransientLLMError() fails over on a 5xx or 429 only. This
-//   matches the transcription client (gemini.ts thinkingConfig).
+//   matches the transcription client (the `thinking` field on the gemini rows
+//   in stt-models.ts).
 const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
   ['gemini-2.5-flash', 'none'],
   ['gemini-3.8-flash', 'low'],
