@@ -6,10 +6,9 @@ import { buildCorrectionRequest, completeWithFailover, extractLLMProvider, fallb
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
-import { formatUsd } from '../lib/cost-calculator';
 import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
 import { validateContentLength } from '../lib/request-limits';
-import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
+import { errorResponse, invalidContentTypeResponse, setBillingHeaders } from '../lib/responses';
 import { authDiagnosticsForLog } from '../middleware/auth';
 import { openRequestGate } from '../middleware/request-gate';
 import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
@@ -345,10 +344,8 @@ async function handlePostProcess(c: Context) {
     },
   };
 
-  c.header('X-Request-ID', requestId);
+  setBillingHeaders(c, { requestId, costUsd, creditsUsed });
   c.header('X-LLM-Provider', servedLLMName(providerUsed, modelUsed));
-  c.header('X-Total-Cost-Usd', formatUsd(costUsd));
-  c.header('X-Credits-Used', creditsUsed.toFixed(1));
 
   return c.json(response);
 }

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { formatUsd } from '../lib/cost-calculator';
+import { setBillingHeaders } from '../lib/responses';
 import { logEvent, machineUptimeMs } from '../lib/logging';
 import { deductCredits, logDeductionFailure } from '../middleware/credits';
 import type { TranscriptionResult } from '../providers/types';
@@ -190,13 +190,11 @@ export async function completeTranscription({
     creditsUsed = await deduction.credits;
   }
 
-  c.header('X-Request-ID', requestId);
+  setBillingHeaders(c, { requestId, costUsd: result.costUsd, creditsUsed });
   c.header('X-STT-Provider', providerName);
   if (reportedModel) {
     c.header('X-STT-Model', reportedModel);
   }
-  c.header('X-Total-Cost-Usd', formatUsd(result.costUsd));
-  c.header('X-Credits-Used', creditsUsed.toFixed(1));
 
   const memUsageMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
   logEvent(requestId, startTime, 'transcribe.request_done', {

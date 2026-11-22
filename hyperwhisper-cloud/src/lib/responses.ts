@@ -1,7 +1,9 @@
 // RESPONSE HELPERS
 // Standardized JSON responses with CORS headers
 
+import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE } from './constants';
+import { formatUsd } from './cost-calculator';
 
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -110,4 +112,18 @@ export function fileTooLargeResponse(actualBytes: number, maxBytes: number): Res
     `Audio file must be ${words.max} or smaller. Your file is ${words.actual}.`,
     sizeLimitFields(actualBytes, maxBytes),
   );
+}
+
+/**
+ * The billing headers every charged response carries. The macOS, Windows and
+ * Rust clients read them, so their names and formats (USD via formatUsd,
+ * credits to one decimal) are one contract for /transcribe and /post-process.
+ */
+export function setBillingHeaders(
+  c: Context,
+  billing: { requestId: string; costUsd: number; creditsUsed: number },
+): void {
+  c.header('X-Request-ID', billing.requestId);
+  c.header('X-Total-Cost-Usd', formatUsd(billing.costUsd));
+  c.header('X-Credits-Used', billing.creditsUsed.toFixed(1));
 }
