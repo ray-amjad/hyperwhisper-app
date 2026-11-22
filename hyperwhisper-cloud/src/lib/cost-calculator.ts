@@ -14,6 +14,16 @@ import {
   type SttTokenRates,
 } from './stt-models';
 
+/**
+ * ~4 chars/token: the one text-token estimate this service uses wherever it has
+ * characters but no tokenizer — prompt reservations, missing-usage fallbacks,
+ * Gemini's prompt back-out and its estimated transcript output.
+ */
+export const CHARS_PER_TOKEN_ESTIMATE = 4;
+
+/** Gemini `:generateContent` bills audio at 32 input tokens per second. */
+export const GEMINI_AUDIO_TOKENS_PER_SECOND = 32;
+
 // =============================================================================
 // PRICING CONSTANTS
 // =============================================================================
@@ -58,7 +68,7 @@ const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
 //
 //     DECISION (not an oversight): estimate the output tokens from the returned
 //     transcript's length at the same ~4 chars/token heuristic this file already
-//     uses twice (RESERVATION_CHARS_PER_TOKEN / FALLBACK_CHARS_PER_TOKEN). The
+//     uses everywhere (CHARS_PER_TOKEN_ESTIMATE). The
 //     transcript is the only output the model produced, we hold it in full when
 //     we bill, and the estimate lands within a few percent of a real tokeniser
 //     for LATIN-SCRIPT text at dictation length. It is NOT accurate for every
@@ -79,9 +89,9 @@ const GEMINI_LONG_CONTEXT_THRESHOLD = 200_000;
 export const GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND = 25;
 // Output tokens per second of audio, used ONLY where no transcript is in hand
 // (the live path bills per second as the session runs). 12.5 chars/sec ÷
-// RESERVATION_CHARS_PER_TOKEN — i.e. the same char estimate applied to ~150 wpm
+// CHARS_PER_TOKEN_ESTIMATE — i.e. the same char estimate applied to ~150 wpm
 // speech, so the two paths cannot disagree about what a minute of speech costs.
-const GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND = 3.125;
+const GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND = 12.5 / CHARS_PER_TOKEN_ESTIMATE;
 
 // Soniox — the flat ≈ $0.10/hr rate is on its stt-models.ts row; custom-context
 // INPUT-text tokens are charged ON TOP at $3.50/1M (async). Soniox bills ~0.3
@@ -237,7 +247,7 @@ export interface GeminiTranscriptionUsage {
 }
 
 // Gemini represents 1 minute of audio as 1,920 input tokens (32 tokens/sec).
-const GEMINI_AUDIO_TOKENS_PER_MINUTE = 1_920;
+const GEMINI_AUDIO_TOKENS_PER_MINUTE = GEMINI_AUDIO_TOKENS_PER_SECOND * 60;
 
 /**
  * Gemini bills audio-input + text-input + output tokens from `usageMetadata`.
@@ -273,8 +283,6 @@ export function computeGeminiTranscriptionCost(model: string, usage: GeminiTrans
   return roundUsd((seconds / 60) * GEMINI_AUDIO_TOKENS_PER_MINUTE * rateDef.audioInputPerToken);
 }
 
-// ~4 chars/token — matches the Gemini adapter's prompt-text estimate.
-const RESERVATION_CHARS_PER_TOKEN = 4;
 
 /**
  * Conservative USD for the prompt-text INPUT tokens a TOKEN-BILLED provider will
@@ -291,7 +299,7 @@ export function estimatePromptInputReservationUsd(
   initialPrompt: string | undefined,
 ): number {
   if (!initialPrompt) return 0;
-  const tokens = Math.ceil(initialPrompt.length / RESERVATION_CHARS_PER_TOKEN);
+  const tokens = Math.ceil(initialPrompt.length / CHARS_PER_TOKEN_ESTIMATE);
   if (provider === 'gemini') {
     return tokens * tokenBillingFor('gemini', model).textInputPerToken;
   }
@@ -370,7 +378,7 @@ export function estimateGeminiTranscribeOutputTokens(transcript: string): number
   const cjkChars = countCjkChars(transcript);
   const otherChars = transcript.length - cjkChars;
   return Math.ceil(
-    cjkChars / GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN + otherChars / RESERVATION_CHARS_PER_TOKEN,
+    cjkChars / GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN + otherChars / CHARS_PER_TOKEN_ESTIMATE,
   );
 }
 
@@ -451,7 +459,7 @@ export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcr
   if (transcriptChars === undefined) {
     return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
   }
-  const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);
+  const outputTokens = Math.ceil(Math.max(0, transcriptChars) / CHARS_PER_TOKEN_ESTIMATE);
   return roundUsd(
     seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.audioInputPerToken
       + outputTokens * rate.outputPerToken,
@@ -495,14 +503,13 @@ export function computeSonioxTranscriptionCost(durationSeconds: number, contextT
 // The per-model LLM costs (computeLLMChatCost, computeAnthropicCost) are in
 // llm-models.ts, keyed on the model row.
 
-// Fallback token estimate (~4 chars/token) for when a provider response omits
-// or changes the usage schema. Ensures vendor schema drift fails closed
-// (billed via estimate) instead of open (costUsd = 0).
-const FALLBACK_CHARS_PER_TOKEN = 4;
+// Fallback token estimate (CHARS_PER_TOKEN_ESTIMATE) for when a provider
+// response omits or changes the usage schema. Ensures vendor schema drift fails
+// closed (billed via estimate) instead of open (costUsd = 0).
 
 export function estimateUsageFromChars(promptChars: number, completionChars: number): GroqUsage {
-  const promptTokens = Math.ceil(promptChars / FALLBACK_CHARS_PER_TOKEN);
-  const completionTokens = Math.ceil(completionChars / FALLBACK_CHARS_PER_TOKEN);
+  const promptTokens = Math.ceil(promptChars / CHARS_PER_TOKEN_ESTIMATE);
+  const completionTokens = Math.ceil(completionChars / CHARS_PER_TOKEN_ESTIMATE);
   return {
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
