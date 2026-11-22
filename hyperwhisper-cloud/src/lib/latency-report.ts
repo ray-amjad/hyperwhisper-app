@@ -8,6 +8,7 @@
 // IP, no transcript. See nextjs/src/db/schema/stt-latency-samples.ts for the
 // stored shape and what is deliberately absent.
 
+import { INTERNAL_SECRET_HEADER, internalSecret } from './internal-secret';
 import { licenseApiBaseUrl } from './constants';
 import { backgroundWork } from './background-work';
 import type { ProviderUnavailableKind } from '../providers/types';
@@ -113,7 +114,7 @@ export function reportLatencySamples(samples: LatencySample[]): void {
   // machine is working correctly when it declines to publish.
   if (process.env.FLY_APP_NAME !== PUBLISHING_FLY_APP) return;
 
-  const secret = process.env.HYPERWHISPER_INTERNAL_SECRET;
+  const secret = internalSecret();
   if (!secret) {
     // Unset on a machine that has not been synced yet. Staying silent here
     // would hide a misconfiguration, so say it once per batch and move on.
@@ -146,7 +147,7 @@ async function sendBatch(samples: LatencySample[], secret: string, flyRegion: st
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-internal-secret': secret,
+        [INTERNAL_SECRET_HEADER]: secret,
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(REPORT_TIMEOUT_MS),
