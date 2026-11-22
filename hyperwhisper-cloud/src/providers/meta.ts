@@ -13,6 +13,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -112,12 +113,7 @@ export async function transcribeWithMeta(
     });
   }
 
-  let data: MetaResponse;
-  try {
-    data = await response.json() as MetaResponse;
-  } catch {
-    throw new ProviderUnavailableError('Meta Muse', 'malformed 200 response body', { kind: 'bad_response' });
-  }
+  const data = await readJson200<MetaResponse>(provider, 'Meta Muse', response, startedAt, context);
 
   if (
     typeof data.transcript !== 'string'

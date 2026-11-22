@@ -9,9 +9,9 @@ import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
-import { AudioTooLargeError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Read from the registry, never restated, so the adapter cannot disagree with
@@ -274,15 +274,10 @@ export async function transcribeWithGemini(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     usageMetadata?: GeminiUsageMetadata;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Gemini', 'malformed 200 response body');
-  }
+  }>(provider, 'Gemini', response, startedAt, context);
 
   const transcript = (data.candidates?.[0]?.content?.parts ?? [])
     .map((p) => p.text)

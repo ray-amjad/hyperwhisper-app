@@ -9,7 +9,7 @@ import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { findModelRow, getProviderDef } from '../lib/stt-models';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -18,6 +18,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -175,12 +176,7 @@ export async function transcribeWithOpenAI(
     });
   }
 
-  let data: { text?: string; language?: string; duration?: number; usage?: OpenAIUsage };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('OpenAI', 'malformed 200 response body');
-  }
+  const data = await readJson200<{ text?: string; language?: string; duration?: number; usage?: OpenAIUsage }>(provider, 'OpenAI', response, startedAt, context);
 
   const transcript = data.text || '';
   // whisper-1 verbose_json gives a real duration, and a duration-billed model's

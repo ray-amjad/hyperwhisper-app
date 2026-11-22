@@ -4,7 +4,6 @@
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
-import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -14,6 +13,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -147,16 +147,11 @@ export async function transcribeWithMistral(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     text?: string;
     language?: string;
     usage?: { prompt_audio_seconds?: number };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Mistral', 'malformed 200 response body');
-  }
+  }>(provider, 'Mistral', response, startedAt, context);
 
   const transcript = restoreSpacedTerms(data.text || '', contextBias);
   const rawDurationSeconds = data.usage?.prompt_audio_seconds || 0;

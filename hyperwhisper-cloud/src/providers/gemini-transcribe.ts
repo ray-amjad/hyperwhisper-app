@@ -43,7 +43,7 @@ import { getProviderDef } from '../lib/stt-models';
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
 import { geminiMimeType } from './gemini';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   estimateAudioSeconds,
@@ -51,6 +51,7 @@ import {
   isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
@@ -275,14 +276,7 @@ export async function transcribeWithGeminiTranscribe(
     });
   }
 
-  let data: InteractionsResponse;
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Gemini 3.5 Transcribe', 'malformed 200 response body', {
-      kind: 'bad_response',
-    });
-  }
+  const data = await readJson200<InteractionsResponse>(provider, 'Gemini 3.5 Transcribe', response, startedAt, context);
 
   const transcript = collectTranscript(data);
   const { audioTokens, textTokens } = readInputTokens(data.usage);

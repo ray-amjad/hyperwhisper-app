@@ -13,6 +13,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
 } from './utils';
 import { isWhisperSilencePhrase } from './whisper-silence';
 
@@ -86,18 +87,13 @@ export async function transcribeWithGroq(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     text?: string;
     language?: string;
     duration?: number;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Groq', 'malformed 200 response body');
-  }
+  }>(provider, 'Groq', response, startTime, context);
 
   const duration = data.duration || 0;
 
