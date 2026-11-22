@@ -22,7 +22,7 @@ import {
   isGcsTranscriptionBucketConfigured,
   uploadTranscriptionAudio,
   type TranscriptionAudioRef,
-} from '../lib/gcs-storage';
+} from './gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
@@ -281,7 +281,7 @@ export async function transcribeWithGoogleChirp(
       // Upload to GCS, submit a batchRecognize operation, then poll until done.
       // batchRecognize lifts both the 10 MB and ~60 s caps that sync recognize
       // enforces — necessary for long recordings.
-      const upload = await uploadTranscriptionAudio(audio, contentType);
+      const upload = await uploadTranscriptionAudio(audio, contentType, context);
       gcsRef = { bucket: upload.bucket, objectName: upload.objectName };
 
       normalized = await runBatchRecognize({
@@ -309,7 +309,7 @@ export async function transcribeWithGoogleChirp(
     // Always delete the scratch object — even on throw. `deleteTranscriptionAudio`
     // swallows its own errors so we never mask the original failure.
     if (gcsRef) {
-      await deleteTranscriptionAudio(gcsRef);
+      await deleteTranscriptionAudio(gcsRef, context);
     }
     // If a batch operation was submitted but we're unwinding (timeout or
     // throw), cancel it — otherwise Google keeps running and bills us for

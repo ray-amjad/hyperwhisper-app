@@ -21,28 +21,32 @@
 // (and SHOULD — these are user voice recordings).
 
 import { getConfiguredBucket } from './gcs-config';
-import { getGoogleAccessToken } from './google-auth';
-import { ProviderUnavailableError } from '../providers/types';
-import { markProviderNetworkCall } from '../providers/utils';
+import { getGoogleAccessToken } from '../lib/google-auth';
+import { ProviderUnavailableError } from './types';
+import type { ProviderRequestContext } from './types';
+import {
+  ALL_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  computeUploadTimeoutMs,
+  fetchWithTimeout,
+} from './utils';
 import {
   safeErrorToken,
   summarizeUpstreamError,
   upstreamErrorLogFields,
-} from '../providers/upstream-error';
+} from './upstream-error';
 
 const GCS_API_BASE = 'https://storage.googleapis.com';
-const UPLOAD_TIMEOUT_FLOOR_MS = 30_000;
-const UPLOAD_TIMEOUT_PER_100KB_MS = 1_000;
+// The label on this module's provider log lines and its ProviderUnavailableError
+// messages (`GCS upload unavailable: ...`).
+const GCS_UPLOAD_LABEL = 'GCS upload';
+const GCS_DELETE_LABEL = 'GCS delete';
 const DELETE_TIMEOUT_MS = 10_000;
 
-/**
- * Scale upload budget with payload size so a slow-region 50–100 MB upload
- * doesn't time out at 30 s. Floor stays at 30 s for small uploads, +1 s per
- * 100 KB on top. A 100 MB file gets ~1000 s, 2 GB (the upstream max) ~20 000 s.
- */
-function computeUploadTimeoutMs(byteLength: number): number {
-  return Math.max(UPLOAD_TIMEOUT_FLOOR_MS, Math.ceil(byteLength / 100_000) * UPLOAD_TIMEOUT_PER_100KB_MS);
-}
+// The upload budget is the providers' shared `computeUploadTimeoutMs`: it scales
+// with payload size so a slow-region 50–100 MB upload doesn't time out at 30 s.
+// Floor stays at 30 s for small uploads, +1 s per 100 KB on top. A 100 MB file
+// gets ~1000 s, 2 GB (the upstream max) ~20 000 s.
 
 /**
  * Opaque reference for a temporary transcription object, returned by
@@ -61,19 +65,17 @@ export interface TranscriptionAudioUpload extends TranscriptionAudioRef {
 
 // Re-exported so every existing importer keeps its `from './gcs-storage'`
 // path. The environment variable itself is read in exactly one place,
-// `lib/gcs-config.ts`.
+// `providers/gcs-config.ts`.
 export { isGcsTranscriptionBucketConfigured } from './gcs-config';
 
+/**
+ * The object's extension. GCS takes any container (Speech V2 auto-detects the
+ * encoding), so every extension the shared map knows is accepted, the match is
+ * case-insensitive, and an unrecognised type is named `.bin` rather than
+ * guessed. The extension only names the scratch object.
+ */
 function inferExtension(contentType: string): string {
-  const lower = contentType.toLowerCase();
-  if (lower.includes('wav')) return 'wav';
-  if (lower.includes('mp3') || lower.includes('mpeg')) return 'mp3';
-  if (lower.includes('m4a') || lower.includes('mp4')) return 'm4a';
-  if (lower.includes('webm')) return 'webm';
-  if (lower.includes('ogg') || lower.includes('opus')) return 'ogg';
-  if (lower.includes('flac')) return 'flac';
-  if (lower.includes('aac')) return 'aac';
-  return 'bin';
+  return audioExtensionFromContentType(contentType.toLowerCase(), ALL_AUDIO_EXTENSIONS) ?? 'bin';
 }
 
 function buildObjectName(ext: string): string {
@@ -84,19 +86,10 @@ function buildObjectName(ext: string): string {
   return `stt-temp/${Date.now()}-${uuid}.${ext}`;
 }
 
-async function fetchWithTimeoutMs(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const handle = setTimeout(() => controller.abort(), timeoutMs);
-  // Chirp's large-file path spends most of its wall time here, before a single
-  // byte reaches Speech-to-Text. It is still the attempt leaving this process,
-  // so it marks the attempt as measurable — see providers/utils.ts.
-  markProviderNetworkCall();
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(handle);
-  }
-}
+// Both calls go through the providers' one `fetchWithTimeout`. Chirp's
+// large-file path spends most of its wall time in the upload, before a single
+// byte reaches Speech-to-Text. It is still the attempt leaving this process,
+// so `fetchWithTimeout` marks the attempt as measurable — see providers/utils.ts.
 
 /**
  * PUT the audio into the configured bucket and return the gs:// URI plus
@@ -106,6 +99,7 @@ async function fetchWithTimeoutMs(url: string, init: RequestInit, timeoutMs: num
 export async function uploadTranscriptionAudio(
   audio: ArrayBuffer,
   contentType: string,
+  context: ProviderRequestContext = {},
 ): Promise<TranscriptionAudioUpload> {
   const bucket = getConfiguredBucket();
   if (!bucket) {
@@ -123,28 +117,17 @@ export async function uploadTranscriptionAudio(
     + `?uploadType=media&name=${encodeURIComponent(objectName)}`;
 
   const start = performance.now();
-  const timeoutMs = computeUploadTimeoutMs(audio.byteLength);
-  let response: Response;
-  try {
-    response = await fetchWithTimeoutMs(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': contentType || 'application/octet-stream',
-      },
-      body: audio,
-    }, timeoutMs);
-  } catch (error) {
-    // Route timeouts/network errors through ProviderUnavailableError so
-    // transcribe.ts hits the 502 chain-fail path instead of returning 500.
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ProviderUnavailableError('GCS upload', `upload timeout after ${timeoutMs}ms`);
-    }
-    throw new ProviderUnavailableError(
-      'GCS upload',
-      `network error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  // fetchWithTimeout routes timeouts/network errors through
+  // ProviderUnavailableError so transcribe.ts hits the 502 chain-fail path
+  // instead of returning 500.
+  const response = await fetchWithTimeout(GCS_UPLOAD_LABEL, url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': contentType || 'application/octet-stream',
+    },
+    body: audio,
+  }, context, computeUploadTimeoutMs(audio.byteLength));
 
   const elapsedMs = Math.round(performance.now() - start);
 
@@ -227,16 +210,19 @@ function gcsErrorReasonToken(body: string | undefined): string | undefined {
  * not surface a 5xx because cleanup failed. The bucket's lifecycle rule is
  * the durable backstop for any object this miss.
  */
-export async function deleteTranscriptionAudio(ref: TranscriptionAudioRef): Promise<void> {
+export async function deleteTranscriptionAudio(
+  ref: TranscriptionAudioRef,
+  context: ProviderRequestContext = {},
+): Promise<void> {
   const url = `${GCS_API_BASE}/storage/v1/b/${encodeURIComponent(ref.bucket)}/o/${encodeURIComponent(ref.objectName)}`;
 
   try {
     const accessToken = await getGoogleAccessToken();
     const start = performance.now();
-    const response = await fetchWithTimeoutMs(url, {
+    const response = await fetchWithTimeout(GCS_DELETE_LABEL, url, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${accessToken}` },
-    }, DELETE_TIMEOUT_MS);
+    }, context, DELETE_TIMEOUT_MS);
 
     const elapsedMs = Math.round(performance.now() - start);
 

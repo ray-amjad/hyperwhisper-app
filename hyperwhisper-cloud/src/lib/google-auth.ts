@@ -2,7 +2,7 @@
 // Mints a short-lived Google Cloud access token from a service-account JSON
 // credential and caches it in Upstash Redis so the per-request cost is only
 // paid once per warm-up window. Used by the Google Chirp 3 STT provider AND
-// the GCS scratch bucket (lib/gcs-storage.ts) — both share one token.
+// the GCS scratch bucket (providers/gcs-storage.ts) — both share one token.
 //
 // Cache key: `google_oauth_token`
 // TTL: derived from Google's returned `expiry_date` (capped at 1h), expiring
