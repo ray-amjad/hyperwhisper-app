@@ -36,6 +36,7 @@ import {
   readJson200,
   splitVocabularyTerms,
   type ProviderHttpErrorPolicy,
+  sleep,
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
 
@@ -815,10 +816,6 @@ async function pollOperation(
   }
 
   return readSpeech200<BatchOperationResponse>(response, provider, 'batch_poll', startedAt, context);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
