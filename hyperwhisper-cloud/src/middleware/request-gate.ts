@@ -89,7 +89,6 @@ export async function openRequestGate(
 ): Promise<OpenRequestGate | OpenRouteAuthGate | GateRejection> {
   const plainText = options.plainText ?? false;
   const clientIP = getClientIP(c);
-  c.set('clientIP', clientIP);
   if (await isIPBlocked(clientIP)) {
     return { ok: false, reason: 'ip_blocked', response: blockedResponse(c, plainText) };
   }
@@ -121,7 +120,6 @@ export async function openRequestGate(
           authStatus: authResult.response.status,
         };
       }
-      c.set('auth', authResult.value);
       const limited = await rateLimit(authResult.value.licenseKey);
       if (limited) return limited;
       return { ok: true, auth: authResult.value, authDiagnostics: authResult.diagnostics };
