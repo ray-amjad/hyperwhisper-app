@@ -49,7 +49,11 @@ import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionC
 import { MEDICAL_DOMAIN, getProviderDef } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { billableSeconds, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { explicitLanguageSubtag, isExplicitLanguage } from './language-codes';
+import { billableSeconds, estimateSecondsFromBytes } from './provider-audio';
+import { computeUploadTimeoutMs, fetchWithTimeout, providerHttpError, readJson200, readRequiredJsonString, sleep, readPollJson, type ProviderHttpErrorPolicy } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';

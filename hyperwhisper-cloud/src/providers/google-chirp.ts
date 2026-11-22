@@ -27,17 +27,17 @@ import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google
 import { resolveProviderLanguage } from './language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import { estimateAudioSeconds } from './provider-audio';
 import {
   classifyProviderHttpError,
-  estimateAudioSeconds,
   fetchWithTimeout,
-  logProviderEvent,
   providerHttpError,
   readJson200,
-  splitVocabularyTerms,
   type ProviderHttpErrorPolicy,
   sleep,
-} from './utils';
+} from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
 
 // The sync `recognize` inline cap, from the one per-provider table (audio-limits.ts).
@@ -48,7 +48,7 @@ const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['google-chirp'].adapterMaxBytes;
 // estimator being conservative on compressed audio.
 const INLINE_AUDIO_MAX_SECONDS = 55;
 // Sync `recognize` gets its own budget rather than the shared 15 s default in
-// providers/utils.ts. Two reasons that default is wrong here:
+// providers/provider-http.ts. Two reasons that default is wrong here:
 //   1. Chirp's inline path is observed at ~5–15 s even for ~1 s of audio, so a
 //      15 s ceiling sits exactly at the top of the normal range — no headroom.
 //      Measured in CI on two adjacent ~1 s fixtures: ja-JP returned in 7.3 s,

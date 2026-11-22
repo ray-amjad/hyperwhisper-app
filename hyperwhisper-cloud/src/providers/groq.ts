@@ -5,17 +5,11 @@ import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import {
-  billableSeconds,
-  DEFAULT_AUDIO_EXTENSIONS,
-  audioExtensionFromContentType,
-  emptyTranscriptOutcome,
-  explicitLanguageSubtag,
-  fetchWithTimeout,
-  logProviderEvent,
-  providerHttpError,
-  readJson200,
-} from './utils';
+import { explicitLanguageSubtag } from './language-codes';
+import { emptyTranscriptOutcome } from './provider-attempt';
+import { billableSeconds, DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
 import { isWhisperSilencePhrase } from './whisper-silence';
 
 /**
@@ -116,7 +110,7 @@ export async function transcribeWithGroq(
     // sibling call rather than a "No speech detected" the user has to redo — but
     // only when the ROUTE says a sibling is there to take it. We never inspect
     // `attempt` for that: the chain is the route's to read. One shared block for
-    // all three covered adapters. See emptyTranscriptOutcome in providers/utils.
+    // all three covered adapters. See emptyTranscriptOutcome in providers/provider-attempt.
     // (issue ray-amjad/hyperwhisper-app#381)
     return emptyTranscriptOutcome(provider, {
       label: 'Groq',

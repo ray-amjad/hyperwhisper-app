@@ -5,7 +5,11 @@ import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
-import { billableSeconds, emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
+import { emptyTranscriptOutcome } from './provider-attempt';
+import { billableSeconds } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -167,7 +171,7 @@ export async function transcribeWithDeepgram(
     // the user has to redo — but only when the ROUTE says a sibling is there to
     // take it. We never inspect `attempt` for that: the chain is the route's to
     // read. One shared block for all three covered adapters. See
-    // emptyTranscriptOutcome in providers/utils.
+    // emptyTranscriptOutcome in providers/provider-attempt.
     // (issue ray-amjad/hyperwhisper-app#381)
     return emptyTranscriptOutcome(provider, {
       label: 'Deepgram',

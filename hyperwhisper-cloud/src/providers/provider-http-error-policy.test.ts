@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { classifyProviderHttpError, providerHttpError, type ProviderHttpErrorPolicy } from './utils';
+import { classifyProviderHttpError, providerHttpError, type ProviderHttpErrorPolicy } from './provider-http';
 import { ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { readUpstreamError } from './upstream-error';
 import { transcribeWithAzureMai } from './azure-mai';

@@ -52,7 +52,7 @@ interface OutcomeBase {
   /**
    * Whether the attempt's first request left the process. Adapter-side gates
    * (missing API key, size cap, content-type check) throw before it and are not
-   * measurements. See ProviderAttemptNetwork in providers/utils.ts.
+   * measurements. See ProviderAttemptNetwork in providers/provider-attempt.ts.
    */
   reachedWire: boolean;
   status?: number;

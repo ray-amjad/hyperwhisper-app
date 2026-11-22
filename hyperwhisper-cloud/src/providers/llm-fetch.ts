@@ -5,7 +5,7 @@
 // forever, so callWithRetry never saw a rejection and post-process.ts never
 // reached its fallback provider.
 //
-// Why not providers/utils.ts fetchWithTimeout: its timer is cleared once the
+// Why not providers/provider-http.ts fetchWithTimeout: its timer is cleared once the
 // response headers arrive, so a body that stalls after the headers still hangs.
 // Here one timer covers the request AND the body read done in `read`.
 //
@@ -34,12 +34,12 @@ import { LLMNetworkError, LLMRequestError, LLMTimeoutError } from './llm-errors'
 
 /**
  * Floor of the per-attempt bound for one non-streaming LLM chat request
- * (headers and body together). Above the 15 s STT default in providers/utils.ts.
+ * (headers and body together). Above the 15 s STT default in providers/provider-http.ts.
  */
 export const LLM_REQUEST_TIMEOUT_MS = 20_000;
 
 // Non-streaming bound, scaled with the TRANSCRIPT (same shape as
-// computeUploadTimeoutMs in providers/utils.ts: a floor plus a per-size
+// computeUploadTimeoutMs in providers/provider-http.ts: a floor plus a per-size
 // allowance). A non-streaming response only arrives after the upstream has
 // generated ALL of its output, and a correction's output is about as long as
 // the transcript it corrects, so a flat cap would abort a long, healthy

@@ -56,7 +56,7 @@ mock.module('../lib/google-auth', () => ({
 
 // ---------------------------------------------------------------------------
 // Mock global fetch (same pattern as azure-mai.test.ts) rather than the
-// shared providers/utils module — bun's module registry is process-wide, and
+// shared providers/provider-http module — bun's module registry is process-wide, and
 // overriding fetchWithTimeout there would leak into every other provider's
 // test file that imports it for real. Real fetchWithTimeout still runs, so
 // the actual AbortController/timeout wiring is exercised end to end.

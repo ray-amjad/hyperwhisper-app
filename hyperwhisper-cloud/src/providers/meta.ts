@@ -11,11 +11,11 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
-  logProviderEvent,
   providerHttpError,
   readJson200,
-  splitVocabularyTerms,
-} from './utils';
+} from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 const META_TRANSCRIBE_URL = 'https://api.meta.ai/v1/asr/transcribe';
 const META_MAX_DURATION_SECONDS = 10 * 60;

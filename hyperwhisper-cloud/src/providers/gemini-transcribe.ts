@@ -46,15 +46,11 @@ import { geminiMimeType } from './gemini';
 import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import {
-  estimateAudioSeconds,
-  fetchWithTimeout,
-  isExplicitLanguage,
-  logProviderEvent,
-  providerHttpError,
-  readJson200,
-  splitVocabularyTerms,
-} from './utils';
+import { isExplicitLanguage } from './language-codes';
+import { estimateAudioSeconds } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 // The inline base64 cap, from the one per-provider table (audio-limits.ts).

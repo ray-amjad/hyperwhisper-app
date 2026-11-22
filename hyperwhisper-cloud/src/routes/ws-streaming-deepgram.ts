@@ -10,7 +10,7 @@ import type { Context } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { convertToKeyterms } from '../providers/deepgram';
-import { isExplicitLanguage } from '../providers/utils';
+import { isExplicitLanguage } from '../providers/language-codes';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
   TRANSCRIPTION_SERVICE_ERROR,

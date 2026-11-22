@@ -13,7 +13,10 @@ import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
+import { isExplicitLanguage } from './language-codes';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Read from the registry, never restated, so the adapter cannot disagree with

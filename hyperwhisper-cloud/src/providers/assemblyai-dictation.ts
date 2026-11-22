@@ -5,7 +5,9 @@ import { parsePcm16Wav } from './wav-header';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ModelVariant } from './model-variants';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 export const DICTATION_LANGUAGES = ['en', 'es', 'de', 'fr', 'it', 'pt', 'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'he', 'ur', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu', 'xh', 'nn', 'ar', 'ja', 'zh'] as const;
 

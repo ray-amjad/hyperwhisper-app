@@ -5,17 +5,11 @@
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import {
-  DEFAULT_AUDIO_EXTENSIONS,
-  audioExtensionFromContentType,
-  billableSeconds,
-  explicitLanguageSubtag,
-  fetchWithTimeout,
-  logProviderEvent,
-  providerHttpError,
-  readJson200,
-  splitVocabularyTerms,
-} from './utils';
+import { explicitLanguageSubtag } from './language-codes';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, billableSeconds } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const MAX_CONTEXT_BIAS_TERMS = 100;

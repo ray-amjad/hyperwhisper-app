@@ -9,18 +9,12 @@ import { getProviderDef } from '../lib/stt-models';
 import { XAI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import {
-  billableSeconds,
-  DEFAULT_AUDIO_EXTENSIONS,
-  audioExtensionFromContentType,
-  emptyTranscriptOutcome,
-  explicitLanguageSubtag,
-  fetchWithTimeout,
-  logProviderEvent,
-  providerHttpError,
-  readJson200,
-  splitVocabularyTerms,
-} from './utils';
+import { explicitLanguageSubtag } from './language-codes';
+import { emptyTranscriptOutcome } from './provider-attempt';
+import { billableSeconds, DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
 // xAI keyterm limits: max 100 terms, each up to 50 characters.
@@ -167,7 +161,7 @@ export async function transcribeWithXaiGrok(
     // sibling call rather than a "No speech detected" the user has to redo — but
     // only when the ROUTE says a sibling is there to take it. We never inspect
     // `attempt` for that: the chain is the route's to read. One shared block for
-    // all three covered adapters. See emptyTranscriptOutcome in providers/utils.
+    // all three covered adapters. See emptyTranscriptOutcome in providers/provider-attempt.
     // (issue ray-amjad/hyperwhisper-app#381)
     return emptyTranscriptOutcome(provider, {
       label: 'Grok',

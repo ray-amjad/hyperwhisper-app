@@ -16,12 +16,10 @@ import {
   audioExtensionFromContentType,
   billableSeconds,
   estimateSecondsFromBytes,
-  fetchWithTimeout,
-  logProviderEvent,
-  providerHttpError,
-  readJson200,
-  splitVocabularyTerms,
-} from './utils';
+} from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 // OpenAI serves this model only over a Realtime WebSocket session, not on

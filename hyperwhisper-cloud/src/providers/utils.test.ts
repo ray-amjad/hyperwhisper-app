@@ -1,21 +1,22 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { explicitLanguageSubtag, isExplicitLanguage } from './language-codes';
+import { emptyTranscriptOutcome } from './provider-attempt';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
-  computeUploadTimeoutMs,
-  emptyTranscriptOutcome,
   estimateAudioSeconds,
   estimateSecondsFromBytes,
-  explicitLanguageSubtag,
+  upstreamDurationOrNull,
+} from './provider-audio';
+import {
+  computeUploadTimeoutMs,
   fetchWithTimeout,
-  isExplicitLanguage,
   providerHttpError,
   quotaExhaustedReason,
   readRequiredJsonString,
   readPollJson,
-  splitVocabularyTerms,
-  upstreamDurationOrNull,
-} from './utils';
+} from './provider-http';
+import { splitVocabularyTerms } from './vocabulary';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';

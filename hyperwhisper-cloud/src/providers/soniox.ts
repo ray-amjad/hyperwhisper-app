@@ -10,7 +10,11 @@ import { getProviderDef } from '../lib/stt-models';
 import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, billableSeconds, computeUploadTimeoutMs, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { explicitLanguageSubtag } from './language-codes';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, billableSeconds } from './provider-audio';
+import { computeUploadTimeoutMs, fetchWithTimeout, providerHttpError, readRequiredJsonString, sleep, readPollJson, type ProviderHttpErrorPolicy } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields } from './upstream-error';
 
 const SONIOX_BASE = 'https://api.soniox.com';

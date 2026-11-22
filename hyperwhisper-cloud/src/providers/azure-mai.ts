@@ -21,16 +21,15 @@ import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import { billableSeconds, audioExtensionFromContentType } from './provider-audio';
 import {
-  billableSeconds,
-  audioExtensionFromContentType,
   computeUploadTimeoutMs,
   fetchWithTimeout,
-  logProviderEvent,
   providerHttpError,
-  splitVocabularyTerms,
   readJson200,
-} from './utils';
+} from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 import { flyRegion as currentFlyRegion } from '../lib/fly-machine';
 
 // Azure's upload cap, from the one per-provider table (audio-limits.ts).

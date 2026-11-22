@@ -37,7 +37,7 @@ const PUBLISHING_FLY_APP = 'hyperwhisper-transcribe';
  * Note what is NOT here: our own pre-flight rejections — a missing API key, a
  * size cap, an unsupported container. Those throw before the attempt has made a
  * single network call, and an attempt that never reached the wire is never
- * reported at all. See ProviderAttemptNetwork in providers/utils.ts.
+ * reported at all. See ProviderAttemptNetwork in providers/provider-attempt.ts.
  */
 export type LatencyFailureKind = ProviderUnavailableKind | 'input_rejected';
 
@@ -63,7 +63,7 @@ export interface LatencySample {
   audioSeconds: number;
 }
 
-// Clip length comes from estimateAudioSeconds() in providers/utils.ts, for
+// Clip length comes from estimateAudioSeconds() in providers/provider-audio.ts, for
 // EVERY attempt — successes included, and never from the adapter's
 // `durationSeconds`. That estimator is content-type aware: the desktop apps
 // upload 16 kHz/16-bit mono WAV (32,000 B/s), so the flat 64 kbps heuristic

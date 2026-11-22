@@ -24,12 +24,8 @@ import { getConfiguredBucket } from './gcs-config';
 import { getGoogleAccessToken } from '../lib/google-auth';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext } from './types';
-import {
-  ALL_AUDIO_EXTENSIONS,
-  audioExtensionFromContentType,
-  computeUploadTimeoutMs,
-  fetchWithTimeout,
-} from './utils';
+import { ALL_AUDIO_EXTENSIONS, audioExtensionFromContentType } from './provider-audio';
+import { computeUploadTimeoutMs, fetchWithTimeout } from './provider-http';
 import {
   safeErrorToken,
   summarizeUpstreamError,
@@ -89,7 +85,7 @@ function buildObjectName(ext: string): string {
 // Both calls go through the providers' one `fetchWithTimeout`. Chirp's
 // large-file path spends most of its wall time in the upload, before a single
 // byte reaches Speech-to-Text. It is still the attempt leaving this process,
-// so `fetchWithTimeout` marks the attempt as measurable — see providers/utils.ts.
+// so `fetchWithTimeout` marks the attempt as measurable — see providers/provider-attempt.ts.
 
 /**
  * PUT the audio into the configured bucket and return the gs:// URI plus

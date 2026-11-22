@@ -11,7 +11,8 @@ import { fallbackChainFor, getProviderDef, type SttProviderId } from '../lib/stt
 // to land in the right clip-length bucket on the public /latency page.
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
-import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
+import { runProviderAttempt, type ProviderAttemptNetwork } from '../providers/provider-attempt';
+import { estimateAudioSeconds } from '../providers/provider-audio';
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
@@ -104,7 +105,7 @@ async function handleTranscribe(c: Context) {
       // leaves the process. Until then the adapter has only run its own gates —
       // a missing API key, a size cap, a content-type check — and those are our
       // `if`s, not an upstream, so they are not measurements. See
-      // ProviderAttemptNetwork in providers/utils.ts for why the signal is taken
+      // ProviderAttemptNetwork in providers/provider-attempt.ts for why the signal is taken
       // at the wire rather than from a list of error types.
       const network: ProviderAttemptNetwork = { reachedProvider: false };
       let attemptResult: TranscriptionResult;

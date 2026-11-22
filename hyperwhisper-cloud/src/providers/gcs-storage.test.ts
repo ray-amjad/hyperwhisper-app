@@ -29,13 +29,13 @@
 // The coverage number is the artefact; the code under test really does run.
 //
 // Global `fetch` is mocked (the azure-mai.test.ts pattern) rather than the
-// shared providers/utils module, so the real AbortController wiring still runs.
+// shared providers/provider-http module, so the real AbortController wiring still runs.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mock } from 'bun:test';
 import * as realGoogleAuth from '../lib/google-auth';
 import { ProviderUnavailableError } from './types';
-import { runProviderAttempt } from './utils';
+import { runProviderAttempt } from './provider-attempt';
 import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
@@ -344,7 +344,7 @@ describe('uploadTranscriptionAudio — failure classification', () => {
   });
 
   test('lets a credential fault fail fast rather than dressing it as an unavailable provider', async () => {
-    // providers/utils.ts documents this split: a bad service account is our
+    // providers/provider-attempt.ts documents this split: a bad service account is our
     // configuration failing, not Google being slow, so it must not look like a
     // transient upstream error.
     tokenError = new Error('GOOGLE_SERVICE_ACCOUNT_JSON not configured');

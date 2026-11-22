@@ -6,16 +6,11 @@ import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import {
-  audioExtensionFromContentType,
-  emptyTranscriptOutcome,
-  fetchWithTimeout,
-  logProviderEvent,
-  providerHttpError,
-  estimateAudioSeconds,
-  readJson200,
-  splitVocabularyTerms,
-} from './utils';
+import { emptyTranscriptOutcome } from './provider-attempt';
+import { audioExtensionFromContentType, estimateAudioSeconds } from './provider-audio';
+import { fetchWithTimeout, providerHttpError, readJson200 } from './provider-http';
+import { logProviderEvent } from './provider-log';
+import { splitVocabularyTerms } from './vocabulary';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
 // on, so an `mp3`/`mpeg` hint never wins over another container named in the
