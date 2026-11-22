@@ -6,6 +6,9 @@ import { logEvent } from '../lib/logging';
 import { errorResponse } from '../lib/responses';
 import type { SttProviderId } from '../lib/stt-models';
 import { providerAudioReservation } from '../providers/audio-reservation';
+// The providers layer's own answer to "what is the worst USD/min this request
+// could be billed at", so the route never needs a provider's add-on eligibility
+// or an adapter's internal routing gate. See providers/reservation.ts.
 import { maxReservationUsdPerMinute } from '../providers/reservation';
 
 /**
