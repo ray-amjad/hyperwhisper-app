@@ -1,11 +1,11 @@
 // META MUSE VOICE TRANSCRIBE PROVIDER
 // Synchronous multipart upload to the Meta Model API batch endpoint.
 
-import { META_MUSE_MAX_BYTES } from '../lib/constants';
 import { computeMetaMuseTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { parsePcm16Wav } from '../lib/wav-header';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -56,8 +56,9 @@ export async function transcribeWithMeta(
   const model = context.model || getProviderDef('meta').defaultModel;
 
   const wav = parseMetaWav(audio, contentType);
-  if (audio.byteLength > META_MUSE_MAX_BYTES) {
-    throw new AudioTooLargeError('Meta Muse', audio.byteLength, META_MUSE_MAX_BYTES);
+  const maxBytes = PROVIDER_AUDIO_CAPS.meta.adapterMaxBytes;
+  if (audio.byteLength > maxBytes) {
+    throw new AudioTooLargeError('Meta Muse', audio.byteLength, maxBytes);
   }
   const apiKey = process.env.META_MODEL_API_KEY;
   if (!apiKey) throw new Error('META_MODEL_API_KEY not configured');
