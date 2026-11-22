@@ -4,7 +4,7 @@
 import { isRecord } from '../lib/utils';
 import { isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import { computeLLMChatCost, llmModelRow, type LLMProvider } from '../lib/llm-models';
-import { GEMINI_API_KEY_ENV } from './gemini-api-key';
+import { GEMINI_API_KEY_ENV, XAI_API_KEY_ENV } from './vendor-api-keys';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
@@ -70,7 +70,7 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
   },
   grok: {
     baseUrl: 'https://api.x.ai/v1',
-    apiKeyEnv: ['XAI_API_KEY', 'GROK_API_KEY'],
+    apiKeyEnv: [...XAI_API_KEY_ENV],
     errorLogLabel: 'SpaceXAI Grok API',
     errorChatLabel: 'SpaceXAI Grok chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
