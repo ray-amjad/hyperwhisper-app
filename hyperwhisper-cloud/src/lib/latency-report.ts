@@ -12,6 +12,7 @@ import { INTERNAL_SECRET_HEADER, internalSecret } from './internal-secret';
 import { licenseApiBaseUrl } from './constants';
 import { backgroundWork } from './background-work';
 import type { ProviderUnavailableKind } from './errors';
+import { flyRegion as currentFlyRegion } from './fly-machine';
 
 /** How long the whole batch POST may take before we abandon it. */
 const REPORT_TIMEOUT_MS = 5_000;
@@ -103,7 +104,7 @@ export function reportLatencySamples(samples: LatencySample[]): void {
   // page's region axis is derived from whatever rows exist, so an unfiltered
   // local run would raise a "Local machine" column on hyperwhisper.com. Silent
   // on purpose: running off Fly is normal here, not a misconfiguration.
-  const flyRegion = process.env.FLY_REGION;
+  const flyRegion = currentFlyRegion();
   if (!flyRegion) return;
 
   // ...and only the production app. Every release runs scripts/smoke-test.ts

@@ -30,6 +30,7 @@ import {
   waitForResponseFlush,
 } from './in-flight-requests';
 import { flushErrorTracking } from './error-tracking';
+import { machineLabels } from './fly-machine';
 
 /** The whole shutdown budget, measured from the signal. Inside Fly's 120 s. */
 export const SHUTDOWN_DRAIN_MS = 115_000;
@@ -59,7 +60,7 @@ export async function runGracefulShutdown(
 
   console.log('machine.shutdown', {
     signal,
-    machineId: process.env.FLY_MACHINE_ID || 'local',
+    machineId: machineLabels().machineId,
     shutdownAt: new Date(startedAt).toISOString(),
   });
 

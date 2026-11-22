@@ -6,6 +6,7 @@ import type { TranscriptionResult } from '../providers/types';
 import { formatProviderName, type SttProviderId } from '../lib/stt-models';
 import type { PreparedTranscriptionRequest } from './transcribe-preparation';
 import type { AttemptFailure } from './transcribe-attempts';
+import { flyMachineId, machineLabels } from '../lib/fly-machine';
 
 interface TranscriptionSuccessInput {
   result: TranscriptionResult;
@@ -208,10 +209,10 @@ export async function completeTranscription({
     ...(attemptFailures.length ? { attemptFailures } : {}),
     noSpeech,
     creditsUsed,
-    flyMachineId: process.env.FLY_MACHINE_ID,
+    flyMachineId: flyMachineId(),
     // Region on the outcome line makes the Axiom dataset queryable by region on
     // its own, without joining against the machine id.
-    flyRegion: process.env.FLY_REGION || 'local',
+    flyRegion: machineLabels().region,
     // Only present when this request contributed no timing, so the field's
     // absence is the normal case. Without it a thin /latency dataset looks
     // like a bug; with it, "how much of the installed base is still too old to
