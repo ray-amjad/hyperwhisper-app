@@ -2,7 +2,7 @@ import { retryWithBackoff } from '../lib/utils';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMMissingKeyError, LLMRequestError, LLMTimeoutError } from './llm-errors';
 import { requestAnthropicChat } from './anthropic';
-import { requestOpenAICompatibleChat, type OpenAICompatChatResult } from './openai-compat-chat';
+import { requestOpenAICompatibleChat, type OpenAICompatChatResult, type OpenAICompatProvider } from './openai-compat-chat';
 import { defaultModelFor, isAllowedLLMModel, LLM_PROVIDERS, type LLMProvider } from '../lib/llm-models';
 
 // The model registry (allowlist, defaults, served labels, rates) is llm-models.ts.
@@ -31,6 +31,27 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
   gemini: 2,
   mistral: 2,
   groq: 3,
+};
+
+type LLMChatRequest = (
+  payload: CorrectionRequestPayload,
+  requestId: string,
+  model: string,
+) => Promise<OpenAICompatChatResult>;
+
+const openAICompatChat = (provider: OpenAICompatProvider): LLMChatRequest =>
+  (payload, requestId, model) => requestOpenAICompatibleChat(provider, payload, requestId, model);
+
+// Each provider's request function, one row per provider: a new LLMProvider
+// without a row here is a compile error, not a silent OpenAI-compatible call.
+const LLM_CHAT_REQUESTS: Record<LLMProvider, LLMChatRequest> = {
+  anthropic: requestAnthropicChat,
+  cerebras: openAICompatChat('cerebras'),
+  groq: openAICompatChat('groq'),
+  grok: openAICompatChat('grok'),
+  openai: openAICompatChat('openai'),
+  gemini: openAICompatChat('gemini'),
+  mistral: openAICompatChat('mistral'),
 };
 
 export function fallbackProviderFor(provider: LLMProvider): LLMProvider {
@@ -112,9 +133,7 @@ export async function callWithRetry(
   { retryRateLimit = true }: { retryRateLimit?: boolean } = {}
 ): Promise<OpenAICompatChatResult> {
   return retryWithBackoff(
-    () => provider === 'anthropic'
-      ? requestAnthropicChat(payload, requestId, model)
-      : requestOpenAICompatibleChat(provider, payload, requestId, model),
+    () => LLM_CHAT_REQUESTS[provider](payload, requestId, model),
     {
       maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
