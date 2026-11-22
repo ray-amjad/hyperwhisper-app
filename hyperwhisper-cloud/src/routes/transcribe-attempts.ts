@@ -92,6 +92,12 @@ export function classifyAttemptError(error: unknown, ctx: AttemptContext): Attem
     attemptMs: performance.now() - ctx.attemptStart,
     reachedWire: ctx.reachedWire,
   };
+  // A 200 with no transcript for audio the upstream says it processed.
+  // Handled before the generic ProviderUnavailableError arm it extends,
+  // because this is the one failure in the loop that is not a fault: the
+  // request already has a valid answer in hand and is only asking a sibling
+  // whether it can do better. (issue #381)
+  //
   // Before ProviderUnavailableError, which it extends: the request already has
   // a valid answer and is only asking a sibling whether it can do better.
   if (error instanceof EmptyTranscriptError) {
@@ -186,6 +192,7 @@ function terminalResponse(outcome: AttemptOutcome, requestId: string, startTime:
       },
     );
   }
+  // Non-retryable error (a bad key on the last provider in the chain, etc.)
   logEvent(requestId, startTime, 'transcribe.request_fail', {
     provider,
     attempt: index + 1,
@@ -226,6 +233,11 @@ function failureRecord(outcome: AttemptOutcome, nextProvider: SttProviderId | un
       };
     }
     case 'unavailable': {
+      // `unavailableKind` distinguishes the root cause inline — `timeout`
+      // (we gave up; upstream may have been fine) vs `upstream_5xx` /
+      // `rate_limit` (upstream actually failed) vs `bad_response` (geo-block
+      // HTML / empty body) — instead of the old catch-all `provider_unavailable`.
+      //
       // `unavailableKind`: `timeout` (we gave up; upstream may have been fine) vs
       // `upstream_5xx` / `rate_limit` vs `bad_response` (geo-block HTML / empty body).
       const e = outcome.error;
@@ -340,6 +352,7 @@ export class AttemptLedger {
     // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
     // universal-3-5-pro -> universal-2 for unsupported languages), so the
     // X-STT-Model header and deduction metadata match what was billed.
+    // Fall back to the attempted model when the adapter doesn't report one.
     const usedModel = result.model || model;
     this.answer = { result, servedBy: provider, usedModel };
     logEvent(this.requestId, this.startTime, 'transcribe.provider_attempt_done', {
@@ -381,6 +394,9 @@ export class AttemptLedger {
       // The same signal, read a second way: an attempt made AFTER a refusal
       // that reached the wire is the one extra upstream call the spec budgets,
       // spent. (issue #381, review r2)
+      // One that never reached it (no API key, a size cap, a content-type
+      // gate) cost nothing and must not close the door on a sibling that
+      // could still answer. (issue #381, review r2)
       if (this.refused) this.recoveryCallsSpent += 1;
     }
 
@@ -486,6 +502,9 @@ export function providerChainFailureResponse({
     return transcriptionFailedResponse(requestId, lastAuthError);
   }
 
+  // Every provider rejected the input with a non-auth 4xx and none was merely
+  // unavailable. The input itself is the problem, so a retry will not help.
+  //
   // Every provider rejected the input and none was merely unavailable, so a
   // retry will not help. A rejection from a provider gets a fixed message: the
   // upstream's wording never reaches the client (#2131). One the server wrote

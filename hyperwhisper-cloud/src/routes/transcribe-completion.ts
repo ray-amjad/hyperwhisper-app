@@ -21,6 +21,7 @@ interface TranscriptionSuccessInput {
 /**
  * The public success projection of the resolved provider result: who is named
  * as the provider, what is billed, and the response body.
+ * Billing and response side effects stay in completeTranscription below.
  */
 export function buildTranscriptionSuccess({
   result,
@@ -122,6 +123,8 @@ interface TranscriptionCompletionInput {
 /**
  * Complete a successful transcription after the provider chain resolves:
  * projection, billing, headers and the `request_done` outcome log.
+ * This keeps response projection, billing, headers, and the final outcome log
+ * together and leaves the route responsible for request and provider control flow.
  */
 export function completeTranscription({
   c,

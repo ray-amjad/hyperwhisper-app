@@ -1,3 +1,6 @@
+// TRANSCRIPTION ROUTE
+// POST /transcribe - Main transcription endpoint
+// Supports multiple STT providers with automatic fallback
 // POST /transcribe: walks the provider fallback chain the registry gives it.
 
 import type { Context } from 'hono';
@@ -181,6 +184,7 @@ async function handleTranscribe(c: Context) {
   }
 
   const { answer } = ledger;
+  // All providers in the chain failed.
   if (!answer) {
     return ledger.chainFailureResponse(provider);
   }
@@ -188,6 +192,8 @@ async function handleTranscribe(c: Context) {
     c,
     preparation,
     result: answer.result,
+    // The model that actually produced the result. Defaults to the requested
+    // model; on a cross-provider fallback it becomes that sibling's default model.
     usedModel: answer.usedModel ?? model,
     servedBy: answer.servedBy,
     chosenProviderAttempted,
