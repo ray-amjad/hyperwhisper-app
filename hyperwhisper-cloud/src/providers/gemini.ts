@@ -9,6 +9,7 @@ import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
+import { geminiApiKey } from './gemini-api-key';
 import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
@@ -225,7 +226,7 @@ export async function transcribeWithGemini(
   const provider = 'gemini';
   const model = context.model || DEFAULT_MODEL;
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  const apiKey = geminiApiKey();
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
