@@ -211,7 +211,9 @@ describe('requestAnthropicChat', () => {
       const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
       expect(Number.isFinite(result.costUsd)).toBe(true);
-      expect(result.usage).toEqual(estimateUsageFromChars(PROMPT_CHARS, 'ok'.length));
+      // Only the unreadable input count is estimated; the reported output is billed as reported.
+      const estimatedInput = estimateUsageFromChars(PROMPT_CHARS, 'ok'.length).prompt_tokens;
+      expect(result.usage).toEqual({ prompt_tokens: estimatedInput, completion_tokens: 500, total_tokens: estimatedInput + 500 });
     } finally {
       warnSpy.mockRestore();
     }
