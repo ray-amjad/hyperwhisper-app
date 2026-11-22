@@ -10,6 +10,12 @@
 // is the backend's narrower, security-critical view: what is actually routable
 // and how to meter it.
 
+import {
+  GEMINI_2_5_FLASH_LITE_PRICE,
+  GEMINI_2_5_FLASH_PRICE,
+  GEMINI_3_8_FLASH_PRICE,
+} from './gemini-prices';
+
 export type SttProviderId =
   | 'deepgram'
   | 'groq'
@@ -33,14 +39,41 @@ export type SttProviderId =
  *   * `perMinute` — flat USD per audio minute.
  *   * `perHour`   — flat USD per audio hour, optionally with a minimum billable
  *                   duration per request (Groq bills at least 10 s).
- *   * `tokens`    — billed from the upstream `usage` object; the per-token rates
- *                   live with the token formulas in `cost-calculator.ts`, and the
- *                   row authors only a reservation estimate (`reserveUsdPerMinute`).
+ *   * `tokens`    — billed from the upstream `usage` object at the row's
+ *                   per-token rates (the token formulas are in
+ *                   `cost-calculator.ts`); the row also authors a reservation
+ *                   estimate (`reserveUsdPerMinute`), since no flat rate exists.
  */
 export type SttBilling =
   | { kind: 'perMinute'; usdPerMinute: number }
   | { kind: 'perHour'; usdPerHour: number; minBillableSeconds?: number }
-  | { kind: 'tokens' };
+  | SttTokenBilling;
+
+/** USD per token, one figure per input modality and one for output. */
+export interface SttTokenRates {
+  textInputPerToken: number;
+  audioInputPerToken: number;
+  outputPerToken: number;
+}
+
+export interface SttTokenBilling extends SttTokenRates {
+  kind: 'tokens';
+  /**
+   * Override rates for prompts above GEMINI_LONG_CONTEXT_THRESHOLD input tokens
+   * (`cost-calculator.ts`). Present only for models with tiered (Pro) pricing;
+   * flat models omit it.
+   */
+  longContext?: SttTokenRates;
+  /**
+   * Per-minute floor billed only when the token `usage` object is
+   * missing/changed, so a token-billed transcription never bills $0
+   * (fail-closed). OpenAI rows author it; the Gemini paths derive theirs from
+   * the audio-token rate and the audio duration instead.
+   */
+  missingUsageUsdPerMinute?: number;
+}
+
+const M = 1_000_000;
 
 /**
  * Optional add-ons a model meters on top of its base rate. A model without a
@@ -72,6 +105,11 @@ interface SttModelSpec {
    * is the billing rate rounded UP. Leave it out otherwise.
    */
   reserveUsdPerMinute?: number;
+  /**
+   * `gemini` rows only (required there, checked at module load): the
+   * generationConfig.thinkingConfig `providers/gemini.ts` sends for this model.
+   */
+  thinking?: { thinkingLevel: 'minimal' | 'low' } | { thinkingBudget: number };
 }
 
 export interface SttModelDef extends SttModelSpec {
@@ -141,6 +179,20 @@ const ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE = 0.15 / 60;
 // (`maxReservationUsdPerMinute` in providers/reservation.ts) both read it, so a
 // short clip (sync's target case) cannot deduct more than was reserved.
 export const ASSEMBLYAI_SYNC_USD_PER_MINUTE = 0.45 / 60; // $0.0075/min
+
+// OpenAI gpt-4o-* transcribe tiers, token-billed. Named because two rows share
+// the mini tier (the retiring id and its dated snapshot). The per-minute floors
+// apply only when the token `usage` object is missing/changed.
+const GPT4O_TRANSCRIBE_BILLING: SttTokenBilling = {
+  kind: 'tokens',
+  textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 10.00 / M,
+  missingUsageUsdPerMinute: 0.006,
+};
+const GPT4O_MINI_TRANSCRIBE_BILLING: SttTokenBilling = {
+  kind: 'tokens',
+  textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 5.00 / M,
+  missingUsageUsdPerMinute: 0.003,
+};
 
 const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── Original cheap trio: cross-provider fallback retained ──
@@ -319,16 +371,21 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       'gpt-4o-transcribe': 'gpt-transcribe',
       'gpt-4o-mini-transcribe': 'gpt-4o-mini-transcribe-2025-12-15',
     },
+    //
+    // The gpt-4o-* `prompt` text input tokens bill at the (higher) audio-input
+    // rate — they're a handful of tokens, so erring high there is both simpler
+    // and conservative: those rows author one input rate for both modalities.
     models: [
-      { id: 'gpt-4o-transcribe', supportsVocabulary: true, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.009 },
-      { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0045 },
+      { id: 'gpt-4o-transcribe', supportsVocabulary: true, billing: GPT4O_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.009 },
+      { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, billing: GPT4O_MINI_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.0045 },
       { id: 'whisper-1', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.006 } },
       { id: 'gpt-transcribe', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0045 } },
       { id: 'gpt-live-transcribe', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.017 } },
       // The dated snapshot OpenAI names as the mini tier's replacement. It is
       // token-billed at the gpt-4o-mini-transcribe rates, so it carries that
-      // row's reservation rate: the alias cannot make a mode dearer.
-      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0045 },
+      // row's billing and reservation rate: the alias cannot make a mode dearer,
+      // and it cannot fall through to the dearer gpt-4o-transcribe rates.
+      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, billing: GPT4O_MINI_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.0045 },
     ],
   },
   gemini: {
@@ -347,6 +404,18 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     aliases: { 'gemini-3-flash-preview': 'gemini-3.8-flash' },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
+    //
+    // Audio bills at 32 tokens/sec; cost is read from usageMetadata. Input is
+    // multi-modal: TEXT (the instruction+vocab prompt) and AUDIO bill at
+    // DIFFERENT per-token rates on Flash models, so both are authored. Pro models
+    // (2.5-pro, 3.1-pro) bill every input modality at one rate but switch to a
+    // higher long-context tier above 200k prompt tokens. The prices the
+    // /post-process LLM rows bill too come from gemini-prices.ts.
+    //
+    // `thinking` is the generationConfig.thinkingConfig the adapter sends: keep
+    // thinking as low as each model allows (only 2.5-flash/flash-lite can zero
+    // it). Every row here must author it, because a wrong guess is a 400:
+    // thinkingBudget 0 is invalid on Pro, and 3.8 Flash has no 'minimal' level.
     models: [
       // #1019: the clients' Gemini default (cloud-stt-catalog.json isDefault). A
       // HyperWhisper Cloud mode on the gemini tier with no model chosen sends it as
@@ -355,11 +424,43 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       // 2026-12-31, then $1.50/$7.50. ~1,920 audio tok/min + ~200 out tok/min is
       // ~$0.0022/min now and ~$0.0044/min in 2027; reserved at 0.0030, the same
       // figure as the catalog's 3.0 credits/min.
-      { id: 'gemini-3.8-flash', supportsVocabulary: false, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0030 },
-      { id: 'gemini-2.5-flash', supportsVocabulary: false, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0024 },
-      { id: 'gemini-2.5-flash-lite', supportsVocabulary: false, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0008 },
-      { id: 'gemini-2.5-pro', supportsVocabulary: false, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0075 },
-      { id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0100 },
+      // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
+      // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
+      // Sending the gemini-3 'minimal' would be refused, so pin its floor.
+      {
+        id: 'gemini-3.8-flash', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_3_8_FLASH_PRICE },
+        reserveUsdPerMinute: 0.0030, thinking: { thinkingLevel: 'low' },
+      },
+      {
+        id: 'gemini-2.5-flash', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_PRICE },
+        reserveUsdPerMinute: 0.0024, thinking: { thinkingBudget: 0 },
+      },
+      {
+        id: 'gemini-2.5-flash-lite', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_LITE_PRICE },
+        reserveUsdPerMinute: 0.0008, thinking: { thinkingBudget: 0 },
+      },
+      {
+        id: 'gemini-2.5-pro', supportsVocabulary: false,
+        billing: {
+          kind: 'tokens',
+          textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
+          longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
+        },
+        // 0 is invalid on Pro.
+        reserveUsdPerMinute: 0.0075, thinking: { thinkingBudget: 128 },
+      },
+      {
+        id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false,
+        billing: {
+          kind: 'tokens',
+          textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M,
+          longContext: { textInputPerToken: 4.00 / M, audioInputPerToken: 4.00 / M, outputPerToken: 18.00 / M },
+        },
+        reserveUsdPerMinute: 0.0100, thinking: { thinkingLevel: 'low' },
+      },
     ],
   },
   // Google's DEDICATED speech models, on /v1beta/interactions — a different
@@ -391,9 +492,21 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // a cap. The cap is enforced where the money moves: the live route prices
     // its mid-session cutoff with the transcript seen so far and clamps the
     // final deduction to the balance seen at auth (`ws-streaming-shared.ts`).
+    //
+    // One input price for every modality — audio and text bill the same here.
+    // A DIFFERENT product from the `gemini` rates above; see the billing block
+    // for these models in cost-calculator.ts (25 tok/s audio, output estimated).
     models: [
-      { id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0055 },
-      { id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true, billing: { kind: 'tokens' }, reserveUsdPerMinute: 0.0096 },
+      {
+        id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true,
+        billing: { kind: 'tokens', textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M },
+        reserveUsdPerMinute: 0.0055,
+      },
+      {
+        id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true,
+        billing: { kind: 'tokens', textInputPerToken: 3.50 / M, audioInputPerToken: 3.50 / M, outputPerToken: 21.00 / M },
+        reserveUsdPerMinute: 0.0096,
+      },
     ],
   },
   mistral: {
@@ -481,6 +594,14 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = Object.fromEntries(
     { ...spec, selfOnly: spec.fallbackChain.length === 1, models: spec.models.map(deriveModelDef) },
   ]),
 ) as Record<SttProviderId, SttProviderDef>;
+
+// A gemini row with no `thinking` would have to guess one, and the old guess
+// (thinkingBudget 0) is a 400 on Pro models. Fail at module load instead.
+for (const model of PROVIDERS.gemini.models) {
+  if (!model.thinking) {
+    throw new Error(`Gemini STT model ${model.id} authors no thinking config`);
+  }
+}
 
 /**
  * The preflight rate is computed from the row's price, the same way `selfOnly`
@@ -625,6 +746,26 @@ export function dearestModel(provider: SttProviderId): SttModelDef {
   return PROVIDERS[provider].models.reduce(
     (dearest, model) => (model.estimatedUsdPerMinute > dearest.estimatedUsdPerMinute ? model : dearest),
   );
+}
+
+/**
+ * The token rates to bill `model` at on a token-billed path: its own row's,
+ * or — for an id with no token-billed row — the dearest token-billed row of
+ * the provider, the same fail-closed rule as `dearestModel`, so a model string
+ * we don't recognise cannot under-bill. Throws for a provider with no
+ * token-billed rows (a programming error, not a request error).
+ */
+export function tokenBillingFor(provider: SttProviderId, model: string | undefined): SttTokenBilling {
+  const own = findModelRow(provider, model)?.billing;
+  if (own?.kind === 'tokens') return own;
+  const tokenRows = PROVIDERS[provider].models.filter((m) => m.billing.kind === 'tokens');
+  if (tokenRows.length === 0) {
+    throw new Error(`STT provider ${provider} has no token-billed model`);
+  }
+  const dearest = tokenRows.reduce(
+    (best, m) => (m.estimatedUsdPerMinute > best.estimatedUsdPerMinute ? m : best),
+  );
+  return dearest.billing as SttTokenBilling;
 }
 
 /**
