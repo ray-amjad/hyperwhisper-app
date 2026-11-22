@@ -457,7 +457,6 @@ export function createStreamingEventsFor(
   const requestId = generateRequestId();
   const startTime = performance.now();
   const auth = c.get('wsAuth');
-  const clientIP = c.get('wsClientIP');
   const language = rawQuery(c.req.url, 'language');
   const vocabulary = rawQuery(c.req.url, 'vocabulary');
   const apiKey = vendor.apiKey();
@@ -654,12 +653,13 @@ export function createStreamingEventsFor(
           endpoint,
           stt_provider: vendor.billingProvider,
         },
-        clientIP,
         {
-          ...(holdEnforced() ? { credits: creditsUsed } : {}),
+          exactCredits: creditsUsed,
+          // `hold.cover` above already settled it against the session's hold.
+          coveredByHold: holdEnforced(),
           onFailure: logDeductionFailure(requestId, startTime, endpoint),
         }
-      ).catch(console.error);
+      ).recorded.catch(console.error);
     } else {
       void hold?.release();
     }

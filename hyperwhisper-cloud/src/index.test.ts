@@ -512,7 +512,6 @@ describe('graceful shutdown', () => {
       { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
       0.05,
       { requestId: 'shutdown-test' },
-      '203.0.113.1',
     );
     reportLatencySamples([
       { provider: 'deepgram', model: 'nova-3', latencyMs: 900, ok: true, attempt: 1, audioSeconds: 5 },
@@ -540,7 +539,6 @@ describe('graceful shutdown', () => {
         { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
         0.05,
         { requestId: 'late-charge' },
-        '203.0.113.1',
       );
     }, 700);
     const inFlightAnswered = inFlightRequest.then((res) => {

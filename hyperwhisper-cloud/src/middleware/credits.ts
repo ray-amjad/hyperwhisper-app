@@ -80,11 +80,16 @@ export interface DeductCreditsOptions {
    */
   onFailure?: (failure: DeductionFailure, creditsUsed: number) => void;
   /**
-   * Charge exactly these credits instead of `creditsForCost(costUsd)`. For a
-   * caller that already settled the amount against its hold (a live session at
-   * its end), so the deduction does not try to cover it a second time.
+   * Charge exactly these credits instead of `creditsForCost(costUsd)`: the
+   * caller metered its own amount (a live session at its end).
    */
-  credits?: number;
+  exactCredits?: number;
+  /**
+   * The caller already covered the amount against its hold (`hold.cover`), so
+   * the deduction charges it as given and does not try to cover it a second
+   * time.
+   */
+  coveredByHold?: boolean;
 }
 
 /**
@@ -203,9 +208,9 @@ async function recordLicenseUsage(
 }
 
 // In-flight deduction tracking for graceful shutdown.
-// Call sites fire deductCredits() without awaiting (response latency), so a
-// Fly machine recycle (SIGTERM on deploy/scale-down) between the response
-// flush and the redis/license write would silently drop the charge. Every
+// Call sites await only the charged amount, never the licence write (response
+// latency), so a Fly machine recycle (SIGTERM on deploy/scale-down) between the
+// response flush and the redis/license write would silently drop the charge. Every
 // deduction registers here so the SIGTERM handler can drain before exit.
 const inFlightDeductions = backgroundWork('deductions');
 
@@ -213,53 +218,95 @@ export function drainPendingDeductions(timeoutMs: number): Promise<number> {
   return inFlightDeductions.drain(timeoutMs);
 }
 
+/**
+ * One charge, in two steps. `credits` is the number charged: priced once
+ * (`creditsForCost(costUsd)`, or the caller's `exactCredits`) and capped at what
+ * the hold covers. It settles before the licence write goes out, and every
+ * response that reports credits used reads it, so a client is never told about
+ * credits that were not charged. The one exception is a stalled Redis: when
+ * the cap is not known within SETTLE_REPORT_DEADLINE_MS, `credits` resolves to
+ * the uncapped price instead (see `withReportDeadline`), which can be more than
+ * the charge that later settles. `recorded` resolves to the charged number once
+ * the write is done, landed or not.
+ */
+export interface Deduction {
+  readonly credits: Promise<number>;
+  readonly recorded: Promise<number>;
+}
+
 export function deductCredits(
   auth: AuthContext,
   costUsd: number,
   metadata: Record<string, unknown>,
-  clientIP: string,
   options: DeductCreditsOptions = {}
-): Promise<number> {
+): Deduction {
   // Taken synchronously, so the request scope that ends right after this call
   // finds the hold already handed over and leaves its release to the charge.
   const hold = takeHoldForSettle(auth);
+  const charged = settleAgainstHold(costUsd, metadata, options, hold);
   // Errors are logged inside performDeduction / by callers.
-  return inFlightDeductions.track(performDeduction(auth, costUsd, metadata, clientIP, options, hold));
+  const recorded = inFlightDeductions.track(performDeduction(auth, charged, metadata, options, hold));
+  const uncapped = options.exactCredits ?? creditsForCost(costUsd);
+  return { credits: withReportDeadline(charged, uncapped), recorded };
+}
+
+/**
+ * How long a response waits to learn the capped charge. Settling above the
+ * hold asks Redis to grow it, and the Upstash client has no request timeout of
+ * its own: a stalled Redis must not hold a transcript the upstream already
+ * produced (and billed). Past the deadline the response reports the uncapped
+ * amount, as it did before the cap existed; the charge itself still settles.
+ */
+const SETTLE_REPORT_DEADLINE_MS = 2_000;
+
+function withReportDeadline(charged: Promise<number>, uncapped: number): Promise<number> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<number>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(JSON.stringify({ event: 'credits.settle_report_deadline', deadlineMs: SETTLE_REPORT_DEADLINE_MS }));
+      resolve(uncapped);
+    }, SETTLE_REPORT_DEADLINE_MS);
+  });
+  return Promise.race([charged, deadline]).finally(() => clearTimeout(timer));
+}
+
+/** What this deduction charges: the amount, capped at what the hold covers. */
+async function settleAgainstHold(
+  costUsd: number,
+  metadata: Record<string, unknown>,
+  options: DeductCreditsOptions,
+  hold: CreditHold | undefined
+): Promise<number> {
+  const creditsUsed = options.exactCredits ?? creditsForCost(costUsd);
+  if (!hold || options.coveredByHold) return creditsUsed;
+
+  // A charge above the hold is charged as far as the balance (less every
+  // other hold) still covers it; the rest is written off and logged, never
+  // pushed onto a concurrent request's share of the balance.
+  const covered = await hold.cover(creditsUsed);
+  if (covered < creditsUsed) {
+    logCreditsShortfall({
+      reason: 'settle_above_hold',
+      endpoint: metadata.endpoint,
+      creditsUsed,
+      creditsCharged: covered,
+      heldCredits: hold.heldCredits,
+    });
+  }
+  return covered;
 }
 
 async function performDeduction(
   auth: AuthContext,
-  costUsd: number,
+  credits: Promise<number>,
   metadata: Record<string, unknown>,
-  _clientIP: string,
   options: DeductCreditsOptions,
   hold: CreditHold | undefined
 ): Promise<number> {
   try {
-    let creditsUsed = options.credits ?? creditsForCost(costUsd);
-
+    const creditsUsed = await credits;
     if (creditsUsed <= 0) {
       return 0;
-    }
-
-    // A charge above the hold is charged as far as the balance (less every
-    // other hold) still covers it; the rest is written off and logged, never
-    // pushed onto a concurrent request's share of the balance.
-    if (hold && options.credits === undefined) {
-      const covered = await hold.cover(creditsUsed);
-      if (covered < creditsUsed) {
-        logCreditsShortfall({
-          reason: 'settle_above_hold',
-          endpoint: metadata.endpoint,
-          creditsUsed,
-          creditsCharged: covered,
-          heldCredits: hold.heldCredits,
-        });
-        creditsUsed = covered;
-      }
-      if (creditsUsed <= 0) {
-        return 0;
-      }
     }
 
     const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);

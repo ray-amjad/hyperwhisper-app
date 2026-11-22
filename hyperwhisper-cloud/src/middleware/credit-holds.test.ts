@@ -185,7 +185,7 @@ describe('settling a hold through deductCredits', () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
       await validateCredits(a, 3);
-      void deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip');
+      void deductCredits(a, 0.003, { endpoint: '/transcribe' });
     });
     await settle();
 
@@ -193,12 +193,58 @@ describe('settling a hold through deductCredits', () => {
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 
+  test('a stalled grow reports the uncapped credits after the 2 s deadline, and the charge still settles', async () => {
+    // The first reserve (validateCredits) answers; the grow that deductCredits
+    // asks for above the hold stalls until the test lets it go.
+    let unstall!: () => void;
+    const stalled = new Promise<void>((resolve) => { unstall = resolve; });
+    let reserves = 0;
+    const inner = store;
+    setCreditHoldStoreForTests({
+      reserve: async (request: ReserveHoldRequest): Promise<ReserveHoldResult> => {
+        reserves += 1;
+        if (reserves > 1) await stalled;
+        return inner.reserve(request);
+      },
+      release: (account: string, holdId: string) => inner.release(account, holdId),
+    } satisfies CreditHoldStore);
+    const deadlineLines: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('credits.settle_report_deadline')) {
+        deadlineLines.push(args[0]);
+        return;
+      }
+      warn(...args);
+    };
+    try {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        await validateCredits(a, 1);
+        const started = performance.now();
+        // 2.5 credits, above the 1-credit hold, so the report waits on the grow.
+        const deduction = deductCredits(a, 0.0025, { endpoint: '/transcribe' });
+        expect(await deduction.credits).toBe(2.5);
+        expect(performance.now() - started).toBeGreaterThanOrEqual(1900);
+        expect(deadlineLines).toHaveLength(1);
+        expect(events).toEqual([]);
+        unstall();
+        expect(await deduction.recorded).toBe(2.5);
+      });
+    } finally {
+      unstall();
+      console.warn = warn;
+    }
+    await settle();
+    expect(events).toEqual(['charge:2.5']);
+  }, 10_000);
+
   test('a charge above the hold is grown into the free balance and charged in full', async () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
       await validateCredits(a, 1);
       // 2.5 credits.
-      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }, 'ip')).toBe(2.5);
+      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }).recorded).toBe(2.5);
     });
     await settle();
     expect(events).toEqual(['charge:2.5']);
@@ -214,7 +260,7 @@ describe('settling a hold through deductCredits', () => {
       const a = auth(10);
       await validateCredits(a, 1);
       // 3 credits used against 1 held and 1 more free: 2 charged, 1 written off.
-      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip')).toBe(2);
+      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }).recorded).toBe(2);
     });
     await settle();
 
@@ -238,7 +284,7 @@ describe('settling a hold through deductCredits', () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
       await validateCredits(a, 1);
-      void deductCredits(a, 0.001, { endpoint: '/transcribe' }, 'ip');
+      void deductCredits(a, 0.001, { endpoint: '/transcribe' });
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
