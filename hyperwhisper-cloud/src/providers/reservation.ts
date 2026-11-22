@@ -37,6 +37,7 @@
 //     Give one a cross-provider chain and it must move in here.
 
 import { couldRouteThroughSync } from './assemblyai';
+import { modelVariant } from './model-variants';
 import {
   estimatedUsdPerMinute,
   fallbackChainFor,
@@ -83,7 +84,8 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
   // published rate, higher than either async catalog tier. A short clip is
   // exactly sync's target case, so a reservation that only ever priced the
   // requested async model could be deducted beyond what it held.
-  assemblyai: (input) => (input.model !== 'dictation' && couldRouteThroughSync(input)
+  // A model-variant row (Dictation) never reaches the main adapter, so never its sync path.
+  assemblyai: (input) => (!modelVariant('assemblyai', input.model) && couldRouteThroughSync(input)
     ? ASSEMBLYAI_SYNC_USD_PER_MINUTE
     : null),
 };
