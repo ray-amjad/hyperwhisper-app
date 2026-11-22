@@ -5,6 +5,12 @@
 // gets its client from `getCloudRedis` here, so there is ONE memoised client
 // and one place to change its options. The key names live in `./redis-keys`.
 //
+// Shared fate, on purpose: @upstash/redis auto-pipelines by default, so
+// same-tick commands from different modules (IP block read, licence cache,
+// credit-hold eval, rate limiter) can travel in one HTTP request and fail or
+// slow down together. Every caller already fails open or closed on its own
+// error; if one path needs isolation, give it its own client here.
+//
 // It lives apart from `./redis` because many suites `mock.module('./redis')`,
 // which replaces that module process-wide in bun, so no test could ever run
 // the real getter. Nothing mocks this module, and both dependencies of

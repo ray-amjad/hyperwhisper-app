@@ -26,15 +26,15 @@ export function licenseCacheKey(licenseKey: string): string {
   return `${LICENSE_KEY_PREFIX}${licenseKey}`;
 }
 
+export const CREDIT_POOL_BALANCE_KEY_PREFIX = 'credit_pool_balance:';
+export const CREDIT_HOLDS_KEY_PREFIX = 'credit_holds:';
+export const CREDIT_HOLDS_EXPIRY_KEY_PREFIX = 'credit_holds_expiry:';
+
 /**
  * Where `cacheLicense` keeps the latest balance the licence API reported for
  * ANY key of one credit pool (#2026). Same `{ credits, cachedAt }` JSON and TTL
  * as the `license:<key>` entry it is written next to.
  */
-export const CREDIT_POOL_BALANCE_KEY_PREFIX = 'credit_pool_balance:';
-export const CREDIT_HOLDS_KEY_PREFIX = 'credit_holds:';
-export const CREDIT_HOLDS_EXPIRY_KEY_PREFIX = 'credit_holds_expiry:';
-
 export function creditPoolBalanceKey(creditPoolId: string): string {
   return `${CREDIT_POOL_BALANCE_KEY_PREFIX}${creditPoolId}`;
 }
@@ -53,7 +53,9 @@ export function creditHoldsExpiryKey(account: string): string {
  * Key prefixes whose suffix identifies a caller (an IP, a licence key or an
  * account). All cloud commands share one Upstash client, which pipelines
  * same-tick commands, and an Upstash error echoes the whole batch — so every
- * caller-keyed name can appear in any Redis failure log.
+ * caller-keyed name can appear in any Redis failure log. Values are not
+ * redacted here: the only caller-derived value written is the opaque
+ * `creditPoolId` (an HMAC), never a licence key or an IP.
  */
 export const IDENTIFYING_KEY_PREFIXES = [
   IP_BLOCKED_KEY_PREFIX,
