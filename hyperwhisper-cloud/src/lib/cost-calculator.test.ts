@@ -491,13 +491,18 @@ describe('credit conversion', () => {
     expect(usdToCredits(1)).toBeCloseTo(1000, 9);
   });
 
-  test('usdToCredits fails closed to 0.1 credits on a non-positive or non-finite cost', () => {
+  test('a non-positive or non-finite cost converts to 0 credits but is charged the 0.1 floor', () => {
     // A $0 / NaN / Infinity cost must never convert to 0 credits, or a broken
-    // upstream usage object becomes free transcription.
-    expect(usdToCredits(0)).toBe(0.1);
-    expect(usdToCredits(-1)).toBe(0.1);
-    expect(usdToCredits(Number.NaN)).toBe(0.1);
-    expect(usdToCredits(Number.POSITIVE_INFINITY)).toBe(0.1);
+    // upstream usage object becomes free transcription. The plain conversion
+    // agrees with usdForCredits (0 → 0); the floor is creditsForCost's alone.
+    expect(usdToCredits(0)).toBe(0);
+    expect(usdToCredits(-1)).toBe(0);
+    expect(usdToCredits(Number.NaN)).toBe(0);
+    expect(usdToCredits(Number.POSITIVE_INFINITY)).toBe(0);
+    expect(creditsForCost(0)).toBe(0.1);
+    expect(creditsForCost(-1)).toBe(0.1);
+    expect(creditsForCost(Number.NaN)).toBe(0.1);
+    expect(creditsForCost(Number.POSITIVE_INFINITY)).toBe(0.1);
   });
 
   test('creditsForCost rounds UP to the next tenth of a credit', () => {

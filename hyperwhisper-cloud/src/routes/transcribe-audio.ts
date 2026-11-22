@@ -48,7 +48,7 @@ export function estimateCreditsForProviderFallbacks(
   // short clip can't be deducted beyond what was reserved.
   const promptReservationUsd = estimatePromptInputReservationUsd(provider, model, initialPrompt);
   const estimatedCostUsd = (estimatedSeconds / 60) * usdPerMinute + promptReservationUsd;
-  return Math.max(0.1, creditsForCost(estimatedCostUsd));
+  return creditsForCost(estimatedCostUsd);
 }
 
 interface PrepareTranscriptionAudioInput {
