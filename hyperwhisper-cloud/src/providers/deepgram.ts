@@ -115,7 +115,7 @@ export async function transcribeWithDeepgram(
   // One call: resolves, logs the fallback if there is one, and returns what to
   // send.
   const languageSent = resolveProviderLanguage({
-    provider, model, language, context, vocabularyTermCount: keyterms.length,
+    provider, model, language, context, vocabularyTermsAtRisk: keyterms.length,
   });
   const url = buildDeepgramUrl(model, languageSent, keyterms);
 
