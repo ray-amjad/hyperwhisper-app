@@ -27,6 +27,8 @@ type OpenAICompatAdapter = {
   extraBody?: (model: string) => Record<string, unknown>;
   /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
   extraBodyFirst?: boolean;
+  /** Leave the shared payload's `temperature` out of the body (the model accepts only its default). */
+  omitTemperature?: boolean;
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
@@ -88,6 +90,7 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
     errorLogLabel: 'OpenAI API',
     errorChatLabel: 'OpenAI chat',
     extraBody: () => ({ reasoning_effort: 'none' }),
+    omitTemperature: true,
   },
   // Gemini exposes an OpenAI-compatible surface that accepts the shared chat
   // payload unchanged. Verified 2026-06-19.
@@ -117,11 +120,11 @@ export function buildOpenAICompatBody(
   payload: CorrectionRequestPayload,
   model: string,
 ): Record<string, unknown> {
+  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const { temperature, ...withoutTemperature } = payload;
-  const shared = provider === 'openai' ? withoutTemperature : payload;
+  const shared = adapter.omitTemperature ? withoutTemperature : payload;
   const { maxOutputTokens } = llmModelRow(provider, model);
   const cap = maxOutputTokens === undefined ? {} : { max_completion_tokens: maxOutputTokens };
-  const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const extra = adapter.extraBody?.(model);
   return adapter.extraBodyFirst
     ? { model, ...extra, ...shared, ...cap, stream: false }
