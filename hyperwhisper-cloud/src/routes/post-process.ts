@@ -6,7 +6,7 @@ import { buildCorrectionRequest, completeWithFailover, extractLLMProvider, fallb
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
-import { creditsForCost, formatUsd } from '../lib/cost-calculator';
+import { formatUsd } from '../lib/cost-calculator';
 import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
 import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
@@ -291,9 +291,8 @@ async function handlePostProcess(c: Context) {
         endpoint: '/post-process',
         llm_provider: providerUsed,
       },
-      gate.clientIP,
       { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
-    ).catch(console.error);
+    ).recorded.catch(console.error);
 
     logEvent(requestId, startTime, 'post_process.request_fail', {
       reason: 'extract_failed',
@@ -304,9 +303,7 @@ async function handlePostProcess(c: Context) {
     return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
   }
 
-  const creditsUsed = creditsForCost(costUsd);
-
-  deductCredits(
+  const deduction = deductCredits(
     admission.auth,
     costUsd,
     {
@@ -316,9 +313,11 @@ async function handlePostProcess(c: Context) {
       endpoint: '/post-process',
       llm_provider: providerUsed,
     },
-    gate.clientIP,
     { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
-  ).catch(console.error);
+  );
+  deduction.recorded.catch(console.error);
+  // What was charged, capped at the hold, never this route's own pricing.
+  const creditsUsed = await deduction.credits;
 
   logEvent(requestId, startTime, 'post_process.request_done', {
     finalProvider: servedLLMName(providerUsed, modelUsed),

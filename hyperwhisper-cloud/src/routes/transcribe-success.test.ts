@@ -29,9 +29,8 @@ describe('buildTranscriptionSuccess', () => {
 
     expect(success.noSpeech).toBe(false);
     expect(success.billable).toBe(true);
-    expect(success.creditsUsed).toBe(2);
     expect(success.providerName).toBe('deepgram/nova-3-general');
-    expect(success.response).toMatchObject({
+    expect(success.responseFor(2)).toMatchObject({
       text: 'hello world',
       language: 'en',
       duration: 12,
@@ -42,7 +41,7 @@ describe('buildTranscriptionSuccess', () => {
         stt_model: 'nova-3-general',
       },
     });
-    expect(success.response).not.toHaveProperty('no_speech_detected');
+    expect(success.responseFor(2)).not.toHaveProperty('no_speech_detected');
   });
 
   test('labels a fallback transcript with the provider that answered and the provider that failed', () => {
@@ -60,8 +59,8 @@ describe('buildTranscriptionSuccess', () => {
     expect(success.providerName)
       .toBe('deepgram/nova-3-general (fallback from elevenlabs/scribe_v2)');
     expect(success.reportedModel).toBe('nova-3-general');
-    expect(success.response.metadata.stt_provider).toBe(success.providerName);
-    expect(success.response.metadata.stt_model).toBe('nova-3-general');
+    expect(success.responseFor(2).metadata.stt_provider).toBe(success.providerName);
+    expect(success.responseFor(2).metadata.stt_model).toBe('nova-3-general');
   });
 
   test('reports an upstream model substitution instead of the requested model', () => {
@@ -78,7 +77,7 @@ describe('buildTranscriptionSuccess', () => {
 
     expect(success.providerName).toBe('assemblyai/universal-2');
     expect(success.reportedModel).toBe('universal-2');
-    expect(success.response.metadata.stt_model).toBe('universal-2');
+    expect(success.responseFor(2).metadata.stt_model).toBe('universal-2');
   });
 
   test('keeps a zero-cost no-speech result on the chosen provider and removes fallback attribution', () => {
@@ -95,11 +94,10 @@ describe('buildTranscriptionSuccess', () => {
 
     expect(success.noSpeech).toBe(true);
     expect(success.billable).toBe(false);
-    expect(success.creditsUsed).toBe(0);
     expect(success.providerName).toBe('elevenlabs/scribe_v2');
     expect(success.reportedModel).toBe('scribe_v2');
-    expect(success.response.no_speech_detected).toBe(true);
-    expect(success.response.cost).toEqual({ usd: 0, credits: 0 });
+    expect(success.responseFor(0).no_speech_detected).toBe(true);
+    expect(success.responseFor(0).cost).toEqual({ usd: 0, credits: 0 });
   });
 
   test('attributes no-speech to the provider that ran when geo routing dropped the chosen provider', () => {
@@ -116,7 +114,7 @@ describe('buildTranscriptionSuccess', () => {
 
     expect(success.providerName).toBe('deepgram/nova-3-general');
     expect(success.reportedModel).toBe('nova-3-general');
-    expect(success.response.metadata.stt_provider).not.toContain('fallback from');
+    expect(success.responseFor(0).metadata.stt_provider).not.toContain('fallback from');
   });
 
   test('bills no-speech when the upstream charged for processed audio', () => {
@@ -133,8 +131,7 @@ describe('buildTranscriptionSuccess', () => {
 
     expect(success.noSpeech).toBe(true);
     expect(success.billable).toBe(true);
-    expect(success.creditsUsed).toBe(1.5);
-    expect(success.response.cost).toEqual({ usd: 0.0015, credits: 1.5 });
-    expect(success.response.no_speech_detected).toBe(true);
+    expect(success.responseFor(1.5).cost).toEqual({ usd: 0.0015, credits: 1.5 });
+    expect(success.responseFor(1.5).no_speech_detected).toBe(true);
   });
 });
