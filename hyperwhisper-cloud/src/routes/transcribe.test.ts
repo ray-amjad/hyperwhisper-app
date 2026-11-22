@@ -21,7 +21,7 @@ describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
     // The default route's minute: 1.67 credits/min rounded up to a tenth.
     const defaultRouteEstimate = 1.7;
-    const grokFallbackEstimate = estimateCreditsForProviderFallbacks(BYTES_PER_MINUTE_ESTIMATE, 'grok');
+    const grokFallbackEstimate = estimateCreditsForProviderFallbacks({ sizeBytes: BYTES_PER_MINUTE_ESTIMATE, provider: 'grok' });
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
     expect(grokFallbackEstimate).toBe(elevenLabsEstimate);
@@ -30,7 +30,7 @@ describe('estimateCreditsForProviderFallbacks', () => {
 
   test('does not under-estimate one minute of 64kbps audio', () => {
     const approximateOneMinute64KbpsUploadBytes = 512 * 1024;
-    const grokFallbackEstimate = estimateCreditsForProviderFallbacks(approximateOneMinute64KbpsUploadBytes, 'grok');
+    const grokFallbackEstimate = estimateCreditsForProviderFallbacks({ sizeBytes: approximateOneMinute64KbpsUploadBytes, provider: 'grok' });
     const oneMinuteElevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
     expect(grokFallbackEstimate).toBeGreaterThanOrEqual(oneMinuteElevenLabsEstimate);
