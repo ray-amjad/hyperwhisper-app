@@ -15,6 +15,7 @@ import {
   wsStreamingGeminiTranscribeRoute,
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
+import { TRANSCRIBE_REQUEST_HEADERS } from './routes/transcribe-request';
 import { ipRateLimit } from './middleware/rate-limit';
 import { trackInFlightRequests } from './lib/in-flight-requests';
 import { runGracefulShutdown, SHUTDOWN_DRAIN_MS } from './lib/graceful-shutdown';
@@ -35,10 +36,7 @@ app.use('*', cors({
   origin: '*',
   allowHeaders: [
     'Content-Type',
-    'X-STT-Provider',
-    'X-STT-Model',
-    'X-STT-Domain',
-    'X-Latency-Opt-Out',
+    ...TRANSCRIBE_REQUEST_HEADERS,
     CLIENT_PLATFORM_HEADER,
     CLIENT_VERSION_HEADER,
   ],
