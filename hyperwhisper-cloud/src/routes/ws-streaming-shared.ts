@@ -79,7 +79,31 @@ interface ErrorMessage {
   message: string;
 }
 
-export type ServerMessage = ReadyMessage | TranscriptMessage | SessionCompleteMessage | ErrorMessage;
+/** Keep-alive; the client answers "pong". */
+interface PingMessage {
+  type: 'ping';
+}
+
+export type ServerMessage = ReadyMessage | TranscriptMessage | SessionCompleteMessage | ErrorMessage | PingMessage;
+
+/**
+ * The generic vendor-fault wording. macOS classifies on message text, so every
+ * route sends exactly this string; change it here or nowhere.
+ */
+export const TRANSCRIPTION_SERVICE_ERROR = 'Transcription service error';
+
+/**
+ * One OPEN test for both sides: the client socket (hono's `WSContext`) and the
+ * upstream one (Bun's `WebSocket`) share the WHATWG readyState numbering.
+ */
+export function isSocketOpen(socket: { readonly readyState: number }): boolean {
+  return socket.readyState === WebSocket.OPEN;
+}
+
+/** 1000 = normal, 1005 = no status (what a clean end-of-session looks like). */
+export function isCleanUpstreamClose(code: number): boolean {
+  return code === 1000 || code === 1005;
+}
 
 export interface WSContext {
   readyState: number;
@@ -88,7 +112,7 @@ export interface WSContext {
 }
 
 export function sendToClient(socket: WSContext, message: ServerMessage): void {
-  if (socket.readyState === 1) {
+  if (isSocketOpen(socket)) {
     socket.send(JSON.stringify(message));
   }
 }
@@ -536,6 +560,17 @@ export function createStreamingEventsFor(
   const upstreamUrl = vendor.buildUpstreamUrl(session);
   const protocols = vendor.upstreamProtocols?.(session);
 
+  /**
+   * The session's metered charge so far: duration forwarded and transcript
+   * committed, priced by the vendor. The cutoff, the top-up refusal and
+   * `endSession` all read it here, because they have to agree (see
+   * `StreamingVendor.costForSeconds`).
+   */
+  function meteredCharge(): { costUsd: number; credits: number } {
+    const costUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
+    return { costUsd, credits: creditsForCost(costUsd) };
+  }
+
   function log(event: string, details: Record<string, unknown> = {}): void {
     console.log(`ws_streaming.${event}`, {
       provider: vendor.id,
@@ -565,7 +600,7 @@ export function createStreamingEventsFor(
       pingInterval = null;
     }
     if (stopTimer) {
-      clearTimeout(stopTimer);
+      clock.clearTimeout(stopTimer);
       stopTimer = null;
     }
     if (settleTimer) {
@@ -583,12 +618,13 @@ export function createStreamingEventsFor(
     // clamp is the balance seen at auth, as before #2008. (Deepgram is flat
     // per-second and reaches this with metered == cutoff, so the clamp is inert
     // there.)
-    const meteredCostUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
+    const metered = meteredCharge();
+    const meteredCostUsd = metered.costUsd;
     let costUsd: number;
     let creditsUsed: number;
     let clampField: Record<string, unknown> = {};
     if (holdEnforced()) {
-      const meteredCredits = upstreamReached ? creditsForCost(meteredCostUsd) : 0;
+      const meteredCredits = upstreamReached ? metered.credits : 0;
       creditsUsed = meteredCredits > 0 ? await hold!.cover(meteredCredits) : 0;
       costUsd = creditsUsed < meteredCredits ? usdForCredits(creditsUsed) : meteredCostUsd;
       if (creditsUsed < meteredCredits) {
@@ -614,7 +650,7 @@ export function createStreamingEventsFor(
           logCreditsShortfall({
             reason: 'session_above_balance',
             endpoint,
-            creditsUsed: creditsForCost(meteredCostUsd),
+            creditsUsed: metered.credits,
             creditsCharged: creditsUsed,
           });
         }
@@ -685,7 +721,7 @@ export function createStreamingEventsFor(
     const ended = endSession({ notifyClient: false });
     // Client first, so the upstream close handler finds it already closed and
     // cannot overwrite the 1012 with its own 1000.
-    if (clientSocket && clientSocket.readyState === 1) {
+    if (clientSocket && isSocketOpen(clientSocket)) {
       clientSocket.close(1012, 'Service restart');
     }
     closeUpstream('Server shutting down');
@@ -713,7 +749,7 @@ export function createStreamingEventsFor(
    * see `costForSeconds`.
    */
   function enforceCreditCutoff(): boolean {
-    const creditsUsed = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
+    const creditsUsed = meteredCharge().credits;
     if (!holdEnforced()) {
       if (creditsUsed < auth.credits) return false;
       cutOff(creditsUsed);
@@ -755,7 +791,7 @@ export function createStreamingEventsFor(
         return;
       }
       if (outcome.kind === 'refused') {
-        const meteredNow = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
+        const meteredNow = meteredCharge().credits;
         cutOff(meteredNow, { reason: 'topup_refused', heldCredits: pendingHold.heldCredits });
         return;
       }
@@ -770,7 +806,7 @@ export function createStreamingEventsFor(
     pendingAudioBytes = 0;
     if (queued.length === 0) return;
     for (const chunk of queued) {
-      if (!upstreamWs || upstreamWs.readyState !== WebSocket.OPEN) break;
+      if (!upstreamWs || !isSocketOpen(upstreamWs)) break;
       forwardAudio(chunk);
     }
     enforceCreditCutoff();
@@ -780,9 +816,9 @@ export function createStreamingEventsFor(
   function armStopGrace(restart: boolean = false): void {
     if (stopTimer) {
       if (!restart) return;
-      clearTimeout(stopTimer);
+      clock.clearTimeout(stopTimer);
     }
-    stopTimer = setTimeout(() => {
+    stopTimer = clock.setTimeout(() => {
       log('stop_grace_expired');
       closeUpstream('Client requested stop');
     }, vendor.stopGraceMs ?? 5000);
@@ -814,7 +850,7 @@ export function createStreamingEventsFor(
     stopDeferred = false;
     stopRequested = true;
     stopSentAt = clock.now();
-    if (upstreamWs && upstreamWs.readyState === WebSocket.OPEN) {
+    if (upstreamWs && isSocketOpen(upstreamWs)) {
       for (const frame of frames) upstreamWs.send(frame);
     }
     // Restart the clock: the grace window exists to catch the trailing final,
@@ -860,7 +896,7 @@ export function createStreamingEventsFor(
     switch (event.kind) {
       case 'ready': {
         upstreamAcceptsAudio = true;
-        if (!readySent && ws.readyState === 1) {
+        if (!readySent && isSocketOpen(ws)) {
           readySent = true;
           sendToClient(ws, { type: 'ready', sessionId: requestId });
           log('ready');
@@ -967,7 +1003,7 @@ export function createStreamingEventsFor(
         upstreamReached = true;
         // If the client already disconnected while we were still handshaking,
         // tear down the upstream socket instead of leaving it orphaned.
-        if (ws.readyState !== 1) {
+        if (!isSocketOpen(ws)) {
           closeUpstream();
           return;
         }
@@ -1014,7 +1050,7 @@ export function createStreamingEventsFor(
           handshakeErrorPending = true;
           return;
         }
-        sendToClient(ws, { type: 'error', message: 'Transcription service error' });
+        sendToClient(ws, { type: 'error', message: TRANSCRIPTION_SERVICE_ERROR });
       });
 
       upstreamWs.addEventListener('close', async (event) => {
@@ -1031,19 +1067,17 @@ export function createStreamingEventsFor(
           }
         }
         if (handshakeErrorPending && !closeReportedError) {
-          sendToClient(ws, { type: 'error', message: 'Transcription service error' });
+          sendToClient(ws, { type: 'error', message: TRANSCRIPTION_SERVICE_ERROR });
         }
         await endSession();
-        if (ws.readyState === 1) {
+        if (isSocketOpen(ws)) {
           ws.close(clientCloseCode ?? 1000, clientCloseCode ? 'Upstream error' : 'Session ended');
         }
       });
 
       // Send ping every 30s to prevent Fly.io's 60s idle timeout from killing the connection
       pingInterval = clock.setInterval(() => {
-        if (clientSocket && clientSocket.readyState === 1) {
-          clientSocket.send(JSON.stringify({ type: 'ping' }));
-        }
+        if (clientSocket) sendToClient(clientSocket, { type: 'ping' });
         // A session that meters slowly (paused audio) tops up rarely; keep its
         // hold from expiring under it.
         if (holdEnforced() && !topUpPending && clock.now() - lastHoldRenewAt >= SESSION_HOLD_RENEW_MS) {
@@ -1057,7 +1091,7 @@ export function createStreamingEventsFor(
       if (data instanceof ArrayBuffer) {
         // Audio needs an OPEN upstream socket: `send()` on a CONNECTING one
         // throws, and there is nothing useful to do with the chunk yet.
-        if (!upstreamWs || upstreamWs.readyState !== WebSocket.OPEN) {
+        if (!upstreamWs || !isSocketOpen(upstreamWs)) {
           return;
         }
 

@@ -9,11 +9,13 @@ import { transcribeRoute } from './routes/transcribe';
 import { postProcessRoute } from './routes/post-process';
 import { usageRoute } from './routes/usage';
 import { licenseCacheInvalidateRoute } from './routes/internal-license-cache';
-import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
+import { DEEPGRAM_VENDOR, wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
 import {
+  GEMINI_TRANSCRIBE_VENDOR,
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,
 } from './routes/ws-streaming-gemini-transcribe';
+import { routePathFor } from './routes/ws-streaming-shared';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { ipRateLimit } from './middleware/rate-limit';
 import { trackInFlightRequests } from './lib/in-flight-requests';
@@ -83,9 +85,10 @@ app.get('/usage', ipRateLimit, usageRoute);
 // WebSocket streaming endpoints. One route per live vendor, named
 // `/ws/streaming-{sttProvider}` after the `cloud-stt-catalog.json` entry so the
 // clients derive the path instead of carrying a table on three platforms.
-app.get('/ws/streaming-deepgram', ipRateLimit, wsStreamingPreflight, wsStreamingRoute);
+// `routePathFor` is the one place that path is spelled.
+app.get(routePathFor(DEEPGRAM_VENDOR), ipRateLimit, wsStreamingPreflight, wsStreamingRoute);
 app.get(
-  '/ws/streaming-gemini-transcribe',
+  routePathFor(GEMINI_TRANSCRIBE_VENDOR),
   ipRateLimit,
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,

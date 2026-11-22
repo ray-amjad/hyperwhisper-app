@@ -359,9 +359,15 @@ class ClosingDiscardsUpstreamSocket extends FakeUpstreamSocket {
   }
 }
 
-/** The single settle timer still armed on `clock` (the post-stop wait, #2920). */
+/**
+ * The single settle timer still armed on `clock` (the post-stop wait, #2920).
+ * The stop-grace backstop runs on the same clock and stays armed underneath, so
+ * it is left out by its duration.
+ */
 function liveSettleTimer(clock: FakeStreamingTimers): { ms: number; fire: () => void } {
-  const live = clock.timeouts.filter((timer) => !timer.cleared);
+  const live = clock.timeouts.filter(
+    (timer) => !timer.cleared && timer.ms !== GEMINI_TRANSCRIBE_VENDOR.stopGraceMs,
+  );
   if (live.length !== 1) throw new Error(`expected exactly one live timeout, got ${live.length}`);
   const timer = live[0]!;
   return { ms: timer.ms, fire: () => { timer.cleared = true; timer.fn(); } };

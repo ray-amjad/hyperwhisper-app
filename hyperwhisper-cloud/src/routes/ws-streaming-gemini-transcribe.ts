@@ -51,8 +51,10 @@ import {
 import { isRecord } from '../lib/utils';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
+  TRANSCRIPTION_SERVICE_ERROR,
   createStreamingEventsFor,
   holdCreditsFor,
+  isCleanUpstreamClose,
   makeStreamingPreflight,
   minimumCreditsFor,
   type StreamingSession,
@@ -194,7 +196,7 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // as a 1007 close with the reason on the close frame (see the close handler
   // in `wsStreamingGeminiTranscribeRoute`'s vendor below). Both are terminal.
   if (isRecord(json.error)) {
-    const message = typeof json.error.message === 'string' ? json.error.message : 'Transcription service error';
+    const message = typeof json.error.message === 'string' ? json.error.message : TRANSCRIPTION_SERVICE_ERROR;
     return [{ kind: 'error', message, terminal: true }];
   }
   if (json.goAway !== undefined) {
@@ -269,8 +271,7 @@ const KEY_REJECTED = /api key not valid|api[_ ]key[_ ]invalid|unauthenticated|pe
  * diagnostic, and the house rule is that clients get our wording.
  */
 export function parseGeminiLiveClose(code: number, reason: string): UpstreamEvent[] {
-  // 1000 = normal, 1005 = no status (what a clean end-of-session looks like).
-  if (code === 1000 || code === 1005) return [];
+  if (isCleanUpstreamClose(code)) return [];
 
   if (KEY_REJECTED.test(reason)) {
     // Wording chosen so `StreamingProviderErrorPolicy` on macOS matches its
@@ -293,10 +294,10 @@ export function parseGeminiLiveClose(code: number, reason: string): UpstreamEven
     // The upgrade was refused (Bun: "Expected 101 status code"), whatever the
     // HTTP status, a vendor 503 included. Terminal so the client closes 1011
     // and neither app reconnects into the same refusal (Ray, 2026-10-19, #1410).
-    return [{ kind: 'error', message: 'Transcription service error', terminal: true }];
+    return [{ kind: 'error', message: TRANSCRIPTION_SERVICE_ERROR, terminal: true }];
   }
 
-  return [{ kind: 'error', message: 'Transcription service error', terminal: false }];
+  return [{ kind: 'error', message: TRANSCRIPTION_SERVICE_ERROR, terminal: false }];
 }
 
 /**

@@ -19,7 +19,7 @@ const MAX_KEYWORD_CHARS = 50;
  * the caller appends each term separately — never a single comma-joined string
  * (that boosts one literal phrase containing commas, which does nothing).
  */
-function convertToKeyterms(initialPrompt: string): string[] {
+export function convertToKeyterms(initialPrompt: string): string[] {
   return splitVocabularyTerms(initialPrompt, {
     maxTerms: MAX_KEYWORDS,
     maxTermChars: MAX_KEYWORD_CHARS,

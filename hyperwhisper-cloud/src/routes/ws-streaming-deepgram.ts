@@ -9,12 +9,15 @@
 import type { Context } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { isExplicitLanguage, splitVocabularyTerms } from '../providers/utils';
+import { convertToKeyterms } from '../providers/deepgram';
+import { isExplicitLanguage } from '../providers/utils';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
+  TRANSCRIPTION_SERVICE_ERROR,
   createStreamingEventsFor,
   holdCreditsFor,
   durationSecondsForLinear16AudioBytes,
+  isCleanUpstreamClose,
   makeStreamingPreflight,
   minimumCreditsFor,
   type StreamingSession,
@@ -24,10 +27,6 @@ import {
 
 // Re-exported because the suite (and the macOS strategy docs) reach for it here.
 export { durationSecondsForLinear16AudioBytes };
-
-// Deepgram `keyterm` limits — same values the REST adapter applies.
-const MAX_KEYTERMS = 100;
-const MAX_KEYTERM_CHARS = 50;
 
 interface DeepgramLiveResponse {
   type: string;
@@ -64,12 +63,10 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
       // Nova-3 `keyterm` takes ONE repeated query value per term — `keyterm=a&
       // keyterm=b` — and does NOT support a `:boost` suffix (that's the legacy
       // nova-2 `keywords` syntax). A single comma-joined `a:1.5,b:1.5` value
-      // boosts one literal phrase and does nothing. Split/clean to match the
-      // REST adapter's convertToKeyterms, then append each term individually.
-      const terms = splitVocabularyTerms(vocabulary, {
-        maxTerms: MAX_KEYTERMS,
-        maxTermChars: MAX_KEYTERM_CHARS,
-      });
+      // boosts one literal phrase and does nothing. Split/clean with the REST
+      // adapter's convertToKeyterms (its `keyterm` limits too), then append
+      // each term individually.
+      const terms = convertToKeyterms(vocabulary);
       for (const term of terms) {
         params.append('keyterm', term);
       }
@@ -93,8 +90,7 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
  * client gets our wording.
  */
 export function parseDeepgramLiveClose(code: number, _reason: string): UpstreamEvent[] {
-  // 1000 = normal, 1005 = no status (what a clean end-of-session looks like).
-  if (code === 1000 || code === 1005) return [];
+  if (isCleanUpstreamClose(code)) return [];
 
   if (code === 1008) {
     // The audio does not match the encoding the session was opened with. The
@@ -108,7 +104,7 @@ export function parseDeepgramLiveClose(code: number, _reason: string): UpstreamE
     }];
   }
 
-  return [{ kind: 'error', message: 'Transcription service error', terminal: false }];
+  return [{ kind: 'error', message: TRANSCRIPTION_SERVICE_ERROR, terminal: false }];
 }
 
 /**
