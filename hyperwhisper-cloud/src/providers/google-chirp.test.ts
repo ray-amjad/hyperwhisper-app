@@ -21,7 +21,7 @@ let uploadShouldThrow: Error | null = null;
 const uploadCalls: Array<{ bytes: number; contentType: string }> = [];
 const deleteCalls: Array<{ bucket: string; objectName: string }> = [];
 
-mock.module('../lib/gcs-storage', () => ({
+mock.module('./gcs-storage', () => ({
   isGcsTranscriptionBucketConfigured: () =>
     gcsConfigured || Boolean(process.env.GOOGLE_SPEECH_GCS_BUCKET?.trim()),
   uploadTranscriptionAudio: async (audio: ArrayBuffer, contentType: string) => {

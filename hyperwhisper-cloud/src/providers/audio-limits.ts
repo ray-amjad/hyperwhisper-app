@@ -11,7 +11,7 @@
 //   2. what each cap is,
 //   3. that Google Chirp's cap disappears when a GCS scratch bucket is
 //      configured, because the long-file batchRecognize path takes over — a
-//      fact owned by `lib/gcs-config.ts`, not by the route. The route used to
+//      fact owned by `providers/gcs-config.ts`, not by the route. The route used to
 //      read `process.env.GOOGLE_SPEECH_GCS_BUCKET` itself, a second copy of
 //      that module's own configuration check.
 //
@@ -39,10 +39,10 @@ import {
   META_MUSE_SOURCE_MAX_BYTES,
   SONIOX_MAX_BYTES,
 } from '../lib/constants';
-// From lib/gcs-config, not lib/gcs-storage: this gate only needs to know
+// From ./gcs-config, not ./gcs-storage: this gate only needs to know
 // whether a bucket exists, and must not drag the storage client (Google OAuth,
 // Redis) onto the pre-buffer path.
-import { isGcsTranscriptionBucketConfigured } from '../lib/gcs-config';
+import { isGcsTranscriptionBucketConfigured } from './gcs-config';
 import type { SttProviderId } from '../lib/stt-models';
 
 export interface AudioSizeCap {
