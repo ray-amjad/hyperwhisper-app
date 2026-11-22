@@ -3,23 +3,7 @@ import {
   type LatencyFailureKind,
   type LatencySample,
 } from '../lib/latency-report';
-import {
-  ProviderInputError,
-  ProviderUnavailableError,
-} from '../providers/types';
-import { estimateAudioSeconds } from '../providers/utils';
 import type { SttProviderId } from '../lib/stt-models';
-
-/**
- * The public page's failure taxonomy for whatever the attempt threw.
- */
-function failureKindFor(error: unknown): LatencyFailureKind {
-  if (error instanceof ProviderUnavailableError) return error.kind;
-  if (error instanceof ProviderInputError) return 'input_rejected';
-  // A revoked key or a bug in an adapter lands here. Without a sample the page
-  // would report a 0% error rate for a provider that fails every call.
-  return 'unknown';
-}
 
 interface AttemptSample {
   provider: SttProviderId;
@@ -38,20 +22,16 @@ interface AttemptSample {
 /**
  * Collect one anonymous latency row per upstream attempt and send the rows once
  * after the provider chain has decided the response.
+ *
+ * `audioSeconds` is the request's content-type-aware estimate, used for success
+ * and failure alike: adapter durations are billing estimates and would put the
+ * same clip in a different public latency bucket depending on the provider.
  */
-export function createTranscriptionLatencyRecorder(
-  audioBuffer: ArrayBuffer,
-  contentType: string,
-  reportable: boolean,
-) {
+export function createTranscriptionLatencyRecorder(audioSeconds: number, reportable: boolean) {
   const samples: LatencySample[] = [];
-  // Use one content-type-aware estimate for both success and failure. Adapter
-  // duration values are billing estimates and can put the same clip in a
-  // different public latency bucket depending on the provider response.
-  const audioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
 
   return {
-    recordAttempt(sample: AttemptSample) {
+    record(sample: AttemptSample) {
       samples.push({
         provider: sample.provider,
         model: sample.model || undefined,
@@ -63,24 +43,7 @@ export function createTranscriptionLatencyRecorder(
       });
     },
 
-    recordFailure(
-      provider: SttProviderId,
-      model: string | undefined,
-      index: number,
-      attemptStart: number,
-      error: unknown,
-    ) {
-      samples.push({
-        provider,
-        model: model || undefined,
-        latencyMs: performance.now() - attemptStart,
-        ok: false,
-        failureKind: failureKindFor(error),
-        attempt: index + 1,
-        audioSeconds,
-      });
-    },
-
+    /** A request that must not be reported still collects samples; they die with it. */
     report() {
       if (reportable) {
         reportLatencySamples(samples);
