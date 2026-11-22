@@ -2,11 +2,10 @@
 // Primary STT provider - best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
-import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -142,7 +141,9 @@ export async function transcribeWithDeepgram(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     results?: {
       channels?: Array<{
         alternatives?: Array<{ transcript?: string }>;
@@ -153,14 +154,7 @@ export async function transcribeWithDeepgram(
       duration?: number;
       request_id?: string;
     };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Deepgram', 'malformed 200 response body');
-  }
+  }>(provider, 'Deepgram', response, startedAt, context);
 
   const channel = data.results?.channels?.[0];
   const transcript = channel?.alternatives?.[0]?.transcript || '';

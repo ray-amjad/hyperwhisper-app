@@ -4,7 +4,7 @@ import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { parsePcm16Wav } from '../lib/wav-header';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 export const DICTATION_LANGUAGES = ['en', 'es', 'de', 'fr', 'it', 'pt', 'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'he', 'ur', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu', 'xh', 'nn', 'ar', 'ja', 'zh'] as const;
 
@@ -69,14 +69,7 @@ export async function transcribeWithAssemblyAIDictation(
     authMessage: 'AssemblyAI API key is invalid or unauthorized', failoverOn402: true,
     attachUnavailableDetails: true, logDetails: { model: 'dictation' },
   });
-  let job: unknown;
-  try { job = await response.json(); } catch {
-    throw new ProviderUnavailableError('AssemblyAI Dictation', 'malformed response', { kind: 'bad_response' });
-  }
-  if (!job || typeof job !== 'object' || Array.isArray(job)) {
-    throw new ProviderUnavailableError('AssemblyAI Dictation', 'malformed response', { kind: 'bad_response' });
-  }
-  const result = job as Record<string, unknown>;
+  const result = await readJson200<Record<string, unknown>>('assemblyai', 'AssemblyAI Dictation', response, startedAt, context);
   const cleaned = typeof result.llm_response === 'string' ? result.llm_response : '';
   const raw = typeof result.text === 'string' ? result.text : '';
   if (typeof result.text !== 'string' && !cleaned.trim()) {

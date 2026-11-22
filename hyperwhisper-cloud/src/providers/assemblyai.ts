@@ -50,7 +50,7 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN, getProviderDef } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
@@ -334,9 +334,11 @@ async function transcribeWithAssemblyAISync(
     return null;
   }
 
-  let job: SyncTranscriptResponse;
+  // A bad 200 body is not a failure here: like every other sync miss it falls
+  // back to the async path. readJson200 has already logged the body's shape.
+  let job: Partial<SyncTranscriptResponse>;
   try {
-    job = await response.json();
+    job = await readJson200<SyncTranscriptResponse>(provider, 'AssemblyAI sync', response, startedAt, context);
   } catch {
     logProviderEvent(provider, 'sync_fallback', { reason: 'malformed_response' }, context);
     return null;
