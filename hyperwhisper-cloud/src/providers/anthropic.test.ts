@@ -197,6 +197,29 @@ describe('requestAnthropicChat', () => {
     }
   });
 
+  test('an unreadable input count still bills the reported cache buckets at their own rates', async () => {
+    // The prompt is a few dozen chars, so the estimate is far below the 2000
+    // cached tokens and the uncached remainder floors at 0.
+    stubFetch(
+      Response.json({
+        content: [{ type: 'text', text: 'ok' }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: '1.2k', output_tokens: 500, cache_creation_input_tokens: 2000, cache_read_input_tokens: 4000 },
+      }),
+    );
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+
+      expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+      expect(result.costUsd).toBeCloseTo(computeAnthropicCost(ANTHROPIC_MODEL, 0, 500, 2000, 4000), 12);
+      expect(result.costUsd).toBeCloseTo(0.00054, 9);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   test('a non-number token count bills the char-based estimate instead of a NaN cost (#922)', async () => {
     stubFetch(
       Response.json({

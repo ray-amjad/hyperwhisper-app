@@ -145,17 +145,19 @@ export async function requestAnthropicChat(
   // A missing or unreadable input/output count is billed by the char-based
   // estimate every LLM provider shares (estimateMissingLLMUsage), never at 0.
   // Only the missing count is estimated; a reported one is billed as reported.
-  // An estimated input covers the whole prompt, so it bills no cache buckets.
+  // An estimated input covers the whole prompt. Anthropic's `input_tokens`
+  // excludes the cached tokens, so reported cache buckets are still billed at
+  // their own rates and the estimate fills only the uncached rest.
   const reportedInput = toTokenCount(data.usage?.input_tokens);
   const reportedOutput = toTokenCount(data.usage?.output_tokens);
+  const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens) ?? 0;
+  const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens) ?? 0;
   const estimated = reportedInput === undefined || reportedOutput === undefined
     ? estimateMissingLLMUsage('anthropic', systemContent.length + userContent.length, completionCharCount(data), requestId)
     : undefined;
-  const inputTokens = reportedInput ?? estimated?.prompt_tokens ?? 0;
+  const inputTokens = reportedInput
+    ?? Math.max(0, (estimated?.prompt_tokens ?? 0) - cacheCreationTokens - cacheReadTokens);
   const outputTokens = reportedOutput ?? estimated?.completion_tokens ?? 0;
-  const cacheBilled = reportedInput !== undefined;
-  const cacheCreationTokens = cacheBilled ? toTokenCount(data.usage?.cache_creation_input_tokens) ?? 0 : 0;
-  const cacheReadTokens = cacheBilled ? toTokenCount(data.usage?.cache_read_input_tokens) ?? 0 : 0;
   const costUsd = computeAnthropicCost(model, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
   console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
