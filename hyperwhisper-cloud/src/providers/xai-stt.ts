@@ -9,6 +9,7 @@ import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   emptyTranscriptOutcome,
@@ -185,18 +186,20 @@ export async function transcribeWithXaiGrok(
     });
   }
 
+  const billedSeconds = billableSeconds(duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     language: data.language || formattingLanguage,
   }, context);
 
   return {
     text: transcript,
     language: data.language || formattingLanguage,
-    durationSeconds: duration,
-    costUsd: computeXaiTranscriptionCost(duration),
+    durationSeconds: billedSeconds,
+    costUsd: computeXaiTranscriptionCost(billedSeconds),
     source: 'grok',
     requestId: data.request_id || data.id,
   };

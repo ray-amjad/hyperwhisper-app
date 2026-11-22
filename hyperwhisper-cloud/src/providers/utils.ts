@@ -720,6 +720,16 @@ export function upstreamDurationOrNull(value: unknown): number | null {
 }
 
 /**
+ * The seconds a successful transcript is billed on: the upstream's own reported
+ * length when it gave one we can use, else the conservative byte estimate. One
+ * rule for every duration-billed adapter, so a 200 that omits its duration is
+ * billed fail-closed, never $0.
+ */
+export function billableSeconds(upstreamDuration: unknown, audioByteLength: number): number {
+  return upstreamDurationOrNull(upstreamDuration) ?? estimateSecondsFromBytes(audioByteLength);
+}
+
+/**
  * The empty-transcript outcome, for the adapters the failover covers (grok,
  * deepgram, groq, and elevenlabs since #720): log the `no_speech`, then either
  * refuse it — when the
