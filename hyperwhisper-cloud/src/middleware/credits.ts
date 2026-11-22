@@ -223,7 +223,10 @@ export function drainPendingDeductions(timeoutMs: number): Promise<number> {
  * (`creditsForCost(costUsd)`, or the caller's `exactCredits`) and capped at what
  * the hold covers. It settles before the licence write goes out, and every
  * response that reports credits used reads it, so a client is never told about
- * credits that were not charged. `recorded` resolves to the same number once
+ * credits that were not charged. The one exception is a stalled Redis: when
+ * the cap is not known within SETTLE_REPORT_DEADLINE_MS, `credits` resolves to
+ * the uncapped price instead (see `withReportDeadline`), which can be more than
+ * the charge that later settles. `recorded` resolves to the charged number once
  * the write is done, landed or not.
  */
 export interface Deduction {
