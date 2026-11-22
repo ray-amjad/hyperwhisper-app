@@ -7,7 +7,8 @@ import {
   anthropicThinkingFor,
   requestAnthropicChat,
 } from './anthropic';
-import { llmModelRow } from '../lib/llm-models';
+import { computeAnthropicCost, llmModelRow } from '../lib/llm-models';
+import { estimateUsageFromChars } from '../lib/cost-calculator';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { isTransientLLMError } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
@@ -173,16 +174,30 @@ describe('requestAnthropicChat', () => {
     expect(result.usage).toEqual({ prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 });
   });
 
-  test('treats a response with no usage object as zero-cost instead of throwing', async () => {
+  // Missing usage used to bill $0 here while every OpenAI-compatible provider
+  // billed a char-based estimate. One rule now: the shared estimate.
+  const PROMPT_CHARS = `sys\n\n${ANTHROPIC_WRAPPER_INSTRUCTION}`.length + 'user'.length;
+
+  test('bills a char-based estimate when the response has no usage object', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
-    expect(result.costUsd).toBe(0);
-    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
+      const estimate = estimateUsageFromChars(PROMPT_CHARS, 'ok'.length);
+      expect(result.usage).toEqual(estimate);
+      expect(result.costUsd).toBeGreaterThan(0);
+      expect(result.costUsd).toBeCloseTo(
+        computeAnthropicCost(ANTHROPIC_MODEL, estimate.prompt_tokens, estimate.completion_tokens, 0, 0),
+        12,
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
-  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+  test('a non-number token count bills the char-based estimate instead of a NaN cost (#922)', async () => {
     stubFetch(
       Response.json({
         content: [{ type: 'text', text: 'ok' }],
@@ -190,13 +205,16 @@ describe('requestAnthropicChat', () => {
         usage: { input_tokens: '1.2k', output_tokens: 500 },
       }),
     );
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
-    expect(Number.isFinite(result.costUsd)).toBe(true);
-    // Only the 500 well-formed output tokens are billed.
-    expect(result.costUsd).toBeCloseTo(0.00025, 9);
-    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+      expect(Number.isFinite(result.costUsd)).toBe(true);
+      expect(result.usage).toEqual(estimateUsageFromChars(PROMPT_CHARS, 'ok'.length));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('returns the raw body so the completion policy can read Anthropic stop_reason', async () => {
