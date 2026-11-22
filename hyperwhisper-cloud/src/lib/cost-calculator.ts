@@ -525,9 +525,17 @@ export function isGroqUsage(value: unknown): value is GroqUsage {
 // CREDITS + FORMATTING
 // =============================================================================
 
+/**
+ * The least any billed charge, hold or reservation is: 0.1 credits. Applied in
+ * one place, {@link creditsForCost}, so a $0 / NaN / Infinity cost fails closed
+ * to it rather than becoming free transcription.
+ */
+const MIN_CHARGE_CREDITS = 0.1;
+
+/** A USD amount in credits, unrounded; a non-positive or non-finite one is 0, as in {@link usdForCredits}. */
 export function usdToCredits(usd: number): number {
   if (!Number.isFinite(usd) || usd <= 0) {
-    return 0.1;
+    return 0;
   }
 
   return usd / USD_PER_CREDIT;
@@ -548,12 +556,7 @@ export function usdForCredits(credits: number): number {
 }
 
 export function creditsForCost(costUsd: number): number {
-  if (!Number.isFinite(costUsd) || costUsd <= 0) {
-    return 0.1;
-  }
-
-  const rawCredits = usdToCredits(costUsd);
-  return Math.max(0.1, roundUpToTenth(rawCredits));
+  return Math.max(MIN_CHARGE_CREDITS, roundUpToTenth(usdToCredits(costUsd)));
 }
 
 export function roundUsd(value: number): number {
