@@ -6,7 +6,7 @@ import { computeAnthropicCost, defaultModelFor, llmModelRow } from '../lib/llm-m
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError } from './upstream-error';
-import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, readLLMJson, transcriptCharCount } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, estimateMissingLLMUsage, fetchLLMWithTimeout, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -59,9 +59,18 @@ export const ANTHROPIC_WRAPPER_INSTRUCTION =
   'IMPORTANT: Output ONLY the corrected text surrounded by <<CLEANED>> and <<END>> exactly. Do not add markdown headers, labels, or text outside those markers.';
 
 // A token count is billable only as a finite, non-negative number; anything
-// else bills 0 instead of turning the cost into NaN.
-function toTokenCount(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+// else is not a count (undefined), so it can never turn the cost into NaN.
+function toTokenCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/** Characters of the text blocks of a Messages API response, or of the whole body when it has none. */
+function completionCharCount(data: { content?: unknown }): number {
+  const blocks = Array.isArray(data.content) ? data.content : [];
+  const texts = blocks
+    .map((block) => (typeof block === 'object' && block !== null ? (block as { text?: unknown }).text : undefined))
+    .filter((text): text is string => typeof text === 'string');
+  return texts.length > 0 ? texts.reduce((sum, text) => sum + text.length, 0) : JSON.stringify(data).length;
 }
 
 /**
@@ -133,10 +142,22 @@ export async function requestAnthropicChat(
     computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
-  const inputTokens = toTokenCount(data.usage?.input_tokens);
-  const outputTokens = toTokenCount(data.usage?.output_tokens);
-  const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens);
-  const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens);
+  // A missing or unreadable input/output count is billed by the char-based
+  // estimate every LLM provider shares (estimateMissingLLMUsage), never at 0.
+  // Only the missing count is estimated; a reported one is billed as reported.
+  // An estimated input covers the whole prompt. Anthropic's `input_tokens`
+  // excludes the cached tokens, so reported cache buckets are still billed at
+  // their own rates and the estimate fills only the uncached rest.
+  const reportedInput = toTokenCount(data.usage?.input_tokens);
+  const reportedOutput = toTokenCount(data.usage?.output_tokens);
+  const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens) ?? 0;
+  const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens) ?? 0;
+  const estimated = reportedInput === undefined || reportedOutput === undefined
+    ? estimateMissingLLMUsage('anthropic', systemContent.length + userContent.length, completionCharCount(data), requestId)
+    : undefined;
+  const inputTokens = reportedInput
+    ?? Math.max(0, (estimated?.prompt_tokens ?? 0) - cacheCreationTokens - cacheReadTokens);
+  const outputTokens = reportedOutput ?? estimated?.completion_tokens ?? 0;
   const costUsd = computeAnthropicCost(model, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
   console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);

@@ -9,6 +9,7 @@ import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   emptyTranscriptOutcome,
@@ -16,6 +17,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -142,21 +144,16 @@ export async function transcribeWithXaiGrok(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     text?: string;
     duration?: number;
     language?: string;
     words?: Array<{ start?: number; end?: number; text?: string }>;
     id?: string;
     request_id?: string;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Grok', 'malformed 200 response body');
-  }
+  }>(provider, 'Grok', response, startedAt, context);
 
   const transcript = data.text || '';
   const duration = data.duration
@@ -189,18 +186,20 @@ export async function transcribeWithXaiGrok(
     });
   }
 
+  const billedSeconds = billableSeconds(duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     language: data.language || formattingLanguage,
   }, context);
 
   return {
     text: transcript,
     language: data.language || formattingLanguage,
-    durationSeconds: duration,
-    costUsd: computeXaiTranscriptionCost(duration),
+    durationSeconds: billedSeconds,
+    costUsd: computeXaiTranscriptionCost(billedSeconds),
     source: 'grok',
     requestId: data.request_id || data.id,
   };

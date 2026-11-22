@@ -2,12 +2,12 @@
 // endpoint, as rows of one table, and the one client that sends to any of them.
 
 import { isRecord } from '../lib/utils';
-import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
+import { isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import { computeLLMChatCost, llmModelRow, type LLMProvider } from '../lib/llm-models';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError, requireLLMApiKey } from './llm-errors';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
-import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount, readLLMJson, transcriptCharCount } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, estimateMissingLLMUsage, fetchLLMWithTimeout, promptCharCount, readLLMJson, transcriptCharCount } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -126,17 +126,14 @@ export function buildOpenAICompatBody(
     : { model, ...shared, ...cap, ...extra, stream: false };
 }
 
-// Fail-closed fallback for vendor usage-schema drift: estimate tokens from
-// character counts so a missing/unrecognized `usage` block is billed instead
-// of silently costing 0.
+// A missing/unrecognized `usage` block is billed by the shared char-based
+// estimate (estimateMissingLLMUsage in llm-fetch.ts), never at 0.
 function reportMissingUsage(
   provider: string,
   payload: CorrectionRequestPayload,
   json: unknown,
   requestId: string
 ): GroqUsage {
-  const promptChars = promptCharCount(payload.messages);
-
   let completionChars = 0;
   if (isRecord(json)) {
     const choices = json['choices'];
@@ -145,14 +142,7 @@ function reportMissingUsage(
     completionChars = typeof content === 'string' ? content.length : JSON.stringify(json).length;
   }
 
-  const estimatedUsage = estimateUsageFromChars(promptChars, completionChars);
-  console.warn('LLM response missing/unrecognized usage; billing char-based estimate', {
-    requestId,
-    provider,
-    estimatedUsage,
-  });
-
-  return estimatedUsage;
+  return estimateMissingLLMUsage(provider, promptCharCount(payload.messages), completionChars, requestId);
 }
 
 export async function requestOpenAICompatibleChat(

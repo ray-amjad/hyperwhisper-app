@@ -6,12 +6,13 @@
 // tokens. There is no vocabulary API — terms are injected into the prompt.
 
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
-import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
+import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
 import { getProviderDef } from '../lib/stt-models';
-import { AudioTooLargeError, ProviderUnavailableError } from './types';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
+import { AudioTooLargeError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Read from the registry, never restated, so the adapter cannot disagree with
@@ -22,7 +23,7 @@ const AUDIO_TOKENS_PER_SECOND = 32;
 const MAX_PROMPT_TERMS = 100;
 // Total request (incl. base64) must stay under 20 MB; base64 inflates ~33%, so
 // cap raw audio at ~14 MB and 413 anything larger (no Files-API path in v1).
-// GEMINI_INLINE_MAX_BYTES is shared with the route's pre-buffer gate.
+// The cap is PROVIDER_AUDIO_CAPS.gemini, shared with the route's pre-buffer gate.
 
 const GEMINI_MIME: Record<string, string> = {
   wav: 'audio/wav', mp3: 'audio/mp3', mpeg: 'audio/mp3', m4a: 'audio/m4a',
@@ -230,8 +231,9 @@ export async function transcribeWithGemini(
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  if (audio.byteLength > GEMINI_INLINE_MAX_BYTES) {
-    throw new AudioTooLargeError('Gemini', audio.byteLength, GEMINI_INLINE_MAX_BYTES);
+  const maxBytes = PROVIDER_AUDIO_CAPS.gemini.adapterMaxBytes;
+  if (audio.byteLength > maxBytes) {
+    throw new AudioTooLargeError('Gemini', audio.byteLength, maxBytes);
   }
 
   const promptText = buildPrompt(language, initialPrompt);
@@ -274,15 +276,10 @@ export async function transcribeWithGemini(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     usageMetadata?: GeminiUsageMetadata;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Gemini', 'malformed 200 response body');
-  }
+  }>(provider, 'Gemini', response, startedAt, context);
 
   const transcript = (data.candidates?.[0]?.content?.parts ?? [])
     .map((p) => p.text)
