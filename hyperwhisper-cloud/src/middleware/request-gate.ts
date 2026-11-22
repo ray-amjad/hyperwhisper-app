@@ -17,8 +17,6 @@ import { errorResponse } from '../lib/responses';
 import { validateAuth, type AuthContext, type AuthDiagnostics } from './auth';
 import { keyRateLimitResponse, type RateLimitBucket } from './rate-limit';
 
-export type GateRejectionReason = 'ip_blocked' | 'auth_failed' | 'rate_limited';
-
 export type GateRejection =
   | { ok: false; reason: 'ip_blocked' | 'rate_limited'; response: Response }
   | {

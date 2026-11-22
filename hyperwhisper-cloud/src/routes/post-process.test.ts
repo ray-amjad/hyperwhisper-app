@@ -278,7 +278,7 @@ describe('postProcessRoute LLM provider chain', () => {
   });
 
   // #1565: a Cerebras 429 ended the request with a 500 (llm_failed_no_fallback)
-  // because shouldFallback() took a 5xx only. Groq has its own rate limit, so
+  // because the fallback rule took a 5xx only. Groq has its own rate limit, so
   // the fallback does fix a Cerebras 429.
   test('falls back to groq when cerebras rate-limits with a 429', async () => {
     let cerebrasCalls = 0;
