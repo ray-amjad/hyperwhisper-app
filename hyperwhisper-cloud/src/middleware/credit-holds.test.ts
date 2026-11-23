@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { AuthContext } from './auth';
 import type { CreditHoldStore, ReserveHoldRequest, ReserveHoldResult } from '../lib/credit-hold-store';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
+import { RedisNotConfiguredError } from '../lib/redis-client';
 
 const cacheWrites: number[] = [];
 mock.module('../lib/redis', () => ({
@@ -86,7 +87,7 @@ afterEach(async () => {
 describe('withCreditHoldScope', () => {
   test('releases the hold when the handler throws', async () => {
     await expect(withCreditHoldScope(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4)).ok).toBe(true);
       expect(store.outstandingMilli(ACCOUNT)).toBe(4000);
       throw new Error('handler blew up');
     })).rejects.toThrow('handler blew up');
@@ -96,7 +97,7 @@ describe('withCreditHoldScope', () => {
 
   test('releases the hold of a request that billed nothing', async () => {
     await withCreditHoldScope(async () => {
-      await validateCredits(auth(10), 4, 'ip');
+      await validateCredits(auth(10), 4);
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
@@ -105,8 +106,8 @@ describe('withCreditHoldScope', () => {
   test('a second check in one request resizes its hold instead of taking another', async () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 2, 'ip');
-      await validateCredits(a, 5, 'ip');
+      await validateCredits(a, 2);
+      await validateCredits(a, 5);
       expect(store.holds(ACCOUNT).size).toBe(1);
       expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
     });
@@ -114,14 +115,14 @@ describe('withCreditHoldScope', () => {
 
   test('a floor check (`hold: false`) takes no hold', async () => {
     await withCreditHoldScope(async () => {
-      expect((await validateCredits(auth(10), 2, 'ip', { hold: false })).ok).toBe(true);
+      expect((await validateCredits(auth(10), 2, { hold: false })).ok).toBe(true);
       expect(store.outstandingMilli(ACCOUNT)).toBe(0);
     });
   });
 
   test('outside a scope, validateCredits fails open, holds nothing, and logs credits_hold.no_scope once (#2043)', async () => {
     const lines = await captureErrors(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4)).ok).toBe(true);
     });
     expect(store.calls).toEqual([]);
     const noScope = lines.filter((line) => line.includes('credits_hold.no_scope'));
@@ -132,7 +133,7 @@ describe('withCreditHoldScope', () => {
 
   test('outside a scope, `hold: false` logs nothing', async () => {
     const lines = await captureErrors(async () => {
-      expect((await validateCredits(auth(10), 4, 'ip', { hold: false })).ok).toBe(true);
+      expect((await validateCredits(auth(10), 4, { hold: false })).ok).toBe(true);
     });
     expect(store.calls).toEqual([]);
     expect(lines).toEqual([]);
@@ -141,7 +142,7 @@ describe('withCreditHoldScope', () => {
   test('inside a scope, a holding call logs no credits_hold.no_scope', async () => {
     const lines = await captureErrors(async () => {
       await withCreditHoldScope(async () => {
-        expect((await validateCredits(auth(10), 4, 'ip')).ok).toBe(true);
+        expect((await validateCredits(auth(10), 4)).ok).toBe(true);
       });
     });
     expect(lines.filter((line) => line.includes('credits_hold.no_scope'))).toEqual([]);
@@ -152,9 +153,9 @@ describe('withCreditHoldScope', () => {
     const keyA: AuthContext = { identifier: 'key-a', licenseKey: 'key-a', credits: 10, creditPoolId: pool };
     const keyB: AuthContext = { identifier: 'key-b', licenseKey: 'key-b', credits: 10, creditPoolId: pool };
     await withCreditHoldScope(async () => {
-      expect((await validateCredits(keyA, 6, 'ip')).ok).toBe(true);
+      expect((await validateCredits(keyA, 6)).ok).toBe(true);
       await withCreditHoldScope(async () => {
-        const refused = await validateCredits(keyB, 6, 'ip');
+        const refused = await validateCredits(keyB, 6);
         expect(refused.ok).toBe(false);
       });
       expect(store.outstandingMilli(`pool:${pool}`)).toBe(6000);
@@ -184,8 +185,8 @@ describe('settling a hold through deductCredits', () => {
 
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 3, 'ip');
-      void deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip');
+      await validateCredits(a, 3);
+      void deductCredits(a, 0.003, { endpoint: '/transcribe' });
     });
     await settle();
 
@@ -193,12 +194,58 @@ describe('settling a hold through deductCredits', () => {
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 
+  test('a stalled grow reports the uncapped credits after the 2 s deadline, and the charge still settles', async () => {
+    // The first reserve (validateCredits) answers; the grow that deductCredits
+    // asks for above the hold stalls until the test lets it go.
+    let unstall!: () => void;
+    const stalled = new Promise<void>((resolve) => { unstall = resolve; });
+    let reserves = 0;
+    const inner = store;
+    setCreditHoldStoreForTests({
+      reserve: async (request: ReserveHoldRequest): Promise<ReserveHoldResult> => {
+        reserves += 1;
+        if (reserves > 1) await stalled;
+        return inner.reserve(request);
+      },
+      release: (account: string, holdId: string) => inner.release(account, holdId),
+    } satisfies CreditHoldStore);
+    const deadlineLines: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('credits.settle_report_deadline')) {
+        deadlineLines.push(args[0]);
+        return;
+      }
+      warn(...args);
+    };
+    try {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        await validateCredits(a, 1);
+        const started = performance.now();
+        // 2.5 credits, above the 1-credit hold, so the report waits on the grow.
+        const deduction = deductCredits(a, 0.0025, { endpoint: '/transcribe' });
+        expect(await deduction.credits).toBe(2.5);
+        expect(performance.now() - started).toBeGreaterThanOrEqual(1900);
+        expect(deadlineLines).toHaveLength(1);
+        expect(events).toEqual([]);
+        unstall();
+        expect(await deduction.recorded).toBe(2.5);
+      });
+    } finally {
+      unstall();
+      console.warn = warn;
+    }
+    await settle();
+    expect(events).toEqual(['charge:2.5']);
+  }, 10_000);
+
   test('a charge above the hold is grown into the free balance and charged in full', async () => {
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
+      await validateCredits(a, 1);
       // 2.5 credits.
-      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }, 'ip')).toBe(2.5);
+      expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }).recorded).toBe(2.5);
     });
     await settle();
     expect(events).toEqual(['charge:2.5']);
@@ -212,9 +259,9 @@ describe('settling a hold through deductCredits', () => {
     });
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
+      await validateCredits(a, 1);
       // 3 credits used against 1 held and 1 more free: 2 charged, 1 written off.
-      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }, 'ip')).toBe(2);
+      expect(await deductCredits(a, 0.003, { endpoint: '/transcribe' }).recorded).toBe(2);
     });
     await settle();
 
@@ -237,11 +284,133 @@ describe('settling a hold through deductCredits', () => {
     globalThis.fetch = mock(async () => Response.json({ error: 'nope' }, { status: 500 })) as unknown as typeof fetch;
     await withCreditHoldScope(async () => {
       const a = auth(10);
-      await validateCredits(a, 1, 'ip');
-      void deductCredits(a, 0.001, { endpoint: '/transcribe' }, 'ip');
+      await validateCredits(a, 1);
+      void deductCredits(a, 0.001, { endpoint: '/transcribe' });
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+});
+
+describe('a reservation whose reply was lost (#2921)', () => {
+  // The script ran in Redis, then the reply never came back (network error or
+  // timeout after the EVAL). `lossyStore` throws after the memory twin has
+  // already applied the write, which is exactly that.
+  function lossyStore(loseReply: (call: number) => boolean): CreditHoldStore {
+    let call = 0;
+    return {
+      async reserve(request) {
+        const result = await store.reserve(request);
+        call += 1;
+        if (loseReply(call)) throw new Error('fetch failed: socket closed before response');
+        return result;
+      },
+      release: (account, holdId) => store.release(account, holdId),
+    };
+  }
+
+  test('a hold whose reserve reply was lost is still released when the request ends', async () => {
+    setCreditHoldStoreForTests(lossyStore((call) => call === 1));
+    await captureErrors(async () => {
+      // Request 1: 5-credit estimate, reply lost -> fails open, is served,
+      // bills nothing (e.g. the provider failed) and ends.
+      const first = await withCreditHoldScope(() => validateCredits(auth(5), 5));
+      expect(first.ok).toBe(true);
+      await settle();
+
+      // Request 2 on the same key a moment later, same 5-credit balance.
+      const second = await withCreditHoldScope(() => validateCredits(auth(5), 5));
+      await settle();
+
+      expect(second.ok).toBe(true);
+      expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+    });
+  });
+
+  test('a lost reply on a RESIZE of a granted hold is released whole when the request ends', async () => {
+    setCreditHoldStoreForTests(lossyStore((call) => call === 2));
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        expect((await validateCredits(a, 2)).ok).toBe(true);
+        // The resize to 5 lands in Redis but its reply is lost: the hold
+        // believes it has 2, Redis has 5.
+        expect((await validateCredits(a, 5)).ok).toBe(true);
+        expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
+      });
+    });
+    await settle();
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+    expect(store.calls.filter((call) => call.op === 'release')).toHaveLength(1);
+  });
+
+  test('a lost reply on the settle-time grow fails open, charges in full, and releases after the charge', async () => {
+    const order: string[] = [];
+    const lossy = lossyStore((call) => call === 2);
+    setCreditHoldStoreForTests({
+      reserve: lossy.reserve,
+      release: async (account, holdId) => {
+        order.push(`release(cache=${cacheWrites.length})`);
+        await store.release(account, holdId);
+      },
+    });
+    globalThis.fetch = mock(async () => {
+      order.push('charge');
+      return Response.json({ credits_remaining: 7 });
+    }) as unknown as typeof fetch;
+
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        await validateCredits(a, 1);
+        // 2.5 credits, above the 1-credit hold: the grow lands, its reply is lost.
+        expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }).recorded).toBe(2.5);
+      });
+      await settle();
+    });
+
+    expect(order).toEqual(['charge', 'release(cache=1)']);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('a lost reply on a live session hold is released by the session', async () => {
+    setCreditHoldStoreForTests(lossyStore(() => true));
+    await captureErrors(async () => {
+      const { hold, outcome } = await reserveSessionHold(auth(10), 1, 5);
+      expect(outcome.kind).toBe('unavailable');
+      expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
+      await hold.release();
+    });
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('a refusal with a known reply wrote nothing and calls no release', async () => {
+    // Another request holds 8 of the 10 credits, so the store refuses 5.
+    await store.reserve({
+      account: ACCOUNT, holdId: 'other', minMilli: 8000, maxMilli: 8000,
+      balanceMilli: 10_000, nowMs: Date.now(), ttlMs: 60_000,
+    });
+    await withCreditHoldScope(async () => {
+      expect((await validateCredits(auth(10), 5)).ok).toBe(false);
+    });
+    await settle();
+    expect(store.calls.map((call) => call.op)).toEqual(['reserve', 'reserve']);
+    expect([...store.holds(ACCOUNT).keys()]).toEqual(['other']);
+  });
+
+  test('an unconfigured store never sent the script and calls no release', async () => {
+    let releases = 0;
+    setCreditHoldStoreForTests({
+      reserve: async () => { throw new RedisNotConfiguredError(); },
+      release: async () => { releases += 1; },
+    });
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        expect((await validateCredits(auth(10), 4)).ok).toBe(true);
+      });
+    });
+    await settle();
+    expect(releases).toBe(0);
   });
 });
 

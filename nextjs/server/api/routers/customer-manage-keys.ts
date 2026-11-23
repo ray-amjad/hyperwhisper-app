@@ -40,6 +40,7 @@ import {
   purgeCloudLicenseCache,
 } from "@/lib/services/cloud-license-cache";
 import { canRotateAccountKeys } from "@/src/lib/session-sign-in-method";
+import { emitAuthEvent } from "@/src/lib/auth-event-log";
 
 const SUPPORT_EMAIL = "hi@support.hyperwhisper.com";
 
@@ -73,7 +74,8 @@ type ManageRejectReason =
   | "last_key";
 
 /**
- * One JSON line per outcome, the shape of `logRotate`. `userId` and
+ * One JSON line per outcome, the shape of `logRotate`, written by
+ * `emitAuthEvent` (`src/lib/auth-event-log.ts`) with no client IP. `userId` and
  * `licenseId` are opaque row ids (for a delete, `licenseId` is the caller's
  * validated uuid; for an issue, the new row's id). Never logs a key, the
  * email or the name.
@@ -88,26 +90,19 @@ function logManage(
     devicesCleared?: number;
   },
 ): void {
-  const line = JSON.stringify({
-    event,
+  emitAuthEvent(
+    {
+      event,
+      outcome,
+      ...(fields.reason ? { reason: fields.reason } : {}),
+      userId: fields.userId,
+      ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
+      ...(fields.devicesCleared !== undefined
+        ? { devicesCleared: fields.devicesCleared }
+        : {}),
+    },
     outcome,
-    ...(fields.reason ? { reason: fields.reason } : {}),
-    userId: fields.userId,
-    ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
-    ...(fields.devicesCleared !== undefined
-      ? { devicesCleared: fields.devicesCleared }
-      : {}),
-  });
-
-  // The website's console output is its server log (Workers Logs), so this is
-  // the sink, not leftover debugging.
-  /* eslint-disable no-console */
-  if (outcome === "ok") {
-    console.log(line);
-  } else {
-    console.warn(line);
-  }
-  /* eslint-enable no-console */
+  );
 }
 
 export interface ManageKeysCaller {

@@ -3,7 +3,7 @@
 // what the response then tells the client it was charged.
 //
 // buildTranscriptionSuccess() decides `billable` and is covered on its own in
-// transcribe-success.test.ts. Nothing covered whether completion HONOURS that
+// transcribe-completion-success.test.ts. Nothing covered whether completion HONOURS that
 // decision — a route that deducted on every result would charge for silence,
 // and one that never deducted would serve a paid upstream for free.
 //

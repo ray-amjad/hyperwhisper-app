@@ -9,6 +9,7 @@ import {
 } from "@/src/lib/db-layer";
 import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
+import { readBoundedText } from "@/src/lib/bounded-body";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { creditPoolIdFor } from "@/src/lib/credit-pool-id";
 import { describeDbError } from "@/lib/shared/db-error";
@@ -112,6 +113,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/** A licence key, an amount and a small metadata object; 16 KB is far above any real request (#3039). */
+const MAX_BODY_BYTES = 16 * 1024;
+
 /**
  * POST /api/license/credits
  *
@@ -121,7 +125,10 @@ export async function POST(req: NextRequest) {
   let body: unknown;
 
   try {
-    body = await req.json();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+
+    if (text instanceof NextResponse) return text;
+    body = JSON.parse(text);
   } catch (err) {
     console.error(
       "Credits deduction: request JSON did not parse",

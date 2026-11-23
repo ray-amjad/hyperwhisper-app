@@ -358,26 +358,18 @@ struct PostProcessingPreflightFailureTests {
     /// locale's own "raw transcript was kept" wording from
     /// `transcription.error.localRuntimeUnavailable`.
     @Test func everyLocaleHasTheToastKeysWithOneProviderSpecifier() throws {
-        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
-        let locales = try FileManager.default.contentsOfDirectory(
-            at: localizations,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "lproj" }
+        let locales = try ProductionSource.localeDirectories()
         #expect(locales.count == 40)
 
         for locale in locales {
-            let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
-                .components(separatedBy: .newlines)
+            let lines = try ProductionSource.localizableLines(of: locale)
             let runtimePrefix = "\"transcription.error.localRuntimeUnavailable\" = \""
             let runtimeLine = try #require(lines.first(where: { $0.hasPrefix(runtimePrefix) }), "\(locale.lastPathComponent)")
             let keptTail = try #require(runtimeLine.range(of: " — "), "\(locale.lastPathComponent)")
             let kept = String(runtimeLine[keptTail.lowerBound...])
 
             for key in Self.toastKeys {
-                let matches = lines.filter { $0.hasPrefix("\"\(key)\" = \"") }
-                #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one \(key)")
-                guard let line = matches.first else { continue }
-                #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent) \(key)")
+                guard let line = ProductionSource.onlyLine(forKey: key, in: lines, locale: locale) else { continue }
                 #expect(line.components(separatedBy: "%").count - 1 == 1, "\(locale.lastPathComponent) \(key)")
                 #expect(line.components(separatedBy: "%@").count - 1 == 1, "\(locale.lastPathComponent) \(key)")
                 #expect(line.hasSuffix(kept), "\(locale.lastPathComponent) \(key) must say the transcript was kept")
