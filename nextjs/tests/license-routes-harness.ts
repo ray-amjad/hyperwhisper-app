@@ -4,7 +4,7 @@
  * `app/api/license/deactivate`.
  *
  * Those routes reach two collaborators at import time: the database layer
- * (`src/lib/db-layer.ts`) and the Upstash-backed rate limiter
+ * (`src/lib/db-layer.ts`) and the Cloudflare rate limiter
  * (`lib/rate-limit.ts`). Both are replaced here with `mock.module`, so the
  * tests run the REAL route modules — the rate-limit gate, the body parsing,
  * the entitlement check in `src/lib/license-validation.ts` and the reply
@@ -44,7 +44,7 @@ export const calls = {
 export const behaviour = {
   /** `false` makes the limiter reject the next request. */
   rateLimitSuccess: true,
-  /** Thrown by the limiter when set — models Upstash being unreachable. */
+  /** Thrown by the limiter when set — models the binding failing. */
   rateLimitError: null as unknown,
   /** Rows the fake database holds, keyed by the exact stored key string. */
   rows: new Map<string, AccountKeyRow>(),
@@ -55,23 +55,7 @@ export const behaviour = {
   creditBalance: 4_200,
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-TEST-0000-0001",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export { accountKeyRow } from "./account-key-fixture";
 
 export function resetHarness(): void {
   calls.rateLimit.length = 0;

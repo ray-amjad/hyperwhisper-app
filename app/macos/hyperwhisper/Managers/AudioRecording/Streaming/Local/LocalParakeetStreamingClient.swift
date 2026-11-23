@@ -53,7 +53,9 @@ struct LocalParakeetStreamingEngine: LocalStreamingEngine {
                 error: ParakeetStreamingError.modelsNotAvailable
             )
         }
-        return .present(logDetail: "models present at \(directory.path)")
+        // `logDetail` is logged publicly: the folder name only, never the
+        // full path, which holds the account name (#2020).
+        return .present(logDetail: "models present in \(directory.lastPathComponent)")
     }
 
     /// Cheap: already on disk, memory-mapped by CoreML.

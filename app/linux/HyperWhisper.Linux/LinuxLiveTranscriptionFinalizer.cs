@@ -40,7 +40,8 @@ public static class LinuxLiveTranscriptionFinalizer
                 if (post.WasApplied && !string.IsNullOrWhiteSpace(post.Text) && !string.IsNullOrWhiteSpace(post.Provider))
                 {
                     processingInput = post.Text.Trim();
-                    processingProvider = post.Provider;
+                    // The provider id, not the display label (issue #1158).
+                    processingProvider = post.StoredProvider;
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

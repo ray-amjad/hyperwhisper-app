@@ -6,6 +6,9 @@ import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { PROSE_TEXT_LINK } from "@/components/text-link";
 import { serializeJsonLd } from "@/lib/security/json-ld";
+import { WRAP } from "@/components/landing/dusk";
+import { GLASS, LINK_LAV, SECTION } from "@/components/landing/dusk-pages";
+import { DuskPage, PageHero } from "@/components/landing/DuskPage";
 import {
   OG_IMAGES,
   SITE_NAME,
@@ -25,11 +28,13 @@ type Props = {
 
 function toAbsoluteUrl(url: string) {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+
   return `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 export async function generateMetadata({ params }: Props) {
   const { locale, slug } = await params;
+
   // #815: throw the page's notFound() here too. Returning {} left the layout's
   // home-page title and "index, follow" in the RSC payload the browser renders.
   if (locale !== "en") notFound();
@@ -80,16 +85,19 @@ export async function generateMetadata({ params }: Props) {
 
 export async function generateStaticParams() {
   const posts = await getBlogPosts();
+
   return posts.map((post) => ({ locale: "en", slug: post.slug }));
 }
 
 export default async function BlogPostPage({ params }: Props) {
   const { locale, slug } = await params;
+
   if (locale !== "en") {
     notFound();
   }
 
   const post = await getBlogPost(slug);
+
   if (!post) {
     notFound();
   }
@@ -125,58 +133,62 @@ export default async function BlogPostPage({ params }: Props) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-4xl">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-      />
-      <Link
-        className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white"
-        href="/blog"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Blog
-      </Link>
+    <DuskPage>
+      <article>
+        <script
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+          type="application/ld+json"
+        />
+        <PageHero
+          eyebrow="HyperWhisper Blog"
+          lead={post.frontMatter.description || undefined}
+          title={post.frontMatter.title}
+        >
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-white/[.8]">
+            <time dateTime={post.frontMatter.date}>{publishedDate}</time>
+            {post.frontMatter.tags?.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/[.16] bg-[rgba(10,10,24,.4)] px-3 py-1 text-xs text-white/[.85] backdrop-blur-[10px]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </PageHero>
 
-      <div className="space-y-5 text-center">
-        <p className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-          HyperWhisper Blog
-        </p>
-        <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight text-white md:text-5xl">
-          {post.frontMatter.title}
-        </h1>
-        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-gray-400">
-          <span>{publishedDate}</span>
-          {post.frontMatter.tags?.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300"
-            >
-              {tag}
-            </span>
-          ))}
+        <div className={SECTION}>
+          <div className={WRAP}>
+            <div className="mx-auto max-w-[780px]">
+              <Link
+                className={`${LINK_LAV} inline-flex items-center gap-2`}
+                href="/blog"
+              >
+                <ArrowLeft
+                  aria-hidden="true"
+                  className="size-4 rtl:-scale-x-100"
+                />
+                Blog
+              </Link>
+
+              {post.frontMatter.image ? (
+                <div className={`${GLASS} mt-6 overflow-hidden`}>
+                  <img
+                    alt={post.frontMatter.imageAlt ?? post.frontMatter.title}
+                    className="max-h-[480px] w-full object-cover"
+                    src={post.frontMatter.image}
+                  />
+                </div>
+              ) : null}
+
+              <div
+                dangerouslySetInnerHTML={{ __html: post.html }}
+                className={`prose prose-invert mt-10 max-w-none text-[#c9cbe0] prose-p:leading-[1.75] prose-headings:tracking-[-0.02em] prose-headings:text-white prose-strong:text-white prose-li:marker:text-[var(--dusk-dim)] prose-hr:border-[var(--dusk-line)] prose-blockquote:border-[rgba(196,181,253,.35)] prose-blockquote:text-[var(--dusk-mute)] prose-pre:border prose-pre:border-[var(--dusk-line)] prose-pre:bg-[#070814] prose-th:text-white prose-td:border-[var(--dusk-line)] [&_iframe]:aspect-video [&_img]:outline-1 [&_img]:-outline-offset-1 [&_img]:outline-white/10 [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
+              />
+            </div>
+          </div>
         </div>
-        {post.frontMatter.description ? (
-          <p className="mx-auto max-w-2xl text-lg leading-8 text-gray-300">
-            {post.frontMatter.description}
-          </p>
-        ) : null}
-      </div>
-
-      {post.frontMatter.image ? (
-        <div className="mt-10 overflow-hidden rounded-lg border border-gray-800 bg-gray-900">
-          <img
-            alt={post.frontMatter.imageAlt ?? post.frontMatter.title}
-            className="max-h-[480px] w-full object-cover outline-1 -outline-offset-1 outline-white/10"
-            src={post.frontMatter.image}
-          />
-        </div>
-      ) : null}
-
-      <div
-        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video [&_img]:outline-1 [&_img]:-outline-offset-1 [&_img]:outline-white/10 [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
-        dangerouslySetInnerHTML={{ __html: post.html }}
-      />
-    </article>
+      </article>
+    </DuskPage>
   );
 }
