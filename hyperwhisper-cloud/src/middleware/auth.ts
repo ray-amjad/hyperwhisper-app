@@ -1,7 +1,8 @@
 // AUTHENTICATION HELPERS
 // Validates license keys and device trial identifiers
 
-import { DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
+import { canonicalAccountKey } from '../lib/account-key';
 import { cacheLicense, getCachedLicense } from '../lib/redis';
 import { invalidLicenseResponse, licenseRequiredResponse } from '../lib/responses';
 import { isRecord } from '../lib/utils';
@@ -97,7 +98,7 @@ function errorType(error: unknown): AuthDiagnostics['apiErrorType'] {
 
 async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationResult> {
   const startedAt = performance.now();
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
   const validateUrl = `${apiBase}/api/license/validate`;
 
   try {
@@ -204,21 +205,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   }
 }
 
-/**
- * The one spelling of an account key this service keys anything on (#2461).
- * The site trims the key before its lookup, so ` KEY` and `KEY` are one
- * account; the licence cache, the credit hold and `auth.identifier` must all
- * use the trimmed form, or a padded variant is a second hold budget for the
- * same balance. Case is kept: the site matches the key case-sensitively.
- * Whitespace only, or a value that is not a string, is no key at all.
- */
-export function canonicalAccountKey(raw: unknown): string | undefined {
-  // `/post-process` reads the key from an untyped JSON body, so a number or an
-  // object can arrive here: that is no key, never a throw.
-  if (typeof raw !== 'string') return undefined;
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
+export { canonicalAccountKey };
 
 export async function validateAuth(input: AuthInput, forceRefresh = false): Promise<AuthResult> {
   const startedAt = performance.now();

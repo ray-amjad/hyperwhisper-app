@@ -4,7 +4,7 @@ import {
   estimatedUsdPerMinute,
   fallbackChainFor,
   ALL_STT_PROVIDER_IDS,
-  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
+  ASSEMBLYAI_SYNC_USD_PER_MINUTE,
 } from '../lib/stt-models';
 
 /** A long-enough clip that no provider's short-clip routing tier applies, so a
@@ -96,7 +96,7 @@ describe('maxReservationUsdPerMinute — AssemblyAI sync premium route', () => {
     // requested model would let the request deduct more than it held.
     for (const model of ['universal-2', 'universal-3-5-pro'] as const) {
       const reserved = maxReservationUsdPerMinute(input({ ...syncEligible, model }));
-      expect(reserved).toBe(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+      expect(reserved).toBe(ASSEMBLYAI_SYNC_USD_PER_MINUTE);
       expect(reserved).toBeGreaterThan(estimatedUsdPerMinute('assemblyai', model));
     }
   });
@@ -106,14 +106,14 @@ describe('maxReservationUsdPerMinute — AssemblyAI sync premium route', () => {
       ...syncEligible, model: 'universal-2', estimatedSeconds: 200,
     }));
     expect(reserved).toBe(estimatedUsdPerMinute('assemblyai', 'universal-2'));
-    expect(reserved).toBeLessThan(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+    expect(reserved).toBeLessThan(ASSEMBLYAI_SYNC_USD_PER_MINUTE);
   });
 
   test('medical and auto/absent language both fall outside sync, so neither reserves the sync rate', () => {
     // Over-reserving here would wrongly reject a low-balance account for a
     // request that can only ever take the cheaper async path.
     const medical = maxReservationUsdPerMinute(input({ ...syncEligible, model: 'universal-2', medical: true }));
-    expect(medical).toBeLessThan(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+    expect(medical).toBeLessThan(ASSEMBLYAI_SYNC_USD_PER_MINUTE);
 
     for (const language of [undefined, 'auto', 'AUTO', '   ']) {
       const reserved = maxReservationUsdPerMinute(input({ ...syncEligible, model: 'universal-2', language }));
@@ -142,7 +142,7 @@ describe('maxReservationUsdPerMinute — AssemblyAI sync premium route', () => {
         provider, estimatedSeconds: SHORT_CLIP_SECONDS, language: 'en',
       }));
       if (reachesAssemblyAI) {
-        expect(reserved).toBeGreaterThanOrEqual(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+        expect(reserved).toBeGreaterThanOrEqual(ASSEMBLYAI_SYNC_USD_PER_MINUTE);
       }
     }
   });

@@ -290,7 +290,6 @@ async function handleCreditMint(
   // key should top that key up, not get a second key with a split balance.
   // Only when the session hasn't already resolved a license (retry-safe), and
   // only for granted keys (a revoked key is dead — mint a fresh one instead).
-  let pooledIntoExisting = false;
   if (!license) {
     // An email can own several keys (e.g. a revoked key plus a live one), so
     // scan all of them newest-first and pool into the most recent GRANTED key.
@@ -302,7 +301,6 @@ async function handleCreditMint(
     const existing = existingKeys.find((k) => k.status === "granted");
     if (existing) {
       license = existing;
-      pooledIntoExisting = true;
     }
   }
 
@@ -379,10 +377,15 @@ async function handleCreditMint(
     return;
   }
 
-  // STEP 3: Email. When we pooled into an existing key, send a top-up receipt
-  // with the new balance (the buyer already has this key). A genuinely new key
-  // gets the mint email with its starting balance.
-  if (pooledIntoExisting) {
+  // STEP 3: Email. A key this session minted gets the mint email, the only
+  // email that carries the full key. A key minted earlier (pooled by email)
+  // gets a top-up receipt with the new balance: the buyer already has it.
+  // Decided from the row's stripe_session_id, never from which lookup found
+  // it: a concurrent delivery of this same session can miss the session
+  // lookup, then find the key the other delivery just minted by email, and
+  // win the grant. It must still send the mint email (#2947).
+  const mintedByThisSession = license.stripeSessionId === session.id;
+  if (!mintedByThisSession) {
     console.log(
       `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerTag}`
     );
