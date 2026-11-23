@@ -80,8 +80,8 @@ const MUTANTS = [
   {
     file: CUSTOMER,
     name: "ask for the balance once per key instead of per owner",
-    from: "    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    const licensesWithCredits",
-    to: "    const userIds = licenses.map((l) => l.userId);\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    const licensesWithCredits",
+    from: "    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    // A key the owner deleted",
+    to: "    const userIds = licenses.map((l) => l.userId);\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    // A key the owner deleted",
   },
   {
     file: CUSTOMER,
