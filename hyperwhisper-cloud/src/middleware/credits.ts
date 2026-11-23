@@ -8,6 +8,7 @@ import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
 import { logEvent } from '../lib/logging';
+import { machineLabels } from '../lib/fly-machine';
 import { backgroundWork } from '../lib/background-work';
 import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
@@ -66,10 +67,42 @@ export async function validateCredits(
  * Why a license-API usage write did not land. `recordLicenseUsage` never
  * throws, so this is the only way a caller learns that a charge was dropped.
  * It carries no license key and no request metadata.
+ *
+ * The network arm also says when and how the request died (#3015): a reset a
+ * few ms after the fetch went out points at a stale pooled socket, one near
+ * `LICENSE_API_TIMEOUT_MS` at the far end giving up mid-request.
+ * - `chargeElapsedMs`: ms from just before the fetch to the throw. Not
+ *   `elapsedMs`, which `logEvent` already writes as the time since the
+ *   cloud request itself started.
+ * - `errorCode`: see `networkErrorCode`.
+ * - `region`: the Fly region, `local` off Fly (`machineLabels`).
  */
 export type DeductionFailure =
   | { kind: 'http'; status: number }
-  | { kind: 'network'; error: string };
+  | { kind: 'network'; error: string; chargeElapsedMs: number; errorCode: string; region: string };
+
+/** How deep `networkErrorCode` follows `cause`: undici nests one level, never a loop. */
+const MAX_CAUSE_DEPTH = 5;
+/** A code is a short token (`ECONNRESET`, `UND_ERR_SOCKET`); anything else is not logged. */
+const ERROR_CODE_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+/**
+ * A short code for why the licence API fetch threw. The first string `code` on
+ * the error or its `cause` chain (Bun's fetch errors carry `code` themselves;
+ * Node's undici puts it on `cause`), else the error's `name` (`TimeoutError`
+ * from `AbortSignal.timeout`, `AbortError`, `TypeError`), else `unknown` for a
+ * thrown non-Error. Never the message: that is `error`.
+ */
+export function networkErrorCode(error: unknown): string {
+  let current: unknown = error;
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH && isRecord(current); depth += 1) {
+    const code = current.code;
+    if (typeof code === 'string' && ERROR_CODE_PATTERN.test(code)) return code;
+    current = current.cause;
+  }
+  if (error instanceof Error && ERROR_CODE_PATTERN.test(error.name)) return error.name;
+  return 'unknown';
+}
 
 export interface DeductCreditsOptions {
   /**
@@ -108,7 +141,13 @@ export function logDeductionFailure(
       endpoint,
       ...(failure.kind === 'http'
         ? { reason: 'http_error', status: failure.status }
-        : { reason: 'network_error', error: failure.error }),
+        : {
+            reason: 'network_error',
+            error: failure.error,
+            chargeElapsedMs: failure.chargeElapsedMs,
+            errorCode: failure.errorCode,
+            region: failure.region,
+          }),
       creditsUsed,
     });
   };
@@ -134,6 +173,8 @@ async function recordLicenseUsage(
   // malformed body, a failed cache write) means the charge landed, so it is
   // warned about below but not reported as a failure.
   let accepted = false;
+  // Before the try, so the catch can time any throw; reset just before the fetch.
+  let sentAt = performance.now();
 
   try {
     // Taken BEFORE the request goes out: the licence cache orders replies by
@@ -141,6 +182,7 @@ async function recordLicenseUsage(
     // `WRITE_POOL_BALANCE_SCRIPT`) and the key's own entry (#1899, see
     // `WRITE_LICENSE_SCRIPT`) alike.
     const issuedAtMs = Date.now();
+    sentAt = performance.now();
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
       headers: {
@@ -202,7 +244,14 @@ async function recordLicenseUsage(
     console.warn('POST /api/license/credits network error', {
       error: message,
     });
-    return accepted ? undefined : { kind: 'network', error: message };
+    if (accepted) return undefined;
+    return {
+      kind: 'network',
+      error: message,
+      chargeElapsedMs: Math.round(performance.now() - sentAt),
+      errorCode: networkErrorCode(error),
+      region: machineLabels().region,
+    };
   }
   return undefined;
 }
