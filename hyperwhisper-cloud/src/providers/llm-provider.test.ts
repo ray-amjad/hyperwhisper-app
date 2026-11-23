@@ -11,11 +11,11 @@
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
-import { callWithRetry, isRetryableLLMError, shouldFallback, type LLMProvider } from './llm-provider';
-import { buildCorrectionRequest } from '../providers/llm-contract';
-import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
-import { LLM_REQUEST_TIMEOUT_MS } from '../providers/llm-fetch';
-import { refusedUrl, silentUpstream, type TestUpstream } from '../providers/test-upstreams';
+import { callWithRetry, shouldFallback, type LLMProvider } from './llm-provider';
+import { buildCorrectionRequest } from './llm-contract';
+import { LLMRequestError, LLMTimeoutError } from './llm-errors';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
+import { refusedUrl, silentUpstream, type TestUpstream } from './test-upstreams';
 import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
@@ -144,6 +144,18 @@ describe('callWithRetry', () => {
       expect(counter.calls).toBe(attempts);
     });
 
+    test(`${provider}: a missing API key is NOT retried, and fails over`, async () => {
+      const counter = respondWith(200);
+      delete process.env[provider === 'groq' ? 'GROQ_API_KEY' : 'ANTHROPIC_API_KEY'];
+
+      const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
+
+      expect((error as LLMRequestError).status).toBe(503);
+      expect(shouldFallback(error)).toBe(true);
+      expect(counter.calls).toBe(0);
+      expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
+    });
+
     test(`${provider}: a network error is still retried ${attempts - 1} times`, async () => {
       const counter = routeTo(refusedUrl());
 
@@ -153,22 +165,4 @@ describe('callWithRetry', () => {
       expect(counter.calls).toBe(attempts);
     });
   }
-});
-
-describe('isRetryableLLMError', () => {
-  test('refuses only our own timeout', () => {
-    expect(isRetryableLLMError(new LLMTimeoutError('groq LLM request timeout after 20000ms', 'groq'))).toBe(false);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 504', 504, 'groq'))).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503))).toBe(true);
-    expect(isRetryableLLMError(new TypeError('fetch failed'))).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'))).toBe(true);
-  });
-
-  test('with retryRateLimit false, also refuses a 429 and nothing else (#1568)', () => {
-    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'), false)).toBe(false);
-    expect(isRetryableLLMError(new LLMTimeoutError('groq LLM request timeout after 20000ms', 'groq'), false)).toBe(false);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503), false)).toBe(true);
-    expect(isRetryableLLMError(new LLMRequestError('upstream 400', 400), false)).toBe(true);
-    expect(isRetryableLLMError(new TypeError('fetch failed'), false)).toBe(true);
-  });
 });

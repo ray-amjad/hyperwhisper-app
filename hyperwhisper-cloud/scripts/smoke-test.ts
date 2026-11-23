@@ -24,7 +24,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { ALL_STT_PROVIDER_IDS, getProviderDef, servedNameFor, type SttProviderId } from '../src/lib/stt-models';
-import { LLM_PROVIDER_NAMES } from '../src/lib/llm-provider';
+import { defaultModelFor, LLM_PROVIDERS, servedLLMName } from '../src/lib/llm-models';
 
 const BASE_URL = (process.env.SMOKE_BASE_URL || '').replace(/\/$/, '');
 const LICENSE_KEY = process.env.SMOKE_LICENSE_KEY || '';
@@ -78,12 +78,14 @@ const STT_CHECKS: SttCheck[] = [
 
 // Every post-process LLM provider gets exercised once — like the STT set, this
 // is NOT hand-maintained: it's derived from the server-side registry
-// (lib/llm-provider.ts → LLM_PROVIDER_NAMES). Each entry maps a provider id to
+// (lib/llm-models.ts: each provider's default row). Each entry maps a provider id to
 // the served name the backend echoes in the X-LLM-Provider response header for
 // that provider's DEFAULT model, used to detect a silent fallback to a
 // different provider. Adding a provider to the registry therefore exercises it
 // here automatically, and checkLLMProviderCoverage asserts the link can't drift.
-const LLM_CHECKS: Record<string, string> = LLM_PROVIDER_NAMES;
+const LLM_CHECKS: Record<string, string> = Object.fromEntries(
+  LLM_PROVIDERS.map((provider) => [provider, servedLLMName(provider, defaultModelFor(provider))]),
+);
 
 // The X-STT-Provider response header echoes the served name as `base/model`
 // (e.g. "deepgram/nova-3-general", "openai/gpt-4o-transcribe"). We check the
@@ -155,7 +157,7 @@ function checkProviderCoverage(): void {
 // Runs unconditionally so a registry/smoke drift is caught on every CI run.
 function checkLLMProviderCoverage(): void {
   const name = 'LLM provider coverage';
-  const registered = Object.keys(LLM_PROVIDER_NAMES);
+  const registered: readonly string[] = LLM_PROVIDERS;
   const covered = new Set(Object.keys(LLM_CHECKS));
   const missing = registered.filter((p) => !covered.has(p));
   if (missing.length) {

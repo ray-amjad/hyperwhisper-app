@@ -10,7 +10,11 @@
 // is the backend's narrower, security-critical view: what is actually routable
 // and how to meter it.
 
-import { ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE, ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE } from './cost-calculator';
+import {
+  GEMINI_2_5_FLASH_LITE_PRICE,
+  GEMINI_2_5_FLASH_PRICE,
+  GEMINI_3_8_FLASH_PRICE,
+} from './gemini-prices';
 
 export type SttProviderId =
   | 'deepgram'
@@ -27,18 +31,100 @@ export type SttProviderId =
   | 'soniox'
   | 'meta';
 
-export interface SttModelDef {
+/**
+ * How a model is billed. This is the ONE place a model's price lives: actual
+ * billing (`cost-calculator.ts`) reads it, and the preflight reservation rate
+ * (`estimatedUsdPerMinute`) is derived from it, so the two cannot drift.
+ *
+ *   * `perMinute` — flat USD per audio minute.
+ *   * `perHour`   — flat USD per audio hour, optionally with a minimum billable
+ *                   duration per request (Groq bills at least 10 s).
+ *   * `tokens`    — billed from the upstream `usage` object at the row's
+ *                   per-token rates (the token formulas are in
+ *                   `cost-calculator.ts`); the row also authors a reservation
+ *                   estimate (`reserveUsdPerMinute`), since no flat rate exists.
+ */
+export type SttBilling =
+  | { kind: 'perMinute'; usdPerMinute: number }
+  | { kind: 'perHour'; usdPerHour: number; minBillableSeconds?: number }
+  | SttTokenBilling;
+
+/** USD per token, one figure per input modality and one for output. */
+export interface SttTokenRates {
+  textInputPerToken: number;
+  audioInputPerToken: number;
+  outputPerToken: number;
+}
+
+export interface SttTokenBilling extends SttTokenRates {
+  kind: 'tokens';
+  /**
+   * Override rates for prompts above GEMINI_LONG_CONTEXT_THRESHOLD input tokens
+   * (`cost-calculator.ts`). Present only for models with tiered (Pro) pricing;
+   * flat models omit it.
+   */
+  longContext?: SttTokenRates;
+  /**
+   * Per-minute floor billed only when the token `usage` object is
+   * missing/changed, so a token-billed transcription never bills $0
+   * (fail-closed). OpenAI rows author it; the Gemini paths derive theirs from
+   * the audio-token rate and the audio duration instead.
+   */
+  missingUsageUsdPerMinute?: number;
+}
+
+const M = 1_000_000;
+
+/**
+ * Optional add-ons a model meters on top of its base rate. A model without a
+ * given field does not charge for that option, in preflight or in billing.
+ */
+export interface SttAddOns {
+  /** Added to the per-minute rate when the request asks for the medical domain. */
+  medicalUsdPerMinute?: number;
+  /** Added to the per-minute rate when the request carries keyterms. */
+  keytermsUsdPerMinute?: number;
+  /** Fractional surcharge on the whole rate when the request carries keyterms. */
+  keytermsSurcharge?: number;
+}
+
+/** The authored half of a model row; `estimatedUsdPerMinute` is derived from it. */
+interface SttModelSpec {
   /** Upstream model id. */
   id: string;
   /** Marks a preview/experimental model so clients can badge it. */
   isPreview?: boolean;
   /** Whether the upstream honours custom-vocabulary / keyterm biasing. */
   supportsVocabulary: boolean;
+  /** The model's price. See `SttBilling`. */
+  billing: SttBilling;
+  addOns?: SttAddOns;
+  /**
+   * Prompt/context TEXT tokens a non-`tokens` row bills ON TOP of `billing`
+   * (Soniox's custom context). `tokensPerChar` is the upstream tokenizer's
+   * ratio, which differs from the service's 4-chars/token heuristic. A
+   * `tokens` row bills its prompt at `billing.textInputPerToken` instead, and
+   * a row with neither does not bill prompt text at all.
+   */
+  contextText?: { usdPerToken: number; tokensPerChar: number };
+  /**
+   * Preflight USD/min, authored only where it is NOT simply the billing rate:
+   * every `tokens` row (no flat rate exists), and a flat row whose reservation
+   * is the billing rate rounded UP. Leave it out otherwise.
+   */
+  reserveUsdPerMinute?: number;
+  /**
+   * `gemini` rows only (required there, checked at module load): the
+   * generationConfig.thinkingConfig `providers/gemini.ts` sends for this model.
+   */
+  thinking?: { thinkingLevel: 'minimal' | 'low' } | { thinkingBudget: number };
+}
+
+export interface SttModelDef extends SttModelSpec {
   /**
    * Conservative USD-per-audio-minute figure used ONLY for the preflight
-   * credit reservation. Actual billing is computed from the upstream response
-   * (token usage or returned audio seconds) in the provider adapter, so this
-   * just has to be a safe upper-ish bound to gate low-balance abuse.
+   * credit reservation. DERIVED from `billing` (or the row's authored
+   * `reserveUsdPerMinute`), never authored in the table.
    */
   estimatedUsdPerMinute: number;
 }
@@ -84,31 +170,37 @@ export interface SttProviderDef {
 }
 
 /** The authored half of a provider entry; `selfOnly` is computed from it. */
-type SttProviderSpec = Omit<SttProviderDef, 'selfOnly'>;
+type SttProviderSpec = Omit<SttProviderDef, 'selfOnly' | 'models'> & { models: SttModelSpec[] };
 
 // Medical add-on multiplier surface — only AssemblyAI meters it today.
 export const MEDICAL_DOMAIN = 'medical';
+// AssemblyAI medical is a +$0.15/hr add-on (not a model) on either async tier.
 const ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE = 0.15 / 60;
-// Keyterms add-on ($0.05/hr) applies only to the Universal-3.5 Pro tier;
-// universal-2 is free/beta.
-const ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE = 0.05 / 60;
 // AssemblyAI's separate sync product (<=120s clips, single blocking request)
 // always runs universal-3-5-pro at its own published rate ("the same rate as
 // Universal-3.5 Pro Realtime") — HIGHER than either async tier below and not
 // modeled by a `models[]` entry (sync isn't a selectable model; it's a
 // routing decision the sync-eligibility gate makes for a request that could
-// have asked for either async model). Exported so the preflight reservation
-// (`maxReservationUsdPerMinute` in providers/reservation.ts) can reserve
-// against it for a request that could route through sync, instead of only
-// ever reserving the lower async catalog rate for the requested model — a
-// short clip (sync's target case) must not be able to deduct more than was
-// reserved. Re-exports cost-calculator.ts's `ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE`
-// (the single source of truth for this rate, used for ACTUAL billing) instead
-// of a second hardcoded copy of the same literal, so the reserved amount can
-// never silently drift from what's actually billed.
-export const ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE = ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE;
-// ElevenLabs keyterm prompting carries a +20% surcharge on base (scribe_v2 only).
-const ELEVENLABS_KEYTERMS_SURCHARGE = 0.20;
+// have asked for either async model). No medical/keyterms add-ons: the sync
+// API doesn't support them. The one copy of this rate: actual billing
+// (`computeAssemblyAISyncTranscriptionCost`) and the preflight reservation
+// (`maxReservationUsdPerMinute` in providers/reservation.ts) both read it, so a
+// short clip (sync's target case) cannot deduct more than was reserved.
+export const ASSEMBLYAI_SYNC_USD_PER_MINUTE = 0.45 / 60; // $0.0075/min
+
+// OpenAI gpt-4o-* transcribe tiers, token-billed. Named because two rows share
+// the mini tier (the retiring id and its dated snapshot). The per-minute floors
+// apply only when the token `usage` object is missing/changed.
+const GPT4O_TRANSCRIBE_BILLING: SttTokenBilling = {
+  kind: 'tokens',
+  textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 10.00 / M,
+  missingUsageUsdPerMinute: 0.006,
+};
+const GPT4O_MINI_TRANSCRIBE_BILLING: SttTokenBilling = {
+  kind: 'tokens',
+  textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 5.00 / M,
+  missingUsageUsdPerMinute: 0.003,
+};
 
 const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── Original cheap trio: cross-provider fallback retained ──
@@ -118,10 +210,11 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['deepgram', 'groq', 'elevenlabs'],
     async: false,
     models: [
-      { id: 'nova-3-general', supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
-      { id: 'nova-3-medical', supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
-      { id: 'nova-2-general', supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
-      { id: 'nova-2-medical', supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
+      // Nova-3: base $0.0043 + features $0.0012 per audio minute.
+      { id: 'nova-3-general', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0055 } },
+      { id: 'nova-3-medical', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0055 } },
+      { id: 'nova-2-general', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0055 } },
+      { id: 'nova-2-medical', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0055 } },
     ],
   },
   groq: {
@@ -130,8 +223,20 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['groq', 'deepgram', 'elevenlabs'],
     async: false,
     models: [
-      { id: 'whisper-large-v3-turbo', supportsVocabulary: true, estimatedUsdPerMinute: 0.000667 }, // $0.04/hr ÷ 60
-      { id: 'whisper-large-v3', supportsVocabulary: true, estimatedUsdPerMinute: 0.00185 },      // $0.111/hr ÷ 60
+      // https://groq.com/pricing — turbo $0.04/hr, large-v3 $0.111/hr, each
+      // with a 10 s minimum billable duration per request. Turbo reserves at
+      // its per-minute rate rounded up.
+      {
+        id: 'whisper-large-v3-turbo',
+        supportsVocabulary: true,
+        billing: { kind: 'perHour', usdPerHour: 0.04, minBillableSeconds: 10 },
+        reserveUsdPerMinute: 0.000667,
+      },
+      {
+        id: 'whisper-large-v3',
+        supportsVocabulary: true,
+        billing: { kind: 'perHour', usdPerHour: 0.111, minBillableSeconds: 10 },
+      },
     ],
   },
   elevenlabs: {
@@ -144,7 +249,13 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // deliberately absent here: this registry is fail-closed, so an explicit
     // request for it now gets rejected with a 400 rather than silently routed.
     models: [
-      { id: 'scribe_v2', supportsVocabulary: true, estimatedUsdPerMinute: 0.00983 },
+      // Keyterm prompting carries a documented +20% surcharge on base.
+      {
+        id: 'scribe_v2',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: 0.00983 },
+        addOns: { keytermsSurcharge: 0.20 },
+      },
     ],
   },
 
@@ -162,7 +273,13 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['grok', 'deepgram', 'groq', 'elevenlabs'],
     async: false,
     models: [
-      { id: 'grok-voice-transcribe-2.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
+      // $0.10 per audio hour; reserves at the per-minute rate rounded up.
+      {
+        id: 'grok-voice-transcribe-2.0',
+        supportsVocabulary: true,
+        billing: { kind: 'perHour', usdPerHour: 0.10 },
+        reserveUsdPerMinute: 0.00167,
+      },
     ],
     // xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and routes every
     // request for it to 2.0 at the same price, so its row is gone (#1908). A
@@ -181,10 +298,13 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     defaultModel: 'mai-transcribe-2',
     fallbackChain: ['azure-mai'],
     async: false,
-    // Each row reserves at the rate it actually bills. v2's $0.001667/min is
-    // $0.10/hr, Microsoft's limited-time offer, and it must match
-    // `AZURE_MAI_COST_PER_AUDIO_MINUTE` in `cost-calculator.ts` — when the offer
-    // ends BOTH move, because the charge is computed from that file either way.
+    // Each row reserves at the rate it actually bills (both derive from
+    // `billing`). 1.5 bills $0.006/min. v2 is published at $0.10 per hour of
+    // audio (≈ $0.001667/min), which Microsoft describes as a LIMITED-TIME OFFER
+    // running until the end of the year — revisit this rate, and the 1.67
+    // credits/min it backs in cloud-stt-catalog.json, when the offer ends.
+    // Refs: https://microsoft.ai/models/mai-transcribe-2/
+    //       https://microsoft.ai/news/mai-transcribe-2-is-the-fastest-most-accurate-and-cheapest-speech-recognition-model-in-the-world/
     //
     // v2 used to reserve at 1.5's 0.006 as insurance against the offer ending.
     // That bought nothing (the charge would have been wrong regardless) and cost
@@ -194,8 +314,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // advertise for this exact model. Fail-closed for an UNKNOWN model id is now
     // `dearestUsdPerMinute`, which does not need this array in any order.
     models: [
-      { id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
-      { id: 'mai-transcribe-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.10 / 60 },
+      { id: 'mai-transcribe-1.5', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.006 } },
+      { id: 'mai-transcribe-2', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 } },
     ],
   },
   'google-chirp': {
@@ -203,7 +323,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     defaultModel: 'chirp_3',
     fallbackChain: ['google-chirp'],
     async: true,
-    models: [{ id: 'chirp_3', supportsVocabulary: false, estimatedUsdPerMinute: 0.016 }],
+    // Google Cloud Speech-to-Text V2 Chirp 3.
+    models: [{ id: 'chirp_3', supportsVocabulary: false, billing: { kind: 'perMinute', usdPerMinute: 0.016 } }],
   },
   meta: {
     id: 'meta',
@@ -211,7 +332,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['meta'],
     async: false,
     models: [
-      { id: 'muse-voice-transcribe-1.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.003 },
+      // $3 per 1,000 audio minutes.
+      { id: 'muse-voice-transcribe-1.0', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.003 } },
     ],
   },
 
@@ -257,16 +379,21 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       'gpt-4o-transcribe': 'gpt-transcribe',
       'gpt-4o-mini-transcribe': 'gpt-4o-mini-transcribe-2025-12-15',
     },
+    //
+    // The gpt-4o-* `prompt` text input tokens bill at the (higher) audio-input
+    // rate — they're a handful of tokens, so erring high there is both simpler
+    // and conservative: those rows author one input rate for both modalities.
     models: [
-      { id: 'gpt-4o-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.009 },
-      { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
-      { id: 'whisper-1', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
-      { id: 'gpt-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
-      { id: 'gpt-live-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.017 },
+      { id: 'gpt-4o-transcribe', supportsVocabulary: true, billing: GPT4O_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.009 },
+      { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, billing: GPT4O_MINI_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.0045 },
+      { id: 'whisper-1', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.006 } },
+      { id: 'gpt-transcribe', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.0045 } },
+      { id: 'gpt-live-transcribe', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.017 } },
       // The dated snapshot OpenAI names as the mini tier's replacement. It is
       // token-billed at the gpt-4o-mini-transcribe rates, so it carries that
-      // row's reservation rate: the alias cannot make a mode dearer.
-      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
+      // row's billing and reservation rate: the alias cannot make a mode dearer,
+      // and it cannot fall through to the dearer gpt-4o-transcribe rates.
+      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, billing: GPT4O_MINI_TRANSCRIBE_BILLING, reserveUsdPerMinute: 0.0045 },
     ],
   },
   gemini: {
@@ -285,6 +412,19 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     aliases: { 'gemini-3-flash-preview': 'gemini-3.8-flash' },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
+    //
+    // Audio bills at 32 tokens/sec; cost is read from usageMetadata. Input is
+    // multi-modal: TEXT (the instruction+vocab prompt) and AUDIO bill at
+    // DIFFERENT per-token rates on Flash models, so both are authored. Pro models
+    // (2.5-pro, 3.1-pro) bill every input modality at one rate but switch to a
+    // higher long-context tier above 200k prompt tokens. The prices the
+    // /post-process LLM rows bill too come from gemini-prices.ts. Rates:
+    // Standard paid tier, per-1M ÷ 1e6. Ref: https://ai.google.dev/gemini-api/docs/pricing
+    //
+    // `thinking` is the generationConfig.thinkingConfig the adapter sends: keep
+    // thinking as low as each model allows (only 2.5-flash/flash-lite can zero
+    // it). Every row here must author it, because a wrong guess is a 400:
+    // thinkingBudget 0 is invalid on Pro, and 3.8 Flash has no 'minimal' level.
     models: [
       // #1019: the clients' Gemini default (cloud-stt-catalog.json isDefault). A
       // HyperWhisper Cloud mode on the gemini tier with no model chosen sends it as
@@ -293,11 +433,43 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       // 2026-12-31, then $1.50/$7.50. ~1,920 audio tok/min + ~200 out tok/min is
       // ~$0.0022/min now and ~$0.0044/min in 2027; reserved at 0.0030, the same
       // figure as the catalog's 3.0 credits/min.
-      { id: 'gemini-3.8-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0030 },
-      { id: 'gemini-2.5-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0024 },
-      { id: 'gemini-2.5-flash-lite', supportsVocabulary: false, estimatedUsdPerMinute: 0.0008 },
-      { id: 'gemini-2.5-pro', supportsVocabulary: false, estimatedUsdPerMinute: 0.0075 },
-      { id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false, estimatedUsdPerMinute: 0.0100 },
+      // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
+      // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
+      // Sending the gemini-3 'minimal' would be refused, so pin its floor.
+      {
+        id: 'gemini-3.8-flash', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_3_8_FLASH_PRICE },
+        reserveUsdPerMinute: 0.0030, thinking: { thinkingLevel: 'low' },
+      },
+      {
+        id: 'gemini-2.5-flash', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_PRICE },
+        reserveUsdPerMinute: 0.0024, thinking: { thinkingBudget: 0 },
+      },
+      {
+        id: 'gemini-2.5-flash-lite', supportsVocabulary: false,
+        billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_LITE_PRICE },
+        reserveUsdPerMinute: 0.0008, thinking: { thinkingBudget: 0 },
+      },
+      {
+        id: 'gemini-2.5-pro', supportsVocabulary: false,
+        billing: {
+          kind: 'tokens',
+          textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
+          longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
+        },
+        // 0 is invalid on Pro.
+        reserveUsdPerMinute: 0.0075, thinking: { thinkingBudget: 128 },
+      },
+      {
+        id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false,
+        billing: {
+          kind: 'tokens',
+          textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M,
+          longContext: { textInputPerToken: 4.00 / M, audioInputPerToken: 4.00 / M, outputPerToken: 18.00 / M },
+        },
+        reserveUsdPerMinute: 0.0100, thinking: { thinkingLevel: 'low' },
+      },
     ],
   },
   // Google's DEDICATED speech models, on /v1beta/interactions — a different
@@ -329,9 +501,21 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // a cap. The cap is enforced where the money moves: the live route prices
     // its mid-session cutoff with the transcript seen so far and clamps the
     // final deduction to the balance seen at auth (`ws-streaming-shared.ts`).
+    //
+    // One input price for every modality — audio and text bill the same here.
+    // A DIFFERENT product from the `gemini` rates above; see the billing block
+    // for these models in cost-calculator.ts (25 tok/s audio, output estimated).
     models: [
-      { id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
-      { id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0096 },
+      {
+        id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true,
+        billing: { kind: 'tokens', textInputPerToken: 2.00 / M, audioInputPerToken: 2.00 / M, outputPerToken: 12.00 / M },
+        reserveUsdPerMinute: 0.0055,
+      },
+      {
+        id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true,
+        billing: { kind: 'tokens', textInputPerToken: 3.50 / M, audioInputPerToken: 3.50 / M, outputPerToken: 21.00 / M },
+        reserveUsdPerMinute: 0.0096,
+      },
     ],
   },
   mistral: {
@@ -340,7 +524,7 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['mistral'],
     async: false,
     models: [
-      { id: 'voxtral-mini-latest', supportsVocabulary: true, estimatedUsdPerMinute: 0.003 },
+      { id: 'voxtral-mini-latest', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.003 } },
     ],
   },
 
@@ -357,9 +541,25 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       'slam-1': 'universal-3-5-pro',
     },
     models: [
-      { id: 'universal-3-5-pro', supportsVocabulary: true, estimatedUsdPerMinute: 0.0035 },
-      { id: 'universal-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.0025 },
-      { id: 'dictation', supportsVocabulary: true, estimatedUsdPerMinute: ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE },
+      // Universal-3.5 Pro (GA 2026-07-01, now the default) publishes the same
+      // $0.21/hr pre-recorded rate as its Universal-3 Pro predecessor —
+      // confirmed unchanged. The keyterms add-on (~$0.05/hr) applies only to
+      // this Pro tier; universal-2 keyterms are free/beta and must not be
+      // charged.
+      {
+        id: 'universal-3-5-pro',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: 0.21 / 60 },
+        addOns: { medicalUsdPerMinute: ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE, keytermsUsdPerMinute: 0.05 / 60 },
+      },
+      {
+        id: 'universal-2',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: 0.15 / 60 },
+        addOns: { medicalUsdPerMinute: ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE },
+      },
+      // A separate product with no add-ons.
+      { id: 'dictation', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.62 / 60 } },
     ],
   },
   soniox: {
@@ -370,7 +570,20 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     async: true,
     aliases: { 'stt-async-v4': 'stt-async-v5' },
     models: [
-      { id: 'stt-async-v5', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
+      // Token-billed upstream, but the ≈ $0.10/hr async equivalence covers
+      // input-AUDIO + OUTPUT-text tokens for typical speech, so it bills as a
+      // flat rate; custom-context input-text tokens are charged ON TOP (see
+      // `computeSonioxTranscriptionCost`). Ref: https://soniox.com/pricing.
+      // Reserves at the per-minute rate rounded up.
+      {
+        id: 'stt-async-v5',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 },
+        reserveUsdPerMinute: 0.00167,
+        // Custom-context input-text tokens at $3.50/1M (async); Soniox bills
+        // ~0.3 tokens per character.
+        contextText: { usdPerToken: 3.50 / M, tokensPerChar: 0.3 },
+      },
     ],
   },
 };
@@ -390,9 +603,34 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
 const PROVIDERS: Record<SttProviderId, SttProviderDef> = Object.fromEntries(
   Object.entries(PROVIDER_SPECS).map(([id, spec]): [SttProviderId, SttProviderDef] => [
     id as SttProviderId,
-    { ...spec, selfOnly: spec.fallbackChain.length === 1 },
+    { ...spec, selfOnly: spec.fallbackChain.length === 1, models: spec.models.map(deriveModelDef) },
   ]),
 ) as Record<SttProviderId, SttProviderDef>;
+
+// A gemini row with no `thinking` would have to guess one, and the old guess
+// (thinkingBudget 0) is a 400 on Pro models. Fail at module load instead.
+for (const model of PROVIDERS.gemini.models) {
+  if (!model.thinking) {
+    throw new Error(`Gemini STT model ${model.id} authors no thinking config`);
+  }
+}
+
+/**
+ * The preflight rate is computed from the row's price, the same way `selfOnly`
+ * is computed from the chain. A `tokens` row has no flat rate, so it must
+ * author `reserveUsdPerMinute`; a row that forgets fails at module load.
+ */
+function deriveModelDef(spec: SttModelSpec): SttModelDef {
+  const { billing } = spec;
+  const flat = billing.kind === 'perMinute'
+    ? billing.usdPerMinute
+    : billing.kind === 'perHour' ? billing.usdPerHour / 60 : undefined;
+  const estimated = spec.reserveUsdPerMinute ?? flat;
+  if (estimated === undefined) {
+    throw new Error(`STT model ${spec.id} is token-billed and authors no reserveUsdPerMinute`);
+  }
+  return { ...spec, estimatedUsdPerMinute: estimated };
+}
 
 const PROVIDER_IDS = new Set<string>(Object.keys(PROVIDERS));
 
@@ -491,6 +729,21 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
 }
 
 /**
+ * The registry row whose id is exactly `model` — no alias or default applied.
+ * Billing asks this for the id the upstream actually ran; a caller-supplied id
+ * goes through `resolveModel` instead.
+ */
+export function findModelRow(provider: SttProviderId, model: string | undefined): SttModelDef | undefined {
+  return PROVIDERS[provider].models.find((m) => m.id === model);
+}
+
+/** The registry row for `provider`'s default model. */
+export function defaultModelRow(provider: SttProviderId): SttModelDef {
+  const def = PROVIDERS[provider];
+  return def.models.find((m) => m.id === def.defaultModel) ?? def.models[0];
+}
+
+/**
  * The dearest rate any of a provider's models can bill at.
  *
  * The fail-closed answer for a model id `resolveModel` could not resolve: hold
@@ -501,16 +754,36 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
  * than was held for it. Taking the maximum states the property directly, so a
  * model row can be added or reordered without reading this function first.
  */
-function dearestModel(provider: SttProviderId): SttModelDef {
+export function dearestModel(provider: SttProviderId): SttModelDef {
   return PROVIDERS[provider].models.reduce(
     (dearest, model) => (model.estimatedUsdPerMinute > dearest.estimatedUsdPerMinute ? model : dearest),
   );
 }
 
 /**
- * Preflight USD/min for a (provider, model), including the medical add-on where
- * the provider meters it. Used only for the credit reservation; actual cost is
- * computed from the upstream response in the adapter.
+ * The token rates to bill `model` at on a token-billed path: its own row's,
+ * or — for an id with no token-billed row — the dearest token-billed row of
+ * the provider, the same fail-closed rule as `dearestModel`, so a model string
+ * we don't recognise cannot under-bill. Throws for a provider with no
+ * token-billed rows (a programming error, not a request error).
+ */
+export function tokenBillingFor(provider: SttProviderId, model: string | undefined): SttTokenBilling {
+  const own = findModelRow(provider, model)?.billing;
+  if (own?.kind === 'tokens') return own;
+  const tokenRows = PROVIDERS[provider].models.filter((m) => m.billing.kind === 'tokens');
+  if (tokenRows.length === 0) {
+    throw new Error(`STT provider ${provider} has no token-billed model`);
+  }
+  const dearest = tokenRows.reduce(
+    (best, m) => (m.estimatedUsdPerMinute > best.estimatedUsdPerMinute ? m : best),
+  );
+  return dearest.billing as SttTokenBilling;
+}
+
+/**
+ * Preflight USD/min for a (provider, model), including the add-ons the row
+ * meters (medical, keyterms). Used only for the credit reservation; actual cost
+ * is computed from the upstream response in the adapter, from the same row.
  */
 export function estimatedUsdPerMinute(
   provider: SttProviderId,
@@ -522,22 +795,32 @@ export function estimatedUsdPerMinute(
   // One row answers both the rate and the add-on question, so the two can never
   // describe different models on the unresolved path.
   const priced = resolution.ok ? resolution.model : dearestModel(provider);
-  const base = priced.estimatedUsdPerMinute;
+  return applyKeytermsSurcharge(
+    withAdditiveAddOns(priced.estimatedUsdPerMinute, priced.addOns, medical, keyterms),
+    priced.addOns,
+    keyterms,
+  );
+}
 
-  if (provider === 'elevenlabs') {
-    // Keyterm prompting adds +20% on base, scribe_v2 only (scribe_v1 has no biasing).
-    return (keyterms && priced.id === 'scribe_v2') ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
-  }
+// The one copy of the add-on rules. The preflight above and actual billing in
+// `cost-calculator.ts` both apply them, in this order: the per-minute add-ons
+// join the rate, then the keyterms surcharge scales the amount. They are two
+// functions because billing scales the AMOUNT (minutes × rate), not the rate.
 
-  if (provider !== 'assemblyai' || priced.id === 'dictation') {
-    return base;
-  }
+/** `usdPerMinute` plus the per-minute add-ons the row meters for this request. */
+export function withAdditiveAddOns(
+  usdPerMinute: number,
+  addOns: SttAddOns | undefined,
+  medical: boolean,
+  keyterms: boolean,
+): number {
+  return usdPerMinute
+    + (medical ? addOns?.medicalUsdPerMinute ?? 0 : 0)
+    + (keyterms ? addOns?.keytermsUsdPerMinute ?? 0 : 0);
+}
 
-  const resolvedModel = priced.id;
-  const medicalAddon = medical ? ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE : 0;
-  // Keyterms add-on only applies to the Universal-3.x Pro tier (free/beta on universal-2).
-  const keytermsAddon = (keyterms && resolvedModel === 'universal-3-5-pro')
-    ? ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE
-    : 0;
-  return base + medicalAddon + keytermsAddon;
+/** `amount` with the row's fractional keyterms surcharge, when it has one. */
+export function applyKeytermsSurcharge(amount: number, addOns: SttAddOns | undefined, keyterms: boolean): number {
+  const surcharge = keyterms ? addOns?.keytermsSurcharge : undefined;
+  return surcharge === undefined ? amount : amount * (1 + surcharge);
 }
