@@ -18,7 +18,7 @@ import {
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
 import { captureNoSpeechEvent, captureProviderEvent } from './test-support';
-import { saveEnv, stubEnv } from '../test-support/env';
+import { stubEnv } from '../test-support/env';
 import { stubErrorResponse } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
@@ -49,7 +49,6 @@ beforeEach(() => {
   restoreEnv = [
     stubEnv('GEMINI_API_KEY', 'test-key'),
     stubEnv('GOOGLE_GEMINI_API_KEY', undefined),
-    saveEnv('STT_PROVIDER_TIMEOUT_MS'),
   ];
 });
 
@@ -82,49 +81,10 @@ function captureJsonRequest(payload: unknown = sampleResponse()): Captured {
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {
   // Verified live: sending both gets HTTP 400
   // "custom_vocabulary is incompatible with diarization." / "... with timestamps."
-  test('vocabulary wins — diarization and timestamps are dropped, never merged', () => {
-    const config = buildTranscriptionConfig('en-US', ['HyperWhisper'], {
-      diarizationMode: 'speaker',
-      timestampGranularities: ['word'],
-    });
+  test('a vocabulary config carries no diarization or timestamp field', () => {
+    const config = buildTranscriptionConfig('en-US', ['HyperWhisper']);
 
-    expect(config.custom_vocabulary).toEqual(['HyperWhisper']);
-    expect(config).not.toHaveProperty('diarization_mode');
-    expect(config).not.toHaveProperty('timestamp_granularities');
-  });
-
-  test('the extras are honoured only when there is no vocabulary to conflict with', () => {
-    const config = buildTranscriptionConfig('en-US', [], {
-      diarizationMode: 'speaker',
-      timestampGranularities: ['word'],
-    });
-
-    expect(config.diarization_mode).toBe('speaker');
-    expect(config.timestamp_granularities).toEqual(['word']);
-    expect(config).not.toHaveProperty('custom_vocabulary');
-  });
-
-  test('no built config ever carries vocabulary alongside an incompatible field', () => {
-    const languages = [undefined, 'auto', 'en', 'en-US'];
-    const vocabularies = [[], ['HyperWhisper'], ['a', 'b']];
-    const extras = [
-      {},
-      { diarizationMode: 'speaker' },
-      { timestampGranularities: ['word'] },
-      { diarizationMode: 'speaker', timestampGranularities: ['word', 'segment'] },
-    ];
-
-    for (const language of languages) {
-      for (const vocabulary of vocabularies) {
-        for (const extra of extras) {
-          const config = buildTranscriptionConfig(language, vocabulary, extra);
-          if ('custom_vocabulary' in config) {
-            expect(config).not.toHaveProperty('diarization_mode');
-            expect(config).not.toHaveProperty('timestamp_granularities');
-          }
-        }
-      }
-    }
+    expect(config).toEqual({ language_codes: ['en-US'], custom_vocabulary: ['HyperWhisper'] });
   });
 
   test('auto-detect omits language_codes entirely; an explicit tag passes through as sent', () => {
@@ -221,7 +181,6 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
 
 describe('transcribeWithGeminiTranscribe — timeout contract', () => {
   test('uses the 45-second cold-path budget instead of the shared provider timeout', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '1';
     captureJsonRequest();
 
     const requestStart = await captureProviderEvent(

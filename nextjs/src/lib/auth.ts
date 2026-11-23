@@ -9,6 +9,7 @@ import { db } from "@/src/db";
 import { env } from "@/src/env/server.mjs";
 import { DEFAULT_FROM_EMAIL, sendEmail } from "@/lib/clients/email";
 import { sha256Hex } from "@/lib/shared/sha256";
+import { authLogIpHash, emitAuthEvent } from "@/src/lib/auth-event-log";
 import { redactAddresses } from "@/lib/shared/redact";
 import {
   MAGIC_LINK_EXPIRY_SECONDS,
@@ -114,34 +115,22 @@ function logMagicLinkVerify(ctx: {
     returned,
     newSession !== null,
   );
-  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
-  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
-  const ip =
-    ctx.headers?.get("cf-connecting-ip")?.trim() ||
-    ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const line = JSON.stringify({
-    event: "auth.magic_link_verify",
-    outcome,
-    ...(reason ? { reason } : {}),
-    ...(newSession
-      ? {
-          userId: newSession.user.id,
-          newUser: verifyContextsThatCreatedAUser.has(ctx.context),
-        }
-      : {}),
-    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
-  });
 
-  // The website's console output is its server log (Workers Logs).
-  /* eslint-disable no-console */
-  if (outcome === "ok") {
-    console.log(line);
-  } else if (outcome === "rejected") {
-    console.warn(line);
-  } else {
-    console.error(line);
-  }
-  /* eslint-enable no-console */
+  emitAuthEvent(
+    {
+      event: "auth.magic_link_verify",
+      outcome,
+      ...(reason ? { reason } : {}),
+      ...(newSession
+        ? {
+            userId: newSession.user.id,
+            newUser: verifyContextsThatCreatedAUser.has(ctx.context),
+          }
+        : {}),
+      ipHash: authLogIpHash(ctx.headers),
+    },
+    outcome,
+  );
 }
 
 export const auth = betterAuth({

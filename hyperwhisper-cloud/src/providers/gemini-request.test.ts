@@ -92,7 +92,6 @@ beforeEach(() => {
   restoreEnv = [
     stubEnv('GEMINI_API_KEY', 'test-key'),
     stubEnv('GOOGLE_GEMINI_API_KEY', undefined),
-    stubEnv('STT_PROVIDER_TIMEOUT_MS', undefined),
   ];
 });
 
@@ -174,12 +173,14 @@ describe('transcribeWithGemini — request shape', () => {
       ['gemini-2.5-flash-lite', { thinkingBudget: 0 }],
       // 0 is rejected by 2.5 Pro, so the floor there is 128.
       ['gemini-2.5-pro', { thinkingBudget: 128 }],
-      ['gemini-3-flash-preview', { thinkingLevel: 'minimal' }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
       // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
       ['gemini-3.8-flash', { thinkingLevel: 'low' }],
-      // An unrecognised model falls back to the 2.5-flash config.
-      ['some-future-model', { thinkingBudget: 0 }],
+      // An id with no registry row (the route canonicalizes aliases and rejects
+      // unknown ids first) gets the default model's config — no longer a
+      // thinkingBudget 0 guess, which Pro models reject.
+      ['gemini-3-flash-preview', { thinkingLevel: 'low' }],
+      ['some-future-model', { thinkingLevel: 'low' }],
     ];
 
     for (const [model, expected] of cases) {
@@ -290,21 +291,15 @@ describe('transcribeWithGemini — upstream error mapping', () => {
 });
 
 describe('transcribeWithGemini — timeout budget', () => {
-  test('aborts on the configured budget and reports it as a timeout', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '25';
-    let aborted = false;
-    globalThis.fetch = mock((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
-      init.signal!.addEventListener('abort', () => {
-        aborted = true;
-        reject(new DOMException('The operation was aborted.', 'AbortError'));
-      });
-    })) as unknown as typeof fetch;
+  test('an aborted request is reported as a timeout on the shared budget', async () => {
+    globalThis.fetch = mock(async () => {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }) as unknown as typeof fetch;
 
     const thrown = await transcribeWithGemini(audio(), 'audio/wav').catch((e) => e);
-    expect(aborted).toBe(true);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
     expect(thrown.kind).toBe('timeout');
-    expect(thrown.message).toContain('timeout after 25ms');
+    expect(thrown.message).toContain('timeout after 15000ms');
   });
 
   test('a connection failure is a network error, not a timeout', async () => {

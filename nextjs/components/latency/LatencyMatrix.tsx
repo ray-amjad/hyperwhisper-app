@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Pin } from "lucide-react";
+import { ChevronRight, MapPin, Pin } from "lucide-react";
 
 import {
   BUCKET_LABELS,
@@ -100,6 +100,8 @@ function cellMap(cells: LatencyCell[], metric: MetricKey, minSamples: number) {
  * pseudo element behind the content instead.
  */
 const STICKY_COVER = "shadow-[0_0_0_6px_#0b0c17]";
+/** The spread of STICKY_COVER, in px: how far the column covers past its edge. */
+const STICKY_COVER_PX = 6;
 
 /** The metric and bucket toggles, and the "Sorted by … — reset" chip. */
 const PILL =
@@ -142,6 +144,9 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // rather than jumping 500 px in one frame.
   const matrixRegion = useRef<HTMLDivElement>(null);
   const matrixTable = useRef<HTMLTableElement>(null);
+  // The sticky Provider header (#1120): its width is the strip of the region a
+  // focused column header must not scroll under.
+  const stickyHeader = useRef<HTMLTableCellElement>(null);
   // The re-sort FLIP (#812): where each row stood just before a re-order, and
   // the slides in flight.
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -205,19 +210,28 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // starts from there. The first report only pins the height it already has.
   // The region is observed too: a horizontal scrollbar that comes or goes
   // changes its chrome (border + scrollbar) without changing the table.
+  // The same pass keeps the region's inline-start scroll padding at the sticky
+  // Provider column's width plus its cover (#1120), so a column header that takes focus on
+  // Shift+Tab scrolls into view beside that column, not under it. The column
+  // widens with "Break down by model", so it is measured, not a fixed class.
   useEffect(() => {
     const region = matrixRegion.current;
     const table = matrixTable.current;
+    const sticky = stickyHeader.current;
 
-    if (!region || !table) return;
+    if (!region || !table || !sticky) return;
     const observer = new ResizeObserver(() => {
       const chrome = region.offsetHeight - region.clientHeight;
 
       region.style.height = `${table.offsetHeight + chrome}px`;
+      // Logical side: the column is `start-0`, so it is on the right in RTL.
+      // Its night cover shadow reaches STICKY_COVER_PX past its own edge.
+      region.style.scrollPaddingInlineStart = `${sticky.offsetWidth + STICKY_COVER_PX}px`;
     });
 
     observer.observe(table);
     observer.observe(region);
+    observer.observe(sticky);
 
     return () => observer.disconnect();
   }, [hasData]);
@@ -510,14 +524,17 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 type="button"
                 onClick={() => setByModel((open) => !open)}
               >
-                {byModel ? (
-                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
-                ) : (
-                  <ChevronRight
-                    className="h-3.5 w-3.5 rtl:-scale-x-100"
-                    strokeWidth={1.5}
-                  />
-                )}
+                {/* One chevron that turns (#988), the way the FAQ and Devices
+                    disclosures do, not a second glyph swapped in. In RTL it is
+                    mirrored to point left, so it turns the other way to point
+                    down. */}
+                <ChevronRight
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ease-[cubic-bezier(0.2,0,0,1)] rtl:-scale-x-100 ${
+                    byModel ? "rotate-90 rtl:-rotate-90" : ""
+                  }`}
+                  strokeWidth={1.5}
+                />
                 Break down by model
               </button>
             </div>
@@ -681,6 +698,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               <thead>
                 <tr>
                   <th
+                    ref={stickyHeader}
                     className={`sticky start-0 z-20 bg-[#0b0c17] ${STICKY_COVER} px-3 py-3 text-start text-[11.5px] font-normal uppercase tracking-[1.3px] text-[var(--dusk-dim)]`}
                   >
                     {byModel ? "Provider / model" : "Provider"}
@@ -695,8 +713,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                       } ${hover?.region === region ? "bg-white/[.05]" : ""}`}
                       scope="col"
                     >
+                      {/* scroll-ms-2 is the cell's own px-2: a focused
+                          header lands with its whole cell clear of the sticky
+                          column (#1120), focus ring included. */}
                       <button
-                        className="whitespace-nowrap rounded transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
+                        className="scroll-ms-2 whitespace-nowrap rounded transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)]"
                         title={`Sort providers by ${regionCity(region)}`}
                         type="button"
                         onClick={() => {
@@ -770,7 +791,21 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                               )
                             }
                           >
-                            {pinned ? <Pin className="h-3 w-3" /> : null}
+                            {/* The pin keeps its 12px slot in both states and
+                                cross-fades in it (#931), so pinning never moves
+                                the name; the row's purple stays the main cue. */}
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                            >
+                              <Pin
+                                className={`h-3 w-3 transition-[opacity,filter,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+                                  pinned
+                                    ? "scale-100 opacity-100"
+                                    : "scale-[0.25] opacity-0 blur-[4px]"
+                                }`}
+                              />
+                            </span>
                             {row.label}
                           </button>
                         )}

@@ -39,16 +39,18 @@
 
 import type { Context, Next } from 'hono';
 import type { WSMessageReceive } from 'hono/ws';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { generateRequestId } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
-import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { authDiagnosticsForLog, type AuthContext } from '../middleware/auth';
+import { openRequestGate } from '../middleware/request-gate';
 import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../middleware/credit-holds';
 import { insufficientCreditsResponse } from '../lib/responses';
-import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
+import { rawQuery } from '../lib/query';
+import { readAccountKey } from '../lib/account-key';
+import { liveSessionsClosed, registerLiveSession } from '../lib/background-work';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -312,51 +314,44 @@ export function makeStreamingPreflight(
       return c.text('Expected WebSocket upgrade', 426);
     }
 
-    const clientIP = getClientIP(c);
-    if (await isIPBlocked(clientIP)) {
-      logRejected('ip_blocked', 403);
-      return c.text('Access denied', 403);
+    // Plain-text 403/401: the upgrade clients read these bodies as text.
+    // Per-key rate limits after auth and before the credit hold (#2010): the
+    // 10/min upgrade bucket and the key's shared 60/min. A full bucket refuses
+    // before either is counted, so one never spends the other's slot.
+    const gate = await openRequestGate(c, { endpoint: c.req.path, buckets: ['ws_upgrade', 'key'], plainText: true });
+    if (!gate.ok) {
+      logRejected(gate.reason, gate.response.status);
+      return gate.response;
     }
 
-    const url = new URL(c.req.url);
-    // `account_key` is the canonical param; `license_key` is the legacy alias that
-    // installed native apps still send, so we accept either.
-    const licenseKey =
-      url.searchParams.get('account_key') ||
-      url.searchParams.get('license_key') ||
-      undefined;
+    const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));
 
     if (!licenseKey) {
       logRejected('missing_account_key', 401);
       return c.text('Missing account_key', 401);
     }
 
-    const authResult = await validateAuth({ licenseKey });
-    if (!authResult.ok) {
-      logEvent(requestId, startTime, 'ws_streaming.auth_rejected', {
-        endpoint: c.req.path,
-        status: authResult.response.status,
-        ...authDiagnosticsForLog(authResult.diagnostics),
-      });
-      return c.text('Unauthorized', 401);
-    }
-
-    // Per-key rate limits, after auth and before the credit hold (#2010): the
-    // 10/min upgrade bucket and the key's shared 60/min. A full bucket refuses
-    // before either is counted, so one never spends the other's slot.
-    const rateLimited = await keyRateLimitResponse(c.req.path, authResult.value.licenseKey, ['ws_upgrade', 'key']);
-    if (rateLimited) {
-      logRejected('rate_limited', rateLimited.status);
-      return rateLimited;
+    const admission = await gate.admitKey(licenseKey);
+    if (!admission.ok) {
+      if (admission.reason === 'auth_failed') {
+        logEvent(requestId, startTime, 'ws_streaming.auth_rejected', {
+          endpoint: c.req.path,
+          status: admission.authStatus,
+          ...authDiagnosticsForLog(admission.authDiagnostics),
+        });
+      } else {
+        logRejected(admission.reason, admission.response.status);
+      }
+      return admission.response;
     }
 
     const requiredCredits = minimumCredits();
     // A floor check only: the session's real hold is `reserveSessionHold` below.
-    const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP, { hold: false });
+    const creditCheck = await validateCredits(admission.auth, requiredCredits, { hold: false });
     if (!creditCheck.ok) {
       logRejected('insufficient_credits', creditCheck.response.status, {
         // The rounded balance validateCredits compared, which the 402 body reports too.
-        credits: roundToTenth(authResult.value.credits),
+        credits: roundToTenth(admission.auth.credits),
         minimumCredits: requiredCredits,
       });
       return creditCheck.response;
@@ -366,7 +361,7 @@ export function makeStreamingPreflight(
     // (and dictations) on one key share the balance instead of each seeing all
     // of it. Anything from the 30 s floor up to one block is accepted.
     const { hold, outcome } = await reserveSessionHold(
-      authResult.value,
+      admission.auth,
       requiredCredits,
       Math.max(requiredCredits, holdCredits()),
     );
@@ -381,8 +376,8 @@ export function makeStreamingPreflight(
       return insufficientCreditsResponse(available, requiredCredits);
     }
 
-    c.set('wsAuth', authResult.value);
-    c.set('wsClientIP', clientIP);
+    c.set('wsAuth', admission.auth);
+    c.set('wsClientIP', gate.clientIP);
     c.set('wsCreditHold', hold);
 
     try {
@@ -406,47 +401,12 @@ function errorName(error: unknown): string {
   return error instanceof Error ? error.name.slice(0, 64) : typeof error;
 }
 
-// Every live session past its API-key check, keyed by its shutdown handler.
-// `gracefulShutdown` (index.ts) ends them all on SIGTERM, because Bun runs no
-// socket `close` handler on `process.exit` and `endSession` is the only place a
-// live session is billed (#1235). An entry removes itself in `endSession`.
-const activeSessions = new Set<() => Promise<void>>();
-/** Set once by `endActiveStreamingSessions`; no live session opens after it. */
-let machineShuttingDown = false;
-
-/**
- * End every open live session for a machine shutdown: bill it and log
- * `session_end` now, close the vendor socket, and close the client with 1012
- * (Service Restart) so the native clients reconnect to another machine.
- *
- * Call it BEFORE `drainPendingDeductions`, so the drain awaits these charges.
- * It does not wait for a vendor's trailing final — the whole grace period is 5 s.
- * Resolves to the number of sessions ended.
- */
-export async function endActiveStreamingSessions(): Promise<number> {
-  // Latch first: the machine keeps accepting upgrades during the drain, and a
-  // preflight already awaiting auth can open after this snapshot. Every session
-  // whose `onOpen` runs from now on is refused with 1012 before it can meter.
-  machineShuttingDown = true;
-  const sessions = [...activeSessions];
-  // Settled, not `Promise.all`: one session's fault must not reject this and
-  // make `gracefulShutdown` skip the drains and the exit.
-  const results = await Promise.allSettled(sessions.map((shutdown) => shutdown()));
-  let ended = 0;
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      ended += 1;
-    } else {
-      console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(result.reason) });
-    }
-  }
-  return ended;
-}
-
-/** Test-only: bun runs every test file in one process, and the latch is module state. */
-export function resetStreamingShutdownForTests(): void {
-  machineShuttingDown = false;
-}
+// Every live session past its API-key check registers its shutdown handler in
+// `lib/background-work.ts`, which the graceful shutdown ends on SIGTERM: Bun
+// runs no socket `close` handler on `process.exit`, and `endSession` is the
+// only place a live session is billed (#1235). An entry removes itself in
+// `endSession`. Once the shutdown has begun (`liveSessionsClosed`), a session
+// that would open is refused with 1012 before it can meter.
 
 function decodeUpstreamFrame(raw: unknown): string {
   // `event.data` is typed `any` by the WebSocket lib and a vendor can deliver a
@@ -497,10 +457,8 @@ export function createStreamingEventsFor(
   const requestId = generateRequestId();
   const startTime = performance.now();
   const auth = c.get('wsAuth');
-  const clientIP = c.get('wsClientIP');
-  const url = new URL(c.req.url);
-  const language = url.searchParams.get('language') || undefined;
-  const vocabulary = url.searchParams.get('vocabulary') || undefined;
+  const language = rawQuery(c.req.url, 'language');
+  const vocabulary = rawQuery(c.req.url, 'vocabulary');
   const apiKey = vendor.apiKey();
   const endpoint = routePathFor(vendor);
 
@@ -540,6 +498,8 @@ export function createStreamingEventsFor(
    */
   let upstreamReached = false;
   let sessionEnded = false;
+  /** Set once the session is registered for shutdown; run by `endSession`. */
+  let unregisterLiveSession: (() => void) | null = null;
   let clientSocket: WSContext | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
   // `true` once the vendor will accept audio. A vendor with a setup handshake
@@ -593,7 +553,7 @@ export function createStreamingEventsFor(
   async function endSession(options: { notifyClient?: boolean } = {}): Promise<void> {
     if (sessionEnded) return;
     sessionEnded = true;
-    activeSessions.delete(shutdownSession);
+    unregisterLiveSession?.();
     if (openDeadline) {
       clock.clearTimeout(openDeadline);
       openDeadline = null;
@@ -693,12 +653,13 @@ export function createStreamingEventsFor(
           endpoint,
           stt_provider: vendor.billingProvider,
         },
-        clientIP,
         {
-          ...(holdEnforced() ? { credits: creditsUsed } : {}),
+          exactCredits: creditsUsed,
+          // `hold.cover` above already settled it against the session's hold.
+          coveredByHold: holdEnforced(),
           onFailure: logDeductionFailure(requestId, startTime, endpoint),
         }
-      ).catch(console.error);
+      ).recorded.catch(console.error);
     } else {
       void hold?.release();
     }
@@ -714,7 +675,12 @@ export function createStreamingEventsFor(
     }
   }
 
-  /** The machine is shutting down: see {@link endActiveStreamingSessions}. */
+  /**
+   * The machine is shutting down (`endLiveSessions`): bill the session and log
+   * `session_end` now, close the vendor socket, and close the client with 1012
+   * (Service Restart) so the native clients reconnect to another machine. It
+   * does not wait for a vendor's trailing final.
+   */
   async function shutdownSession(): Promise<void> {
     const ended = endSession({ notifyClient: false });
     // Client first, so the upstream close handler finds it already closed and
@@ -972,7 +938,7 @@ export function createStreamingEventsFor(
         return;
       }
 
-      if (machineShuttingDown) {
+      if (liveSessionsClosed()) {
         // Opened after shutdown began, so it would miss the snapshot and be
         // dropped unbilled by the exit. Refuse it before any upstream socket or
         // metering exists; 1012 sends the client to another machine. Nothing
@@ -985,7 +951,11 @@ export function createStreamingEventsFor(
       }
 
       log('session_start', { language: language || 'auto', hasVocabulary: Boolean(vocabulary) });
-      activeSessions.add(shutdownSession);
+      // A failed shutdown is logged here and still rejects, so it is not counted as ended.
+      unregisterLiveSession = registerLiveSession(() => shutdownSession().catch((error: unknown) => {
+        console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(error) });
+        throw error;
+      }));
 
       upstreamWs = protocols === undefined
         ? new WebSocket(upstreamUrl)
