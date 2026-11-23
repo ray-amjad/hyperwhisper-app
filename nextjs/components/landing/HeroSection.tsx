@@ -120,7 +120,11 @@ export default function HeroSection() {
           <span className="sr-only">{APPS.join(", ")}.</span>
         </p>
 
-        <PlatformButtons className="dusk-enter mt-9" style={delay(360)} />
+        <PlatformButtons
+          className="dusk-enter mt-9"
+          cta="home_hero"
+          style={delay(360)}
+        />
 
         <p
           className="dusk-enter mt-[18px] text-[13.5px] text-white/85 [text-shadow:0_1px_12px_rgba(20,10,40,.7)]"

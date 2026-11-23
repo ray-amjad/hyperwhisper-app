@@ -18,7 +18,15 @@ const ENGLISH_ONLY = [
   "/en/blog/some-post",
 ];
 
-const PATHS = ["/", "/#features", "/#cloud", "/support", "/legal/privacy-policy"];
+const PATHS = [
+  "/",
+  "/#features",
+  "/#cloud",
+  "/support",
+  "/legal/privacy-policy",
+  "/download",
+  "/download?platform=mac",
+];
 
 function prefixed(locale: string, path: string) {
   if (path === "/") return `/${locale}`;
