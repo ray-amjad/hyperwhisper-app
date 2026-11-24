@@ -255,6 +255,9 @@ jobs:
         run: |
           reports="$HOME/Library/Logs/DiagnosticReports"
           [ -d "$reports" ] || exit 0
+          # always() also runs this when the build failed before the test
+          # step wrote its start marker; `find -newer` would then error.
+          [ -f "$RUNNER_TEMP/hyperwhisper-test-start" ] || { echo "Tests never started."; exit 0; }
           found=0
           while IFS= read -r -d '' f; do
             found=1
