@@ -1,5 +1,5 @@
 {
-  "_about": "Every /docs URL Mintlify served before the docs moved into the Next.js site. `pages`: the 69 <loc> entries of https://www.hyperwhisper.com/docs/sitemap.xml on 2026-11-24 (55 .mdx pages and 14 pages Mintlify generated from openapi.yaml). `redirects`: docs.json `redirects`. `files`: other URLs Mintlify answered 200 for. tests/docs-old-urls.test.ts checks each one still resolves.",
+  "_about": "Every /docs URL Mintlify served before the docs moved into the Next.js site. `pages`: the 69 <loc> entries of https://www.hyperwhisper.com/docs/sitemap.xml on 2026-11-24 (55 .mdx pages and 14 pages Mintlify generated from openapi.yaml). `redirects`: docs.json `redirects`, plus the bare group prefixes Mintlify answered 200 for with the group's first page (/docs/api-reference, /docs/api-reference/local-api, /docs/windows; found in verify round 1). `files`: other URLs Mintlify answered 200 for. tests/docs-old-urls.test.ts checks each one still resolves.",
   "pages": [
     "/docs",
     "/docs/advanced-settings",
@@ -72,7 +72,10 @@
     "/docs/windows/faq"
   ],
   "redirects": {
-    "/docs/model-management": "/docs/models"
+    "/docs/model-management": "/docs/models",
+    "/docs/api-reference": "/docs/api-reference/local-api/overview",
+    "/docs/api-reference/local-api": "/docs/api-reference/local-api/overview",
+    "/docs/windows": "/docs/windows/faq"
   },
   "files": [
     "/docs/sitemap.xml",

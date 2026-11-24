@@ -55,6 +55,10 @@ export const mdxRules = {
 /** @type {{ source: string; destination: string; statusCode: 301 }[]} */
 export const docsRedirects = [
   { source: "/docs/model-management", destination: "/docs/models", statusCode: 301 },
+  // Bare group prefixes Mintlify answered 200 with the group's first page.
+  { source: "/docs/api-reference", destination: "/docs/api-reference/local-api/overview", statusCode: 301 },
+  { source: "/docs/api-reference/local-api", destination: "/docs/api-reference/local-api/overview", statusCode: 301 },
+  { source: "/docs/windows", destination: "/docs/windows/faq", statusCode: 301 },
 ];
 
 /**

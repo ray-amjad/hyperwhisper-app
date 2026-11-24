@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { EndpointPage } from "@/components/docs/EndpointPage";
 import { docsMdxComponents } from "@/components/docs/mdx-components";
+import { docsPageJsonLd } from "@/lib/docs/json-ld";
 import { loadDoc, loadPageComponent, loadSpec } from "@/lib/docs/content";
 import {
   DOCS_BASE,
@@ -63,19 +64,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function breadcrumbJsonLd(items: { name: string; url: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((item, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  };
-}
-
 export default async function DocsPage({ params }: Props) {
   const entry = await entryFor(params);
   const doc = loadDoc(entry);
@@ -106,7 +94,14 @@ export default async function DocsPage({ params }: Props) {
     <>
       <script
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(breadcrumbJsonLd(crumbs)),
+          __html: serializeJsonLd(
+            docsPageJsonLd({
+              title: doc.title,
+              description: doc.description,
+              canonical: doc.canonical,
+              crumbs,
+            }),
+          ),
         }}
         type="application/ld+json"
       />

@@ -184,3 +184,49 @@ test("an endpoint's meta description is its whole description, as Mintlify's was
     "Accepts either an absolute file path OR an audio_base64 + mime_type pair. The engine + model can come from a saved mode_id, from explicit engine/model/language fields, or a mix (mode supplies defaults and per-call fields override).",
   );
 });
+
+// Verify round 1: the Mintlify pages carried Organization, WebSite, WebPage
+// and TechArticle JSON-LD; every docs page now emits the same graph.
+test("every docs page emits Organization, WebSite, TechArticle and BreadcrumbList JSON-LD", async () => {
+  const { docsPageJsonLd } = await import("../lib/docs/json-ld");
+  const page = readFileSync(
+    fileURLToPath(new URL("../app/docs/[[...slug]]/page.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  assert.match(page, /serializeJsonLd\(\s*docsPageJsonLd\(/);
+
+  const canonical = "https://www.hyperwhisper.com/docs/models";
+  const ld = docsPageJsonLd({
+    title: "Models",
+    description: "Every model HyperWhisper offers.",
+    canonical,
+    crumbs: [
+      { name: "Docs", url: "https://www.hyperwhisper.com/docs" },
+      { name: "Models", url: canonical },
+    ],
+  });
+  const byType = new Map(ld["@graph"].map((node) => [node["@type"], node]));
+
+  assert.deepEqual(Array.from(byType.keys()), [
+    "Organization",
+    "WebSite",
+    "TechArticle",
+    "BreadcrumbList",
+  ]);
+
+  const article = byType.get("TechArticle") as Record<string, unknown>;
+
+  assert.equal(article.headline, "Models");
+  assert.equal(article.description, "Every model HyperWhisper offers.");
+  assert.equal(article.url, canonical);
+  assert.equal(
+    (byType.get("Organization") as Record<string, unknown>)["@id"],
+    "https://www.hyperwhisper.com/#organization",
+  );
+  assert.deepEqual(
+    (byType.get("BreadcrumbList") as { itemListElement: { item: string }[] })
+      .itemListElement.map((i) => i.item),
+    ["https://www.hyperwhisper.com/docs", canonical],
+  );
+});

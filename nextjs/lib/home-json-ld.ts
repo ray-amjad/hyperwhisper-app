@@ -4,6 +4,24 @@ export function stripMarkdownLinks(text: string): string {
   return text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 }
 
+export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
+
+/** The HyperWhisper Organization node, shared by the home page and the docs. */
+export function organizationJsonLd() {
+  return {
+    "@type": "Organization",
+    "@id": ORGANIZATION_ID,
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon/512.png`,
+    sameAs: [
+      "https://github.com/ray-amjad/hyperwhisper-app",
+      "https://www.linkedin.com/company/hyperwhisper/",
+      "https://x.com/HyperWhisperApp",
+    ],
+  };
+}
+
 export type HomeFaqItem = {
   question: string;
   answer: string;
@@ -24,23 +42,11 @@ export function buildHomeJsonLd({
   faq: HomeFaqItem[];
 }) {
   const pageUrl = `${SITE_URL}/${locale}`;
-  const organizationId = `${SITE_URL}/#organization`;
 
   return {
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "Organization",
-        "@id": organizationId,
-        name: SITE_NAME,
-        url: SITE_URL,
-        logo: `${SITE_URL}/icon/512.png`,
-        sameAs: [
-          "https://github.com/ray-amjad/hyperwhisper-app",
-          "https://www.linkedin.com/company/hyperwhisper/",
-          "https://x.com/HyperWhisperApp",
-        ],
-      },
+      organizationJsonLd(),
       {
         "@type": "SoftwareApplication",
         name: SITE_NAME,
@@ -54,7 +60,7 @@ export function buildHomeJsonLd({
           price: "0",
           priceCurrency: "USD",
         },
-        publisher: { "@id": organizationId },
+        publisher: { "@id": ORGANIZATION_ID },
       },
       {
         "@type": "FAQPage",
