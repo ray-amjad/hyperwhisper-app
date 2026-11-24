@@ -37,6 +37,15 @@ export const serverSchema = z.object({
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
 
+  // Bearer token for the admin MCP endpoint (app/api/mcp/admin/route.ts), the
+  // agent-gateway door to customer lookups and credit grants. Its own secret,
+  // never HYPERWHISPER_INTERNAL_SECRET. Optional: unset (or empty, so a blank
+  // Infisical entry does not fail validation), the endpoint answers 401 to
+  // everything. At least 32 characters: it can grant credits.
+  HYPERWHISPER_ADMIN_MCP_TOKEN: z
+    .union([z.string().min(32), z.literal("")])
+    .optional(),
+
   // Comma-separated base URLs of the HyperWhisper Cloud apps whose licence
   // cache an Account Key rotation purges (lib/services/cloud-license-cache.ts,
   // sent with HYPERWHISPER_INTERNAL_SECRET). Not a secret. Unset: production
@@ -110,6 +119,9 @@ export const serverEnv = {
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
   HYPERWHISPER_CLOUD_URLS: process.env.HYPERWHISPER_CLOUD_URLS,
+
+  // Admin MCP endpoint bearer token (see the schema above)
+  HYPERWHISPER_ADMIN_MCP_TOKEN: process.env.HYPERWHISPER_ADMIN_MCP_TOKEN,
 
   // HMAC key for `credit_pool_id` (see the schema above)
   CREDIT_POOL_ID_SECRET: process.env.CREDIT_POOL_ID_SECRET,

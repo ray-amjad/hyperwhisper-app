@@ -49,6 +49,7 @@ import {
   toVocabularyTerms,
 } from '../providers/gemini-transcribe';
 import { isRecord } from '../lib/utils';
+import { GEMINI_API_KEY_ENV, readApiKey } from '../providers/vendor-api-keys';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
   createStreamingEventsFor,
@@ -311,7 +312,7 @@ export const GEMINI_TRANSCRIBE_VENDOR: StreamingVendor = {
   label: 'Gemini',
   billingProvider: GEMINI_TRANSCRIBE_LIVE_MODEL,
   // No new secret: the same key the HTTP adapter and providers/gemini.ts use.
-  apiKey: () => process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '',
+  apiKey: () => readApiKey(GEMINI_API_KEY_ENV) || '',
   buildUpstreamUrl: (session: StreamingSession) => buildLiveWsUrl(session.apiKey),
   // The live API authenticates with `?key=`; there is no subprotocol form.
   readyOnOpen: false,

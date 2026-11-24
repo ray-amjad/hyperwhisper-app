@@ -7,8 +7,9 @@
 // `C  `. This helper re-parses the query string manually and decodes with
 // `decodeURIComponent`, which leaves `+` alone.
 //
-// Scope: used by the /transcribe route only (see routes/transcribe.ts). Other
-// routes keep `c.req.query()` — their params (keys, ids) never carry `+`.
+// Scope: every route reads its query params through this helper, never
+// `c.req.query()` or `URLSearchParams.get`, which both apply the `+` → space
+// step (live-dictation `vocabulary` carries `C++` as much as `initial_prompt`).
 
 /**
  * Read a single query parameter from `url`, percent-decoding the value while
@@ -43,11 +44,21 @@ export function rawQuery(url: string, name: string): string | undefined {
       value = decodeURIComponent(rawValue);
     } catch {
       // Malformed escape (e.g. a stray `%`): fall back to the raw value rather
-      // than throwing a 500 for one bad byte.
-      value = rawValue;
+      // than throwing a 500 for one bad byte. The well-formed escapes around it
+      // are still decoded, as `URLSearchParams` does, so one stray `%` in a
+      // live-dictation `vocabulary` does not send every term undecoded.
+      value = decodeLikeSearchParams(rawValue);
     }
     return value === '' ? undefined : value;
   }
 
   return undefined;
+}
+
+/**
+ * Decode the way `URLSearchParams` does (a stray `%` stays, an invalid UTF-8
+ * escape becomes U+FFFD) except that a literal `+` stays `+`.
+ */
+function decodeLikeSearchParams(raw: string): string {
+  return new URLSearchParams(`v=${raw.replace(/\+/g, '%2B')}`).get('v') ?? raw;
 }

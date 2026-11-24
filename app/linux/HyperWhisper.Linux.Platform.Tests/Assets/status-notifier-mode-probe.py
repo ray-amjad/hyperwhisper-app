@@ -128,8 +128,6 @@ def settled():
 def registered(_conn, _sender, _path, _iface, _method, params, invocation):
     state["service"], = params.unpack()
     invocation.return_value(None)
-    bus.signal_subscribe(state["service"], "com.canonical.dbusmenu", "LayoutUpdated", "/Menu", None,
-                         Gio.DBusSignalFlags.NONE, layout_updated)
     say({"event": "registered"})
     next_command()
 
@@ -148,6 +146,13 @@ def readable(fd, _condition):
     return True
 
 
+# Subscribe before the watcher name is owned, so the match rule is on the bus before any
+# helper can register. Subscribing after the RegisterStatusNotifierItem reply raced the
+# helper's first LayoutUpdated (#3065): the helper reads its queued mode list and signals
+# as soon as that reply lands, and on a busy runner the signal beat the AddMatch. This
+# private bus carries one helper, so the signal is matched on path and interface alone.
+bus.signal_subscribe(None, "com.canonical.dbusmenu", "LayoutUpdated", "/Menu", None,
+                     Gio.DBusSignalFlags.NONE, layout_updated)
 info = Gio.DBusNodeInfo.new_for_xml(WATCHER_XML).interfaces[0]
 bus.register_object("/StatusNotifierWatcher", info, registered, None, None)
 Gio.bus_own_name_on_connection(bus, "org.kde.StatusNotifierWatcher", Gio.BusNameOwnerFlags.NONE,
