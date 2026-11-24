@@ -220,6 +220,43 @@ for (const target of stores) {
       expect(result).toEqual({ granted: true, holdMilli: 2000, availableMilli: 2000 });
     });
 
+    test('provisional holds bound each other and count firm ones (#2483)', async () => {
+      const store = target.store();
+      await store.reserve(request({ holdId: 'firm', minMilli: 2000, maxMilli: 2000, balanceMilli: 5000 }));
+      const first = await store.reserve(request({ holdId: 'a', minMilli: 2000, maxMilli: 2000, balanceMilli: 5000, provisional: true }));
+      expect(first).toEqual({ granted: true, holdMilli: 2000, availableMilli: 3000 });
+      // 5 - 2 firm - 2 provisional leaves 1: a second 2-credit floor is refused.
+      const second = await store.reserve(request({ holdId: 'b', minMilli: 2000, maxMilli: 2000, balanceMilli: 5000, provisional: true }));
+      expect(second).toEqual({ granted: false, holdMilli: 0, availableMilli: 1000 });
+    });
+
+    test('a firm hold ignores other requests\' provisional holds and replaces its own (#2483)', async () => {
+      const store = target.store();
+      // Two requests each hold a 1-credit floor on a 5-credit balance.
+      await store.reserve(request({ holdId: 'a', minMilli: 1000, maxMilli: 1000, balanceMilli: 5000, provisional: true }));
+      await store.reserve(request({ holdId: 'b', minMilli: 1000, maxMilli: 1000, balanceMilli: 5000, provisional: true }));
+      // Each would fit alone; b's floor must not starve a's exact hold.
+      const firmA = await store.reserve(request({ holdId: 'a', minMilli: 4500, maxMilli: 4500, balanceMilli: 5000 }));
+      expect(firmA).toEqual({ granted: true, holdMilli: 4500, availableMilli: 5000 });
+      // a's provisional entry is gone, replaced by its firm one.
+      const firmB = await store.reserve(request({ holdId: 'b', minMilli: 4500, maxMilli: 4500, balanceMilli: 5000 }));
+      expect(firmB).toEqual({ granted: false, holdMilli: 1000, availableMilli: 500 });
+      // A new floor counts a's firm hold and b's floor.
+      const floor = await store.reserve(request({ holdId: 'c', minMilli: 100, maxMilli: 100, balanceMilli: 5000, provisional: true }));
+      expect(floor.granted).toBe(false);
+      // Release frees b's provisional entry too.
+      await store.release(ACCOUNT, 'b');
+      await store.release(ACCOUNT, 'a');
+      expect((await store.reserve(request({ holdId: 'c', minMilli: 5000, maxMilli: 5000, balanceMilli: 5000, provisional: true }))).granted).toBe(true);
+    });
+
+    test('an expired provisional hold is swept like any other (#2483)', async () => {
+      const store = target.store();
+      await store.reserve(request({ holdId: 'a', minMilli: 1000, maxMilli: 1000, ttlMs: 1000, provisional: true }));
+      const later = await store.reserve(request({ holdId: 'b', minMilli: 1000, maxMilli: 1000, nowMs: NOW + 2000, provisional: true }));
+      expect(later.granted).toBe(true);
+    });
+
     test('holds are per account', async () => {
       const store = target.store();
       await store.reserve(request({ holdId: 'a' }));
