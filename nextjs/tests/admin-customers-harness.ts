@@ -28,6 +28,7 @@ import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { moduleMock, moduleUrl } from "./module-mock";
 
 export type LicenseWithCredits = AccountKeyRow & { credits: number };
@@ -96,27 +97,22 @@ export const behaviour = {
   /** Charges per Stripe customer id. An Error value makes the list throw. */
   charges: new Map<string, ChargeFixture[] | Error>(),
   disputeStatus: new Map<string, string>(),
+  /**
+   * Stripe customer ids on keys OUTSIDE \`licenses\` (older than the capped
+   * list), per user: what only the uncapped id query sees (#3056).
+   */
+  unlistedStripeIds: new Map<string, string[]>(),
   /** What `checkout.sessions.retrieve` reports as `payment_intent`. */
   paymentIntent: "pi_1" as string | { id: string } | null,
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "11111111-1111-4111-8111-111111111111",
-    key: "HW-FAKE-0000-0001",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "active",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  id: "11111111-1111-4111-8111-111111111111",
+  key: "HW-FAKE-0000-0001",
+  // Production writes account keys as "granted"; "active" is a credit-grant
+  // status. Kept here so the admin tests keep their exact data (#1086).
+  status: "active",
+});
 
 export function licenseRow(
   overrides: Partial<LicenseWithCredits> = {},
@@ -156,6 +152,7 @@ export function resetHarness(): void {
   behaviour.revokeRevoked = true;
   behaviour.charges = new Map();
   behaviour.disputeStatus = new Map();
+  behaviour.unlistedStripeIds = new Map();
   behaviour.paymentIntent = "pi_1";
 }
 
@@ -180,6 +177,28 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     getAccountKeysWithCreditsForUserIds: async (userIds: string[]) => {
       calls.licensesForUserIds.push([...userIds]);
       return behaviour.licenses;
+    },
+    // Derived from the same fixture licenses, so the page's spend sees the
+    // Stripe ids it always saw from the license rows.
+    getStripeCustomerIdsForUserIds: async (userIds: string[]) => {
+      const byUser = new Map<string, Set<string>>();
+
+      for (const l of behaviour.licenses as Array<{ userId: string; stripeCustomerId: string | null }>) {
+        if (!l.stripeCustomerId || !userIds.includes(l.userId)) continue;
+        const ids = byUser.get(l.userId) ?? new Set<string>();
+
+        ids.add(l.stripeCustomerId);
+        byUser.set(l.userId, ids);
+      }
+      for (const [userId, extra] of Array.from(behaviour.unlistedStripeIds)) {
+        if (!userIds.includes(userId)) continue;
+        const ids = byUser.get(userId) ?? new Set<string>();
+
+        for (const id of extra) ids.add(id);
+        byUser.set(userId, ids);
+      }
+
+      return byUser;
     },
     getUsersByIds: async (ids: string[]) => {
       calls.usersByIds.push([...ids]);

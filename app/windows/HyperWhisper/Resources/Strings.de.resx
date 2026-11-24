@@ -949,15 +949,6 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Eigenes Vokabular wird von Parakeet-Modellen nicht unterstützt.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Eigenes Vokabular wird von ElevenLabs Scribe V1 nicht unterstützt.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Eigenes Vokabular wird von Deepgram-Base-Modellen nicht unterstützt.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Eigenes Vokabular wird von Deepgram-Whisper-Modellen nicht unterstützt.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Eigenes Vokabular ist bei automatischer Spracherkennung mit Nova-Modellen deaktiviert. Legen Sie eine bestimmte Sprache fest, um die Vokabulargewichtung zu aktivieren.</value>
   </data>
@@ -2189,7 +2180,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Bitte mindestens einen Bereich zum Importieren auswählen.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} neue Wörter hinzufügen, {1} Konflikte mit bestehenden Wörtern. Fortfahren?</value>
+    <value>Neue Wörter: {0}. Konflikte mit bestehenden Wörtern: {1}. Fortfahren?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Vokabular importieren?</value>

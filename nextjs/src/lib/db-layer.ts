@@ -24,6 +24,7 @@ import {
 import {
   getCreditBalancesForUsers,
   grantCreditLotInTransaction,
+  type CreditGrantInsert,
   type CreditGrantSourceType,
   type DbExecutor,
 } from "./credit-ledger";
@@ -755,6 +756,42 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
   });
 }
 
+export type GrantToGrantedKeyResult =
+  | {
+      status: "processed" | "duplicate";
+      balance: number;
+      license: AccountKeyRow;
+    }
+  | { status: "license_not_found" }
+  | { status: "license_not_granted"; license: AccountKeyRow };
+
+/**
+ * Grant a credit lot to the account that owns `key`, only while that key is
+ * `granted`, in ONE transaction. The key row is read `FOR SHARE`, so a
+ * revocation or refund (an `UPDATE` of its status) either committed first and
+ * is seen here, or waits until this grant commits. A status checked outside
+ * the transaction could change between the check and the grant (#3054).
+ */
+export async function grantCreditLotToGrantedKey(
+  key: string,
+  grant: Omit<CreditGrantInsert, "userId">,
+): Promise<GrantToGrantedKeyResult> {
+  return db.transaction(async (tx) => {
+    const license = await findAccountByKey(key, tx, { lockForShare: true });
+
+    if (!license) return { status: "license_not_found" };
+    if (license.status !== "granted") {
+      return { status: "license_not_granted", license };
+    }
+    const result = await grantCreditLotInTransaction(tx, {
+      ...grant,
+      userId: license.userId,
+    });
+
+    return { ...result, license };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Credit Balances and Grants: moved to ./credit-ledger (#1595), re-exported
 // here so every importer keeps one module.
@@ -770,6 +807,8 @@ export {
   getCreditBalance,
   getCreditBalancesForUsers,
   getPaidCreditGrantsForUsers,
+  getCreditGrantsForUsers,
+  findCreditGrantBySource,
 } from "./credit-ledger";
 export type {
   CreditGrantSourceType,
@@ -778,6 +817,7 @@ export type {
   CreditGrantRefund,
   CreditGrantRefundResult,
   CreditGrantHistoryRow,
+  CreditGrantLedgerRow,
 } from "./credit-ledger";
 
 /**
@@ -815,7 +855,7 @@ async function attachPooledCredits<T extends { userId: string }>(
 // 100 per customer is generous enough that no realistic customer's real
 // license set should ever hit it, while guaranteeing every requested userId
 // gets at least some rows back.
-const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
+export const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
 
 /**
  * Fetch every license (with credit balance) belonging to the given users,
@@ -868,6 +908,46 @@ export async function getAccountKeysWithCreditsForUserIds(
 
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
+}
+
+/**
+ * Every distinct Stripe customer id on each account's keys, with NO per-account
+ * row cap. A customer's total spend sums these, so it must not depend on the
+ * newest-100 cap `getAccountKeysWithCreditsForUserIds` puts on the key list:
+ * an older paid key's customer id would drop out of the total (#3056). Shared
+ * by the admin Customers page and the admin MCP `find_customer` tool.
+ */
+export async function getStripeCustomerIdsForUserIds(
+  userIds: string[],
+): Promise<Map<string, Set<string>>> {
+  const byUser = new Map<string, Set<string>>();
+
+  if (userIds.length === 0) return byUser;
+  const rows = await db
+    .selectDistinct({
+      userId: accountKeys.userId,
+      stripeCustomerId: accountKeys.stripeCustomerId,
+    })
+    .from(accountKeys)
+    .where(
+      and(
+        inArray(accountKeys.userId, userIds),
+        sql`${accountKeys.stripeCustomerId} IS NOT NULL`,
+      ),
+    );
+
+  for (const row of rows) {
+    if (!row.stripeCustomerId) continue;
+    let ids = byUser.get(row.userId);
+
+    if (!ids) {
+      ids = new Set();
+      byUser.set(row.userId, ids);
+    }
+    ids.add(row.stripeCustomerId);
+  }
+
+  return byUser;
 }
 
 /**

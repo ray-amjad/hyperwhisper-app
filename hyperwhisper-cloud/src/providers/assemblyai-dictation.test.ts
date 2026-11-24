@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { transcribeWithAssemblyAI } from './assemblyai';
+import { transcribeWithProvider } from './dispatch';
 import { dictationKeyterms, parseDictationWav, validateDictationOptions } from './assemblyai-dictation';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 const transcribe = (audio = pcm16Wav(), language: string | undefined = 'en', domain?: string) =>
-  transcribeWithAssemblyAI(audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
+  transcribeWithProvider('assemblyai', audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
 
 describe('Dictation transport', () => {
   test('config is typed JSON first, canonical WAV second, cleaned text and exact duration win', async () => {

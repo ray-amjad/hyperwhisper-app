@@ -22,7 +22,8 @@ const DEVICES = "server/api/routers/admin/devices.ts";
 const STATS = "server/api/routers/admin/stats.ts";
 const TRPC = "server/api/trpc.ts";
 const HARNESS = "tests/trpc-http-harness.ts";
-const DOWNLOAD = "server/api/routers/download.ts";
+// recordDownload's body (and its outer catch) lives in the appcast module.
+const DOWNLOAD = "server/api/routers/download-appcast.ts";
 
 const MUTANTS = [
   {
@@ -151,8 +152,8 @@ const MUTANTS = [
   {
     file: DEVICES,
     name: "allow a zero or negative window",
-    from: ".input(z.object({ days: z.number().positive().optional() }).optional())",
-    to: ".input(z.object({ days: z.number().optional() }).optional())",
+    from: "const daysInput = z.number().int().min(1).max(3650);",
+    to: "const daysInput = z.number().int().max(3650);",
   },
   {
     file: DEVICES,
@@ -163,8 +164,8 @@ const MUTANTS = [
   {
     file: DEVICES,
     name: "drop the forLicense window",
-    from: "          input.days\n",
-    to: "          undefined\n",
+    from: "          input.days,\n",
+    to: "          undefined,\n",
   },
   {
     file: DEVICES,

@@ -29,11 +29,18 @@ public sealed class WindowsStatisticsTranscriptProvider : IStatisticsTranscriptP
         // Rows the database refused to insert (#1589) count too. Read them first: a row
         // flushed between the two reads is then in both and counted once (by id below).
         var pending = HistoryService.Instance.GetPendingTranscriptsSnapshot();
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
         await using var context = new HyperWhisperDbContext();
         var rows = await context.Transcripts.AsNoTracking()
             .Select(item => new { item.Id, item.Date, item.Text, item.Duration, item.Status })
             .ToListAsync(cancellationToken);
+
+        // A count and a time, never text. HomeStatsBarViewModel caches the totals (#986),
+        // so this line marks every Home visit that really read the store.
+        LoggingService.Info(
+            $"WindowsStatisticsTranscriptProvider: read {rows.Count} transcript rows from the database " +
+            $"in {System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms");
 
         var known = rows.Select(r => r.Id).ToHashSet();
         return rows.Select(r => ToStatistics(r.Date, r.Text, r.Duration, r.Status))

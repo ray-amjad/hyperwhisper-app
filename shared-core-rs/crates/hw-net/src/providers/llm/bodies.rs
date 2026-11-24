@@ -75,6 +75,15 @@ pub fn openai_chat(
             };
             map.insert((*key).to_string(), number);
         }
+        // Gemma 4's chat template thinks by default: 400-750 hidden reasoning
+        // tokens before every clean-up, ~20 s instead of ~1 s on an A18 Pro.
+        // Clean-up gains nothing from it, so turn it off. llama-server passes
+        // this to the Jinja template; a template that has no such switch
+        // ignores it.
+        map.insert(
+            "chat_template_kwargs".to_string(),
+            json!({ "enable_thinking": false }),
+        );
     }
     if let Some(max_tokens) = options.max_tokens {
         map.insert("max_tokens".to_string(), json!(max_tokens));
