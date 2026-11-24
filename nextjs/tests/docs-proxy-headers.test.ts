@@ -246,6 +246,55 @@ test("every path the filter matches is one a rewrite sends to Mintlify", async (
   }
 });
 
+// OpenNext's `fixDataPage` (@opennextjs/aws core/routing/matcher.js) turns a
+// data URL into its page path before the rewrites run, so
+// `/_next/data/<buildId>/docs.json` is proxied as `/docs`.
+const BUILD_ID = "test-build-id";
+const dataUrl = (path: string) =>
+  `/_next/data/${BUILD_ID}${path === "/" ? "/index" : path}.json`;
+
+test("the /_next/data/<buildId>/….json form of every proxied path is filtered", async () => {
+  const rewrites = await loadRewrites();
+  const external = rewrites.filter(({ destination }) =>
+    /^https?:\/\//.test(destination),
+  );
+  const regexes = external.map(
+    (rewrite) => new RegExp(buildManifestRoute("rewrite", rewrite).regex),
+  );
+  const corpus = [
+    ...external.flatMap(({ source }) => samplesFor(source)),
+    ...DOCS_PATHS,
+    ...SITE_PATHS,
+  ];
+  let proxied = 0;
+
+  for (const path of corpus) {
+    if (regexes.some((regex) => regex.test(path))) {
+      proxied += 1;
+      assert.equal(
+        isDocsProxyPath(dataUrl(path)),
+        true,
+        `${dataUrl(path)} is proxied as ${path} but keeps its credentials`,
+      );
+    }
+  }
+  assert.ok(proxied > 0, "some data URL was checked");
+});
+
+test("the data URL of a site page is not filtered", () => {
+  for (const path of ["/", "/en", "/en/docs", "/docsx", "/account"]) {
+    assert.equal(isDocsProxyPath(dataUrl(path)), false, dataUrl(path));
+  }
+  // Not a data URL at all: no .json, or nothing after the buildId.
+  for (const path of [
+    `/_next/data/${BUILD_ID}/docs`,
+    `/_next/data/${BUILD_ID}.json`,
+    "/_next/static/docs.json",
+  ]) {
+    assert.equal(isDocsProxyPath(path), false, path);
+  }
+});
+
 // --- The worker's fetch handler --------------------------------------------
 
 for (const path of [
@@ -267,6 +316,21 @@ for (const path of [
     assert.equal(seen.headers.get("x-forwarded-for"), "203.0.113.9");
     assert.equal(seen.url, `${ORIGIN}${path}`);
     assert.equal(seen.method, "GET");
+  });
+}
+
+for (const page of ["/docs", "/docs/models", "/api/request"]) {
+  test(`GET ${dataUrl(page)}: Mintlify gets no Cookie and sets none`, async () => {
+    const { seen, response } = await runWorker(
+      credentialed(dataUrl(page)),
+      upstreamSetting(["a=1; Path=/"], { "clear-site-data": '"cookies"' }),
+    );
+
+    assert.equal(seen.headers.get("cookie"), null);
+    assert.equal(seen.headers.get("authorization"), null);
+    assert.equal(seen.headers.get("proxy-authorization"), null);
+    assert.deepEqual(response.headers.getSetCookie(), []);
+    assert.equal(response.headers.get("clear-site-data"), null);
   });
 }
 

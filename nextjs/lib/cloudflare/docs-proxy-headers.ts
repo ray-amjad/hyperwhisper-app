@@ -17,7 +17,14 @@
  * case-insensitively, so a looser match can only strip more, never leak.
  * tests/docs-proxy-headers.test.ts checks that every path a Mintlify rewrite
  * source matches is matched here.
+ *
+ * A Pages Router data URL is matched as the page it names: OpenNext's
+ * `fixDataPage` turns `/_next/data/<buildId>/docs.json` into `/docs` before
+ * the rewrites run, so it reaches Mintlify too. The buildId is not checked
+ * here; a wrong one gets OpenNext's 404 and never leaves the Worker.
  */
+const NEXT_DATA_PATH = /^\/_next\/data\/[^/]+(\/.*)\.json$/;
+
 const DOCS_PROXY_PATH =
   /^\/(?:docs(?:\.rsc)?|_mintlify|mintlify-assets)(?:\/|$)|^\/api\/request\/?$/i;
 
@@ -40,7 +47,16 @@ const STRIPPED_RESPONSE_HEADERS = [
 
 /** Whether `pathname` is sent to Mintlify by a docs rewrite. */
 export function isDocsProxyPath(pathname: string): boolean {
-  return DOCS_PROXY_PATH.test(pathname);
+  return DOCS_PROXY_PATH.test(routedPath(pathname));
+}
+
+/** The path OpenNext routes `pathname` as (a data URL as its page). */
+function routedPath(pathname: string): string {
+  const page = NEXT_DATA_PATH.exec(pathname)?.[1];
+
+  if (page === undefined) return pathname;
+
+  return page === "/index" ? "/" : page;
 }
 
 /**
