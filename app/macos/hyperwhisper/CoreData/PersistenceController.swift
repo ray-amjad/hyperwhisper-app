@@ -266,7 +266,7 @@ class PersistenceController: ObservableObject {
 
         // Initialize default modes on first launch
         if !inMemory {
-            initializeDefaultModes()
+            prepareModesOnLaunch()
             normalizeCloudRouteIdentifiersIfNeeded()
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
@@ -276,14 +276,32 @@ class PersistenceController: ObservableObject {
             // `geminiTranscribe`, so running this first would leave nothing to do
             // and then let the older migration write the value again.
             migrateGoogleChirp3TierIfNeeded()
-            // BEFORE repairModeNamesOnLaunch: that pass renames a duplicate
-            // name with a " 2" suffix, and a leaked row is gone sooner if it
-            // is never renamed in the first place (issue #1509).
-            purgeLeakedLocalAPITransientModesOnLaunch()
             repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
         }
+    }
+
+    /// The first launch step: the leaked-row purge, then the default-mode
+    /// seed and repair. Internal rather than private so
+    /// `LocalAPITransientModeTests` can drive it on an in-memory store, which
+    /// `init` skips.
+    ///
+    /// The purge runs FIRST (issue #1546). `initializeDefaultModes()` moves the
+    /// default flag onto some row when none has it, and a store whose only
+    /// modes are leaked rows (the user deleted every real one) then gets a
+    /// leaked row as its default. Purging first leaves such a store empty, so
+    /// the seeder writes the real default mode instead. A leaked row an
+    /// earlier launch already made the default stays: no field tells it apart
+    /// from a default Mode a user made through the Local API.
+    ///
+    /// It also runs before `repairModeNamesOnLaunch()`: that pass renames a
+    /// duplicate name with a " 2" suffix, and a leaked row is gone sooner if
+    /// it is never renamed in the first place (issue #1509). The migrations
+    /// between the two read and write no name, sort order or default flag.
+    func prepareModesOnLaunch() {
+        purgeLeakedLocalAPITransientModesOnLaunch()
+        initializeDefaultModes()
     }
 
     private func purgeLeakedLocalAPITransientModesOnLaunch() {
