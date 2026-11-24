@@ -9,16 +9,44 @@ namespace HyperWhisper.Services;
 /// records, one per (model path, GPU identity, backend), so a native GPU crash
 /// during a weight upload pins the next launch off the backend that crashed.
 /// Lifted out of <see cref="LocalLlmService"/> unchanged; it shares no state with it.
+///
+/// One instance stands for one launch: it holds that launch's ordinal and its
+/// clean-exit latch. The app uses <see cref="Default"/> through the static
+/// methods; a test builds several instances over one file to play successive
+/// launches (#2597).
 /// </summary>
-internal static class LocalLlmGpuLoadCrashStore
+internal sealed class LocalLlmGpuLoadCrashStore
 {
+    /// <summary>
+    /// The app's one launch. Paths are read from <see cref="AppPaths"/> on every
+    /// access, as before, so an app-data root set after type init still applies.
+    /// </summary>
+    internal static LocalLlmGpuLoadCrashStore Default { get; } = new(
+        () => AppPaths.Combine("local-llm-gpu-load-crashes.json"),
+        () => AppPaths.Combine("local-llm-gpu-load.sentinel"),
+        GetGpuIdentity);
+
+    private readonly Func<string> _storePath;
+    private readonly Func<string> _legacyPath;
+    private readonly Func<string> _gpuIdentity;
+
+    internal LocalLlmGpuLoadCrashStore(string storePath, string legacyPath, Func<string> gpuIdentity)
+        : this(() => storePath, () => legacyPath, gpuIdentity)
+    {
+    }
+
+    private LocalLlmGpuLoadCrashStore(Func<string> storePath, Func<string> legacyPath, Func<string> gpuIdentity)
+    {
+        _storePath = storePath;
+        _legacyPath = legacyPath;
+        _gpuIdentity = gpuIdentity;
+    }
+
     // Legacy single-path marker from the original PR; migrated/removed on first
     // access so an upgrade does not strand a permanent CPU pin.
-    private static string LegacyGpuLoadSentinelPath =>
-        AppPaths.Combine("local-llm-gpu-load.sentinel");
+    private string LegacyGpuLoadSentinelPath => _legacyPath();
 
-    private static string GpuLoadSentinelPath =>
-        AppPaths.Combine("local-llm-gpu-load-crashes.json");
+    private string GpuLoadSentinelPath => _storePath();
 
     // A crash pin expires this many subsequent launches after it was written, so a
     // non-crash process death (force-quit, OS kill, unrelated thread crash) cannot
@@ -26,9 +54,9 @@ internal static class LocalLlmGpuLoadCrashStore
     // counter rather than wall-clock time so it survives clock changes.
     private const int CrashPinExpiryLaunches = 10;
 
-    private static readonly object GpuLoadCrashStoreLock = new();
-    private static long? _cachedLaunchOrdinal;
-    private static bool _cleanExitClearingGpuLoads;
+    private readonly object _gpuLoadCrashStoreLock = new();
+    private long? _cachedLaunchOrdinal;
+    private bool _cleanExitClearingGpuLoads;
 
     private sealed class GpuLoadCrashEntry
     {
@@ -40,7 +68,7 @@ internal static class LocalLlmGpuLoadCrashStore
         /// True while a GPU load is actively in progress. A genuine native CUDA
         /// crash kills the process WITHOUT unwinding, so this flag is never cleared
         /// and survives to the next launch — that survival is the crash signal. A
-        /// clean shutdown clears it first (<see cref="ClearInFlightGpuLoads"/>, wired
+        /// clean shutdown clears it first (<see cref="ClearInFlightLoads"/>, wired
         /// to process exit), so an ordinary app quit mid-load no longer looks like a
         /// crash on the next launch. Only entries that are still in-flight on the
         /// next launch are treated as crashes, which keeps the forced-CPU pin and the
@@ -50,7 +78,7 @@ internal static class LocalLlmGpuLoadCrashStore
         /// cleared. An entry deserialized from the already-shipped #563 JSON store
         /// (which had no InFlight field) yields <c>null</c> — that is a confirmed
         /// crash recorded by the shipped build, so it is treated as in-flight for
-        /// backward compat (see <see cref="GpuLoadCrashedPreviously"/>). Only an
+        /// backward compat (see <see cref="CrashedPreviously"/>). Only an
         /// explicit <c>false</c> (written by a clean exit /
         /// <see cref="ClearInFlightGpuLoads"/>) drops the entry without forcing CPU.
         /// </summary>
@@ -96,7 +124,7 @@ internal static class LocalLlmGpuLoadCrashStore
         }
     }
 
-    private static GpuLoadCrashStore LoadCrashStore()
+    private GpuLoadCrashStore LoadCrashStore()
     {
         // One-time migration off the legacy single-path sentinel. Treat a leftover
         // legacy marker as a fresh crash record for that model so the protection it
@@ -129,7 +157,7 @@ internal static class LocalLlmGpuLoadCrashStore
                     store.Entries.Add(new GpuLoadCrashEntry
                     {
                         ModelPath = legacyModelPath,
-                        GpuIdentity = GetGpuIdentity(),
+                        GpuIdentity = _gpuIdentity(),
                         LaunchOrdinal = store.LaunchOrdinal,
                         // The legacy single-path marker was only ever left behind by a
                         // hard process death, so preserve it as a confirmed crash.
@@ -150,7 +178,7 @@ internal static class LocalLlmGpuLoadCrashStore
         return store;
     }
 
-    private static void SaveCrashStore(GpuLoadCrashStore store)
+    private void SaveCrashStore(GpuLoadCrashStore store)
     {
         try
         {
@@ -165,11 +193,11 @@ internal static class LocalLlmGpuLoadCrashStore
     }
 
     /// <summary>
-    /// Launch ordinal for this process. Read once from the store and incremented,
-    /// so every entry written this run shares a single ordinal used to age out
+    /// Launch ordinal for this launch (instance). Read once from the store and incremented,
+    /// so every entry written this launch shares a single ordinal used to age out
     /// stale pins.
     /// </summary>
-    private static long CurrentLaunchOrdinal(GpuLoadCrashStore store)
+    private long CurrentLaunchOrdinal(GpuLoadCrashStore store)
     {
         if (_cachedLaunchOrdinal is { } cached)
         {
@@ -195,10 +223,22 @@ internal static class LocalLlmGpuLoadCrashStore
            || string.Equals(entryBackend, plannedBackend, StringComparison.OrdinalIgnoreCase);
 
     internal static bool GpuLoadCrashedPreviously(string modelPath, string gpuIdentity, string backend)
+        => Default.CrashedPreviously(modelPath, gpuIdentity, backend);
+
+    internal static void WriteGpuLoadSentinel(string modelPath, string gpuIdentity, string backend)
+        => Default.WriteSentinel(modelPath, gpuIdentity, backend);
+
+    /// <inheritdoc cref="ClearInFlightLoads"/>
+    public static void ClearInFlightGpuLoads() => Default.ClearInFlightLoads();
+
+    internal static void ClearGpuLoadSentinel(string modelPath, string backend)
+        => Default.ClearSentinel(modelPath, backend);
+
+    internal bool CrashedPreviously(string modelPath, string gpuIdentity, string backend)
     {
         try
         {
-            lock (GpuLoadCrashStoreLock)
+            lock (_gpuLoadCrashStoreLock)
             {
                 var store = LoadCrashStore();
                 var now = CurrentLaunchOrdinal(store);
@@ -270,11 +310,11 @@ internal static class LocalLlmGpuLoadCrashStore
         }
     }
 
-    internal static void WriteGpuLoadSentinel(string modelPath, string gpuIdentity, string backend)
+    internal void WriteSentinel(string modelPath, string gpuIdentity, string backend)
     {
         try
         {
-            lock (GpuLoadCrashStoreLock)
+            lock (_gpuLoadCrashStoreLock)
             {
                 if (_cleanExitClearingGpuLoads)
                 {
@@ -307,7 +347,7 @@ internal static class LocalLlmGpuLoadCrashStore
     }
 
     /// <summary>
-    /// Removes any in-flight GPU load entry started by THIS process run, so
+    /// Removes any in-flight GPU load entry started by THIS launch (instance), so
     /// an ordinary process exit while a load was running is not mistaken for a
     /// native crash on the next launch. Wired to the WPF <c>App.OnExit</c>
     /// clean-shutdown path. Best-effort: a failure here only risks a one-off
@@ -319,11 +359,11 @@ internal static class LocalLlmGpuLoadCrashStore
     /// the durable crash pin that #563/#770 must preserve, so it is left intact
     /// and a clean quit after a recovery run does not re-open the GPU crash loop.
     /// </summary>
-    public static void ClearInFlightGpuLoads()
+    internal void ClearInFlightLoads()
     {
         try
         {
-            lock (GpuLoadCrashStoreLock)
+            lock (_gpuLoadCrashStoreLock)
             {
                 _cleanExitClearingGpuLoads = true;
 
@@ -353,11 +393,11 @@ internal static class LocalLlmGpuLoadCrashStore
         }
     }
 
-    internal static void ClearGpuLoadSentinel(string modelPath, string backend)
+    internal void ClearSentinel(string modelPath, string backend)
     {
         try
         {
-            lock (GpuLoadCrashStoreLock)
+            lock (_gpuLoadCrashStoreLock)
             {
                 if (!File.Exists(GpuLoadSentinelPath) && !File.Exists(LegacyGpuLoadSentinelPath))
                 {

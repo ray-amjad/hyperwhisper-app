@@ -11,6 +11,7 @@
 //
 // TODO-verify (Windows/CI): Rust shared-core swap — compile-only; verify in CI.
 
+using System.Globalization;
 using System.Text.Json;
 using HyperWhisper.Models;
 
@@ -36,8 +37,8 @@ internal static class RustCoreMapping
         string providerName,
         int? httpStatusCode = null,
         bool insufficientCredits = false,
-        int creditsRemaining = 0,
-        int creditsRequired = 0,
+        double creditsRemaining = 0,
+        double creditsRequired = 0,
         long fileTooLargeBytes = 0,
         long fileTooLargeLimit = 0,
         TranscriptionProviderDiagnostics? providerDiagnostics = null)
@@ -62,7 +63,7 @@ internal static class RustCoreMapping
                 {
                     return new TranscriptionException(
                         TranscriptionErrorCode.QuotaExceeded,
-                        $"Insufficient credits (remaining: {creditsRemaining}, required: {creditsRequired})",
+                        InsufficientCreditsMessage(creditsRemaining, creditsRequired),
                         providerName,
                         httpStatusCode ?? 402,
                         retryAfterSeconds: null,
@@ -247,15 +248,18 @@ internal static class RustCoreMapping
     /// <summary>
     /// Read the HW-Cloud 402 credit context (<c>credits_remaining</c> /
     /// <c>credits_required</c>) from an error response body. Returns (0, 0) absent.
+    /// Both are read as decimals: Cloud sends a fractional balance such as 0.5.
+    /// Cloud's own <c>insufficientCreditsResponse</c> sends no <c>credits_required</c>
+    /// (only <c>minutes_required</c>, rounded up), so Required stays 0 for it (#2807).
     /// </summary>
-    internal static (int Remaining, int Required) CreditContext(HttpResponse response)
+    internal static (double Remaining, double Required) CreditContext(HttpResponse response)
     {
         try
         {
             using var doc = JsonDocument.Parse(response.@body);
             var root = doc.RootElement;
-            var remaining = root.TryGetProperty("credits_remaining", out var r) && r.TryGetInt32(out var rv) ? rv : 0;
-            var required = root.TryGetProperty("credits_required", out var q) && q.TryGetInt32(out var qv) ? qv : 0;
+            var remaining = root.TryGetProperty("credits_remaining", out var r) && r.ValueKind == JsonValueKind.Number && r.TryGetDouble(out var rv) ? rv : 0;
+            var required = root.TryGetProperty("credits_required", out var q) && q.ValueKind == JsonValueKind.Number && q.TryGetDouble(out var qv) ? qv : 0;
             return (remaining, required);
         }
         catch
@@ -263,6 +267,24 @@ internal static class RustCoreMapping
             return (0, 0);
         }
     }
+
+    /// <summary>
+    /// The 402's exception message, which History stores as the FailedReason.
+    /// Shows the required credits only when the body sent them, so a missing
+    /// field never reads as "required: 0" (#2807). One decimal, the balance
+    /// rounded down and the cost rounded up, so a short balance never prints
+    /// as enough (0.96 of 1.0 reads 0.9 of 1) and a small cost never prints 0.
+    /// </summary>
+    internal static string InsufficientCreditsMessage(double remaining, double required)
+    {
+        var have = OneDecimal(Math.Floor(Math.Max(0, remaining) * 10) / 10);
+        return required > 0
+            ? $"Insufficient credits (remaining: {have}, required: {OneDecimal(Math.Ceiling(required * 10) / 10)})"
+            : $"Insufficient credits (remaining: {have})";
+    }
+
+    private static string OneDecimal(double value) =>
+        double.IsFinite(value) ? value.ToString("0.#", CultureInfo.InvariantCulture) : "0";
 
     /// <summary>
     /// Read the HW-Cloud / routed 413 size context (<c>actual_size_mb</c> /

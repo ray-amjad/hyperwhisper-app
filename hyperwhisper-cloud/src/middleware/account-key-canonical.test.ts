@@ -52,11 +52,11 @@ async function concurrentFullBalance(keyA: string, keyB: string): Promise<{ a: b
   const gate = new Promise<void>((r) => { release = r; });
   let resultA: { ok: boolean } | undefined;
   const reqA = withCreditHoldScope(async () => {
-    resultA = await validateCredits(authA.value, BALANCE, '1.2.3.4');
+    resultA = await validateCredits(authA.value, BALANCE);
     await gate; // still in flight
   });
   await Bun.sleep(5);
-  const resultB = await withCreditHoldScope(() => validateCredits(authB.value, BALANCE, '1.2.3.4'));
+  const resultB = await withCreditHoldScope(() => validateCredits(authB.value, BALANCE));
   release();
   await reqA;
   return { a: resultA?.ok ?? false, b: resultB.ok };

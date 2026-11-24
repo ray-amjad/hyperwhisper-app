@@ -101,37 +101,3 @@ struct HealthEndpointCloudKeyPresentTests {
         #expect(try #require(rows.postProcessing).key_present == false)
     }
 }
-
-/// Answers `getStoredLicenseKey()` with a fixed value; every network call is a
-/// no-op refusal, so nothing leaves the process.
-private final class StubLicenseNetwork: LicenseNetworkServing {
-    private let storedKey: String?
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    init(storedKey: String?) {
-        self.storedKey = storedKey
-    }
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { storedKey }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
-}

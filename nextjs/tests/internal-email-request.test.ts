@@ -3,13 +3,13 @@ import test from "node:test";
 import { inspect } from "node:util";
 import { NextRequest } from "next/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const INTERNAL_SECRET = "test-internal-secret";
 
 // The secret gate reads the validated env (#682). Fake that module, then load
 // the real helper after the mock is in place.
-moduleMock.module(new URL("../src/env/server.mjs", import.meta.url).href, {
+moduleMock.module(moduleUrl("../src/env/server.mjs"), {
   namedExports: { env: { HYPERWHISPER_INTERNAL_SECRET: INTERNAL_SECRET } },
 });
 

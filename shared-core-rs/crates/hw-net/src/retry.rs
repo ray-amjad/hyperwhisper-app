@@ -11,7 +11,9 @@
 //!   and `providers::common::classify_http` (the per-provider parser already in
 //!   this crate). This module's [`classify_error`] is the *body-only* variant used
 //!   when the caller has the status + body text but not a full `HttpResponse`
-//!   (e.g. the retry loop); it agrees with `classify_http` on every status.
+//!   (e.g. the retry loop). Both run through `providers::common::classify_status`,
+//!   so they agree on every status by construction; only the `Retry-After`
+//!   source (header vs JSON body) differs.
 //! - **Retry decision** unified the two pre-unification platform policies: macOS
 //!   `Retrying.swift` (the cloud transcription path used
 //!   `RetryConfiguration.transcription`: 10 attempts, retries 5xx + 429 +
@@ -103,13 +105,11 @@
 //!   unchanged and are exactly `budget_ms == 0`.
 
 use crate::contract::{RetryDecision, TranscriptionError};
-// Shared with the result-parse path (`providers::common::classify_http`) so the
-// two in-crate classifiers agree on every status: `is_quota_error` inspects ONLY
-// the nested OpenAI-style `error` object (no top-level `message` fallback — that
-// would make this path classify a `{"message":"...billing..."}` 429 as terminal
-// QuotaExceeded while classify_http + macOS treat it as retryable RateLimited).
-// The agreement tests below stay as regression guards.
-use crate::providers::common::{error_message, is_out_of_credits_body, is_quota_error};
+// The status → error policy lives once, in `classify_status`, shared with the
+// result-parse path (`providers::common::classify_http`); this module only
+// supplies the body-based `Retry-After` source. The agreement tests below stay
+// as regression guards on the two public entry points.
+use crate::providers::common::{classify_status, error_message};
 
 /// Total transcription attempts before giving up (unified across platforms).
 /// Attempts 1..=7 may retry; the 8th (and beyond) is terminal.
@@ -176,29 +176,7 @@ pub const MAX_RETRY_AFTER_SECS: u64 = 10;
 /// field from the JSON body when present (the task contract: "retry_after parsed
 /// from body if present"); the header-based path lives in `classify_http`.
 pub fn classify_error(status: u16, body: &str) -> TranscriptionError {
-    let json: Option<serde_json::Value> = serde_json::from_str(body).ok();
-
-    match status {
-        401 | 403 if is_out_of_credits_body(body) => TranscriptionError::QuotaExceeded,
-        401 | 403 => TranscriptionError::Unauthorized,
-        402 => TranscriptionError::QuotaExceeded,
-        408 => TranscriptionError::ProviderUnavailable { status },
-        413 => TranscriptionError::FileTooLarge,
-        429 => {
-            if is_quota_error(json.as_ref()) {
-                TranscriptionError::QuotaExceeded
-            } else {
-                TranscriptionError::RateLimited {
-                    retry_after_secs: retry_after_from_body(json.as_ref()),
-                }
-            }
-        }
-        500..=599 => TranscriptionError::ProviderUnavailable { status },
-        _ => TranscriptionError::BadRequest {
-            status,
-            message: error_message(json.as_ref(), body),
-        },
-    }
+    classify_status(status, body, retry_after_from_body, error_message)
 }
 
 /// Whether a classified [`TranscriptionError`] should be retried.

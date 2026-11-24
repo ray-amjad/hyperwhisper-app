@@ -82,6 +82,7 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        LoggingServiceFlushChecks.RunCrashChildIfRequested(); // #985 crash child; returns at once otherwise
         // Child mode for the settings-load checks (issue #2096). SettingsService is
         // a singleton whose paths are fixed at type init, so a load from a profile
         // the check seeded has to happen in a fresh process. This runs before the
@@ -182,6 +183,107 @@ internal static class Program
                     $"expected the default TypingSpeedWPM: {output}");
                 Assert(output.Contains("LastSelectedModel=<null>"),
                     $"expected no LastSelectedModel: {output}");
+            });
+
+            Run("RenderThreadFailureRecovery recovers once, reports once, and shows no dialog", () =>
+            {
+                // #2549: WPF raised UCEERR_RENDERTHREADFAILURE on every repaint, and
+                // the dispatcher handler showed a dialog and a Sentry event for each.
+                var recovery = new RenderThreadFailureRecovery();
+                var failure = new System.Runtime.InteropServices.COMException(
+                    "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                var switches = 0;
+                var reports = new List<RenderThreadFailureRecovery.Report>();
+
+                Assert(!recovery.TryHandle(new InvalidOperationException(), "ui_running",
+                        () => switches++, reports.Add),
+                    "an unrelated exception was taken as a render thread failure");
+                Assert(!recovery.TryHandle(
+                        new System.Runtime.InteropServices.COMException("other", unchecked((int)0x80004005)),
+                        "ui_running", () => switches++, reports.Add),
+                    "an unrelated COMException was taken as a render thread failure");
+                Assert(switches == 0 && reports.Count == 0,
+                    "an unrelated exception switched rendering or reported");
+
+                for (var i = 0; i < 50; i++)
+                {
+                    Assert(recovery.TryHandle(failure, "ui_running", () => switches++, reports.Add),
+                        $"render thread failure {i + 1} was not handled, so the dialog would show");
+                }
+
+                Assert(switches == 1, $"software rendering was switched {switches} times, not once");
+                Assert(reports.Count == 1, $"the failure was reported {reports.Count} times, not once");
+                Assert(reports[0].Fingerprint.SequenceEqual(new[] { "wpf-render-thread-failure" }),
+                    "the report does not carry the fixed fingerprint");
+                Assert(reports[0].Tags["render_recovery"] == "software_rendering",
+                    "the report does not say software rendering recovered it");
+                Assert(ReferenceEquals(reports[0].Exception, failure),
+                    "the report lost the original exception and its stack");
+
+                var wrapped = new InvalidOperationException("outer", failure);
+                Assert(RenderThreadFailureRecovery.IsRenderThreadFailure(wrapped),
+                    "a wrapped render thread failure was not recognised");
+
+                var failingSwitch = new RenderThreadFailureRecovery();
+                var failingReports = new List<RenderThreadFailureRecovery.Report>();
+                Assert(failingSwitch.TryHandle(failure, "ui_startup",
+                        () => throw new InvalidOperationException("switch failed"), failingReports.Add),
+                    "a failed software-rendering switch escaped the handler");
+                Assert(failingReports.Count == 1
+                        && failingReports[0].Tags["render_recovery"] == "software_rendering_failed",
+                    "a failed switch was not reported as failed");
+                Assert(failingSwitch.TryHandle(failure, "ui_startup", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a repeat after a failed switch was not handled");
+                Assert(new RenderThreadFailureRecovery().TryHandle(failure, "ui_running", () => { },
+                        _ => throw new InvalidOperationException("report failed")),
+                    "a failing reporter escaped the handler");
+            });
+
+            Run("App's render thread branch moves the process and open windows to software rendering", () =>
+            {
+                // Drives the branch the real dispatcher handler calls, with its real
+                // SwitchToSoftwareRendering, on a real window handle. Sentry is not
+                // initialized here, so the one report is a no-op.
+                var app = (App)EnsureSmokeApplication();
+                var window = new Window();
+                var shutdownMode = app.ShutdownMode;
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+                    Assert(source?.CompositionTarget is not null, "the test window has no HwndSource");
+                    Assert(source!.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.Default,
+                        "the test window did not start on default rendering");
+
+                    var recovery = new RenderThreadFailureRecovery();
+                    Assert(!app.TryRecoverRenderThreadFailure(new InvalidOperationException(), recovery),
+                        "App took an unrelated exception for a render thread failure");
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.Default,
+                        "an unrelated exception changed the render mode");
+
+                    var failure = new System.Runtime.InteropServices.COMException(
+                        "UCEERR_RENDERTHREADFAILURE", unchecked((int)0x88980406));
+                    for (var i = 0; i < 5; i++)
+                    {
+                        Assert(app.TryRecoverRenderThreadFailure(failure, recovery),
+                            $"render thread failure {i + 1} fell through to the generic dialog");
+                    }
+
+                    Assert(System.Windows.Media.RenderOptions.ProcessRenderMode
+                            == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "the process was not moved to software rendering");
+                    Assert(source.CompositionTarget.RenderMode == System.Windows.Interop.RenderMode.SoftwareOnly,
+                        "an open window was not moved to software rendering");
+                }
+                finally
+                {
+                    System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.Default;
+                    window.Close();
+                    app.ShutdownMode = shutdownMode;
+                }
             });
 
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
@@ -1196,6 +1298,7 @@ internal static class Program
                     !debugEvidence.Contains("private-user", StringComparison.Ordinal),
                     "exception content entered the debug evidence");
             });
+            ReconcileClassificationChecks.RunAll(Run);
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
@@ -2759,6 +2862,59 @@ internal static class Program
                     Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == null, $"'{code}' → not passed");
             });
 
+            // #1846: sherpa puts DirectML on DXGI adapter 0, usually the iGPU.
+            Run("Parakeet daemon device: discrete GPU by LUID, UHD-only on CPU, else unchanged", () =>
+            {
+                static GpuInfoService.GpuInfo Gpu(string name, long? luid) => new()
+                {
+                    Name = name,
+                    PriorityScore = GpuInfoService.GetGpuPriorityScore(name),
+                    AdapterLuid = luid
+                };
+                var parakeet = new ParakeetDaemonLaunchPlan.EngineSelection("parakeet-v2", "nemo_transducer", false, false);
+                var qwen3 = new ParakeetDaemonLaunchPlan.EngineSelection("qwen3-asr", "qwen3", true, false);
+                var nemotron = new ParakeetDaemonLaunchPlan.EngineSelection("nemotron", "nemotron_ml", false, true);
+
+                var rtx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: true);
+                Assert(rtx.ProviderArg == null && rtx.DmlAdapterLuid == 0xb5cf, "discrete NVIDIA → its LUID");
+                var rx = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("AMD Radeon RX 7800 XT", 0x1234_0000_5678), parakeet, isX64: true);
+                Assert(rx.ProviderArg == null && rx.DmlAdapterLuid == 0x1234_0000_5678, "discrete AMD → its LUID (HighPart kept)");
+                var wmiOnly = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", null), parakeet, isX64: true);
+                Assert(wmiOnly.ProviderArg == null && wmiOnly.DmlAdapterLuid == null, "discrete GPU from WMI (no LUID) → daemon default");
+
+                foreach (var name in new[] { "Intel(R) UHD Graphics 630", "Intel(R) UHD Graphics 620", "Intel(R) HD Graphics 520", "Intel(R) HD Graphics" })
+                {
+                    var uhd = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(uhd.ProviderArg == "cpu" && uhd.DmlAdapterLuid == null, $"{name} only → --provider cpu");
+                }
+
+                foreach (var name in new[] { "AMD Radeon(TM) Graphics", "Intel(R) Iris(R) Xe Graphics", "Intel(R) Graphics", "Intel(R) Arc(TM) Graphics", "Intel(R) UHD Graphics 770", "Intel(R) UHD Graphics" })
+                {
+                    var keep = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu(name, 0xc58a), parakeet, isX64: true);
+                    Assert(keep.ProviderArg == null && keep.DmlAdapterLuid == null, $"{name} → daemon default");
+                }
+                var none = ParakeetDaemonLaunchPlan.ResolveDevice(null, parakeet, isX64: true);
+                Assert(none.ProviderArg == null && none.DmlAdapterLuid == null, "no GPU info → daemon default");
+
+                var arm = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), parakeet, isX64: false);
+                Assert(arm.ProviderArg == null && arm.DmlAdapterLuid == null, "ARM64 → daemon default");
+                foreach (var engine in new[] { qwen3, nemotron })
+                {
+                    var other = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("NVIDIA GeForce RTX 4060", 0xb5cf), engine, isX64: true);
+                    Assert(other.ProviderArg == null && other.DmlAdapterLuid == null, $"{engine.EngineArg} → daemon default");
+                }
+
+                // The flags reach the daemon's argument list.
+                var paths = new ParakeetDaemonLaunchPlan.DaemonPaths(@"C:\app\parakeet-engine\parakeet-engine.exe", @"C:\app\parakeet-engine\silero_vad.onnx");
+                var args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, rtx).StartInfo.ArgumentList.ToList();
+                var at = args.IndexOf("--dml-adapter-luid");
+                Assert(at >= 0 && args[at + 1] == "46543" && !args.Contains("--provider"), "Build passes --dml-adapter-luid 46543");
+                var cpu = ParakeetDaemonLaunchPlan.ResolveDevice(Gpu("Intel(R) UHD Graphics 630", 0xc58a), parakeet, isX64: true);
+                args = ParakeetDaemonLaunchPlan.Build(paths, @"C:\m\parakeet-v2", "en", parakeet, cpu).StartInfo.ArgumentList.ToList();
+                at = args.IndexOf("--provider");
+                Assert(at >= 0 && args[at + 1] == "cpu" && !args.Contains("--dml-adapter-luid"), "Build passes --provider cpu");
+            });
+
             Run("Grok GetRequestTimeout scales with file size", () =>
             {
                 Assert(GrokSttService.GetRequestTimeout(0) == TimeSpan.FromMinutes(5), "0 bytes → 5min base");
@@ -3332,6 +3488,9 @@ internal static class Program
                     ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
                     ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
                     ("gemini-3-flash-preview", "gemini-3.8-flash"),
+                    // Google deprecated 2.5 Pro / 2.5 Flash 2026-11-02, auto-routed 2026-12-01.
+                    ("gemini-2.5-pro", "gemini-3.8-flash"),
+                    ("gemini-2.5-flash", "gemini-3.5-flash-lite"),
                 };
 
                 foreach (var (oldId, replacement) in cases)
@@ -3593,30 +3752,39 @@ internal static class Program
                 // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
                 // because that is what `PostProcessingService.ProcessAsync` routes
                 // on — it parses `Mode.PostProcessingProvider` and never reads
-                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
-                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
-                // IS local) while `IsLocalLlmProvider` above does not (so the mode
-                // int is 1, not 2). A mode-int guard skipped the write on exactly
-                // this input. The worse shape — a SAVED mode with post-processing
-                // off whose provider is still `local_llm`, where the skipped write
-                // meant a stale GGUF ran and was honestly reported as a model the
-                // caller never asked for — needs `ModeService` and is covered by
-                // this predicate alignment rather than end to end.
-                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
-                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
-                    "the local_llm spellings ProcessAsync routes on have drifted");
-                var altSpelling = WindowsLocalApiBackend.BuildWorkingMode(
-                    new HyperWhisper.LocalApi.PostProcessRequest(
-                        Text: "raw",
-                        ModeId: null,
-                        Preset: null,
-                        Prompt: null,
-                        Provider: "local",
-                        Model: "gemma-4-12b-it-Q4_K_M.gguf"));
-                Assert(altSpelling.PostProcessingMode == 1,
-                    "the PostProcessingMode this case depends on being 1 has changed");
-                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
-                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
+                // `PostProcessingMode` past the `== 0` skip. The worse shape — a
+                // SAVED mode with post-processing off whose provider is still
+                // `local_llm`, where the skipped write meant a stale GGUF ran and
+                // was honestly reported as a model the caller never asked for —
+                // needs `ModeService` and is covered by this predicate alignment
+                // rather than end to end.
+                //
+                // #2557: every local spelling a caller can send — including
+                // `localLLM`, the shared catalog's provider id — must route local
+                // in `ProcessAsync` (`FromString`) AND get mode 2 here. Before the
+                // fix `localLLM` got mode 2 but `FromString` answered `None`, so
+                // `/post-process` silently skipped with `provider: none`; `local`
+                // had the opposite split (routed local, mode 1).
+                foreach (var spelling in new[] { "localLLM", "localLlm", "local_llm", "LOCAL_LLM", "local" })
+                {
+                    Assert(PostProcessingProviderExtensions.FromString(spelling) == PostProcessingProvider.LocalLlm,
+                        $"FromString(\"{spelling}\") no longer routes to the local LLM, so ProcessAsync skips the run");
+                    var working = WindowsLocalApiBackend.BuildWorkingMode(
+                        new HyperWhisper.LocalApi.PostProcessRequest(
+                            Text: "raw",
+                            ModeId: null,
+                            Preset: null,
+                            Prompt: null,
+                            Provider: spelling,
+                            Model: "gemma-4-12b-it-Q4_K_M.gguf"));
+                    Assert(working.PostProcessingMode == 2,
+                        $"provider \"{spelling}\" did not switch the working mode to local post-processing");
+                    Assert(working.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                        $"provider \"{spelling}\": the model override missed the local GGUF field");
+                    Assert(PostProcessingProviderExtensions.FromString(working.PostProcessingProvider)
+                            == PostProcessingProvider.LocalLlm,
+                        $"provider \"{spelling}\": the working mode's provider would not route local");
+                }
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>
@@ -4813,6 +4981,99 @@ internal static class Program
                     "a MainWindow was built after the startup was aborted");
             });
 
+            // Issue #2386. The 46 theme brushes in Brushes.xaml took their Color
+            // from a {DynamicResource}, so they could not freeze, and every
+            // {DynamicResource XBrush} consumer hooked their Changed event. WPF
+            // drops a dead hook only when the brush raises Changed, so each page
+            // visit left ~33-412 handlers behind for good. The brushes now live
+            // frozen inside each theme's colour dictionary, and a theme switch
+            // swaps the whole dictionary, which re-resolves every consumer.
+            Run("theme brushes are frozen in light and dark, and a resource reference follows the switch - issue #2386", () =>
+            {
+                var app = EnsureSmokeApplication();
+                var theme = ThemeService.Instance;
+                var wasDark = theme.IsDarkMode;
+
+                // The key list comes from the light dictionary itself, so every
+                // brush is checked; the count pins the 46 that #2386 moved, so a
+                // brush added or lost on the way fails here first.
+                var lightDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml")
+                };
+                var darkDictionary = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml")
+                };
+                var brushKeys = lightDictionary.Keys.OfType<string>()
+                    .Where(key => lightDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                var darkBrushKeys = darkDictionary.Keys.OfType<string>()
+                    .Where(key => darkDictionary[key] is System.Windows.Media.Brush)
+                    .OrderBy(key => key, StringComparer.Ordinal)
+                    .ToList();
+                Assert(brushKeys.Count == 46, $"the light theme should define the 46 theme brushes, found {brushKeys.Count}");
+                Assert(brushKeys.SequenceEqual(darkBrushKeys),
+                    $"light and dark must define the same brushes; only in one: {string.Join(", ", brushKeys.Except(darkBrushKeys).Concat(darkBrushKeys.Except(brushKeys)))}");
+
+                // Nothing outside the theme dictionary may define these keys
+                // again: a second, unfrozen copy would win the lookup.
+                foreach (var merged in app.Resources.MergedDictionaries)
+                {
+                    if (merged.Source?.ToString().Contains("Colors.xaml") == true)
+                        continue;
+                    var shadow = brushKeys.Where(merged.Contains).ToList();
+                    Assert(shadow.Count == 0,
+                        $"{merged.Source} redefines theme brushes: {string.Join(", ", shadow)}");
+                }
+
+                var consumer = new System.Windows.Controls.TextBlock();
+                consumer.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                // A theme switch re-resolves the trees of the app's windows, so
+                // the consumer sits in one (never shown) as a page would.
+                var host = new Window { Content = consumer };
+                // Closing it must not end the shared smoke Application when it is
+                // the only window (OnLastWindowClose), or every later case that
+                // needs App fails.
+                var shutdownMode = app.ShutdownMode;
+
+                try
+                {
+                    foreach (var dark in new[] { false, true, false })
+                    {
+                        theme.ApplyTheme(dark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                        var label = dark ? "dark" : "light";
+                        var expected = dark ? darkDictionary : lightDictionary;
+
+                        foreach (var key in brushKeys)
+                        {
+                            var brush = app.TryFindResource(key) as System.Windows.Media.SolidColorBrush;
+                            Assert(brush is not null, $"{label}: '{key}' does not resolve to a SolidColorBrush");
+                            Assert(brush!.IsFrozen, $"{label}: '{key}' is not frozen, so every consumer hooks its Changed event");
+                            var want = ((System.Windows.Media.SolidColorBrush)expected[key]).Color;
+                            Assert(brush.Color == want, $"{label}: '{key}' is {brush.Color}, the {label} theme says {want}");
+                        }
+
+                        var shown = ((System.Windows.Media.SolidColorBrush)consumer.Foreground).Color;
+                        var primary = (System.Windows.Media.Color)expected["TextPrimary"];
+                        Assert(shown == primary,
+                            $"{label}: a SetResourceReference consumer shows {shown}, not the theme's TextPrimary {primary}");
+                    }
+
+                    var lightPrimary = ((System.Windows.Media.SolidColorBrush)lightDictionary["TextPrimaryBrush"]).Color;
+                    var darkPrimary = ((System.Windows.Media.SolidColorBrush)darkDictionary["TextPrimaryBrush"]).Color;
+                    Assert(lightPrimary != darkPrimary, "light and dark TextPrimaryBrush are the same colour, so the switch above proved nothing");
+                }
+                finally
+                {
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                    host.Close();
+                    app.ShutdownMode = shutdownMode;
+                    theme.ApplyTheme(wasDark ? HyperWhisper.Models.ThemeMode.Dark : HyperWhisper.Models.ThemeMode.Light);
+                }
+            });
+
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
             // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
             // wrong operation. The two now come from one string, and this asserts
@@ -5160,6 +5421,55 @@ internal static class Program
                     "markerless unspecified response should be accepted leniently");
             });
 
+            Run("Local LLM speaks Gemma 4's turn format, not System:/User: (issue #2559)", () =>
+            {
+                const string gemma4Template = "{{- bos_token -}}{{- '<|turn>system\\n' -}}{{- '<turn|>\\n' -}}{{- '<|turn>model\\n' -}}";
+                Assert(LocalLlmPromptFormatter.IsGemma4Template(gemma4Template), "Gemma 4 template should be detected");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template("<start_of_turn>user\n{{ content }}<end_of_turn>"),
+                    "Gemma 3 template is not Gemma 4");
+                Assert(!LocalLlmPromptFormatter.IsGemma4Template(null), "a model with no template is not Gemma 4");
+
+                var prompt = LocalLlmPromptFormatter.FormatGemma4("  SYSTEM RULES \n", "--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--\n");
+                Assert(prompt == "<|turn>system\nSYSTEM RULES<turn|>\n<|turn>user\n--TRANSCRIPT--\nhi\n--ENDTRANSCRIPT--<turn|>\n<|turn>model\n",
+                    $"unexpected Gemma 4 prompt: {prompt}");
+                Assert(!prompt.Contains("User:") && !prompt.Contains("System:"), "no generic role prefixes");
+                Assert(LocalLlmPromptFormatter.Gemma4AntiPrompts[0] == "<turn|>", "Gemma 4 end-of-turn is the first stop string");
+                Assert(!LocalLlmPromptFormatter.Gemma4AntiPrompts.Contains("</s>"), "dictated '</s>' must not end a Gemma 4 answer");
+                Assert(!LocalLlmPromptFormatter.TemplateAntiPrompts.Any(a => a.Contains("User:")),
+                    "a templated prompt must not stop on a dictated 'User:'");
+                Assert(LocalLlmService.TrimAntiPrompt("<<CLEANED>>x<<END>>\nUser:", LocalLlmPromptFormatter.PlainAntiPrompts) == "<<CLEANED>>x<<END>>",
+                    "trailing stop string is dropped");
+            });
+
+            Run("Local LLM punctuation-only or cut-off output keeps the raw transcript (issue #2559)", () =>
+            {
+                const string raw = "um so the quick brown fox uh jumps over the the lazy dog and then we we go home";
+                var garbage = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<", CompletionState.Complete));
+                Assert(!garbage.accepted && garbage.text == raw, "'<<' must not replace the transcript");
+
+                var cutOff = PostProcessingService.EvaluateLocalCompletion(raw, new LocalLlmCompletion("<<CLEANED>>So the quick", CompletionState.OutputLimit));
+                Assert(!cutOff.accepted && cutOff.text == raw, "an output-limited answer must not replace the transcript");
+
+                var good = PostProcessingService.EvaluateLocalCompletion(raw,
+                    new LocalLlmCompletion("<<CLEANED>>So the quick brown fox jumps over the lazy dog, and then we go home.<<END>>", CompletionState.Complete));
+                Assert(good.accepted && good.text == "So the quick brown fox jumps over the lazy dog, and then we go home.", "a clean answer is accepted");
+
+                var shortButReal = PostProcessingService.EvaluateLocalCompletion("um uh okay", new LocalLlmCompletion("<<CLEANED>>Okay.<<END>>", CompletionState.Complete));
+                Assert(shortButReal.accepted && shortButReal.text == "Okay.", "a much shorter real answer is still accepted");
+
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("question mark", "?"), "spoken punctuation is an answer");
+                Assert(!PostProcessingService.IsDegenerateLocalOutput("thumbs up", "\U0001F44D"), "an emoji-only answer is content");
+                Assert(PostProcessingService.IsDegenerateLocalOutput("thumbs up", "<< </>"), "marker debris only is degenerate");
+            });
+
+            Run("Local LLM uses every core on ARM64 and the default elsewhere (#2559)", () =>
+            {
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.Arm64, 8) == 8,
+                    "ARM64 has no SMT, so all 8 cores run inference");
+                Assert(LocalLlmService.CpuThreadCount(System.Runtime.InteropServices.Architecture.X64, 16) == null,
+                    "x64 keeps LLamaSharp's one-thread-per-core default");
+            });
+
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
             {
                 Assert(LocalLlmService.MaxTokens == 8_192, "local output ceiling should be 8192");
@@ -5258,6 +5568,147 @@ internal static class Program
                     "vulkan entry must not pin CUDA");
                 Assert(LocalLlmService.CrashEntryPinsBackend("CUDA", LocalLlmGpuHelper.CudaBackendId),
                     "backend match should be case-insensitive");
+            });
+
+            // Issue #2597: the crash-pin store's rules, played across launches. One
+            // store instance stands for one launch; every instance in a check reads
+            // and writes the same temp file, as successive launches would.
+            Run("Crash pin: a launch's unfinished GPU load pins the next 9 launches, the 10th re-probes (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var crashed = rig.Launch();
+                crashed.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                for (var launchesAfter = 1; launchesAfter <= 9; launchesAfter++)
+                {
+                    var launch = rig.Launch();
+                    Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                        $"launch {launchesAfter} after the crash should still be pinned");
+                    // A second load in the same launch must not age the pin a second time.
+                    Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                        $"a second check in launch {launchesAfter} should still be pinned");
+                }
+
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the 10th launch after the crash should re-probe the GPU");
+                Assert(rig.EntryCount() == 0, $"the expired pin should be dropped, found {rig.EntryCount()} entries");
+            });
+
+            Run("Crash pin: one launch bumps the stored launch ordinal exactly once (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var first = rig.Launch();
+                first.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                first.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                first.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                Assert(rig.StoredLaunchOrdinal() == 1, $"after one launch the ordinal should be 1, was {rig.StoredLaunchOrdinal()}");
+
+                var second = rig.Launch();
+                second.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                second.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                Assert(rig.StoredLaunchOrdinal() == 2, $"after two launches the ordinal should be 2, was {rig.StoredLaunchOrdinal()}");
+            });
+
+            Run("Crash pin: a clean quit clears only its own launch's loads and keeps a prior crash pin (#563/#770, #2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                const string otherModel = @"C:\models\other.gguf";
+                rig.Launch().WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                var recovery = rig.Launch();
+                Assert(recovery.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the launch after the crash should be pinned");
+                recovery.WriteSentinel(otherModel, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                recovery.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                recovery.ClearInFlightLoads();
+
+                Assert(rig.EntryCount() == 1, $"only the prior launch's crash entry should remain, found {rig.EntryCount()}");
+                var next = rig.Launch();
+                Assert(next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the prior launch's CUDA crash pin must survive a clean quit");
+                Assert(!next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "the quitting launch's own Vulkan load must not pin");
+                Assert(!next.CrashedPreviously(otherModel, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the quitting launch's own load of another model must not pin");
+            });
+
+            Run("Crash pin: a load that starts after the clean-exit clear writes nothing (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var quitting = rig.Launch();
+                quitting.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                quitting.ClearInFlightLoads();
+                quitting.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                Assert(rig.EntryCount() == 0, $"a write during shutdown should add no entry, found {rig.EntryCount()}");
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a load started during shutdown must not pin the next launch");
+            });
+
+            Run("Crash pin: explicit InFlight=false is dropped, a #563 entry with no InFlight still pins (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                rig.WriteStoreJson($$"""
+                    {
+                      "LaunchOrdinal": 1,
+                      "Entries": [
+                        { "ModelPath": {{JsonSerializer.Serialize(rig.Model)}}, "GpuIdentity": {{JsonSerializer.Serialize(rig.Gpu)}}, "LaunchOrdinal": 1, "Backend": "cuda", "InFlight": false },
+                        { "ModelPath": "C:\\models\\legacy.gguf", "GpuIdentity": {{JsonSerializer.Serialize(rig.Gpu)}}, "LaunchOrdinal": 1 }
+                      ]
+                    }
+                    """);
+
+                var launch = rig.Launch();
+                Assert(!launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "an entry a clean exit marked InFlight=false must not pin");
+                Assert(launch.CrashedPreviously(@"C:\models\legacy.gguf", rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "a shipped #563 entry (no InFlight, no Backend) must still pin, on every backend");
+                Assert(rig.EntryCount() == 1, $"only the cleared entry should be dropped, found {rig.EntryCount()}");
+            });
+
+            Run("Crash pin: a changed GPU identity drops the pin and re-probes (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                rig.Launch().WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, "NVIDIA GeForce RTX 5090", LocalLlmGpuHelper.CudaBackendId),
+                    "a crash recorded on another GPU must not pin");
+                Assert(rig.EntryCount() == 0, $"the stale pin should be dropped, found {rig.EntryCount()}");
+                Assert(!rig.Launch().CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a dropped pin stays dropped when the old GPU comes back");
+            });
+
+            Run("Crash pin: a write replaces the same model+backend entry and keeps other backends (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                var launch = rig.Launch();
+                launch.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                launch.WriteSentinel(rig.Model.ToUpperInvariant(), rig.Gpu, LocalLlmGpuHelper.CudaBackendId);
+                Assert(rig.EntryCount() == 1, $"a second CUDA write for the model should replace the first, found {rig.EntryCount()}");
+                launch.WriteSentinel(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId);
+                Assert(rig.EntryCount() == 2, $"a Vulkan write should sit beside the CUDA one, found {rig.EntryCount()}");
+
+                launch.ClearSentinel(rig.Model, LocalLlmGpuHelper.CudaBackendId);
+                var next = rig.Launch();
+                Assert(!next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "a cleared CUDA load must not pin CUDA");
+                Assert(next.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "clearing CUDA must keep the Vulkan crash pin");
+            });
+
+            Run("Crash pin: the legacy single-path sentinel migrates to a pin on every backend and is deleted (#2597)", () =>
+            {
+                using var rig = new GpuCrashStoreRig();
+                File.WriteAllText(rig.LegacyPath, rig.Model + Environment.NewLine);
+
+                var launch = rig.Launch();
+                Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.VulkanBackendId),
+                    "a leftover legacy sentinel should pin the model it names");
+                Assert(!File.Exists(rig.LegacyPath), "the legacy sentinel should be deleted after migration");
+                Assert(launch.CrashedPreviously(rig.Model, rig.Gpu, LocalLlmGpuHelper.CudaBackendId),
+                    "the migrated pin should cover every backend");
+                Assert(!launch.CrashedPreviously(rig.Model, "Some Other GPU", LocalLlmGpuHelper.CudaBackendId),
+                    "the migrated pin carries the GPU identity at migration time");
             });
 
             // Issue #1036: the Cloud connection-recovery rules, on a fake clock and a
@@ -9546,6 +9997,9 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Error, $"expected State to remain Error, got {client.State}");
             });
 
+            // Issue #2296: frames after an exception-path reconnect are read (loopback WebSocket).
+            StreamingReconnectReceiveChecks();
+
             // THE FIVE LIVE PROTOCOLS, from the shared Rust core (issue #281).
             //
             // Windows no longer implements any of them. These run through the real
@@ -13462,6 +13916,65 @@ internal static class Program
                 }
             });
 
+            Run("backup: schemaVersion 2.0 inspects and imports; 2.5 and \"2\" are still refused — issue #2115", () =>
+            {
+                // The shared core reads schemaVersion by value (`integral_i64`, #2111), so a
+                // hand-edited `2.0` is version 2. The typed model used to refuse it as an int.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var directory = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(directory);
+                var integralJson = JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-2115",
+                    Platform = "macos",
+                    Vocabulary = [new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = $"w{token}", SortOrder = 1 }]
+                }, UniversalCaptureOptions);
+                Assert(integralJson.Contains("\"schemaVersion\":2,", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize schemaVersion as 2");
+                string WriteVariant(string name, string rawVersion)
+                {
+                    var path = Path.Combine(directory, $"issue2115-{name}-{token}.hwbackup.json");
+                    File.WriteAllText(path, integralJson.Replace("\"schemaVersion\":2,", $"\"schemaVersion\":{rawVersion},", StringComparison.Ordinal));
+                    return path;
+                }
+                var wholeFloatPath = WriteVariant("float", "2.0");
+                // Every field the schema types "integer" is read by value too (sortOrder here).
+                Assert(integralJson.Contains("\"sortOrder\":1", StringComparison.Ordinal),
+                    "the #2115 fixture did not serialize the vocabulary sortOrder as 1");
+                File.WriteAllText(wholeFloatPath, File.ReadAllText(wholeFloatPath)
+                    .Replace("\"sortOrder\":1", "\"sortOrder\":1.0", StringComparison.Ordinal));
+                var fractionalPath = WriteVariant("fraction", "2.5");
+                var stringPath = WriteVariant("string", "\"2\"");
+                try
+                {
+                    var inspect = BackupService.Instance.Inspect(wholeFloatPath);
+                    Assert(inspect.IsSuccess && inspect.Value!.VocabularyCount == 1,
+                        $"a backup with schemaVersion 2.0 was refused by Inspect: {inspect.Error}");
+
+                    var import = BackupService.Instance.Import(wholeFloatPath, replaceExisting: false);
+                    Assert(import.IsSuccess, $"a backup with schemaVersion 2.0 was refused by Import: {import.Error}");
+                    Assert(vocabulary.GetAll().Any(v => v.Word == $"w{token}"),
+                        "the schemaVersion 2.0 import reported success but saved no vocabulary");
+
+                    Assert(BackupService.Instance.Inspect(fractionalPath).IsFailure, "a backup with schemaVersion 2.5 was accepted");
+                    Assert(BackupService.Instance.Import(fractionalPath, replaceExisting: false).IsFailure,
+                        "a backup with schemaVersion 2.5 imported");
+                    Assert(BackupService.Instance.Inspect(stringPath).IsFailure, "a backup with schemaVersion \"2\" was accepted");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    foreach (var path in new[] { wholeFloatPath, fractionalPath, stringPath })
+                        try { File.Delete(path); } catch { }
+                }
+            });
+
             Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
@@ -14567,8 +15080,9 @@ internal static class Program
                 // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
                 // #356, review round 1). `HyperWhisperDbContext` declares a
                 // NON-unique index on `Name` and nothing outside these endpoints
-                // checks, so two modes named "Work" are producible from the GUI
-                // or a backup restore. A read-modify-write client PATCHing the
+                // checks, so two modes named "Work" are producible from a backup
+                // restore (and were from the Windows mode editor until #2478).
+                // A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
@@ -14579,6 +15093,24 @@ internal static class Program
                     "a real rename onto a taken name stopped being refused");
                 Assert(!WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["Archive"]),
                     "a real rename onto a free name was refused");
+
+                // THE MODE EDITOR USES THE SAME RULE (issue #2478). It saved
+                // a second "Hyper" with no warning while POST /modes refused
+                // it. Create (no stored name), rename, own name, blank.
+                Assert(ModeNameRules.IsTaken("hyper", null, ["Hyper", "Work"]),
+                    "the editor let a new mode take an existing name in another case");
+                Assert(ModeNameRules.IsTaken("  HYPER  ", null, ["Hyper"]),
+                    "the editor let a new mode take an existing name with extra spaces");
+                Assert(ModeNameRules.IsTaken("Hyper", "Fuzz Mode", ["Hyper"]),
+                    "the editor let a mode be renamed onto another mode's name");
+                Assert(!ModeNameRules.IsTaken("Fresh", null, ["Hyper"]),
+                    "the editor refused a free name");
+                Assert(!ModeNameRules.IsTaken("Hyper", "Hyper", ["hyper"]),
+                    "the editor refused a mode's own unchanged name because an older duplicate shares it");
+                Assert(!ModeNameRules.IsTaken(" fuzz mode ", "Fuzz Mode", ["Hyper"]),
+                    "the editor treated a case/space edit of the mode's own name as a collision");
+                Assert(!ModeNameRules.IsTaken("   ", null, ["Hyper", ""]),
+                    "a blank name was reported as taken; the editor refuses blank on its own");
 
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
                 // response label; the trim is new here and could only ever
@@ -15373,14 +15905,14 @@ internal static class Program
                 string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
 
                 // The pure decision first: which credential each provider needs.
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, false, false, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unknown) == "status.model.ready",
                     "HyperWhisper Cloud reads the account key");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true) == "status.model.notActivated"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true) == "status.model.notActivated",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.MicrosoftAzureSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.GoogleSpeech, false, true, ProviderHealth.Unknown) == "status.model.notActivated",
                     "the HW-Cloud-routed Azure MAI / Chirp rows need the account key, not a BYOK key (as /transcribe and #650)");
-                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false) == "status.model.noApiKey"
-                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true) == "status.model.ready",
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.OpenAI, true, false, ProviderHealth.Unknown) == "status.model.noApiKey"
+                       && MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.Deepgram, false, true, ProviderHealth.Unknown) == "status.model.ready",
                     "a BYOK provider reads its own key, whatever the licence");
                 foreach (var key in new[] { "status.model.notActivated", "status.model.noApiKey" })
                     Assert(L(key, "X") != key && L(key, "X").Contains('X'), $"{key} is missing from Strings.resx or lost its {{0}}");
@@ -15460,6 +15992,111 @@ internal static class Program
                 Assert(vm.ModelStatus.EndsWith(L("status.model.noApiKey", "").Trim(), StringComparison.Ordinal)
                        && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
                     $"an OpenAI mode with no key must say No API key, got '{vm.ModelStatus}'");
+            });
+
+            Run("issue #2547: a BYOK key the provider rejected reads (Key invalid), not (Ready), and follows the health with no restart", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                string L(string key, string arg) => HyperWhisper.Localization.Loc.S(key, arg);
+                var groq = CloudTranscriptionProvider.Groq;
+
+                // The pure decision: only Unauthorized turns a stored key into Key invalid.
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, ProviderHealth.Unauthorized) == "status.model.keyInvalid",
+                    "a rejected Groq key must read Key invalid");
+                foreach (var verdict in new[] { ProviderHealth.Healthy, ProviderHealth.Unknown, ProviderHealth.Checking, ProviderHealth.Unreachable })
+                    Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: true, verdict) == "status.model.ready",
+                        $"a stored Groq key with health {verdict} must stay Ready");
+                Assert(MainViewModel.CloudModelStatusKey(groq, false, hasApiKey: false, ProviderHealth.Unauthorized) == "status.model.noApiKey",
+                    "no key at all still reads No API key");
+                Assert(MainViewModel.CloudModelStatusKey(CloudTranscriptionProvider.HyperWhisperCloud, true, false, ProviderHealth.Unauthorized) == "status.model.ready",
+                    "the account-key path (#649) does not read BYOK health");
+                Assert(L("status.model.keyInvalid", "X") != "status.model.keyInvalid" && L("status.model.keyInvalid", "X").Contains('X'),
+                    "status.model.keyInvalid is missing from Strings.resx or lost its {0}");
+
+                // Then the real status bar on a Groq mode, with the key saved and a
+                // private health cache on a frozen clock (no network, no 60 s expiry).
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                foreach (var (name, value) in new (string, object)[]
+                {
+                    ("_settingsService", SettingsService.Instance),
+                    ("_modelService", new WhisperModelService()),
+                    ("_transcriptionService", new TranscriptionService()),
+                    ("_parakeetTranscriptionService", new ParakeetTranscriptionService()),
+                    ("_localLlmModelService", new LocalLlmModelService()),
+                })
+                {
+                    (typeof(MainViewModel).GetField(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                        .SetValue(vm, value);
+                }
+                var selectedMode = typeof(MainViewModel).GetField("_selectedMode", all)
+                    ?? throw new InvalidOperationException("MainViewModel._selectedMode is gone; update this test");
+                var updateModelStatus = typeof(MainViewModel).GetMethod("UpdateModelStatus", all, Type.EmptyTypes)
+                    ?? throw new InvalidOperationException("MainViewModel.UpdateModelStatus() is gone; update this test");
+
+                var frozen = DateTime.UtcNow;
+                var health = new CloudProviderHealthService(() => frozen);
+                // The key goes straight into the fake vault: a SetApiKey would start a
+                // debounced re-probe that could overwrite the health this test sets.
+                var vault = new InMemoryCredentialBackend();
+                vault.Write("groq", "groq", "sk-test-123");
+                var keys = new ApiKeyService(vault);
+                Assert(keys.HasApiKey(groq), "precondition: Groq reads the saved key");
+                vm.ApiKeyServiceOverride = keys;
+                vm.ProviderHealthOverride = health;
+                vm.CloudAccountKeyPresentOverride = () => false;
+
+                var mode = new Mode { Name = "Hyper", ProviderType = "cloud", CloudProvider = "groq", CloudTranscriptionModel = "whisper-large-v3-turbo" };
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider) == groq, "precondition: the mode is a Groq mode");
+                selectedMode.SetValue(vm, mode);
+                updateModelStatus.Invoke(vm, null);
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"an unprobed Groq key must stay Ready, got '{vm.ModelStatus}'");
+
+                // The probe's verdict arrives through TranscriptionProviderStatusChanged.
+                var statusChanged = typeof(CloudProviderHealthService).GetField(nameof(CloudProviderHealthService.TranscriptionProviderStatusChanged), all)
+                    ?? throw new InvalidOperationException("CloudProviderHealthService.TranscriptionProviderStatusChanged has no backing field; update this test");
+                void Probe(ProviderHealth verdict)
+                {
+                    health.SetCachedTranscriptionStatusForTests(groq, verdict);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, groq);
+                }
+
+                vm.AttachModelStatusSources();
+                try
+                {
+                    Probe(ProviderHealth.Unauthorized);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal)
+                           && !vm.ModelStatus.Contains(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"the provider rejected the key, yet the status bar says '{vm.ModelStatus}'");
+
+                    // A re-probe's interim Checking keeps the verdict on screen, and another
+                    // provider's verdict does not touch a Groq mode's bar.
+                    Probe(ProviderHealth.Checking);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a re-probe flashed the rejected key back to '{vm.ModelStatus}'");
+                    health.SetCachedTranscriptionStatusForTests(groq, ProviderHealth.Unauthorized);
+                    health.SetCachedTranscriptionStatusForTests(CloudTranscriptionProvider.Deepgram, ProviderHealth.Healthy);
+                    ((EventHandler<CloudTranscriptionProvider>?)statusChanged.GetValue(health))?.Invoke(health, CloudTranscriptionProvider.Deepgram);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.keyInvalid", "").Trim(), StringComparison.Ordinal),
+                        $"a Deepgram verdict changed a Groq mode's bar to '{vm.ModelStatus}'");
+
+                    Probe(ProviderHealth.Healthy);
+                    Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                        $"a healthy probe did not bring the status bar back to Ready: '{vm.ModelStatus}'");
+                }
+                finally
+                {
+                    vm.DetachModelStatusSources();
+                }
+
+                // Detached: a later verdict no longer reaches this view model, though a
+                // direct refresh would now read it.
+                Probe(ProviderHealth.Unauthorized);
+                Assert(health.GetStatus(groq) == ProviderHealth.Unauthorized, "precondition: the cache holds the rejection");
+                Assert(vm.ModelStatus.EndsWith(L("status.model.ready", "").Trim(), StringComparison.Ordinal),
+                    $"a detached view model still followed the health: '{vm.ModelStatus}'");
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -21802,18 +22439,75 @@ internal static class Program
                     $"a settings + modes import reads '{both}', expected '{settingsRestored} {counts}'");
 
                 // Settings picked but the settings step failed (SettingsImported false):
-                // never a bare "imported successfully" — the counts stay, as on main.
+                // the line says so, and the import is not reported as a plain success (#2377).
+                var settingsFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settingsFailed");
                 var failed = BackupExportSettingsPage.BuildImportSummary(
                     new ImportSummary { SettingsImported = false },
                     new ImportSelection { IncludeSettings = true });
-                Assert(failed == zeroCounts,
-                    $"a settings-only import whose settings step failed reads '{failed}', expected '{zeroCounts}'");
+                Assert(failed == settingsFailed,
+                    $"a settings-only import whose settings step failed reads '{failed}', expected '{settingsFailed}'");
+                Assert(BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = false },
+                        new ImportSelection { IncludeSettings = true }),
+                    "a settings import whose settings step failed is reported as a plain success");
 
                 // No selection (an older caller) keeps the counts.
                 var legacy = BackupExportSettingsPage.BuildImportSummary(
                     new ImportSummary { ModesImported = 2, VocabularyAdded = 1 }, null);
                 Assert(legacy == HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 1, 0),
                     $"an import with no selection reads '{legacy}' instead of the counts");
+            });
+
+            Run("backup: an API-keys-only import says whether the keys were restored — issue #2377", () =>
+            {
+                // An API-keys-only import read "Modes: 0, vocabulary added: 0, conflicts: 0."
+                // and never named the keys, so a failed Credential Manager write
+                // (ApiKeysImported false, only a WARN in the log) still read as success.
+                EnsureSmokeApplication();
+                var keysRestored = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeys");
+                var keysFailed = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysFailed");
+                var zeroCounts = HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 0, 0, 0);
+                var keysOnly = new ImportSelection { IncludeApiKeys = true };
+
+                var page = new BackupExportSettingsPage();
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 3 }, keysOnly);
+                var ok = page.ImportStatusText.Text;
+                Assert(ok == HyperWhisper.Localization.Loc.S("settings.backup.import.success", keysRestored),
+                    $"an API-keys-only import that landed reads '{ok}', expected the success line with '{keysRestored}'");
+                Assert(!ok.Contains(zeroCounts),
+                    $"an API-keys-only import still reports the zero counts: '{ok}'");
+
+                page.ApplyImportSuccess(new ImportSummary { ApiKeysImported = false }, keysOnly);
+                var bad = page.ImportStatusText.Text;
+                Assert(bad == HyperWhisper.Localization.Loc.S("settings.backup.import.partial", keysFailed),
+                    $"an API-keys-only import whose key write failed reads '{bad}', expected the problems line with '{keysFailed}'");
+                Assert(!bad.Contains(HyperWhisper.Localization.Loc.S("settings.backup.import.success", "").Trim()),
+                    $"an API-keys import whose key write failed still says it succeeded: '{bad}'");
+
+                // Settings + modes + keys: each picked section is named, keys last.
+                var all = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true, ApiKeysInBackup = 1 },
+                    new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true });
+                var expected = HyperWhisper.Localization.Loc.S("settings.backup.import.summary.settings") + " "
+                    + HyperWhisper.Localization.Loc.S("settings.backup.import.summary", 2, 0, 0) + " " + keysRestored;
+                Assert(all == expected, $"a settings + modes + keys import reads '{all}', expected '{expected}'");
+                Assert(!BackupExportSettingsPage.ImportHadFailure(
+                        new ImportSummary { SettingsImported = true, ModesImported = 2, ApiKeysImported = true },
+                        new ImportSelection { IncludeSettings = true, IncludeModes = true, IncludeApiKeys = true }),
+                    "an import where every picked section landed is reported as having problems");
+
+                // An export with no keys configured still writes an empty apiKeys object:
+                // nothing to restore is said as such, never as "API keys restored".
+                var none = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ApiKeysImported = true, ApiKeysInBackup = 0 }, keysOnly);
+                Assert(none == HyperWhisper.Localization.Loc.S("settings.backup.import.summary.apiKeysNone"),
+                    $"an API-keys-only import of a backup with no keys reads '{none}'");
+
+                // Keys not picked: no key sentence at all.
+                var noKeys = BackupExportSettingsPage.BuildImportSummary(
+                    new ImportSummary { ModesImported = 1 }, new ImportSelection { IncludeModes = true });
+                Assert(!noKeys.Contains(keysRestored) && !noKeys.Contains(keysFailed),
+                    $"an import with API keys unticked mentions the keys: '{noKeys}'");
             });
 
             Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>
@@ -24856,6 +25550,163 @@ internal static class Program
                 }
             });
 
+            // #1584: a transcript pasted over an EMPTY clipboard has nothing to
+            // restore, so #1496's keep-the-snapshot mark was never armed, and a
+            // second dictation inside the restore window snapshotted transcript A
+            // as "the user's clipboard" and restored it over B. The mark now
+            // counts only until A's restore delay would have ended (Ray,
+            // 2026-10-19). These drive the real service on the real clipboard,
+            // with the TickCountMs seam standing in for the 10 s wait.
+            Run("clipboard restore (#1584): two quick dictations from an empty clipboard leave the last transcript", () =>
+            {
+                static string Clip() => ReadClipboardText();
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                var restoreDelay = TimeSpan.FromSeconds(10);
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    // A clock the case moves by hand, starting well away from 0.
+                    long now = 1_000_000;
+                    SmartPasteService NewService() => new SmartPasteService { TickCountMs = () => now };
+
+                    // One dictation as the batch flow runs it, with the default
+                    // 10 s delay. Over an empty clipboard no restore is pending.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: empty clipboard, A, then B 3 s later. B stays.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Assert(!paste.HasPendingClipboardRestore, "an empty clipboard leaves nothing to restore");
+                        now += 3_000;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(!paste.HasPendingClipboardRestore,
+                            "B inside A's window must keep 'nothing to restore', not snapshot A");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Blue whale sing across the cold ocean. ",
+                            $"two quick dictations from an empty clipboard must leave the last transcript, got '{Clip()}'");
+                    }
+
+                    // B starts after A's window ended: A is now the clipboard's
+                    // content, so B's restore brings A back, as before the fix.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        now += (long)restoreDelay.TotalMilliseconds;
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Assert(paste.HasPendingClipboardRestore, "B after A's window must snapshot A and schedule its restore");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "The apple tree grows near the riverbank. ",
+                            $"a dictation after the window must restore the earlier transcript, got '{Clip()}'");
+                    }
+
+                    // Restore OFF from an empty clipboard: nothing is ever
+                    // restored, and the transcript is the clipboard's content. A
+                    // later dictation with restore on snapshots it afresh.
+                    using (var paste = NewService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.Clear();
+                        Dictate(paste, "Dictated with restore off. ");
+                        now += 3_000;
+                        Dictate(paste, "Again with restore off. ");
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        Assert(Clip() == "Again with restore off. ",
+                            $"with restore off the last transcript stays, got '{Clip()}'");
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        now += 1_000;
+                        Dictate(paste, "Restore back on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Again with restore off. ",
+                            $"a transcript left with restore off must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A transcript kept ON PURPOSE over an empty clipboard (no
+                    // restore scheduled, the SecureFieldSkipped shape) is never
+                    // marked, so even a dictation 1 s later snapshots it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "The next dictation. ");
+                        Assert(paste.HasPendingClipboardRestore, "the next dictation must snapshot the kept transcript");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript kept on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // A late segment (written after the restore was scheduled)
+                    // over an empty clipboard keeps the window's expiry, not a
+                    // new one from its own write: inside the window the next
+                    // dictation leaves its own transcript ...
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 500;
+                        Dictate(paste, "Inside the window. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Inside the window. ",
+                            $"a dictation inside the window after a late segment must leave its own transcript, got '{Clip()}'");
+                    }
+
+                    // ... and once the clock passes the window (1 s after the
+                    // late segment, well inside 10 s of it), the next dictation
+                    // snapshots that segment and restores it.
+                    using (var paste = NewService())
+                    {
+                        Clipboard.Clear();
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(restoreDelay);
+                        now += 9_000;
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        now += 1_000;
+                        Dictate(paste, "After the window. ");
+                        Assert(paste.HasPendingClipboardRestore, "after the window the next dictation must snapshot the late segment");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Late segment. ",
+                            $"a late segment must lapse with the window, not a new one, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
@@ -26219,6 +27070,15 @@ internal static class Program
             });
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
+            OutputMuteOwnershipChecks.RunAll(Run);
+            LoggingServiceFlushChecks.RunAll(Run);
+            CloudCreditsWarningChecks.RunAll(Run);
+            InsufficientCreditsMessageChecks.RunAll(Run);
+            PendingHistoryUnreadableChecks.RunAll(Run);
+            ParakeetGuiLoadReloadChecks.RunAll(Run);
+            TranscriptionRetryHandlerChecks.RunAll(Run);
+            UpdateMessageWindowChecks.RunAll(Run);
+            WindowIconDpiChecks.RunAll(Run, EnsureSmokeApplication);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
@@ -26284,6 +27144,19 @@ internal static class Program
                     "a probe stored the key it checked; only an activation may");
                 Assert(service.GetCachedStatus() == cachedBefore,
                     $"a probe wrote the validation cache ({cachedBefore} -> {service.GetCachedStatus()})");
+            });
+
+            RunAsync("probe: a 200 that is not the validate JSON reports unavailable, not an invalid key (#2916)", async () =>
+            {
+                foreach (var body in new[] { "<html><body>Please log in to Hotel WiFi</body></html>", "" })
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, body);
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ProbeLicenseAsync(licenceSeamProbeKey);
+                    Assert(handler.Bodies.Count == 1, $"'{body}': expected one request, sent {handler.Bodies.Count}");
+                    Assert(!result.IsValid && result.ErrorMessage == licenceSeamOfflineMessage,
+                        $"'{body}': a captive-portal 200 is not a verdict about the key, got valid={result.IsValid} message='{result.ErrorMessage}'");
+                }
             });
 
             RunAsync("probe: the request body carries probe_only and no device_id", async () =>
@@ -26359,6 +27232,35 @@ internal static class Program
                         $"a different key inherited the stored key's verdict: valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
                     Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
                         "an unverified replacement key must leave the stored key and its cache alone");
+                });
+
+                RunAsync("validate: a 200 that is not the validate JSON keeps the stored key's cached verdict (#2916)", async () =>
+                {
+                    foreach (var body in new[] { "<html><body>Please log in to Hotel WiFi</body></html>", "", "{}" })
+                    {
+                        var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, body);
+                        using var service = new LicenseNetworkService(new HttpClient(handler));
+                        var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                        Assert(handler.Bodies.Count == 1, $"'{body}': expected one request, sent {handler.Bodies.Count}");
+                        Assert(result.IsValid && result.Status == LicenseStatus.Active,
+                            $"'{body}': a captive-portal 200 downgraded a paying user, got valid={result.IsValid} status={result.Status} message='{result.ErrorMessage}'");
+                        Assert(result.ErrorMessage == "Using cached license (offline)",
+                            $"'{body}': expected the cached-offline verdict, got '{result.ErrorMessage}'");
+                        Assert(service.GetStoredLicenseKey() == licenceSeamStoredKey && service.GetCachedStatus() == LicenseStatus.Active,
+                            $"'{body}': a non-verdict 200 must leave the stored key and its cache alone");
+                    }
+                });
+
+                // Last in the block: it overwrites the cached verdict with Invalid.
+                RunAsync("validate: a real 200 {\"valid\":false} for the stored key still caches Invalid (#2916 guard)", async () =>
+                {
+                    var handler = new LicenceSeamReplyHandler(HttpStatusCode.OK, "{\"valid\":false}");
+                    using var service = new LicenseNetworkService(new HttpClient(handler));
+                    var result = await service.ValidateLicenseAsync(licenceSeamStoredKey);
+                    Assert(!result.IsValid && result.Status == LicenseStatus.Invalid,
+                        $"a real rejection must read as Invalid, got valid={result.IsValid} status={result.Status}");
+                    Assert(service.GetCachedStatus() == LicenseStatus.Invalid,
+                        $"a real rejection of the stored key must be cached, got {service.GetCachedStatus()}");
                 });
             }
             finally
@@ -26610,6 +27512,38 @@ internal static class Program
         // A full-length sine has RMS = peak / sqrt(2); silence or a short burst would not.
         Assert(rms > expectedPeak * 0.6,
             $"expected a non-silent signal throughout (RMS > {expectedPeak * 0.6:F3}), got {rms:F3}");
+    }
+
+    /// <summary>
+    /// A temp crash-pin store file for #2597's checks. Each <see cref="Launch"/>
+    /// is a new store instance over the same file: one app launch.
+    /// </summary>
+    private sealed class GpuCrashStoreRig : IDisposable
+    {
+        private readonly string _directory = Path.Combine(
+            Path.GetTempPath(), "HyperWhisper.SmokeTests", "gpu-crash-store-" + Guid.NewGuid().ToString("N"));
+
+        public GpuCrashStoreRig() => Directory.CreateDirectory(_directory);
+
+        public string Model => @"C:\models\qwen.gguf";
+        public string Gpu => "NVIDIA GeForce RTX 4060";
+        public string StorePath => Path.Combine(_directory, "local-llm-gpu-load-crashes.json");
+        public string LegacyPath => Path.Combine(_directory, "local-llm-gpu-load.sentinel");
+
+        public LocalLlmGpuLoadCrashStore Launch() => new(StorePath, LegacyPath, () => Gpu);
+
+        public void WriteStoreJson(string json) => File.WriteAllText(StorePath, json);
+
+        private JsonNode? ReadStore() => File.Exists(StorePath) ? JsonNode.Parse(File.ReadAllText(StorePath)) : null;
+
+        public int EntryCount() => ReadStore()?["Entries"]?.AsArray().Count ?? 0;
+
+        public long StoredLaunchOrdinal() => ReadStore()?["LaunchOrdinal"]?.GetValue<long>() ?? 0;
+
+        public void Dispose()
+        {
+            try { Directory.Delete(_directory, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
     }
 
     private static void Run(string name, Action check)
@@ -27335,7 +28269,7 @@ internal static class Program
     /// try/catch: a stray byte pair can only resolve to some unrelated member,
     /// so a hit on the exact target is a real call site (#1534).
     /// </summary>
-    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    internal static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
     {
         const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var body = method;
@@ -28378,6 +29312,9 @@ internal static class Program
     /// </summary>
     private static Dictionary<string, long> SnapshotLogOffsets()
     {
+        // The log writer is buffered (#985): write out queued lines first, so
+        // they count as before the act step and not inside its window.
+        LoggingService.Flush();
         var offsets = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
@@ -28403,6 +29340,9 @@ internal static class Program
     /// </summary>
     private static string ReadLogSince(Dictionary<string, long> offsets)
     {
+        // The log writer is buffered (#985): write out the act step's queued
+        // lines before reading them back.
+        LoggingService.Flush();
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
         {
@@ -28524,6 +29464,334 @@ internal static class Program
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
+    // ---- BEGIN #2296 streaming reconnect receive checks ----
+    // STREAMING: FRAMES AFTER AN EXCEPTION-PATH RECONNECT ARE READ (issue #2296)
+    //
+    // The real StreamingTranscriptionClient against a scripted loopback WebSocket
+    // server. Connection #1 ends by an EXCEPTION in the receive loop (a TCP FIN
+    // with no close frame, a TCP RST, or a strategy ParseMessage throw), the client
+    // reconnects, and connection #2 sends a final transcript. Before the fix the
+    // catch path reconnected and then returned, so nothing read connection #2 and
+    // "After reconnect." was lost. A close-frame drop always looped and read on.
+    private static void StreamingReconnectReceiveChecks()
+    {
+        foreach (var drop in new[] { ReconnectDrop.TcpFin, ReconnectDrop.TcpReset, ReconnectDrop.ParseThrows })
+        {
+            RunAsync($"StreamingTranscriptionClient reads the new socket after an exception-path reconnect ({drop}, #2296)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    await AssertReconnectKeepsReading(drop);
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+        }
+
+        RunAsync("StreamingTranscriptionClient does not reconnect after an in-band provider error then a TCP drop (#2296)", async () =>
+        {
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            try
+            {
+                await AssertProviderErrorThenDropStaysFailed();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+        });
+    }
+
+    // The close-frame path ends the session once the provider has failed it (State Error).
+    // The exception path must too: an in-band error (e.g. credits exhausted) followed by a
+    // TCP drop with no close frame must not reconnect and resume a session the provider
+    // refused. The wait covers the first reconnect attempt's 500 ms backoff several times.
+    private static async Task AssertProviderErrorThenDropStaysFailed()
+    {
+        var providerError = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // The error waits for StartAsync to reach Streaming: sent at once, the receive loop
+        // could move to Error before StartAsync's Connecting -> Streaming step, and StartAsync
+        // would return false on a slow runner.
+        var streaming = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var states = new List<StreamingConnectionState>();
+        var errors = new List<string>();
+
+        await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+        {
+            if (index == 0)
+            {
+                await streaming.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+                await ServerSendText(ws, "{\"t\":\"error\",\"text\":\"Credits exhausted.\"}", ct);
+                await providerError.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+                socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+                return;
+            }
+
+            await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"After reconnect.\"}", ct);
+            await ServerDrainUntilGone(ws, ct);
+        });
+
+        var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+        await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+        client.StateChanged += state =>
+        {
+            lock (states) states.Add(state);
+            if (state == StreamingConnectionState.Streaming)
+                streaming.TrySetResult();
+        };
+        client.ErrorReceived += m =>
+        {
+            lock (errors) errors.Add(m);
+            if (m.Contains("Credits exhausted.", StringComparison.Ordinal))
+                providerError.TrySetResult();
+        };
+
+        Assert(await client.StartAsync(), $"StartAsync did not start the session (State {client.State})");
+        Assert(await Task.WhenAny(providerError.Task, Task.Delay(TimeSpan.FromSeconds(10))) == providerError.Task,
+            "the in-band provider error never reached ErrorReceived");
+
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        var stateAfter = client.State;
+        var connections = server.ConnectionCount;
+        string[] seen;
+        lock (states)
+            seen = states.Select(s => s.ToString()).ToArray();
+        await client.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(10)).Token);
+
+        Assert(connections == 1, $"a failed session reconnected after the TCP drop: {connections} connections (states {string.Join(",", seen)})");
+        Assert(!seen.Contains(nameof(StreamingConnectionState.Reconnecting)), $"a failed session moved to Reconnecting (states {string.Join(",", seen)})");
+        Assert(stateAfter == StreamingConnectionState.Error, $"expected State to stay Error after the drop, got {stateAfter} (states {string.Join(",", seen)})");
+        Assert(!client.FinalText.Contains("After reconnect.", StringComparison.Ordinal), "a failed session read a reconnected socket");
+    }
+
+    private enum ReconnectDrop { TcpFin, TcpReset, ParseThrows }
+
+    private static async Task AssertReconnectKeepsReading(ReconnectDrop drop)
+    {
+        var wait = TimeSpan.FromSeconds(10);
+        var firstFinal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var afterReconnect = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var errors = new List<string>();
+
+        await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+        {
+            if (index == 0)
+            {
+                if (drop == ReconnectDrop.ParseThrows)
+                {
+                    // The strategy throws on this frame: the exception path, with the
+                    // TCP connection itself still healthy.
+                    await ServerSendText(ws, "{\"t\":\"boom\"}", ct);
+                    await ServerDrainUntilGone(ws, ct);
+                    return;
+                }
+
+                await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"Before drop.\"}", ct);
+                await firstFinal.Task.WaitAsync(wait, ct);
+                if (drop == ReconnectDrop.TcpReset)
+                    socket.LingerState = new System.Net.Sockets.LingerOption(true, 0);
+                else
+                    socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+                return;
+            }
+
+            await ServerSendText(ws, "{\"t\":\"final\",\"text\":\"After reconnect.\"}", ct);
+            await ServerDrainUntilGone(ws, ct);
+        });
+
+        var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+        await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+        client.ErrorReceived += m => { lock (errors) errors.Add(m); };
+        client.FinalTranscriptSegmentReceived += segment =>
+        {
+            if (segment.Contains("Before drop.", StringComparison.Ordinal))
+                firstFinal.TrySetResult();
+            if (segment.Contains("After reconnect.", StringComparison.Ordinal))
+                afterReconnect.TrySetResult();
+        };
+
+        Assert(await client.StartAsync(), $"{drop}: StartAsync did not start the session (State {client.State})");
+
+        var arrived = await Task.WhenAny(afterReconnect.Task, Task.Delay(wait)) == afterReconnect.Task;
+        var stateAfter = client.State;
+        var finalBeforeStop = client.FinalText;
+        var stopped = await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+        Assert(server.ConnectionCount == 2,
+            $"{drop}: expected exactly one reconnect (2 connections), saw {server.ConnectionCount}");
+        Assert(arrived,
+            $"{drop}: the final sent on the reconnected socket never reached the client " +
+            $"(State {stateAfter}, FinalText '{finalBeforeStop}', errors [{string.Join(" | ", errors)}])");
+        Assert(stateAfter == StreamingConnectionState.Streaming, $"{drop}: expected Streaming after the reconnect, got {stateAfter}");
+        Assert(stopped.Contains("After reconnect.", StringComparison.Ordinal),
+            $"{drop}: StopAsync returned '{stopped}' without the post-reconnect final");
+        if (drop != ReconnectDrop.ParseThrows)
+            Assert(stopped.Contains("Before drop.", StringComparison.Ordinal), $"{drop}: StopAsync lost the pre-drop final: '{stopped}'");
+        lock (errors)
+            Assert(errors.Count == 0, $"{drop}: a successful reconnect raised ErrorReceived: [{string.Join(" | ", errors)}]");
+    }
+
+    private static Task ServerSendText(WebSocket ws, string text, CancellationToken ct) =>
+        ws.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text, true, ct);
+
+    // Reads until the client closes or the connection goes away, answering a close frame.
+    private static async Task ServerDrainUntilGone(WebSocket ws, CancellationToken ct)
+    {
+        var buffer = new byte[8192];
+        try
+        {
+            while (ws.State is WebSocketState.Open)
+            {
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", ct);
+                    return;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is WebSocketException or OperationCanceledException or IOException or ObjectDisposedException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// A raw TCP WebSocket server on 127.0.0.1 (no HttpListener, so a script can drop
+    /// the TCP connection itself without a close frame). Each accepted connection runs
+    /// the script with its zero-based index.
+    /// </summary>
+    private sealed class ScriptedLoopbackWebSocketServer : IAsyncDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener = new(IPAddress.Loopback, 0);
+        private readonly Func<int, WebSocket, System.Net.Sockets.Socket, CancellationToken, Task> _script;
+        private readonly CancellationTokenSource _cts = new();
+        private readonly List<Task> _connections = new();
+        private readonly Task _acceptLoop;
+        private int _connectionCount;
+
+        public ScriptedLoopbackWebSocketServer(Func<int, WebSocket, System.Net.Sockets.Socket, CancellationToken, Task> script)
+        {
+            _script = script;
+            _listener.Start();
+            Uri = new Uri($"ws://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}/live");
+            _acceptLoop = AcceptLoopAsync();
+        }
+
+        public Uri Uri { get; }
+
+        public int ConnectionCount => Volatile.Read(ref _connectionCount);
+
+        private async Task AcceptLoopAsync()
+        {
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+                    var socket = await _listener.AcceptSocketAsync(_cts.Token);
+                    var index = Interlocked.Increment(ref _connectionCount) - 1;
+                    lock (_connections)
+                        _connections.Add(Task.Run(() => ServeAsync(index, socket)));
+                }
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or System.Net.Sockets.SocketException or ObjectDisposedException)
+            {
+            }
+        }
+
+        private async Task ServeAsync(int index, System.Net.Sockets.Socket socket)
+        {
+            try
+            {
+                var stream = new System.Net.Sockets.NetworkStream(socket, ownsSocket: false);
+                var request = new System.Text.StringBuilder();
+                var one = new byte[1];
+                while (!request.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
+                {
+                    if (await stream.ReadAsync(one, _cts.Token) == 0)
+                        return;
+                    request.Append((char)one[0]);
+                }
+
+                var key = request.ToString().Split("\r\n")
+                    .First(line => line.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
+                    .Substring("Sec-WebSocket-Key:".Length).Trim();
+                var accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(
+                    System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+                await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+                    $"Sec-WebSocket-Accept: {accept}\r\n\r\n"), _cts.Token);
+
+                using var ws = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
+                await _script(index, ws, socket, _cts.Token);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or WebSocketException
+                                           or System.Net.Sockets.SocketException or ObjectDisposedException or TimeoutException)
+            {
+            }
+            finally
+            {
+                socket.Dispose();
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _cts.Cancel();
+            _listener.Stop();
+            Task[] pending;
+            lock (_connections)
+                pending = _connections.Append(_acceptLoop).ToArray();
+            await Task.WhenAny(Task.WhenAll(pending), Task.Delay(TimeSpan.FromSeconds(5)));
+            _cts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Speaks a tiny JSON protocol: <c>{"t":"final","text":...}</c> is a final
+    /// transcript, <c>{"t":"error","text":...}</c> is an in-band provider error and
+    /// <c>{"t":"boom"}</c> makes ParseMessage throw. The session starts
+    /// on open with no start messages, and stop is a plain close.
+    /// </summary>
+    private sealed class LoopbackScriptedStrategy(Uri uri) : IStreamingProviderStrategy
+    {
+        public string TranscriptionProviderLabel => "loopback";
+        public bool SupportsVocabulary => false;
+        public bool SessionStartsOnWebSocketOpen => true;
+        public int AudioSampleRate => 16000;
+
+        public Uri? BuildWebSocketUri(StreamingSessionConfig config) => uri;
+        public void ConfigureWebSocket(ClientWebSocket webSocket, StreamingSessionConfig config) { }
+        public (byte[] Data, WebSocketMessageType Type) EncodeAudioChunk(byte[] pcmData) => (pcmData, WebSocketMessageType.Binary);
+
+        public StreamingProviderEvent? ParseMessage(string text)
+        {
+            var node = JsonNode.Parse(text);
+            return node?["t"]?.GetValue<string>() switch
+            {
+                "final" => new StreamingProviderEvent.FinalTranscript(node["text"]!.GetValue<string>()),
+                "boom" => throw new InvalidOperationException("scripted ParseMessage failure"),
+                "error" => new StreamingProviderEvent.Error(node["text"]!.GetValue<string>()),
+                _ => null
+            };
+        }
+
+        public IReadOnlyList<StreamingStopStep> GetStopSequence() => new[] { new StreamingStopStep(StreamingStopAction.Close) };
+        public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) =>
+            Array.Empty<(byte[] Data, WebSocketMessageType Type)>();
+        public Task OnAudioSendOpportunityAsync(
+            Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+        public bool IsTerminalCloseCode(int closeCode) => false;
+    }
+    // ---- END #2296 streaming reconnect receive checks ----
+
     /// <summary>
     /// An <c>ISampleProvider</c> that hands out a scripted, deliberately awkward number of
     /// samples per Read — starting with a count SMALLER than one sample frame, which is legal
@@ -28615,7 +29883,7 @@ internal static class Program
         public void Delete(string resource, string account) => _values.Remove(account);
     }
 
-    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    internal sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
     {
         public string? StoredValue { get; private set; }
         public bool ThrowOnRead { get; set; }

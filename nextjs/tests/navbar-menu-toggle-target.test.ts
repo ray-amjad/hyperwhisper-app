@@ -14,7 +14,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { NextIntlClientProvider } from "next-intl";
@@ -22,16 +22,7 @@ import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { DownloadModalProvider } from "@/contexts/DownloadModalContext";
-
-/** `@types/node@20` has no declaration for `mock.module` (see cloud-credits-card-error-state.test.ts). */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: { namedExports?: Record<string, unknown> },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock } from "./module-mock";
 
 // The navbar reads the pathname (useSiteHref, the language switcher) and a
 // static render has no app router mounted, so stand one in for /en.

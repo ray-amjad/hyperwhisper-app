@@ -8,9 +8,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
-moduleMock.module("../src/env/client.mjs", {
+moduleMock.module(moduleUrl("../src/env/client.mjs"), {
   namedExports: { env: { NEXT_PUBLIC_POSTHOG_KEY: "phc_test" } },
 });
 

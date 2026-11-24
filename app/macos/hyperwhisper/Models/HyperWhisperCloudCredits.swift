@@ -95,9 +95,11 @@ struct HyperWhisperCloudCredits: Codable {
         creditsRemaining <= 0
     }
 
-    /// Whether user has less than 10 minutes remaining (warning threshold)
+    /// Whether user has less than 10 minutes remaining (warning threshold).
+    /// The server floors minutes, so a balance under one minute reads 0 minutes
+    /// while credits are still above 0: that is the most urgent low case, not "fine".
     var isLow: Bool {
-        minutesRemaining < 10 && minutesRemaining > 0
+        minutesRemaining < 10 && creditsRemaining > 0
     }
 }
 

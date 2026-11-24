@@ -13,14 +13,17 @@ import os
 import Testing
 @testable import HyperWhisper
 
+@Suite(.timeLimit(.minutes(10)))
 struct DeadlineGateTests {
 
-    private static let blockCap: DispatchTimeInterval = .seconds(60)
+    /// Only the test's `release.signal()` should end a block; the cap sits above
+    /// the tests' 120 s waits, so a stalled runner never ends one early (#2540).
+    private static let blockCap: DispatchTimeInterval = .seconds(300)
 
     private static func drain(_ queue: DispatchQueue) async -> Bool {
         let drained = DispatchSemaphore(value: 0)
         queue.async { drained.signal() }
-        return await waitOffThePool(for: drained, seconds: 30)
+        return await waitOffThePool(for: drained, seconds: 120)
     }
 
     /// Blocks the queue past the deadline with a first call, then queues a second
@@ -44,7 +47,7 @@ struct DeadlineGateTests {
             }, discardLate: { _ in })
         }
         // The second call must queue BEHIND the blocked first one.
-        #expect(await waitOffThePool(for: started, seconds: 30))
+        #expect(await waitOffThePool(for: started, seconds: 120))
         let second = Task {
             await gate.run({ () -> Int in
                 ran.withLock { $0 = true }

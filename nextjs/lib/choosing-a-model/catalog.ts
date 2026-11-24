@@ -185,7 +185,7 @@ export type CloudModel = {
    * - Gemini Transcribe: the live row only. No caller sends a model id on this
    *   path — macOS passes nil for `.gemini` deliberately — and each side
    *   substitutes its own live constant when the id is empty: `LIVE_MODEL` in
-   *   `providers/gemini_transcribe.rs`, reached through `live/gemini.rs`, and a
+   *   `providers/gemini_transcribe/mod.rs`, reached through `live/gemini.rs`, and a
    *   duplicate `liveModel` literal in `GeminiStreamingStrategy`. Nothing on
    *   the path would reject the pre-recorded id; nothing sends it either.
    * - OpenAI and ElevenLabs have live routes, but they run

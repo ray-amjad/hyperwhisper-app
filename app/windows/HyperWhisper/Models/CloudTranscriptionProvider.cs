@@ -346,7 +346,9 @@ public static class CloudTranscriptionProviderExtensions
         // Gemini 3.5 Transcribe sends the audio INLINE as base64 in the JSON body
         // (~33% inflation), so the raw-file cap is well below the request cap.
         CloudTranscriptionProvider.GeminiTranscribe => 14L * 1024 * 1024, // 14 MB raw
-        CloudTranscriptionProvider.HyperWhisperCloud => 2L * 1024 * 1024 * 1024, // 2 GB
+        // The server's body cap (hyperwhisper-cloud MAX_AUDIO_SIZE_BYTES). A larger
+        // upload gets Bun's bare 413, which has no size message.
+        CloudTranscriptionProvider.HyperWhisperCloud => 128L * 1024 * 1024, // 128 MB
         CloudTranscriptionProvider.Mistral => 100L * 1024 * 1024, // 100 MB
         CloudTranscriptionProvider.Soniox => 1L * 1024 * 1024 * 1024, // 1 GB
         CloudTranscriptionProvider.Grok => 500L * 1024 * 1024, // 500 MB

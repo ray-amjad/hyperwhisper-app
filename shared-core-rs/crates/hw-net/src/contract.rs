@@ -20,7 +20,7 @@
 /// and two different BYOK key slots: `Gemini` is the multimodal
 /// `:generateContent` path (`providers/gemini.rs`), `GeminiTranscribe` is the
 /// dedicated `/v1beta/interactions` speech API
-/// (`providers/gemini_transcribe.rs`). They are not interchangeable — see the
+/// (`providers/gemini_transcribe/`). They are not interchangeable — see the
 /// module docs on `gemini_transcribe`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {

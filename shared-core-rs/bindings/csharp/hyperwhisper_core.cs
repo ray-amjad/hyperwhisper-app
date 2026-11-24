@@ -1276,54 +1276,6 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1577,23 +1529,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(RustBuffer @provider,RustBuffer @apiKey,RustBuffer @baseUrl,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_system_info(RustBuffer @ctx,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_build_system_prompt(RustBuffer @ctx,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_classify_error(ushort @status,RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_default_model(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1605,19 +1545,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_llm_provider(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_model(RustBuffer @id,RustBuffer @modelId,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_models(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1634,10 +1562,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern double uniffi_hyperwhisper_core_fn_func_cloud_stt_credits_per_minute_for_model(RustBuffer @id,RustBuffer @modelId,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_custom_vocabulary_field_name(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1825,10 +1749,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_build_transcribe_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1901,31 +1821,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern sbyte uniffi_hyperwhisper_core_fn_func_license_can_download_model(IntPtr @store,RustBuffer @status,RustBuffer @limits,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern sbyte uniffi_hyperwhisper_core_fn_func_license_can_start_recording(IntPtr @store,RustBuffer @status,RustBuffer @limits,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_check_limits(IntPtr @store,RustBuffer @status,RustBuffer @limits,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern void uniffi_hyperwhisper_core_fn_func_license_clear_stored_license(IntPtr @store,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_debug(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_release(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_default_model_limit(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1934,10 +1830,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_http_error_outcome(ushort @statusCode,RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_limits_defaults(sbyte @debugBuild,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1953,27 +1845,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_hyperwhisper_core_fn_func_license_record_model_download(IntPtr @store,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_hyperwhisper_core_fn_func_license_record_usage(IntPtr @store,long @seconds,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_remote_override_if_fresh(IntPtr @store,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern long uniffi_hyperwhisper_core_fn_func_license_remote_override_ttl_secs(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_license_should_revalidate(IntPtr @store,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_hyperwhisper_core_fn_func_license_store_remote_override(IntPtr @store,RustBuffer @limits,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2033,14 +1905,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern uint uniffi_hyperwhisper_core_fn_func_llm_groq_max_completion_tokens(ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2054,14 +1918,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(RustBuffer @providerString,ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars(ref UniffiRustCallStatus _uniffi_out_err
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2837,23 +2693,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_system_info(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_build_system_prompt(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_classify_error(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_default_model(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2865,19 +2709,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_provider(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_model(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_models(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2894,10 +2726,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute_for_model(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_custom_vocabulary_field_name(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3085,10 +2913,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request(
     );
 
@@ -3161,31 +2985,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_can_download_model(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_can_start_recording(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_check_limits(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_clear_stored_license(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_debug(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_release(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_default_model_limit(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3194,10 +2994,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_http_error_outcome(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_limits_defaults(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3213,27 +3009,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_record_model_download(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_record_usage(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_remote_override_if_fresh(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_remote_override_ttl_secs(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_should_revalidate(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_store_remote_override(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3293,14 +3069,6 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens(
     );
 
@@ -3314,14 +3082,6 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars(
-    );
-
-    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4029,12 +3789,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base();
-            if (checksum != 19402) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base` checksum `19402`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_system_info();
             if (checksum != 24795) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_system_info` checksum `24795`, library returned `{checksum}`");
@@ -4044,18 +3798,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_build_system_prompt();
             if (checksum != 19711) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_build_system_prompt` checksum `19711`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_classify_error();
-            if (checksum != 31917) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_classify_error` checksum `31917`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_default_model();
-            if (checksum != 1662) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_default_model` checksum `1662`, library returned `{checksum}`");
             }
         }
         {
@@ -4071,33 +3813,15 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_provider();
-            if (checksum != 25505) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_provider` checksum `25505`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_model();
             if (checksum != 31504) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_model` checksum `31504`, library returned `{checksum}`");
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_models();
-            if (checksum != 43724) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_models` checksum `43724`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers();
-            if (checksum != 53262) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers` checksum `53262`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers();
-            if (checksum != 17064) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers` checksum `17064`, library returned `{checksum}`");
+            if (checksum != 60544) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers` checksum `60544`, library returned `{checksum}`");
             }
         }
         {
@@ -4116,12 +3840,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute_for_model();
             if (checksum != 58252) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute_for_model` checksum `58252`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_custom_vocabulary_field_name();
-            if (checksum != 15580) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_custom_vocabulary_field_name` checksum `15580`, library returned `{checksum}`");
             }
         }
         {
@@ -4401,12 +4119,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default();
-            if (checksum != 4042) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default` checksum `4042`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request();
             if (checksum != 49953) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request` checksum `49953`, library returned `{checksum}`");
@@ -4515,45 +4227,9 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_can_download_model();
-            if (checksum != 22424) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_can_download_model` checksum `22424`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_can_start_recording();
-            if (checksum != 54494) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_can_start_recording` checksum `54494`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_check_limits();
-            if (checksum != 24333) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_check_limits` checksum `24333`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_clear_stored_license();
             if (checksum != 53538) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_clear_stored_license` checksum `53538`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_debug();
-            if (checksum != 45490) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_debug` checksum `45490`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_release();
-            if (checksum != 49278) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_release` checksum `49278`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_default_model_limit();
-            if (checksum != 22184) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_default_model_limit` checksum `22184`, library returned `{checksum}`");
             }
         }
         {
@@ -4566,12 +4242,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_http_error_outcome();
             if (checksum != 53044) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_http_error_outcome` checksum `53044`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_limits_defaults();
-            if (checksum != 39316) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_limits_defaults` checksum `39316`, library returned `{checksum}`");
             }
         }
         {
@@ -4588,44 +4258,14 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict();
-            if (checksum != 1585) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `1585`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_record_model_download();
-            if (checksum != 39727) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_record_model_download` checksum `39727`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_record_usage();
-            if (checksum != 1647) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_record_usage` checksum `1647`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_remote_override_if_fresh();
-            if (checksum != 47631) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_remote_override_if_fresh` checksum `47631`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_remote_override_ttl_secs();
-            if (checksum != 7637) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_remote_override_ttl_secs` checksum `7637`, library returned `{checksum}`");
+            if (checksum != 36115) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `36115`, library returned `{checksum}`");
             }
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_should_revalidate();
             if (checksum != 37174) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_should_revalidate` checksum `37174`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_store_remote_override();
-            if (checksum != 47949) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_store_remote_override` checksum `47949`, library returned `{checksum}`");
             }
         }
         {
@@ -4713,18 +4353,6 @@ static class _UniFFILib {
             }
         }
         {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port();
-            if (checksum != 14194) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port` checksum `14194`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for();
-            if (checksum != 36443) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for` checksum `36443`, library returned `{checksum}`");
-            }
-        }
-        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens();
             if (checksum != 51471) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens` checksum `51471`, library returned `{checksum}`");
@@ -4746,18 +4374,6 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string();
             if (checksum != 5642) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string` checksum `5642`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars();
-            if (checksum != 49114) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars` checksum `49114`, library returned `{checksum}`");
-            }
-        }
-        {
-            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars();
-            if (checksum != 61579) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars` checksum `61579`, library returned `{checksum}`");
             }
         }
         {
@@ -9760,39 +9376,6 @@ class FfiConverterTypeHwVocabularyEntry: FfiConverterRustBuffer<HwVocabularyEntr
 
 
 /// <summary>
-/// Active usage limits. Mirrors `hw_license::usage::Limits`.
-/// </summary>
-internal record Limits (
-    long @dailySeconds, 
-    long @modelDownloads
-) {
-}
-
-class FfiConverterTypeLimits: FfiConverterRustBuffer<Limits> {
-    public static FfiConverterTypeLimits INSTANCE = new FfiConverterTypeLimits();
-
-    public override Limits Read(BigEndianStream stream) {
-        return new Limits(
-            @dailySeconds: FfiConverterInt64.INSTANCE.Read(stream),
-            @modelDownloads: FfiConverterInt64.INSTANCE.Read(stream)
-        );
-    }
-
-    public override int AllocationSize(Limits value) {
-        return 0
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@dailySeconds)
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@modelDownloads);
-    }
-
-    public override void Write(Limits value, BigEndianStream stream) {
-            FfiConverterInt64.INSTANCE.Write(value.@dailySeconds, stream);
-            FfiConverterInt64.INSTANCE.Write(value.@modelDownloads, stream);
-    }
-}
-
-
-
-/// <summary>
 /// The one mode a brand-new install creates. Owned mirror of
 /// `hw_catalog::ModeSeed`.
 ///
@@ -10988,89 +10571,6 @@ class FfiConverterTypeTranscribeParams: FfiConverterRustBuffer<TranscribeParams>
 
 
 /// <summary>
-/// Remote trial-limit override. Mirrors `hw_license::cache::TrialLimits`.
-/// </summary>
-internal record TrialLimits (
-    long @dailySeconds, 
-    long @modelDownloads
-) {
-}
-
-class FfiConverterTypeTrialLimits: FfiConverterRustBuffer<TrialLimits> {
-    public static FfiConverterTypeTrialLimits INSTANCE = new FfiConverterTypeTrialLimits();
-
-    public override TrialLimits Read(BigEndianStream stream) {
-        return new TrialLimits(
-            @dailySeconds: FfiConverterInt64.INSTANCE.Read(stream),
-            @modelDownloads: FfiConverterInt64.INSTANCE.Read(stream)
-        );
-    }
-
-    public override int AllocationSize(TrialLimits value) {
-        return 0
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@dailySeconds)
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@modelDownloads);
-    }
-
-    public override void Write(TrialLimits value, BigEndianStream stream) {
-            FfiConverterInt64.INSTANCE.Write(value.@dailySeconds, stream);
-            FfiConverterInt64.INSTANCE.Write(value.@modelDownloads, stream);
-    }
-}
-
-
-
-/// <summary>
-/// A snapshot of current usage vs. the active limits. Mirrors
-/// `hw_license::usage::UsageSnapshot`.
-/// </summary>
-internal record UsageSnapshot (
-    long @dailySecondsUsed, 
-    long @modelsDownloaded, 
-    bool @dailyLimitReached, 
-    bool @modelLimitReached, 
-    long @remainingDailySeconds, 
-    long @remainingModelDownloads
-) {
-}
-
-class FfiConverterTypeUsageSnapshot: FfiConverterRustBuffer<UsageSnapshot> {
-    public static FfiConverterTypeUsageSnapshot INSTANCE = new FfiConverterTypeUsageSnapshot();
-
-    public override UsageSnapshot Read(BigEndianStream stream) {
-        return new UsageSnapshot(
-            @dailySecondsUsed: FfiConverterInt64.INSTANCE.Read(stream),
-            @modelsDownloaded: FfiConverterInt64.INSTANCE.Read(stream),
-            @dailyLimitReached: FfiConverterBoolean.INSTANCE.Read(stream),
-            @modelLimitReached: FfiConverterBoolean.INSTANCE.Read(stream),
-            @remainingDailySeconds: FfiConverterInt64.INSTANCE.Read(stream),
-            @remainingModelDownloads: FfiConverterInt64.INSTANCE.Read(stream)
-        );
-    }
-
-    public override int AllocationSize(UsageSnapshot value) {
-        return 0
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@dailySecondsUsed)
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@modelsDownloaded)
-            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@dailyLimitReached)
-            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@modelLimitReached)
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@remainingDailySeconds)
-            + FfiConverterInt64.INSTANCE.AllocationSize(value.@remainingModelDownloads);
-    }
-
-    public override void Write(UsageSnapshot value, BigEndianStream stream) {
-            FfiConverterInt64.INSTANCE.Write(value.@dailySecondsUsed, stream);
-            FfiConverterInt64.INSTANCE.Write(value.@modelsDownloaded, stream);
-            FfiConverterBoolean.INSTANCE.Write(value.@dailyLimitReached, stream);
-            FfiConverterBoolean.INSTANCE.Write(value.@modelLimitReached, stream);
-            FfiConverterInt64.INSTANCE.Write(value.@remainingDailySeconds, stream);
-            FfiConverterInt64.INSTANCE.Write(value.@remainingModelDownloads, stream);
-    }
-}
-
-
-
-/// <summary>
 /// The POST `/api/license/validate` request. Mirrors
 /// `hw_license::validate::ValidateRequest`.
 /// </summary>
@@ -11112,13 +10612,26 @@ class FfiConverterTypeValidateRequest: FfiConverterRustBuffer<ValidateRequest> {
 /// Outcome of a validation attempt. Mirrors
 /// `hw_license::validate::ValidationOutcome`.
 /// </summary>
+/// <param name="is_verdict">
+/// Whether the server stated a verdict about the key. `false` for a 200
+/// that is not the validate JSON (#2916), the offline fallback and the
+/// empty-key outcome: a head must not persist such an outcome, and takes
+/// its network-failure path instead.
+/// </param>
 internal record ValidationOutcome (
     bool @isValid, 
     HwLicenseStatus @status, 
     string? @customerId, 
     string? @customerEmail, 
     string? @expiresAt, 
-    string? @errorMessage
+    string? @errorMessage, 
+    /// <summary>
+    /// Whether the server stated a verdict about the key. `false` for a 200
+    /// that is not the validate JSON (#2916), the offline fallback and the
+    /// empty-key outcome: a head must not persist such an outcome, and takes
+    /// its network-failure path instead.
+    /// </summary>
+    bool @isVerdict
 ) {
 }
 
@@ -11132,7 +10645,8 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             @customerId: FfiConverterOptionalString.INSTANCE.Read(stream),
             @customerEmail: FfiConverterOptionalString.INSTANCE.Read(stream),
             @expiresAt: FfiConverterOptionalString.INSTANCE.Read(stream),
-            @errorMessage: FfiConverterOptionalString.INSTANCE.Read(stream)
+            @errorMessage: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @isVerdict: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -11143,7 +10657,8 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@customerId)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@customerEmail)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@expiresAt)
-            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@errorMessage);
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@errorMessage)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@isVerdict);
     }
 
     public override void Write(ValidationOutcome value, BigEndianStream stream) {
@@ -11153,6 +10668,7 @@ class FfiConverterTypeValidationOutcome: FfiConverterRustBuffer<ValidationOutcom
             FfiConverterOptionalString.INSTANCE.Write(value.@customerEmail, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@expiresAt, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@errorMessage, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@isVerdict, stream);
     }
 }
 
@@ -15321,37 +14837,6 @@ class FfiConverterOptionalTypeSttVendorGroup: FfiConverterRustBuffer<SttVendorGr
 
 
 
-class FfiConverterOptionalTypeTrialLimits: FfiConverterRustBuffer<TrialLimits?> {
-    public static FfiConverterOptionalTypeTrialLimits INSTANCE = new FfiConverterOptionalTypeTrialLimits();
-
-    public override TrialLimits? Read(BigEndianStream stream) {
-        if (stream.ReadByte() == 0) {
-            return null;
-        }
-        return FfiConverterTypeTrialLimits.INSTANCE.Read(stream);
-    }
-
-    public override int AllocationSize(TrialLimits? value) {
-        if (value == null) {
-            return 1;
-        } else {
-            return 1 + FfiConverterTypeTrialLimits.INSTANCE.AllocationSize((TrialLimits)value);
-        }
-    }
-
-    public override void Write(TrialLimits? value, BigEndianStream stream) {
-        if (value == null) {
-            stream.WriteByte(0);
-        } else {
-            stream.WriteByte(1);
-            FfiConverterTypeTrialLimits.INSTANCE.Write((TrialLimits)value, stream);
-        }
-    }
-}
-
-
-
-
 class FfiConverterOptionalTypeHwEndpointIssue: FfiConverterRustBuffer<HwEndpointIssue?> {
     public static FfiConverterOptionalTypeHwEndpointIssue INSTANCE = new FfiConverterOptionalTypeHwEndpointIssue();
 
@@ -17034,17 +16519,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Like `build_health_request` but with an explicit HW Cloud base URL.
-    /// </summary>
-    public static HttpRequest BuildHealthRequestWithBase(HwProvider @provider, string @apiKey, string? @baseUrl) {
-        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(FfiConverterTypeHwProvider.INSTANCE.Lower(@provider), FfiConverterString.INSTANCE.Lower(@apiKey), FfiConverterOptionalString.INSTANCE.Lower(@baseUrl), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Build the DYNAMIC system-info block (prepended to the user message).
     /// </summary>
     public static string BuildSystemInfo(PromptContext @ctx) {
@@ -17062,28 +16536,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_build_system_prompt(FfiConverterTypePromptContext.INSTANCE.Lower(@ctx), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Map an HTTP status + response body to a `HwTranscriptionError`.
-    /// </summary>
-    public static HwTranscriptionException ClassifyError(ushort @status, string @body) {
-        return FfiConverterTypeHwTranscriptionError.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_classify_error(FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The provider's default post-processing model, if any.
-    /// </summary>
-    public static PpModel? CloudPpDefaultModel(string @id) {
-        return FfiConverterOptionalTypePpModel.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_default_model(FfiConverterString.INSTANCE.Lower(@id), ref _status)
 ));
     }
 
@@ -17111,17 +16563,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// The provider's LLM-provider key, if any.
-    /// </summary>
-    public static string? CloudPpLlmProvider(string @id) {
-        return FfiConverterOptionalString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_llm_provider(FfiConverterString.INSTANCE.Lower(@id), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// A specific post-processing model, if present.
     /// </summary>
     public static PpModel? CloudPpModel(string @id, string @modelId) {
@@ -17133,32 +16574,8 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// All (visible) models for the post-processing provider.
-    /// </summary>
-    public static List<PpModel> CloudPpModels(string @id) {
-        return FfiConverterSequenceTypePpModel.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_models(FfiConverterString.INSTANCE.Lower(@id), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The Engine dropdown's rows: post-processing engines with `enabled != false`,
-    /// in catalog order, each carrying only its visible models.
-    /// </summary>
-    public static List<PpProvider> CloudPpPickerProviders() {
-        return FfiConverterSequenceTypePpProvider.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers( ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Every post-processing engine, in catalog order — INCLUDING the ones the
-    /// rollout gate hides. Read `enabled` before surfacing a row; use
-    /// `cloud_pp_picker_providers` for the dropdown.
+    /// rollout gate hides. Read `enabled` before surfacing a row.
     /// </summary>
     public static List<PpProvider> CloudPpProviders() {
         return FfiConverterSequenceTypePpProvider.INSTANCE.Lift(
@@ -17198,17 +16615,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterDouble.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_credits_per_minute_for_model(FfiConverterString.INSTANCE.Lower(@id), FfiConverterString.INSTANCE.Lower(@modelId), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The provider's custom-vocabulary request field name (if any).
-    /// </summary>
-    public static string? CloudSttCustomVocabularyFieldName(string @id) {
-        return FfiConverterOptionalString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_custom_vocabulary_field_name(FfiConverterString.INSTANCE.Lower(@id), ref _status)
 ));
     }
 
@@ -17710,17 +17116,6 @@ internal static class HyperwhisperCoreMethods {
     }
 
 
-    /// <summary>
-    /// Default HyperWhisper Cloud health URL for routed providers.
-    /// </summary>
-    public static string HwCloudHealthDefault() {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default( ref _status)
-));
-    }
-
-
     /// <exception cref="HwTranscriptionException"></exception>
     public static HttpRequest HyperwhisperCloudBuildTranscribeRequest(TranscribeParams @params) {
         return FfiConverterTypeHttpRequest.INSTANCE.Lift(
@@ -17924,68 +17319,11 @@ internal static class HyperwhisperCoreMethods {
     }
 
 
-    public static bool LicenseCanDownloadModel(KeyValueStore @store, HwLicenseStatus @status, Limits @limits) {
-        return FfiConverterBoolean.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_can_download_model(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeHwLicenseStatus.INSTANCE.Lower(@status), FfiConverterTypeLimits.INSTANCE.Lower(@limits), ref _status)
-));
-    }
-
-
-    public static bool LicenseCanStartRecording(KeyValueStore @store, HwLicenseStatus @status, Limits @limits, long @nowUnixSecs) {
-        return FfiConverterBoolean.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_can_start_recording(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeHwLicenseStatus.INSTANCE.Lower(@status), FfiConverterTypeLimits.INSTANCE.Lower(@limits), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-));
-    }
-
-
-    public static UsageSnapshot LicenseCheckLimits(KeyValueStore @store, HwLicenseStatus @status, Limits @limits, long @nowUnixSecs) {
-        return FfiConverterTypeUsageSnapshot.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_check_limits(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeHwLicenseStatus.INSTANCE.Lower(@status), FfiConverterTypeLimits.INSTANCE.Lower(@limits), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-));
-    }
-
-
     public static void LicenseClearStoredLicense(KeyValueStore @store) {
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_clear_stored_license(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), ref _status)
 );
-    }
-
-
-    /// <summary>
-    /// Default daily seconds limit for debug builds.
-    /// </summary>
-    public static long LicenseDefaultDailyLimitDebug() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_debug( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Default daily seconds limit for release builds.
-    /// </summary>
-    public static long LicenseDefaultDailyLimitRelease() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_release( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Default model-download limit.
-    /// </summary>
-    public static long LicenseDefaultModelLimit() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_default_model_limit( ref _status)
-));
     }
 
 
@@ -18007,17 +17345,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeValidationOutcome.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_http_error_outcome(FfiConverterUInt16.INSTANCE.Lower(@statusCode), FfiConverterByteArray.INSTANCE.Lower(@body), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The hardcoded default limits for the given build flavor.
-    /// </summary>
-    public static Limits LicenseLimitsDefaults(bool @debugBuild) {
-        return FfiConverterTypeLimits.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_limits_defaults(FfiConverterBoolean.INSTANCE.Lower(@debugBuild), ref _status)
 ));
     }
 
@@ -18048,6 +17375,10 @@ internal static class HyperwhisperCoreMethods {
     /// only FFI write path for a validate response: it prevents a rejected
     /// *replacement* key from clobbering the stored key's cached status (a 24h
     /// lockout for a valid user).
+    ///
+    /// Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+    /// a 200 that is not the validate JSON) goes to the offline fallback instead,
+    /// so its `Invalid` is never cached.
     /// </summary>
     public static void LicensePersistValidationVerdict(KeyValueStore @store, HwLicenseStatus @status, string @attemptedKey, long @nowUnixSecs) {
         
@@ -18057,54 +17388,11 @@ internal static class HyperwhisperCoreMethods {
     }
 
 
-    public static void LicenseRecordModelDownload(KeyValueStore @store) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_record_model_download(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), ref _status)
-);
-    }
-
-
-    public static void LicenseRecordUsage(KeyValueStore @store, long @seconds, long @nowUnixSecs) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_record_usage(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterInt64.INSTANCE.Lower(@seconds), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-);
-    }
-
-
-    public static TrialLimits? LicenseRemoteOverrideIfFresh(KeyValueStore @store, long @nowUnixSecs) {
-        return FfiConverterOptionalTypeTrialLimits.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_remote_override_if_fresh(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// 24h remote-override TTL (seconds).
-    /// </summary>
-    public static long LicenseRemoteOverrideTtlSecs() {
-        return FfiConverterInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_remote_override_ttl_secs( ref _status)
-));
-    }
-
-
     public static bool LicenseShouldRevalidate(KeyValueStore @store, long @nowUnixSecs) {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_should_revalidate(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
 ));
-    }
-
-
-    public static void LicenseStoreRemoteOverride(KeyValueStore @store, TrialLimits @limits, long @nowUnixSecs) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_store_remote_override(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeTrialLimits.INSTANCE.Lower(@limits), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
-);
     }
 
 
@@ -18308,30 +17596,6 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Port the embedded llama-server listens on.
-    /// </summary>
-    public static ushort LlmDefaultLocalLlamaPort() {
-        return FfiConverterUInt16.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// The URL a request would go to, without building the body. For logging and
-    /// for the health checker.
-    /// </summary>
-    /// <exception cref="HwLlmException"></exception>
-    public static string LlmEndpointFor(HwLlmParams @params) {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(FfiConverterTypeHwLlmParams.INSTANCE.Lower(@params), ref _status)
-));
-    }
-
-
-    /// <summary>
     /// Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
     /// leaf crate for why).
     /// </summary>
@@ -18375,28 +17639,6 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(FfiConverterString.INSTANCE.Lower(@providerString), ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Max custom endpoint model-name length, for a UI character counter.
-    /// </summary>
-    public static uint LlmMaxCustomEndpointModelChars() {
-        return FfiConverterUInt32.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars( ref _status)
-));
-    }
-
-
-    /// <summary>
-    /// Max custom endpoint URL length, for a UI character counter.
-    /// </summary>
-    public static uint LlmMaxCustomEndpointUrlChars() {
-        return FfiConverterUInt32.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars( ref _status)
 ));
     }
 

@@ -5,6 +5,7 @@
   },
   "navbar": {
     "features": "Eiginleikar",
+    "modes": "Hamir",
     "faq": "Algengar spurningar",
     "support": "Aðstoð",
     "download": "Sækja",
@@ -17,26 +18,36 @@
     },
     "cloud": "Cloud",
     "githubAria": "Skoða HyperWhisper á GitHub",
-    "linux": "Linux"
+    "linux": "Linux",
+    "skipToContent": "Fara beint í efni"
   },
   "hero": {
-    "logoAlt": "HyperWhisper merki",
-    "headline": "Skrifaðu, semdu og skapaðu",
-    "headlineAccent": "5x hraðar með AI",
-    "subheadline": "HyperWhisper umritar röddina þína með ótrúlegri nákvæmni. Talaðu bara eðlilega og horfðu á orðin birtast samstundis.",
-    "downloadCta": "Sækja núna",
-    "demoCta": "Sjá kynningu",
-    "availableOn": "Í boði fyrir",
-    "macos": "macOS 14+",
+    "badge": "Nýtt",
+    "headline": "Talaðu bara.",
+    "headlineAccent": "Við skrifum.",
+    "subheadline": "Fágaður texti í hvaða forriti sem er.",
+    "downloadMac": "Sækja fyrir Mac",
+    "freeForever": "Ókeypis að eilífu",
+    "worksOffline": "Virkar offline",
+    "macos": "macOS 14.6+",
     "windows": "Windows 10+",
-    "linux": "Linux (amd64)"
+    "linux": "Linux (amd64)",
+    "scroll": "Skrunaðu",
+    "closing": {
+      "line1": "Hættu að pikka.",
+      "line2": "Byrjaðu að tala.",
+      "meta": "Ókeypis og opinn hugbúnaður. Enginn aðgangur nauðsynlegur."
+    }
   },
   "features": {
-    "title": "Byggt fyrir fagfólk",
-    "subtitle": "Hver eiginleiki er hannaður til að hjálpa þér að vinna hraðar og skilvirkar",
+    "title": "Smíðað fyrir fólk sem skrifar allan daginn.",
     "customVocabulary": {
       "title": "Sérsniðinn orðaforði",
       "description": "Bættu við nöfnum, skammstöfunum og sértækum hugtökum fyrir fullkomna nákvæmni í hvert skipti."
+    },
+    "realTime": {
+      "title": "Rauntímastreymi",
+      "description": "Sjáðu orðin birtast strax á meðan þú talar. Leiðandi nákvæmni í greininni með undir 700ms biðtíma."
     },
     "languages": {
       "title": "100+ tungumál",
@@ -46,25 +57,9 @@
       "title": "Offline stuðningur",
       "description": "Virkar alveg offline. Gögnin þín yfirgefa aldrei tækið þitt."
     },
-    "privacy": {
-      "title": "Áhersla á persónuvernd",
-      "description": "Enginn aðgangur nauðsynlegur. Engin rekjanleiki. Raddgögnin þín eru áfram á Mac eða PC tölvunni þinni."
-    },
-    "hybridProcessing": {
-      "title": "Blönduð vinnsla",
-      "description": "Veldu staðbundin líkön fyrir persónuvernd eða skýja-API fyrir hraða. Það besta úr báðum heimum."
-    },
-    "customizable": {
-      "title": "Mjög sérsniðanlegt",
-      "description": "Veldu úr yfir 9 API veitendum og 30+ umritunarlíkönum."
-    },
-    "realTime": {
-      "title": "Rauntímastreymi",
-      "description": "Sjáðu orðin birtast strax á meðan þú talar. Leiðandi nákvæmni í greininni með undir 700ms biðtíma."
-    },
-    "fileImport": {
-      "title": "Innflutningur skráa",
-      "description": "Flyttu inn hljóð- eða myndskrár til umritunar. Styður öll helstu snið með sjálfvirkri þögnargreiningu."
+    "openSource": {
+      "title": "Opinn hugbúnaður",
+      "description": "Með Apache-2.0 leyfi. Skoðaðu hverja línu, forkaðu hann eða hýstu sjálf(ur). Engir svartir kassar, engin innilokun."
     },
     "screenOcr": {
       "title": "OCR á skjá",
@@ -74,28 +69,57 @@
       "title": "Staðbundið API og MCP-þjónn",
       "description": "Innbyggði MCP-þjónninn gerir Claude, Cursor og öðrum gervigreindarumboðum kleift að stýra HyperWhisper. Staðbundið HTTP API fyrir skriftur og sjálfvirkni."
     },
+    "fileImport": {
+      "title": "Innflutningur skráa",
+      "description": "Flyttu inn hljóð- eða myndskrár til umritunar. Styður öll helstu snið með sjálfvirkri þögnargreiningu."
+    },
     "modes": {
-      "title": "Hamir fyrir allar aðstæður",
-      "description": "Skiptu á milli mismunandi umritunarhama sem eru hannaðir fyrir fundi, minnispunkta, tölvupóst, forritun og fleira. Hver hamur notar sérsniðin prompt til að forma textann fullkomlega.",
-      "meeting": "Fundur",
+      "heading": "Ein rödd. Öll snið.",
+      "lead": "Hver hamur endurskrifar það sem þú sagðir eftir því hvert það fer.",
       "email": "Tölvupóstur",
       "note": "Minnispunktur",
       "code": "Kóði",
+      "meeting": "Fundur",
       "legal": "Lögfræði",
       "medical": "Læknisfræði",
-      "presetModes": "Forstilltir hamir",
-      "customModes": "Sérsniðnir hamir"
-    },
-    "openSource": {
-      "title": "Opinn hugbúnaður",
-      "description": "Með Apache-2.0 leyfi. Skoðaðu hverja línu, forkaðu hann eða hýstu sjálf(ur). Engir svartir kassar, engin innilokun."
+      "youSaid": "Þú sagðir",
+      "hyperWhisperWrote": "HyperWhisper skrifaði",
+      "sample": "öö sko segðu john að útgáfan færist á fimmtudag af því að linux QA er ekki búið og hérna takk fyrir þolinmæðina",
+      "output": {
+        "email": "Hæ John,\n\nÚtgáfan færist á fimmtudag á meðan við klárum Linux QA. Takk fyrir þolinmæðina.\n\nBestu kveðjur,",
+        "note": "• Útgáfa → fimmtudagur\n• Hindrun: Linux QA ekki lokið\n• Láta John vita",
+        "code": "// TODO(john): útgáfu frestað til fimmtudags, Linux QA enn í gangi",
+        "meeting": "Ákvörðun: útgáfan færist á fimmtudag.\nÁstæða: Linux QA ekki lokið.\nÁbyrgð: láta John vita.",
+        "legal": "Vinsamlegast athugið að útgáfudegi hefur verið breytt í fimmtudag, með fyrirvara um að gæðaprófun á Linux ljúki.",
+        "medical": "Áætlun: fresta útgáfu til fimmtudags. Staða: Linux QA í bið. Eftirfylgni: upplýsa John."
+      }
     }
   },
   "demo": {
+    "worksWherever": "Virkar hvar sem þú skrifar",
+    "eyebrow": "Svona virkar þetta",
+    "titleLine1": "Ýttu á takka.",
+    "titleLine2": "Segðu það.",
+    "titleAccent": "Búið.",
+    "lead": "Orðin þín birtast, snyrt, þar sem bendillinn er.",
+    "step1": "Ýttu á flýtilykilinn þinn",
+    "step2Key": "Talaðu",
+    "step2": "Talaðu eins og þú ert vanur",
+    "step3Key": "Ýttu aftur",
+    "step3": "Hreinn texti, límdur á sinn stað",
+    "watchVideo": "Horfðu á alla kynninguna",
+    "closeVideo": "Loka myndbandi",
+    "exampleLabel": "Hreyfimyndadæmi: talað svar er skrifað inn í Slack-skilaboð",
+    "message1": "Erum við enn klár að gefa út Linux-útgáfuna á fimmtudaginn?",
+    "message2": "QA stóðst hjá mér 👍",
+    "composePlaceholder": "Skilaboð í #launch",
+    "typed": "Já, Linux QA stóðst í morgun, svo fimmtudagurinn stendur. Ég birti útgáfuupplýsingarnar fyrir hádegi.",
+    "listening": "Hlustar",
+    "cleaningUp": "Snyrti…",
     "fasterThanTyping": "Hraðara en að slá inn",
     "accuracyRate": "Nákvæmni",
     "languagesSupported": "Studd tungumál",
-    "providersSupported": "Studdir veitendur"
+    "modelsSupported": "Umritunarlíkön"
   },
   "faq": {
     "title": "Algengar spurningar",
@@ -120,7 +144,7 @@
       },
       "offlineModels": {
         "question": "Hvaða offline líkön eru í boði?",
-        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 3 líkaninu (frá Google)."
+        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 4 líkaninu (frá Google)."
       },
       "compatibility": {
         "question": "Virkar þetta með öllum öppunum mínum?",
@@ -140,7 +164,7 @@
       },
       "lifetime": {
         "question": "Er einhver áskrift?",
-        "answer": "Nei — aldrei. HyperWhisper er opinn hugbúnaður sem þú átt, ekki áskrift sem þú leigir. Sæktu hann ókeypis og notaðu staðbundna umritun án nettengingar þér að kostnaðarlausu að eilífu; ókeypis útgáfan inniheldur einnig 5 mínútur af skýjaumritun á dag. Þegar þú vilt skýjaumritun án uppsetningar umfram það eru HyperWhisper Cloud einfaldar inneignir sem þú greiðir eftir notkun — fylltu á aðeins þegar þú þarft, án mánaðargjalda og með ekkert til að segja upp."
+        "answer": "Nei — aldrei. HyperWhisper er opinn hugbúnaður sem þú átt, ekki áskrift sem þú leigir. Sæktu hann ókeypis og notaðu staðbundna umritun án nettengingar þér að kostnaðarlausu að eilífu. Þegar þú vilt skýjaumritun án uppsetningar eru HyperWhisper Cloud einfaldar inneignir sem þú greiðir eftir notkun — fylltu á aðeins þegar þú þarft, án mánaðargjalda og með ekkert til að segja upp."
       },
       "deviceLimit": {
         "question": "Á hversu mörgum tækjum má ég nota aðgangslykilinn minn?",
@@ -148,7 +172,7 @@
       },
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
-        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
+        "answer": "Fyrir Mac: macOS 14.6 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
       },
       "madeBy": {
         "question": "Hver bjó þetta til?",
@@ -190,7 +214,11 @@
     "emailTemplate": {
       "subject": "HyperWhisper aðstoðarbeiðni",
       "body": "Hæ,\n\nÚtgáfa: \n[þú getur séð þetta í Settings > About]\n\nVandamál: \n[Lýstu vandamálinu]\n\nNánar: \n[Gefðu viðeigandi upplýsingar, hvað þú varst að gera fyrir hrun]\n\n[Skilaboðin þín hér]\n\nKveðja,"
-    }
+    },
+    "helpCenterHint": "Uppsetning, flýtilyklar og líkön.",
+    "chooseModelHint": "Raðaðu líkönunum eftir því hvernig þú vinnur.",
+    "accountHint": "Skráðu þig inn með aðgangslyklinum þínum.",
+    "chooseModelTitle": "Veldu líkan"
   },
   "downloadModal": {
     "logoAlt": "HyperWhisper merki",
@@ -230,7 +258,12 @@
     "aptTitle": "Hýstu þína eigin APT-geymslu",
     "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
     "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux",
-    "learnMoreLinux": "Nánar um HyperWhisper á Linux"
+    "learnMoreLinux": "Nánar um HyperWhisper á Linux",
+    "heroLead": "Ókeypis og opinn hugbúnaður. Veldu þitt stýrikerfi.",
+    "releaseNotes": "Útgáfuupplýsingar",
+    "requirementsMac": "macOS 14.6+ · Apple Silicon og Intel",
+    "requirementsWindows": "Windows 10 / 11 · x64 og ARM64",
+    "requirementsLinux": "Ubuntu 22.04+ · Debian 12+ · amd64"
   },
   "olderVersions": {
     "title": "Eldri útgáfur",
@@ -273,6 +306,7 @@
       "customerPortal": "Viðskiptavinagátt",
       "olderVersions": "Eldri útgáfur",
       "blog": "Blogg",
+      "openSource": "Opinn hugbúnaður",
       "about": "Um okkur",
       "support": "Aðstoð",
       "privacyPolicy": "Persónuverndarstefna",
@@ -282,7 +316,10 @@
       "linux": "HyperWhisper fyrir Linux"
     },
     "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
-    "linkedinAria": "LinkedIn"
+    "madeBy": "Gert af Ray Amjad",
+    "linkedinAria": "LinkedIn",
+    "xAria": "Fylgdu HyperWhisper á X (Twitter)",
+    "githubAria": "HyperWhisper á GitHub"
   },
   "cloudSection": {
     "eyebrow": "Cloud",
@@ -355,6 +392,51 @@
     "custom": "Sérsniðið",
     "customSub": "þín upphæð",
     "topUp": "Bæta við inneign"
+  },
+  "licenseKeysCard": {
+    "rotate": "Búa til nýjan lykil",
+    "confirmTitle": "Búa til nýjan aðgangslykil?",
+    "confirmBody": "Þú færð nýjan lykil og þessi hættir strax að virka. Öll tæki sem nota gamla lykilinn þurfa þann nýja: sláðu hann inn í HyperWhisper á hverju tæki. Inneignir þínar, áskrift og kaupsaga haldast á aðganginum þínum. Einnig lokast innskráning þín á þessum vef í öðrum vöfrum.",
+    "confirm": "Búa til nýjan lykil",
+    "cancel": "Hætta við",
+    "rotating": "Býr til…",
+    "rotated": "Nýr lykill hefur verið búinn til. Sláðu hann inn í HyperWhisper á hverju tækjanna þinna.",
+    "errorRateLimited": "Of margar lyklaskiptingar. Reyndu aftur síðar.",
+    "errorStale": "Þessum lykli hefur þegar verið skipt út. Núverandi lykill er sýndur hér að ofan.",
+    "errorGeneric": "Ekki tókst að búa til nýjan lykil. Reyndu aftur.",
+    "verifyTitle": "Staðfestu með tölvupósti að þetta sért þú",
+    "verifyBody": "Til að búa til nýjan lykil skaltu fyrst staðfesta með tölvupósti að þetta sért þú. Við sendum innskráningartengil á netfang aðgangsins þíns. Opnaðu hann og búðu svo til nýjan lykil á þessari síðu.",
+    "sendLink": "Senda mér innskráningartengil",
+    "sendingLink": "Sendir…",
+    "linkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og búðu svo til nýjan lykil.",
+    "linkFailed": "Ekki tókst að senda innskráningartengilinn. Reyndu aftur.",
+    "errorUnavailable": "Ekki er lengur hægt að búa til nýjan lykil í stað þessa. Núverandi staða hans er sýnd hér að ofan.",
+    "delete": "Eyða lykli",
+    "deleteConfirmTitle": "Eyða þessum aðgangslykli?",
+    "deleteConfirmBody": "Þessi lykill hættir strax að virka á öllum tækjum. Tæki sem nota hann þurfa einn af hinum lyklunum þínum: sláðu hann inn í HyperWhisper á hverju tæki. Inneignir þínar og kaupsaga haldast á aðganginum þínum. Einnig lokast innskráning þín á þessum vef í öðrum vöfrum.",
+    "deleteConfirm": "Eyða lykli",
+    "deleting": "Eyðir…",
+    "deleted": "Lyklinum hefur verið eytt. Tæki sem notuðu hann þurfa einn af hinum lyklunum þínum.",
+    "deleteLastKey": "Þetta er eini virki lykillinn þinn, svo ekki er hægt að eyða honum.",
+    "deleteVerifyBody": "Til að eyða lykli skaltu fyrst staðfesta með tölvupósti að þetta sért þú. Við sendum innskráningartengil á netfang aðgangsins þíns. Opnaðu hann og eyddu svo lyklinum á þessari síðu.",
+    "deleteLinkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og eyddu svo lyklinum.",
+    "deleteErrorStale": "Þessi lykill hefur breyst frá því að síðan var hlaðin. Núverandi lykill er sýndur hér að ofan.",
+    "deleteErrorUnavailable": "Ekki er lengur hægt að eyða þessum lykli.",
+    "deleteErrorGeneric": "Ekki tókst að eyða lyklinum. Reyndu aftur.",
+    "issue": "Bæta við nýjum lykli",
+    "issueConfirmTitle": "Bæta við nýjum aðgangslykli?",
+    "issueConfirmBody": "Þú færð einn lykil til viðbótar fyrir þennan aðgang. Hann notar sömu inneignir og hinir lyklarnir þínir, sem halda áfram að virka.",
+    "issueConfirm": "Bæta við lykli",
+    "issuing": "Bætir við…",
+    "issued": "Nýjum lykli hefur verið bætt við. Notaðu 'Sýna' til að sjá hann og afrita.",
+    "issueCap": "Virkir lyklar: {max}, sem er hámarkið fyrir einn aðgang. Eyddu einum til að bæta öðrum við.",
+    "issueVerifyBody": "Til að bæta við lykli skaltu fyrst staðfesta með tölvupósti að þetta sért þú. Við sendum innskráningartengil á netfang aðgangsins þíns. Opnaðu hann og bættu svo lyklinum við á þessari síðu.",
+    "issueLinkSent": "Innskráningartengill sendur. Opnaðu hann úr pósthólfinu og bættu svo lyklinum við.",
+    "issueErrorUnavailable": "Aðeins aðgangur með virkan lykil getur bætt við öðrum.",
+    "issueErrorGeneric": "Ekki tókst að bæta við lykli. Reyndu aftur.",
+    "manageErrorRateLimited": "Of margar lyklabreytingar. Reyndu aftur eftir mínútu.",
+    "cloudPurgePending": "Gamli lykillinn gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund.",
+    "deleteCloudPurgePending": "Þessi lykill gæti virkað áfram í HyperWhisper Cloud í allt að klukkustund."
   },
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",
@@ -440,5 +522,8 @@
   "signIn": {
     "magicLinkExpired": "Þessi innskráningartengill er útrunninn eða hefur þegar verið notaður. Sláðu inn netfangið þitt til að fá nýjan.",
     "magicLinkFailed": "Við gátum ekki skráð þig inn með þessum tengli. Sláðu inn netfangið þitt til að fá nýjan."
+  },
+  "legal": {
+    "onThisPage": "Á þessari síðu"
   }
 }

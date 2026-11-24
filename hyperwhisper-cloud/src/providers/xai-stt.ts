@@ -1,13 +1,16 @@
 // XAI GROK STT PROVIDER
-// xAI Speech to Text REST API - $0.10/hour
+// xAI Speech to Text REST API
 // Model: Grok Voice Transcribe 2.0. The endpoint took no `model` parameter
 // before 2026-09-19 and this adapter sent none; it now sends the resolved model
 // on every request. Ref: https://x.ai/news/grok-voice-transcribe-2
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
+import { XAI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   emptyTranscriptOutcome,
@@ -15,17 +18,11 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
-// The route resolves `context.model` against the registry before this runs, so
-// the constant only covers a direct caller that passes no context. It is kept
-// equal to the `grok` row's default in `lib/stt-models.ts` — `stt-models.test`
-// pins the two together. Sending nothing is NOT an option: xAI defaults
-// `/v1/stt` to its newest model, so an unpinned request would change model on
-// xAI's schedule rather than on a deploy of ours.
-const XAI_STT_DEFAULT_MODEL = 'grok-voice-transcribe-2.0';
 // xAI keyterm limits: max 100 terms, each up to 50 characters.
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
@@ -93,13 +90,15 @@ export async function transcribeWithXaiGrok(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'grok';
-  const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+  const apiKey = readApiKey(XAI_API_KEY_ENV);
   if (!apiKey) {
     throw new ProviderUnavailableError('Grok', 'XAI_API_KEY not configured');
   }
 
   const formattingLanguage = normalizedFormattingLanguage(language);
-  const model = context.model?.trim() || XAI_STT_DEFAULT_MODEL;
+  // Always pinned: xAI defaults /v1/stt to its newest model, so an unpinned
+  // request would change model on xAI's schedule rather than on our deploy.
+  const model = context.model || getProviderDef('grok').defaultModel;
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'mp3';
   const formData = new FormData();
 
@@ -146,21 +145,16 @@ export async function transcribeWithXaiGrok(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     text?: string;
     duration?: number;
     language?: string;
     words?: Array<{ start?: number; end?: number; text?: string }>;
     id?: string;
     request_id?: string;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Grok', 'malformed 200 response body');
-  }
+  }>(provider, 'Grok', response, startedAt, context);
 
   const transcript = data.text || '';
   const duration = data.duration
@@ -193,18 +187,20 @@ export async function transcribeWithXaiGrok(
     });
   }
 
+  const billedSeconds = billableSeconds(duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     language: data.language || formattingLanguage,
   }, context);
 
   return {
     text: transcript,
     language: data.language || formattingLanguage,
-    durationSeconds: duration,
-    costUsd: computeXaiTranscriptionCost(duration),
+    durationSeconds: billedSeconds,
+    costUsd: computeXaiTranscriptionCost(billedSeconds),
     source: 'grok',
     requestId: data.request_id || data.id,
   };

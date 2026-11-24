@@ -18,10 +18,11 @@ namespace HyperWhisper.Services;
 /// 4. Swap ResourceDictionaries at runtime for seamless theme switching
 ///
 /// HOW THEME SWITCHING WORKS:
-/// 1. Theme colors are defined in LightColors.xaml and DarkColors.xaml
-/// 2. Brushes.xaml uses DynamicResource to reference these colors
-/// 3. When theme changes, we swap the color ResourceDictionary in App.Resources
-/// 4. All UI elements using DynamicResource update automatically
+/// 1. LightColors.xaml and DarkColors.xaml each define the theme's colors AND
+///    its frozen brushes (frozen so no consumer hooks their Changed event, #2386)
+/// 2. When theme changes, we swap that whole ResourceDictionary in App.Resources
+/// 3. All UI elements using DynamicResource (or SetResourceReference in code)
+///    update automatically; a brush copied with FindResource does not
 ///
 /// SYSTEM THEME DETECTION:
 /// Windows stores the app theme preference in the registry at:
@@ -73,12 +74,14 @@ public class ThemeService
     /// <summary>
     /// URI for the light theme color ResourceDictionary.
     /// </summary>
-    private static readonly Uri LightThemeUri = new("pack://application:,,,/Themes/LightColors.xaml");
+    /// Component-qualified so it resolves to this assembly even when another
+    /// assembly is the entry point (the smoke-test host).
+    private static readonly Uri LightThemeUri = new("pack://application:,,,/HyperWhisper;component/Themes/LightColors.xaml");
 
     /// <summary>
     /// URI for the dark theme color ResourceDictionary.
     /// </summary>
-    private static readonly Uri DarkThemeUri = new("pack://application:,,,/Themes/DarkColors.xaml");
+    private static readonly Uri DarkThemeUri = new("pack://application:,,,/HyperWhisper;component/Themes/DarkColors.xaml");
 
     // =========================================================================
     // EVENTS
@@ -225,19 +228,21 @@ public class ThemeService
                 return;
             }
 
-            // Find and remove the current color dictionary
+            // Load the new color dictionary BEFORE removing the current one:
+            // it holds every theme brush too, so a load that throws must leave
+            // the old theme in place rather than no brushes at all.
+            var newColorDict = new ResourceDictionary
+            {
+                Source = dark ? DarkThemeUri : LightThemeUri
+            };
+
             var currentColorDict = FindColorDictionary();
             if (currentColorDict != null)
             {
                 app.Resources.MergedDictionaries.Remove(currentColorDict);
             }
 
-            // Load and insert the new color dictionary at the beginning
-            // (so it's available before Brushes.xaml references it)
-            var newColorDict = new ResourceDictionary
-            {
-                Source = dark ? DarkThemeUri : LightThemeUri
-            };
+            // Insert at the beginning, where App.xaml declares it
             app.Resources.MergedDictionaries.Insert(0, newColorDict);
 
             LoggingService.Info($"ThemeService: Applied {(dark ? "dark" : "light")} theme");
