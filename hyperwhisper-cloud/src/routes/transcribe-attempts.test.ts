@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import { ProviderInputError } from '../providers/types';
-import { providerChainFailureResponse } from './transcribe-failure';
+import { providerChainFailureResponse } from './transcribe-attempts';
 import { stubEnv } from '../test-support/env';
 
 // A valid, well-funded licensed user so the route reaches the provider chain.
