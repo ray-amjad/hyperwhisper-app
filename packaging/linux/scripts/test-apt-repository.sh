@@ -13,6 +13,9 @@ if [[ -n "$PACKAGE_PATH" && -z "$CUDA_PACKAGE_PATH" ]]; then
 fi
 TEST_ROOT="$(mktemp -d -t hyperwhisper-apt-test.XXXXXXXX)"
 cleanup() {
+    if [[ -d "$TEST_ROOT/keygen-gnupg" ]] && command -v gpgconf >/dev/null 2>&1; then
+        gpgconf --homedir "$TEST_ROOT/keygen-gnupg" --kill all >/dev/null 2>&1 || true
+    fi
     rm -rf -- "$TEST_ROOT"
 }
 trap cleanup EXIT
@@ -161,3 +164,67 @@ if SOURCE_DATE_EPOCH=0 "$SCRIPT_DIR/generate-apt-repository.sh" \
 fi
 
 echo "PASS deterministic unsigned APT repository metadata with hyperwhisper and hyperwhisper-cuda"
+
+# Signing must happen only in a throwaway GnuPG home. Run the generator with a
+# fresh HOME, no GNUPGHOME and a private TMPDIR, then prove it wrote nothing to
+# ~/.gnupg and left no temporary keyring behind, on success and on failure.
+if ! command -v gpg >/dev/null 2>&1 || ! command -v gpgv >/dev/null 2>&1; then
+    echo "SKIP signed APT repository check: gpg and gpgv are not installed"
+    exit 0
+fi
+KEYGEN_HOME="$TEST_ROOT/keygen-gnupg"
+install -d -m 0700 "$KEYGEN_HOME"
+gpg --batch --quiet --homedir "$KEYGEN_HOME" --passphrase '' \
+    --quick-generate-key 'HyperWhisper APT test <apt-test@example.invalid>' \
+    ed25519 sign never 2>/dev/null
+TEST_KEY_FILE="$TEST_ROOT/test-signing-key.asc"
+TEST_PUBLIC_KEY_FILE="$TEST_ROOT/test-public-key.asc"
+(umask 077 && gpg --batch --quiet --homedir "$KEYGEN_HOME" --armor \
+    --export-secret-keys > "$TEST_KEY_FILE")
+gpg --batch --quiet --homedir "$KEYGEN_HOME" --armor --export > "$TEST_PUBLIC_KEY_FILE"
+gpgconf --homedir "$KEYGEN_HOME" --kill all >/dev/null 2>&1 || true
+
+SIGN_HOME="$TEST_ROOT/sign-home"
+SIGN_TMP="$TEST_ROOT/sign-tmp"
+install -d -m 0700 "$SIGN_HOME" "$SIGN_TMP"
+assert_no_gnupg_leak() {
+    if [[ -e "$SIGN_HOME/.gnupg" ]]; then
+        echo "APT signing wrote to the default GnuPG home ($1)." >&2
+        exit 1
+    fi
+    if [[ -n "$(find "$SIGN_TMP" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+        echo "APT signing left a temporary directory behind ($1):" >&2
+        ls -la "$SIGN_TMP" >&2
+        exit 1
+    fi
+}
+run_isolated_generator() {
+    env -u GNUPGHOME HOME="$SIGN_HOME" TMPDIR="$SIGN_TMP" SOURCE_DATE_EPOCH=0 \
+        "$SCRIPT_DIR/generate-apt-repository.sh" "$@"
+}
+
+run_isolated_generator "${PACKAGE_ARGS[@]}" \
+    --output-dir "$TEST_ROOT/signed" --signing-key-file "$TEST_KEY_FILE" >/dev/null
+assert_no_gnupg_leak "signed run"
+test -s "$TEST_ROOT/signed/dists/stable/InRelease"
+test -s "$TEST_ROOT/signed/dists/stable/Release.gpg"
+test -s "$TEST_ROOT/signed/hyperwhisper-archive-keyring.asc"
+VERIFY_KEYRING="$TEST_ROOT/verify-keyring.gpg"
+GNUPGHOME="$KEYGEN_HOME" gpg --batch --yes --dearmor \
+    --output "$VERIFY_KEYRING" "$TEST_PUBLIC_KEY_FILE"
+gpgv --keyring "$VERIFY_KEYRING" "$TEST_ROOT/signed/dists/stable/InRelease" 2>/dev/null
+gpgv --keyring "$VERIFY_KEYRING" "$TEST_ROOT/signed/dists/stable/Release.gpg" \
+    "$TEST_ROOT/signed/dists/stable/Release" 2>/dev/null
+
+# A public-only key imports but cannot sign: the generator must fail and the
+# EXIT trap must still remove its temporary GnuPG home.
+if run_isolated_generator "${PACKAGE_ARGS[@]}" \
+    --output-dir "$TEST_ROOT/signed-failure" \
+    --signing-key-file "$TEST_PUBLIC_KEY_FILE" >/dev/null 2>&1; then
+    echo "Generator unexpectedly signed with a public-only key." >&2
+    exit 1
+fi
+assert_no_gnupg_leak "failed run"
+test ! -e "$TEST_ROOT/signed-failure"
+
+echo "PASS signed APT repository metadata; signing left nothing in ~/.gnupg or TMPDIR"
