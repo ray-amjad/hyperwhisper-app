@@ -104,17 +104,13 @@ describe('Meta Muse batch routing and billing', () => {
 
   test('reserves a 16 kHz minute at the registered 3-credit rate', () => {
     const oneMinuteCanonicalMuseWav = 44 + (16_000 * 2 * 60);
-    expect(estimateCreditsForProviderFallbacks(
-      oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0', false, undefined, undefined, 60,
-    )).toBe(3);
+    expect(estimateCreditsForProviderFallbacks({ sizeBytes: oneMinuteCanonicalMuseWav, provider: 'meta', model: 'muse-voice-transcribe-1.0', exactAudioSeconds: 60 })).toBe(3);
   });
 
   test('reserves a 24 kHz minute as 3 credits rather than 4.5', () => {
     const oneMinuteCanonicalMuseWav = 44 + (24_000 * 2 * 60);
     expect(oneMinuteCanonicalMuseWav).toBeGreaterThan(44 + (16_000 * 2 * 60));
-    expect(estimateCreditsForProviderFallbacks(
-      oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0', false, undefined, undefined, 60,
-    )).toBe(3);
+    expect(estimateCreditsForProviderFallbacks({ sizeBytes: oneMinuteCanonicalMuseWav, provider: 'meta', model: 'muse-voice-transcribe-1.0', exactAudioSeconds: 60 })).toBe(3);
   });
 
   test('routes an accepted 24 kHz WAV after exact-duration reservation', async () => {
@@ -1118,14 +1114,14 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
   test('default model (universal-3-5-pro) with keyterms reserves more than without', () => {
     // Omitting the model resolves to the provider default (universal-3-5-pro), which
     // charges the keyterms add-on. The reservation must be larger when a prompt is present.
-    const base = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', undefined, false, undefined);
-    const withKeyterms = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', undefined, false, 'Foo,Bar');
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes, provider: 'assemblyai' });
+    const withKeyterms = estimateCreditsForProviderFallbacks({ sizeBytes, provider: 'assemblyai', initialPrompt: 'Foo,Bar' });
     expect(withKeyterms).toBeGreaterThan(base);
   });
 
   test('explicit universal-2 model with a prompt reserves the same as without (keyterms free on universal-2)', () => {
-    const base = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', 'universal-2', false, undefined);
-    const withKeyterms = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', 'universal-2', false, 'Foo,Bar');
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes, provider: 'assemblyai', model: 'universal-2' });
+    const withKeyterms = estimateCreditsForProviderFallbacks({ sizeBytes, provider: 'assemblyai', model: 'universal-2', initialPrompt: 'Foo,Bar' });
     expect(withKeyterms).toBe(base);
   });
 
@@ -1137,8 +1133,8 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // be deducted more than was reserved when the request actually routes
     // through sync.
     const shortClipBytes = 2048; // well under the ~100s sync-eligibility threshold
-    const universal2 = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, 'en');
-    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-5-pro', false, undefined, 'en');
+    const universal2 = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-2', language: 'en' });
+    const universal3Pro = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-3-5-pro', language: 'en' });
     // 10s (the MIN_ESTIMATED_SECONDS floor) at $0.0075/min = 0.00125 USD =
     // 1.25 credits, rounded up to the nearest tenth.
     const minimumSyncRateCredits = 1.3;
@@ -1153,7 +1149,7 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // ($0.0025/min) + the medical add-on ($0.0025/min) over the 10s floor is
     // well under the 1.3-credit sync-rate floor asserted above.
     const shortClipBytes = 2048;
-    const medicalShort = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', true, undefined, 'en');
+    const medicalShort = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-2', medical: true, language: 'en' });
     const minimumSyncRateCredits = 1.3;
     expect(medicalShort).toBeLessThan(minimumSyncRateCredits);
   });
@@ -1168,9 +1164,9 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // above but via the language condition instead.
     const shortClipBytes = 2048;
     const minimumSyncRateCredits = 1.3;
-    const noLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, undefined);
-    const autoLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, 'auto');
-    const blankLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, '   ');
+    const noLanguage = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-2' });
+    const autoLanguage = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-2', language: 'auto' });
+    const blankLanguage = estimateCreditsForProviderFallbacks({ sizeBytes: shortClipBytes, provider: 'assemblyai', model: 'universal-2', language: '   ' });
     expect(noLanguage).toBeLessThan(minimumSyncRateCredits);
     expect(autoLanguage).toBeLessThan(minimumSyncRateCredits);
     expect(blankLanguage).toBeLessThan(minimumSyncRateCredits);
@@ -1184,16 +1180,16 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // gate and gets deducted more than was reserved. Use a large payload so the
     // ElevenLabs surcharge clears the 0.1-credit floor and is observable.
     const bigBytes = 5_000_000;
-    const base = estimateCreditsForProviderFallbacks(bigBytes, 'deepgram', 'nova-3-general', false, undefined);
-    const withPrompt = estimateCreditsForProviderFallbacks(bigBytes, 'deepgram', 'nova-3-general', false, 'Foo,Bar');
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider: 'deepgram', model: 'nova-3-general' });
+    const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider: 'deepgram', model: 'nova-3-general', initialPrompt: 'Foo,Bar' });
     expect(withPrompt).toBeGreaterThan(base);
   });
 
   test('Groq and Grok primaries also reserve the ElevenLabs fallback surcharge', () => {
     const bigBytes = 5_000_000;
     for (const provider of ['groq', 'grok'] as const) {
-      const base = estimateCreditsForProviderFallbacks(bigBytes, provider, undefined, false, undefined);
-      const withPrompt = estimateCreditsForProviderFallbacks(bigBytes, provider, undefined, false, 'Foo,Bar');
+      const base = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider });
+      const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider, initialPrompt: 'Foo,Bar' });
       expect(withPrompt).toBeGreaterThan(base);
     }
   });
@@ -1204,8 +1200,8 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // the gate on a tiny clip + large vocab and is deducted more than reserved.
     const shortClip = 64_000; // ~8s by the 64 kbps estimate
     const largePrompt = Array.from({ length: 100 }, (_, i) => `Terminology${i}`).join(',');
-    const base = estimateCreditsForProviderFallbacks(shortClip, 'gemini', 'gemini-2.5-pro', false, undefined);
-    const withPrompt = estimateCreditsForProviderFallbacks(shortClip, 'gemini', 'gemini-2.5-pro', false, largePrompt);
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-2.5-pro' });
+    const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-2.5-pro', initialPrompt: largePrompt });
     expect(withPrompt).toBeGreaterThan(base);
   });
 
@@ -1216,7 +1212,7 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // (whisper-1 $0.006 and gpt-4o-transcribe $0.009 drop to $0.0045/min, the
     // mini tier stays at $0.0045/min).
     const bigBytes = 5_000_000;
-    const reserve = (model: string) => estimateCreditsForProviderFallbacks(bigBytes, 'openai', model);
+    const reserve = (model: string) => estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider: 'openai', model });
     expect(reserve('whisper-1')).toBe(reserve('gpt-transcribe'));
     expect(reserve('gpt-4o-transcribe')).toBe(reserve('gpt-transcribe'));
     expect(reserve('gpt-4o-mini-transcribe')).toBe(reserve('gpt-4o-mini-transcribe-2025-12-15'));
@@ -1227,8 +1223,8 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // Mistral is duration-billed and has no keyterm surcharge / prompt-token
     // charge in our metering — its reservation must not grow with a prompt.
     const bigBytes = 5_000_000;
-    const base = estimateCreditsForProviderFallbacks(bigBytes, 'mistral', undefined, false, undefined);
-    const withPrompt = estimateCreditsForProviderFallbacks(bigBytes, 'mistral', undefined, false, 'Foo,Bar');
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider: 'mistral' });
+    const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: bigBytes, provider: 'mistral', initialPrompt: 'Foo,Bar' });
     expect(withPrompt).toBe(base);
   });
 });
@@ -1428,6 +1424,35 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     const done = events.find((e) => e.event === 'transcribe.request_done');
     expect(done?.attemptFailures).toEqual([
       expect.objectContaining({ provider: 'deepgram', kind: 'bad_response', emptyTranscript: true }),
+    ]);
+  });
+
+  test('an input-rejected attempt is on the outcome log line like every other failed attempt', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return new Response('{"err_msg":"bad input"}', { status: 400 });
+      }
+      if (url.includes('api.groq.com')) {
+        return Response.json({ text: 'the sibling took it', language: 'en', duration: 8 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' })),
+    );
+    await response.text();
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.fallbackCount).toBe(1);
+    expect(done?.attemptFailures).toEqual([
+      expect.objectContaining({ provider: 'deepgram', kind: 'input_rejected', status: 400 }),
     ]);
   });
 

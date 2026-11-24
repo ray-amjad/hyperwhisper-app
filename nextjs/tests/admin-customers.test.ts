@@ -531,6 +531,7 @@ describe("list", () => {
       licenseCount: number;
       totalCredits: number;
       totalSpentCents: number | null;
+      hasStripeCustomer: boolean;
       created: number;
       licenses: Array<{ id: string; key: string; credits: number }>;
     }>;
@@ -641,6 +642,25 @@ describe("list", () => {
     // 1500 (cus_a) + 1000 + 300 (won dispute) — the failed and lost charges do not count.
     assert.equal(customer.totalSpentCents, 2_800);
     assert.deepEqual([...calls.listCharges].sort(), ["cus_a", "cus_b"]);
+  });
+
+  test("counts and flags a Stripe id found only on a key older than the listed 100", async () => {
+    behaviour.customerPage = { userIds: ["user_1", "user_2"], totalCustomers: 2, page: 1 };
+    // user_1's listed keys have no Stripe id; its only paid key is unlisted.
+    behaviour.licenses = [
+      licenseRow({ id: "k1", userId: "user_1", stripeCustomerId: null }),
+      licenseRow({ id: "k2", userId: "user_2", stripeCustomerId: null }),
+    ];
+    behaviour.unlistedStripeIds.set("user_1", ["cus_old"]);
+    behaviour.charges.set("cus_old", [charge({ amount: 2_535 })]);
+
+    const byId = new Map((await list()).customers.map((c) => [c.userId, c]));
+
+    // The view shows the amount (not a dash) when hasStripeCustomer is true.
+    assert.equal(byId.get("user_1")?.hasStripeCustomer, true);
+    assert.equal(byId.get("user_1")?.totalSpentCents, 2_535);
+    assert.equal(byId.get("user_2")?.hasStripeCustomer, false);
+    assert.equal(byId.get("user_2")?.totalSpentCents, 0);
   });
 
   test("reports spend as unknown (null) when ANY of the customer's Stripe ids fails", async () => {

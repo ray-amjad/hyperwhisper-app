@@ -18,6 +18,7 @@ import { afterEach, test } from "node:test";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 
+import { accountKeyRow } from "./account-key-fixture";
 import { moduleMock, moduleUrl } from "./module-mock";
 
 const STRIPE_RAW =
@@ -49,18 +50,15 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
     getAccountKeysByEmail: async () => [
-      {
+      accountKeyRow({
         id: "key_row_portal_error",
         key: "HW-TEST-PORT-ALER",
         email: "portal-error@example.test",
         userId: "user_portal_error",
         status: "active",
-        polarLicenseKeyId: null,
-        polarCustomerId: null,
         stripeCustomerId: "cus_portalerror",
         stripeSessionId: null,
-        createdAt: new Date("2026-01-01T00:00:00Z"),
-      },
+      }),
     ],
     getCreditBalancesForUsers: async () => new Map(),
     getPaidCreditGrantsForUsers: async () => [],

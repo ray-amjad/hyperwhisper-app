@@ -17,19 +17,20 @@
 // `runGracefulShutdown` takes its clock, its exit and its error flush as
 // parameters so the deadlines can be tested (#2914). The one-shot latch that
 // ignores a second signal lives in the signal handler in `index.ts`, not here.
+//
+// The live sessions and the background work are whatever registered in
+// `./background-work`; this module imports no route or middleware.
 
-import { endActiveStreamingSessions } from '../routes/ws-streaming-shared';
-import { drainPendingDeductions } from '../middleware/credits';
-import { drainPendingHoldReleases } from '../middleware/credit-holds';
-import { drainPendingLatencyReports } from './latency-report';
+import { drainBackgroundWork, endLiveSessions } from './background-work';
 import {
   beginRequestShutdown,
   IN_FLIGHT_REQUEST_WAIT_MS,
   inFlightRequestCount,
   waitForInFlightRequests,
   waitForResponseFlush,
-} from '../middleware/in-flight-requests';
+} from './in-flight-requests';
 import { flushErrorTracking } from './error-tracking';
+import { machineLabels } from './fly-machine';
 
 /** The whole shutdown budget, measured from the signal. Inside Fly's 120 s. */
 export const SHUTDOWN_DRAIN_MS = 115_000;
@@ -59,14 +60,14 @@ export async function runGracefulShutdown(
 
   console.log('machine.shutdown', {
     signal,
-    machineId: process.env.FLY_MACHINE_ID || 'local',
+    machineId: machineLabels().machineId,
     shutdownAt: new Date(startedAt).toISOString(),
   });
 
   // A live streaming session is billed only when it ends, and Bun runs no
   // socket close handler on process.exit. End them first, so their charges
   // are already in flight when the deduction drain below awaits them.
-  const endedSessions = await endActiveStreamingSessions();
+  const endedSessions = await endLiveSessions();
   if (endedSessions > 0) {
     console.log('machine.shutdown_ended_streaming_sessions', { count: endedSessions });
   }
@@ -91,29 +92,20 @@ export async function runGracefulShutdown(
   const drainDeadline = startedAt + SHUTDOWN_DRAIN_MS;
   // Error events still queued for Sentry; a no-op with no DSN.
   const errorFlush = flushErrors(ERROR_FLUSH_TIMEOUT_MS);
-  let drained = 0;
-  let drainedReports = 0;
-  let drainedHoldReleases = 0;
+  // Per kind (`deductions`, `latency_reports`, `hold_releases`), summed over passes.
+  const drained = new Map<string, number>();
   for (let budgetMs = drainDeadline - now(); budgetMs > 0; budgetMs = drainDeadline - now()) {
-    const [deductions, reports, holdReleases] = await Promise.all([
-      drainPendingDeductions(budgetMs),
-      drainPendingLatencyReports(budgetMs),
-      drainPendingHoldReleases(budgetMs),
-    ]);
-    drained += deductions;
-    drainedReports += reports;
-    drainedHoldReleases += holdReleases;
-    if (deductions + reports + holdReleases === 0) break;
+    const pass = await drainBackgroundWork(budgetMs);
+    let passTotal = 0;
+    for (const [kind, count] of Object.entries(pass)) {
+      drained.set(kind, (drained.get(kind) ?? 0) + count);
+      passTotal += count;
+    }
+    if (passTotal === 0) break;
   }
   await errorFlush;
-  if (drained > 0) {
-    console.log('machine.shutdown_drained_deductions', { count: drained });
-  }
-  if (drainedReports > 0) {
-    console.log('machine.shutdown_drained_latency_reports', { count: drainedReports });
-  }
-  if (drainedHoldReleases > 0) {
-    console.log('machine.shutdown_drained_hold_releases', { count: drainedHoldReleases });
+  for (const [kind, count] of drained) {
+    if (count > 0) console.log(`machine.shutdown_drained_${kind}`, { count });
   }
   // A reply returned during the drains, or just before the signal, still has
   // to be written out; exiting in the same tick cuts it.
