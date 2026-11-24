@@ -19,9 +19,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // *.workers.dev stays on for smoke tests before and after cutover.
-  "workers_dev": true,
-  // Production only: no per-version preview URLs.
+  // Off. The site is served on www.hyperwhisper.com and hyperwhisper.com
+  // (attached in the dashboard). Leaving this on also publishes the Worker at
+  // hyperwhisper-web-prod.<account>.workers.dev. tests/workers-dev.test.ts
+  // pins this, including any future env.production section.
+  "workers_dev": false,
+  // Production only: no per-version preview URLs. There are no CI previews.
   "preview_urls": false,
   // The live hostnames are attached in the dashboard (Settings -> Domains &
   // Routes), not here.

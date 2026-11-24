@@ -17,6 +17,7 @@
 import * as Sentry from '@sentry/bun';
 import type { ErrorEvent, Exception, StackFrame } from '@sentry/bun';
 import { toRedactedLogLine } from './log-redaction';
+import { machineLabels } from './fly-machine';
 
 /** Tags an event may carry. Anything else set on a scope is dropped. */
 export const ALLOWED_TAGS = ['region', 'machineId', 'errorId', 'route', 'method'] as const;
@@ -142,8 +143,7 @@ export function initErrorTracking(
     ],
     initialScope: {
       tags: {
-        region: process.env.FLY_REGION || 'local',
-        machineId: process.env.FLY_MACHINE_ID || 'local',
+        ...machineLabels(),
       },
     },
     beforeSend: scrubEvent,

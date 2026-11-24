@@ -14,7 +14,7 @@
 //    does not catch it. The factory SPREADS the real module and overrides only
 //    that one function — bun's registry is process-wide, so a factory that
 //    lists exports deletes the rest for every file that loads after this one
-//    (lib/gcs-storage.test.ts installs its google-auth override the same way).
+//    (providers/gcs-storage.test.ts installs its google-auth override the same way).
 //
 // 2. `process.exit` is replaced for the shutdown tests. `gracefulShutdown`
 //    ends in `process.exit(0)`, which would take the whole test run with it.
@@ -56,8 +56,8 @@ const { LLM_REQUEST_TIMEOUT_MS } = await import('./providers/llm-fetch');
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
-const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./routes/ws-streaming-shared');
-const { resetInFlightRequestsForTests } = await import('./middleware/in-flight-requests');
+const { endLiveSessions, resetLiveSessionsForTests } = await import('./lib/background-work');
+const { resetInFlightRequestsForTests } = await import('./lib/in-flight-requests');
 
 /** Just enough upstream socket for a Deepgram session that is already open. */
 class OpenUpstreamSocket {
@@ -137,7 +137,7 @@ afterAll(() => {
   process.exit = originalExit;
   // The SIGTERM test latches the streaming shutdown and the request refusal;
   // bun runs every file in one process.
-  resetStreamingShutdownForTests();
+  resetLiveSessionsForTests();
   resetInFlightRequestsForTests();
   restorePort();
 });
@@ -499,8 +499,8 @@ describe('graceful shutdown', () => {
 
     // A live session another suite left open would be ended too; settle those
     // first so the counts below are this test's alone.
-    await endActiveStreamingSessions();
-    resetStreamingShutdownForTests();
+    await endLiveSessions();
+    resetLiveSessionsForTests();
     await drainPendingDeductions(3_000);
     deductionReachedApi = false;
     liveChargeSeconds.length = 0;
@@ -512,7 +512,6 @@ describe('graceful shutdown', () => {
       { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
       0.05,
       { requestId: 'shutdown-test' },
-      '203.0.113.1',
     );
     reportLatencySamples([
       { provider: 'deepgram', model: 'nova-3', latencyMs: 900, ok: true, attempt: 1, audioSeconds: 5 },
@@ -540,7 +539,6 @@ describe('graceful shutdown', () => {
         { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
         0.05,
         { requestId: 'late-charge' },
-        '203.0.113.1',
       );
     }, 700);
     const inFlightAnswered = inFlightRequest.then((res) => {
