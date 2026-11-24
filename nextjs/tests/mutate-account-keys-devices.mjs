@@ -59,8 +59,8 @@ const MUTANTS = [
   },
   {
     name: "revokeWebAccess deletes every session",
-    from: "  await runner.delete(session).where(eq(session.userId, userId));",
-    to: "  await runner.delete(session);",
+    from: "    .delete(session)\n    .where(\n      options.keepSessionId\n        ? and(eq(session.userId, userId), ne(session.id, options.keepSessionId))\n        : eq(session.userId, userId),\n    );",
+    to: "    .delete(session);",
   },
   {
     name: "revokeWebAccess ignores the transaction",
@@ -69,18 +69,18 @@ const MUTANTS = [
   },
   {
     name: "revokeAccountKey writes no revoked status",
-    from: '      .set({ status: "revoked" })\n      .where(eq(accountKeys.id, id));',
-    to: '      .set({ status: "granted" })\n      .where(eq(accountKeys.id, id));',
+    from: '      .set({ status: "revoked" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
+    to: '      .set({ status: "granted" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
   },
   {
     name: "revokeAccountKey revokes every key",
-    from: '      .set({ status: "revoked" })\n      .where(eq(accountKeys.id, id));',
-    to: '      .set({ status: "revoked" });',
+    from: '      .set({ status: "revoked" })\n      .where(\n        and(\n          eq(accountKeys.id, id),\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
+    to: '      .set({ status: "revoked" })\n      .where(\n        and(\n          ne(accountKeys.status, ACCOUNT_KEY_DELETED_STATUS),',
   },
   {
     name: "revokeAccountKey drops the acting user",
-    from: "      .where(eq(accountKeys.id, id));\n\n    await revokeWebAccess(userId, { ...options, tx });",
-    to: "      .where(eq(accountKeys.id, id));\n\n    await revokeWebAccess(userId, { tx });",
+    from: "    if (updated.length === 0) return { revoked: false };\n\n    await revokeWebAccess(userId, { ...options, tx });",
+    to: "    if (updated.length === 0) return { revoked: false };\n\n    await revokeWebAccess(userId, { tx });",
   },
   {
     name: "findAccountByKey does not trim",
@@ -109,8 +109,8 @@ const MUTANTS = [
   },
   {
     name: "getAccountKeysByEmail lists the oldest first",
-    from: "    orderBy: [desc(accountKeys.createdAt)],",
-    to: "    orderBy: [accountKeys.createdAt],",
+    from: "    where: eq(accountKeys.email, email.toLowerCase()),\n    orderBy: [desc(accountKeys.createdAt)],",
+    to: "    where: eq(accountKeys.email, email.toLowerCase()),\n    orderBy: [accountKeys.createdAt],",
   },
   {
     name: "getGrantedEmails includes revoked keys",
@@ -154,13 +154,13 @@ const MUTANTS = [
   },
   {
     name: "getDevicesForLicense lists the oldest first",
-    from: "    .orderBy(desc(deviceValidations.lastValidatedAt));\n\n  return rows;",
-    to: "    .orderBy(deviceValidations.lastValidatedAt);\n\n  return rows;",
+    from: "      .orderBy(\n        desc(deviceValidations.lastValidatedAt),\n        asc(deviceValidations.deviceId)\n      )",
+    to: "      .orderBy(\n        deviceValidations.lastValidatedAt,\n        asc(deviceValidations.deviceId)\n      )",
   },
   {
     name: "getDevicesForLicense window is one day short",
-    from: "    since.setDate(since.getDate() - sinceDays);\n    conditions.push(gte(deviceValidations.lastValidatedAt, since));\n  }\n\n  const rows = await db\n    .select({\n      deviceId",
-    to: "    since.setDate(since.getDate() - sinceDays + 2);\n    conditions.push(gte(deviceValidations.lastValidatedAt, since));\n  }\n\n  const rows = await db\n    .select({\n      deviceId",
+    from: "    since.setDate(since.getDate() - sinceDays);\n    conditions.push(gte(deviceValidations.lastValidatedAt, since));\n  }\n  const search = page.search?.trim();",
+    to: "    since.setDate(since.getDate() - sinceDays + 2);\n    conditions.push(gte(deviceValidations.lastValidatedAt, since));\n  }\n  const search = page.search?.trim();",
   },
   {
     name: "getDeviceCountsPerLicense ignores the window",

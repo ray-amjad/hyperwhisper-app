@@ -3,8 +3,8 @@
  *
  * Sends errors that escape a route handler, a server component or a server
  * action (Next.js `onRequestError`, wired in `instrumentation.ts`) to Sentry,
- * so they are grouped and alerted on instead of living only in Vercel's
- * short-lived function logs. Inert unless `SENTRY_DSN` is set: with no DSN
+ * so they are grouped and alerted on instead of living only in Cloudflare
+ * Workers Logs. Inert unless `SENTRY_DSN` is set: with no DSN
  * nothing is started and `onRequestError` does nothing.
  *
  * What leaves the server is an ALLOW-LIST, built fresh in `scrubEvent`: the
@@ -195,8 +195,10 @@ export function initServerErrorTracking(
   Sentry.init({
     dsn,
     environment:
-      process.env.SENTRY_ENVIRONMENT || process.env.VERCEL_ENV || "development",
-    release: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+      process.env.SENTRY_ENVIRONMENT || process.env.DEPLOY_ENV || "development",
+    // SENTRY_RELEASE is inlined at build from the commit SHA (nextjs-deploy.yml)
+    // (next.config.mjs `env`).
+    release: process.env.SENTRY_RELEASE || undefined,
     // Errors only: no performance tracing, no OpenTelemetry setup, no
     // breadcrumbs, no request data, no process-wide handlers.
     enableOpenTelemetrySetup: false,

@@ -1,26 +1,24 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  DEFAULT_LLM_PROVIDER,
   defaultModelFor,
   extractLLMProvider,
   fallbackProviderFor,
   resolveLLMModel,
   servedLLMName,
   shouldFallback,
-  LLM_PROVIDER_NAMES,
-  __tables,
   type LLMProvider,
-} from '../lib/llm-provider';
-import {
-  computeGeminiChatCost,
-  computeMistralChatCost,
-  computeOpenAIChatCost,
-  type GroqUsage,
-} from '../lib/cost-calculator';
+} from './llm-provider';
+import { type GroqUsage } from '../lib/cost-calculator';
+import { computeLLMChatCost, LLM_MODELS, LLM_PROVIDERS, llmModelsFor } from '../lib/llm-models';
 import { LLMRequestError } from './llm-errors';
 
 const ALL_PROVIDERS: LLMProvider[] = ['cerebras', 'groq', 'anthropic', 'grok', 'openai', 'gemini', 'mistral'];
+
+/** The provider's static label: its default row's served name. */
+function providerLabel(provider: LLMProvider): string {
+  return servedLLMName(provider, defaultModelFor(provider));
+}
 
 function requestWith(headers: Record<string, string>): Request {
   return new Request('https://example.com/post-process', { headers });
@@ -38,8 +36,8 @@ describe('extractLLMProvider', () => {
   });
 
   test('falls back to the default provider for unknown/missing header', () => {
-    expect(extractLLMProvider(requestWith({ 'x-llm-provider': 'bogus' }))).toBe(DEFAULT_LLM_PROVIDER);
-    expect(extractLLMProvider(requestWith({}))).toBe(DEFAULT_LLM_PROVIDER);
+    expect(extractLLMProvider(requestWith({ 'x-llm-provider': 'bogus' }))).toBe('cerebras');
+    expect(extractLLMProvider(requestWith({}))).toBe('cerebras');
   });
 });
 
@@ -103,18 +101,18 @@ describe('cost functions', () => {
   // 1,000,000 prompt + 1,000,000 completion tokens → cost == (in$ + out$) per 1M.
   const oneM: GroqUsage = { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 };
 
-  test('computeOpenAIChatCost bills every id at the one luna rate', () => {
-    expect(computeOpenAIChatCost('gpt-5.6-luna', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+  test('openai bills every id at the one luna rate', () => {
+    expect(computeLLMChatCost('openai', 'gpt-5.6-luna', oneM)).toBeCloseTo(0.20 + 1.20, 6);
     // Unknown model bills at the default (gpt-5.6-luna) rate, never $0 — and so
     // do the retired gpt-5-mini / gpt-5-nano ids.
-    expect(computeOpenAIChatCost('unknown', oneM)).toBeCloseTo(0.20 + 1.20, 6);
-    expect(computeOpenAIChatCost('gpt-5-mini', oneM)).toBeCloseTo(0.20 + 1.20, 6);
-    expect(computeOpenAIChatCost('gpt-5-nano', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    expect(computeLLMChatCost('openai', 'unknown', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    expect(computeLLMChatCost('openai', 'gpt-5-mini', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    expect(computeLLMChatCost('openai', 'gpt-5-nano', oneM)).toBeCloseTo(0.20 + 1.20, 6);
   });
 
-  test('computeGeminiChatCost per model', () => {
-    expect(computeGeminiChatCost('gemini-2.5-flash', oneM)).toBeCloseTo(0.30 + 2.50, 6);
-    expect(computeGeminiChatCost('gemini-2.5-flash-lite', oneM)).toBeCloseTo(0.10 + 0.40, 6);
+  test('gemini bills per model', () => {
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', oneM)).toBeCloseTo(0.30 + 2.50, 6);
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', oneM)).toBeCloseTo(0.10 + 0.40, 6);
     // gemini-3.8-flash has no hand-written price line: its rate is pinned
     // generically, against the catalog, by the parity block in
     // src/lib/cost-calculator.test.ts, and its introductory price expires
@@ -122,45 +120,52 @@ describe('cost functions', () => {
     // the number here would make that expiry a four-file edit.
   });
 
-  test('computeMistralChatCost per model', () => {
-    expect(computeMistralChatCost('mistral-small-latest', oneM)).toBeCloseTo(0.15 + 0.60, 6);
+  test('mistral bills per model', () => {
+    expect(computeLLMChatCost('mistral', 'mistral-small-latest', oneM)).toBeCloseTo(0.15 + 0.60, 6);
     // The retired open-mistral-nemo bills at the default (mistral-small-latest) rate.
-    expect(computeMistralChatCost('open-mistral-nemo', oneM)).toBeCloseTo(0.15 + 0.60, 6);
+    expect(computeLLMChatCost('mistral', 'open-mistral-nemo', oneM)).toBeCloseTo(0.15 + 0.60, 6);
   });
 
   test('a small realistic usage hand-computes correctly (gpt-5.6-luna)', () => {
     // 1500 prompt @ 0.20/1M + 300 completion @ 1.20/1M
     const usage: GroqUsage = { prompt_tokens: 1500, completion_tokens: 300, total_tokens: 1800 };
     const expected = 1500 * (0.20 / 1_000_000) + 300 * (1.20 / 1_000_000);
-    expect(computeOpenAIChatCost('gpt-5.6-luna', usage)).toBeCloseTo(expected, 9);
+    expect(computeLLMChatCost('openai', 'gpt-5.6-luna', usage)).toBeCloseTo(expected, 9);
   });
 });
 
 describe('servedLLMName', () => {
-  test('default model echoes the static provider name for every provider', () => {
-    for (const provider of ALL_PROVIDERS) {
-      expect(servedLLMName(provider, defaultModelFor(provider))).toBe(LLM_PROVIDER_NAMES[provider]);
-    }
+  test('each provider default serves its public label (the X-LLM-Provider value clients see)', () => {
+    const labels = Object.fromEntries(ALL_PROVIDERS.map((provider) => [provider, providerLabel(provider)]));
+    expect(labels).toEqual({
+      cerebras: 'cerebras-gpt-oss-120b',
+      groq: 'groq-gpt-oss-120b',
+      anthropic: 'claude-haiku-5-5',
+      grok: 'xai-grok-4.3',
+      openai: 'openai-gpt-5.6-luna',
+      gemini: 'gemini-3.8-flash',
+      mistral: 'mistral-small-latest',
+    });
   });
 
   test('non-default multi-model models echo the resolved model, not the default', () => {
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
     expect(servedLLMName('gemini', 'gemini-2.5-flash')).toBe('gemini-2.5-flash');
-    expect(servedLLMName('gemini', 'gemini-2.5-flash')).not.toBe(LLM_PROVIDER_NAMES.gemini);
+    expect(servedLLMName('gemini', 'gemini-2.5-flash')).not.toBe(providerLabel('gemini'));
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
   });
 
   test('the retired open-mistral-nemo has no served name of its own', () => {
-    expect(servedLLMName('mistral', 'open-mistral-nemo')).toBe(LLM_PROVIDER_NAMES.mistral);
+    expect(servedLLMName('mistral', 'open-mistral-nemo')).toBe(providerLabel('mistral'));
   });
 
   test('the retired gpt-5-mini / gpt-5-nano have no served name of their own', () => {
-    expect(servedLLMName('openai', 'gpt-5-mini')).toBe(LLM_PROVIDER_NAMES.openai);
-    expect(servedLLMName('openai', 'gpt-5-nano')).toBe(LLM_PROVIDER_NAMES.openai);
+    expect(servedLLMName('openai', 'gpt-5-mini')).toBe(providerLabel('openai'));
+    expect(servedLLMName('openai', 'gpt-5-nano')).toBe(providerLabel('openai'));
   });
 
   test('an unknown model falls back to the static provider name', () => {
-    expect(servedLLMName('openai', 'not-a-real-model')).toBe(LLM_PROVIDER_NAMES.openai);
+    expect(servedLLMName('openai', 'not-a-real-model')).toBe(providerLabel('openai'));
   });
 });
 
@@ -196,38 +201,13 @@ describe('shouldFallback', () => {
   });
 });
 
-describe('retry policy', () => {
-  test('has an entry for every provider', () => {
-    expect(Object.keys(__tables.LLM_PROVIDER_RETRIES).sort()).toEqual([...ALL_PROVIDERS].sort());
-  });
-
-  test('preserves each provider retry count', () => {
-    expect(__tables.LLM_PROVIDER_RETRIES).toEqual({
-      anthropic: 2,
-      cerebras: 0,
-      grok: 1,
-      openai: 1,
-      gemini: 2,
-      mistral: 2,
-      groq: 3,
-    });
-  });
-});
-
 // ---------------------------------------------------------------------------
-// Allowlist  <->  billing parity
+// Registry  <->  cloud-pp-catalog.json parity
 //
-// `computeChatCost` in cost-calculator.ts is `rates[model] ?? rates[default]`:
-// no throw, no log. So an id added to a provider's `allowed` list WITHOUT its
-// own rate row bills silently at the provider default's rate, on every request,
-// forever. For gemini-3.8-flash that would have been a 2.5x under-charge on
-// input and 1.5x on output.
-//
-// These tests are generic over the allowlist, so they cover any id added after
-// gemini-3.8-flash with no new assertion. `LLM_PROVIDER_MODELS` is reachable
-// through llm-provider's `__tables` test-only export, the same convention
-// language-codes.ts uses for its mirrored tables.
-describe('allowlist parity', () => {
+// llm-models.ts holds one row per (provider, model) with its own rate, so an
+// allowlisted id cannot bill at another model's price by construction. What
+// can still drift is the registry against the catalog clients display.
+describe('registry parity', () => {
   const PP_CATALOG_PATH = `${import.meta.dir}/../../../shared-app-classification/cloud-pp-catalog.json`;
 
   interface PpCatalogProvider {
@@ -236,104 +216,58 @@ describe('allowlist parity', () => {
     models: { id: string; isDefault?: boolean }[];
   }
 
-  // The providers that bill per-model. The other four have a single flat rate
-  // and ignore the model id entirely — which is only safe while they allow
-  // exactly one model, asserted below.
-  const PER_MODEL_CHAT_COST: Partial<Record<LLMProvider, (model: string, usage: GroqUsage) => number>> = {
-    openai: computeOpenAIChatCost,
-    gemini: computeGeminiChatCost,
-    mistral: computeMistralChatCost,
-  };
+  test('the registry covers exactly the routable providers', () => {
+    expect([...LLM_PROVIDERS].sort()).toEqual([...ALL_PROVIDERS].sort());
+    expect([...new Set(LLM_MODELS.map((row) => row.provider))].sort()).toEqual([...ALL_PROVIDERS].sort());
+  });
 
-  const ONE_M_INPUT: GroqUsage = { prompt_tokens: 1_000_000, completion_tokens: 0, total_tokens: 1_000_000 };
-  const ONE_M_OUTPUT: GroqUsage = { prompt_tokens: 0, completion_tokens: 1_000_000, total_tokens: 1_000_000 };
-
-  // An id no rate table can ever contain, so it always takes computeChatCost's
-  // `?? rates[defaultModel]` branch. Billing that id is therefore a live read of
-  // "what the provider default's rate would charge" — the probe an allowlisted
-  // id must NOT match.
-  const NO_SUCH_MODEL = '__no-such-model-anywhere__';
-
-  function pricedAt(costFor: (model: string, usage: GroqUsage) => number, model: string): string {
-    return `in=${costFor(model, ONE_M_INPUT)} out=${costFor(model, ONE_M_OUTPUT)}`;
-  }
-
-  test('a flat-rate provider allows exactly one model', () => {
-    // cerebras/groq/anthropic/grok bill one rate regardless of the model id, so
-    // a second allowlisted id there would bill at the first one's price.
+  test('every provider has exactly one default row, and no (provider, model) repeats', () => {
     for (const provider of ALL_PROVIDERS) {
-      if (PER_MODEL_CHAT_COST[provider]) continue;
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
-      expect(`${provider}: ${allowed.join(',')}`).toBe(`${provider}: ${defaultModel}`);
+      const defaults = LLM_MODELS.filter((row) => row.provider === provider && row.isDefault).map((row) => row.model);
+      expect(`${provider}: ${defaults.join(',')}`).toBe(`${provider}: ${defaultModelFor(provider)}`);
+      expect(llmModelsFor(provider)[0]?.model).toBe(defaultModelFor(provider));
+    }
+    const keys = LLM_MODELS.map((row) => `${row.provider}/${row.model}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test('every allowlisted model resolves to itself and serves its own row label', () => {
+    for (const row of LLM_MODELS) {
+      expect(resolveLLMModel(row.provider, requestWith({ 'x-llm-model': row.model }))).toBe(row.model);
+      expect(servedLLMName(row.provider, row.model)).toBe(row.servedName);
     }
   });
 
-  test('every allowlisted model has its OWN billing rate row', () => {
-    const billedAtTheProviderDefaultRate: string[] = [];
-
-    for (const provider of ALL_PROVIDERS) {
-      const costFor = PER_MODEL_CHAT_COST[provider];
-      if (!costFor) continue;
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
-      const defaultRate = pricedAt(costFor, NO_SUCH_MODEL);
-
-      for (const model of allowed) {
-        if (model === defaultModel) continue;
-        if (pricedAt(costFor, model) === defaultRate) {
-          billedAtTheProviderDefaultRate.push(`${provider}/${model}`);
-        }
-      }
+  test('every anthropic row sets the output cap the Messages API requires', () => {
+    for (const row of llmModelsFor('anthropic')) {
+      expect(`${row.model}: ${typeof row.maxOutputTokens}`).toBe(`${row.model}: number`);
     }
-
-    // Empty, or one of these ids has no rate row of its own in cost-calculator
-    // and is being billed at its provider default's price.
-    expect(billedAtTheProviderDefaultRate).toEqual([]);
   });
 
-  test('the allowlists and cloud-pp-catalog.json ship the same model ids', async () => {
-    // The comment on LLM_PROVIDER_MODELS says it MUST match the catalog. Drift
-    // in either direction is a bug: an id here but not in the catalog bills
-    // against a price no client displays, and an id in the catalog but not here
-    // is silently downgraded to the provider default on every request.
+  test('the registry and cloud-pp-catalog.json ship the same model ids', async () => {
+    // Drift in either direction is a bug: an id here but not in the catalog
+    // bills against a price no client displays, and an id in the catalog but
+    // not here is silently downgraded to the provider default on every request.
     const catalog = (await Bun.file(PP_CATALOG_PATH).json()) as { providers: PpCatalogProvider[] };
     expect(catalog.providers.length).toBeGreaterThan(0);
 
-    const fromCatalog: string[] = [];
-    const fromAllowlist: string[] = [];
+    const fromCatalog = catalog.providers.flatMap((provider) =>
+      provider.models.map((model) => `${provider.llmProvider}/${model.id}`));
+    const fromRegistry = LLM_MODELS.map((row) => `${row.provider}/${row.model}`);
 
-    for (const provider of catalog.providers) {
-      for (const model of provider.models) {
-        fromCatalog.push(`${provider.llmProvider}/${model.id}`);
-      }
-    }
-    for (const provider of ALL_PROVIDERS) {
-      for (const model of __tables.LLM_PROVIDER_MODELS[provider].allowed) {
-        fromAllowlist.push(`${provider}/${model}`);
-      }
-    }
-
-    expect(fromAllowlist.sort()).toEqual(fromCatalog.sort());
+    expect(fromRegistry.sort()).toEqual(fromCatalog.sort());
   });
 
-  test('each provider default is the cloud-pp-catalog.json isDefault row, listed first', async () => {
+  test('each provider default is the cloud-pp-catalog.json isDefault row', async () => {
     // A client resolves a blank model to the catalog isDefault row and sends it
     // as X-LLM-Model. A request with no X-LLM-Model resolves to the default
     // here. The two must name the same model, or the answer depends on which
     // client sent the request.
     const catalog = (await Bun.file(PP_CATALOG_PATH).json()) as { providers: PpCatalogProvider[] };
-    const fromCatalog: string[] = [];
-    const fromAllowlist: string[] = [];
+    const fromCatalog = catalog.providers.map((provider) =>
+      `${provider.llmProvider}/${provider.models.filter((m) => m.isDefault === true).map((m) => m.id).join('+')}`);
+    const fromRegistry = ALL_PROVIDERS.map((provider) => `${provider}/${defaultModelFor(provider)}`);
 
-    for (const provider of catalog.providers) {
-      const defaults = provider.models.filter((m) => m.isDefault === true).map((m) => m.id);
-      fromCatalog.push(`${provider.llmProvider}/${defaults.join('+')}`);
-    }
-    for (const provider of ALL_PROVIDERS) {
-      const { default: defaultModel, allowed } = __tables.LLM_PROVIDER_MODELS[provider];
-      expect(`${provider}/${allowed[0]}`).toBe(`${provider}/${defaultModel}`);
-      fromAllowlist.push(`${provider}/${defaultModel}`);
-    }
-
-    expect(fromAllowlist.sort()).toEqual(fromCatalog.sort());
+    expect(fromRegistry.sort()).toEqual(fromCatalog.sort());
   });
 });

@@ -578,23 +578,16 @@ struct HyperWhisperCloudEntitlementTests {
     }
 
     @Test func everyForbiddenLocaleUsesRenderedLineBreaks() throws {
-        let localizations = Self.repoRoot.appendingPathComponent(
-            "app/macos/hyperwhisper/Localizations"
-        )
-        let localeDirectories = try FileManager.default.contentsOfDirectory(
-            at: localizations,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "lproj" }
+        let localeDirectories = try ProductionSource.localeDirectories()
         #expect(localeDirectories.count == 40)
 
         for locale in localeDirectories {
-            let source = try String(
-                contentsOf: locale.appendingPathComponent("Localizable.strings"),
-                encoding: .utf8
-            )
-            let line = try #require(source.components(separatedBy: .newlines).first {
-                $0.hasPrefix(#""transcription.error.forbidden.hyperWhisperCloud""#)
-            })
+            let lines = try ProductionSource.localizableLines(of: locale)
+            guard let line = ProductionSource.onlyLine(
+                forKey: "transcription.error.forbidden.hyperWhisperCloud",
+                in: lines,
+                locale: locale
+            ) else { continue }
             #expect(line.contains(#"\n\n"#), "\(locale.lastPathComponent) must encode 2 line breaks")
             #expect(!line.contains(#"\\n\\n"#), "\(locale.lastPathComponent) double-escapes line breaks")
         }
