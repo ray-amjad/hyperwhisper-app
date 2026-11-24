@@ -885,6 +885,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "streaming.loading.streaming" = "Чекање на говор...";
 "streaming.state.reconnecting" = "Поновно повезивање...";
 "recording.stop.help" = "Заустави Снимање (%@)";
+"recording.warning.micSilent" = "Нема звука са уређаја %@";
 "recording.retry" = "Покушај поново";
 "recording.retry.inProgress" = "Поново Покушавање…";
 "recording.retry.count" = "Покушај поново (%d)";

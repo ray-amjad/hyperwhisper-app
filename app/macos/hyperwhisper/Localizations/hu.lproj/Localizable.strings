@@ -885,6 +885,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "streaming.loading.streaming" = "Várakozás beszédre...";
 "streaming.state.reconnecting" = "Újracsatlakozás...";
 "recording.stop.help" = "Felvétel leállítása (%@)";
+"recording.warning.micSilent" = "Nem érkezik hang innen: %@";
 "recording.retry" = "Újra";
 "recording.retry.inProgress" = "Újrapróbálás…";
 "recording.retry.count" = "Újra (%d)";

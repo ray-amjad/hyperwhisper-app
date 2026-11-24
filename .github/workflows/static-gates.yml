@@ -35,7 +35,7 @@ jobs:
     name: Secrets (new commits only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The scan needs both ends of the range, so a shallow clone is not
           # enough.
@@ -61,7 +61,7 @@ jobs:
     name: Closed patterns stay closed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install ast-grep
         run: sudo npm i -g --prefix /usr/local @ast-grep/cli
@@ -77,7 +77,7 @@ jobs:
     name: A model name lives in the catalog only
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check for a duplicated model name
         run: tools/check-model-name-literals.sh

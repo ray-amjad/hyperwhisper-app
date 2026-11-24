@@ -249,6 +249,9 @@ final class RecordingWindowManager {
         removeSpaceChangeObserver()
         removeMoveObserver()
 
+        // #2411: the silent-mic warning belongs to the live recording face.
+        SilentMicWarningWindowManager.shared.hide()
+
         // NOTE: Do NOT dismiss InlineErrorToastManager here
         // The toast should stay visible for its full countdown even after the dialog closes
 

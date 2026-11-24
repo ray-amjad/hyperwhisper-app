@@ -165,6 +165,7 @@ static class HomeLiveStartTests
         public void Cancelled() { }
         public void Failed(LinuxRecordingOverlayError error) { }
         public void ModeChanged(LinuxOverlayModeLabel mode) { }
+        public void MicSilenceChanged(LinuxOverlayMicrophoneLabel? microphone) { }
         public void Dispose() { }
     }
 
@@ -184,6 +185,7 @@ static class HomeLiveStartTests
         public void Cancelled() => AtEnd = Read();
         public void Failed(LinuxRecordingOverlayError error) => AtEnd = Read();
         public void ModeChanged(LinuxOverlayModeLabel mode) { }
+        public void MicSilenceChanged(LinuxOverlayMicrophoneLabel? microphone) { }
         public void Dispose() { }
     }
 }

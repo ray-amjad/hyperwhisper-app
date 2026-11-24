@@ -7470,10 +7470,15 @@ internal static class Program
                 };
                 Assert(fields.Select(f => f.Key).SequenceEqual(expectedKeys),
                     $"the field names must be the issue's, got {string.Join(",", fields.Select(f => f.Key))}");
-                foreach (var key in expectedKeys)
+                // Every field is allow-listed except the stderr tail: that is raw daemon
+                // output, and only the account identifiers are scrubbed out of it, so it
+                // stays in the local log and reaches Sentry as [redacted] (#1890).
+                foreach (var key in expectedKeys.Where(k => k != "parakeet_stderr_tail"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key), $"Sentry's key filter would replace '{key}' with [redacted]");
                 }
+                Assert(SentryService.IsRedactedExtraKey("parakeet_stderr_tail"),
+                    "the raw stderr tail is on the Sentry allow-list");
 
                 var byKey = fields.ToDictionary(f => f.Key, f => f.Value);
                 Assert(byKey["parakeet_failure"] is "stdout_closed", "the failure slug");
@@ -7684,16 +7689,17 @@ internal static class Program
 
             Run("TranscriptionDiagnosticsService payload: transaction data is complete and privacy-safe", () =>
             {
-                // The bug this guards. SentryService.IsRedactedExtraKey matches on the
-                // KEY, as a substring, and replaces the value with "[redacted]". Three
-                // fields of this diagnostic were named "transcript_id",
-                // "transcription_provider_display_name" and
-                // "backend_empty_transcript_without_flag", so every event of
-                // HYPERWHISPER-PA/-RM/-XR arrived with all three empty - including the
-                // empty-vs-flag discriminator the whole diagnostic turns on. Nothing at
-                // the call site said so, and nothing failed. The names are chosen to
-                // clear the filter now; this asserts the WHOLE payload does, so the next
-                // field named with one of those four words fails in CI instead.
+                // The bug this guards. Sentry's filter replaces the String value of any
+                // extra whose key is not on SentryService.AllowedExtraKeys with
+                // "[redacted]" (#1890; it used to be a substring deny-list, which is how
+                // "transcript_id", "transcription_provider_display_name" and
+                // "backend_empty_transcript_without_flag" arrived empty on every event of
+                // HYPERWHISPER-PA/-RM/-XR - including the empty-vs-flag discriminator the
+                // whole diagnostic turns on). Nothing at the call site says so, and
+                // nothing fails. This asserts the WHOLE payload is allow-listed, so the
+                // next field nobody added to the list fails in CI instead. The one
+                // exception is the microphone name, which a person can rename: it is
+                // off the list on purpose and asserted redacted below.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
                     DurationSeconds: 1.7,
@@ -7740,11 +7746,13 @@ internal static class Program
                         ],
                         reason: AudioDeviceSelectionReason.StartupFirstAvailable));
 
-                foreach (var key in extras.Keys)
+                foreach (var key in extras.Keys.Where(k => k != "selected_input_device_name"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                        $"extra '{key}' will arrive at Sentry as [redacted] - add it to SentryService.AllowedExtraKeys if its value is never user content");
                 }
+                Assert(SentryService.IsRedactedExtraKey("selected_input_device_name"),
+                    "the renamable microphone name is on the Sentry allow-list");
 
                 // The three renamed fields must actually be present under their new
                 // names, or the rename above would "pass" by having deleted them.
@@ -7795,6 +7803,13 @@ internal static class Program
                     "the transaction dropped a supplied diagnostic extra");
                 Assert((string)transactionData["raw_text"]! == "[redacted]",
                     "the transaction sent a denied extra without redaction");
+                Assert((string)transactionData["selected_input_device_name"]! == "[redacted]",
+                    "the transaction sent the renamable microphone name");
+                Assert(Equals(transactionData["provider_display_name"], "HyperWhisper Cloud")
+                        && Equals(transactionData["backend_stt_provider"], "elevenlabs/scribe_v2"),
+                    "the transaction redacted an allow-listed String extra");
+                Assert(transactionData["audio_file_exists"] is false,
+                    "the transaction dropped a Bool extra");
                 Assert(transactionData["diagnostic_fingerprint"] is string[] transactionFingerprint
                         && transactionFingerprint.SequenceEqual(fingerprint),
                     "the transaction did not retain the diagnostic fingerprint as data");
@@ -7870,24 +7885,102 @@ internal static class Program
                 Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.Unknown,
                     $"provider_attempt_source should be unknown with no diagnostics, got {tags["provider_attempt_source"]}");
 
-                foreach (var key in extras.Keys)
+                foreach (var key in extras.Keys.Where(k => k != "selected_input_device_name"))
                 {
                     Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                        $"extra '{key}' will arrive at Sentry as [redacted] - add it to SentryService.AllowedExtraKeys if its value is never user content");
                 }
+                Assert(SentryService.IsRedactedExtraKey("selected_input_device_name"),
+                    "the renamable microphone name is on the Sentry allow-list");
             });
 
-            Run("SentryService.IsRedactedExtraKey keeps matching the four denied words", () =>
+            Run("SentryService extras are an exact allow-list: unknown and content keys lose a String, keep a Bool or a number (#1890)", () =>
             {
-                // The predicate was inlined in beforeSend and is now a named method the
-                // payload test can call. Nothing about WHAT it matches changed, and this
-                // pins that.
-                Assert(SentryService.IsRedactedExtraKey("transcript_id"), "transcript is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("raw_text"), "text is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("system_prompt"), "prompt is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("audio_path"), "path is no longer denied");
-                Assert(SentryService.IsRedactedExtraKey("AUDIO_PATH"), "the match should be case-insensitive");
-                Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "a plain metadata key is denied");
+                // The filter used to be a substring deny-list (transcript / text /
+                // prompt / path). It is now an exact, case-sensitive lookup in
+                // SentryService.AllowedExtraKeys, the rule macOS shipped in #1887. This
+                // drives BOTH real consumers - the transaction path and beforeSend - so
+                // the shared helper cannot drift from either.
+                var unknownKey = "brand_new_field_nobody_reviewed";
+                var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["transcript"] = "what the user said",
+                    ["text"] = "what the user typed",
+                    ["prompt"] = "the user's system prompt",
+                    [unknownKey] = "anything at all",
+                    ["unknown_flag"] = true,
+                    ["unknown_count"] = 42,
+                    ["unknown_ratio"] = 0.25,
+                    ["unknown_list"] = new[] { "a", "b" },
+                    // Built from the LIVE account name: the transaction path reads the
+                    // live environment, as the account-name transaction test below does.
+                    ["error_message"] = $"Load failed for {Environment.UserName}'s profile",
+                    ["audio_file_extension"] = ".wav",
+                    // Exact lookup: a case variant of an allowed key, and a key that
+                    // merely CONTAINS an allowed key, are both unknown. The case variant
+                    // has no lower-case twin here, because the transaction data
+                    // dictionary is case-insensitive and a twin would overwrite it.
+                    ["Audio_Duration_Seconds"] = "case variant",
+                    ["audio_file_extension_raw"] = "superstring",
+                    ["status_text"] = "superstring",
+                };
+
+                var (_, data) = SentryService.PrepareDiagnosticTransactionData(
+                    "allow-list probe", payload, null, null);
+
+                foreach (var key in new[]
+                         {
+                             "transcript", "text", "prompt", unknownKey, "unknown_list",
+                             "Audio_Duration_Seconds", "audio_file_extension_raw", "status_text",
+                         })
+                {
+                    Assert(Equals(data[key], "[redacted]"),
+                        $"transaction extra '{key}' was not redacted: {data[key]}");
+                }
+                Assert(data["unknown_flag"] is true, "a Bool under an unknown key did not survive");
+                Assert(data["unknown_count"] is 42, "an int under an unknown key did not survive");
+                Assert(data["unknown_ratio"] is 0.25, "a double under an unknown key did not survive");
+                Assert(Equals(data["audio_file_extension"], ".wav"), "an allow-listed String was redacted");
+                Assert(Equals(data["error_message"], "Load failed for %USER%'s profile"),
+                    $"an allow-listed String did not go through the identifier rewrite: {data["error_message"]}");
+
+                // The predicate itself: no Contains, no case folding.
+                Assert(SentryService.IsRedactedExtraKey("transcript"), "transcript is allowed");
+                Assert(SentryService.IsRedactedExtraKey("text"), "text is allowed");
+                Assert(SentryService.IsRedactedExtraKey("prompt"), "prompt is allowed");
+                Assert(SentryService.IsRedactedExtraKey("audio_path"), "audio_path is allowed");
+                Assert(SentryService.IsRedactedExtraKey(unknownKey), "an unknown key is allowed");
+                Assert(SentryService.IsRedactedExtraKey("ERROR_MESSAGE"), "the lookup is case-insensitive");
+                Assert(SentryService.IsRedactedExtraKey("Audio_Duration_Seconds"), "the lookup is case-insensitive");
+                Assert(SentryService.IsRedactedExtraKey("audio_file_extension_raw"), "the lookup matches a superstring");
+                Assert(SentryService.IsRedactedExtraKey("extension"), "the lookup matches a substring");
+                Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "an allow-listed key is redacted");
+                Assert(!SentryService.IsRedactedExtraKey("error_message"), "error_message is redacted");
+
+                // beforeSend, through the seam with fixed identifiers.
+                var sentryEvent = new Sentry.SentryEvent();
+                foreach (var (key, value) in payload)
+                {
+                    sentryEvent.SetExtra(key, value);
+                }
+                sentryEvent.SetExtra("error_message", @"Load failed at C:\Users\testaccount\AppData");
+                SentryService.SanitizeEvent(sentryEvent, @"C:\Users\testaccount", null, "testaccount");
+
+                foreach (var key in new[]
+                         {
+                             "transcript", "text", "prompt", unknownKey, "unknown_list",
+                             "Audio_Duration_Seconds", "audio_file_extension_raw", "status_text",
+                         })
+                {
+                    Assert(Equals(sentryEvent.Extra[key], "[redacted]"),
+                        $"event extra '{key}' was not redacted: {sentryEvent.Extra[key]}");
+                }
+                Assert(sentryEvent.Extra["unknown_flag"] is true, "beforeSend redacted a Bool under an unknown key");
+                Assert(sentryEvent.Extra["unknown_count"] is 42, "beforeSend redacted an int under an unknown key");
+                Assert(sentryEvent.Extra["unknown_ratio"] is 0.25, "beforeSend redacted a double under an unknown key");
+                Assert(Equals(sentryEvent.Extra["audio_file_extension"], ".wav"), "beforeSend redacted an allow-listed String");
+                Assert(Equals(sentryEvent.Extra["error_message"], @"Load failed at %USERPROFILE%\AppData"),
+                    $"beforeSend did not rewrite the identifiers in an allow-listed String: {sentryEvent.Extra["error_message"]}");
             });
 
             Run("SentryService.RedactUserIdentifiers strips the Windows account name but keeps the HRESULT and the assembly name", () =>
@@ -8535,8 +8628,10 @@ internal static class Program
                     // reaches beforeSend, so nothing downstream would have caught it.
                     new[] { "transcription-no-speech", Environment.UserName });
 
-                Assert((string)data["selected_input_device_name"]! == "%USER%'s AirPods",
-                    $"the transaction extra still carries the account name: {data["selected_input_device_name"]}");
+                // Since #1890 the device name is off the extras allow-list altogether, so
+                // the EXTRA is redacted outright; the TAG below still shows the rewrite.
+                Assert((string)data["selected_input_device_name"]! == "[redacted]",
+                    $"the transaction extra still carries the device name: {data["selected_input_device_name"]}");
                 Assert(tags["selected_input_device_name"] == "%USER%'s AirPods",
                     $"the transaction TAG still carries the account name: {tags["selected_input_device_name"]}");
                 Assert((string)data["raw_text"]! == "[redacted]",
@@ -22359,6 +22454,65 @@ internal static class Program
                     $"121-character one ({longHeight:F0}px), so the cap is cutting real messages");
             });
 
+            Run("recording overlay: 'No sound from {mic}' sits above the pill on one trimmed line — issue #2411", () =>
+            {
+                // The live "mic hears nothing" warning. The rule is the shared
+                // MicSilenceWatcher (Application.Tests); this pins the Windows head's
+                // text, wiring and layout. MEASURED, never Shown: CI has no desktop.
+                EnsureSmokeApplication();
+
+                var named = MainViewModel.MicSilenceWarningText("  USB Audio Device  ");
+                Assert(named == HyperWhisper.Localization.Loc.S("recording.warning.micSilent", "USB Audio Device"),
+                    $"the warning text is '{named}', not the localized string with the trimmed device name");
+                Assert(!named.Contains("{0}"), "the device name was not formatted into the warning");
+                var unnamed = MainViewModel.MicSilenceWarningText(null);
+                Assert(unnamed.Contains(HyperWhisper.Localization.Loc.S("menu.microphone")),
+                    $"a device with no name gave '{unnamed}' instead of a generic microphone name");
+
+                // Both capture paths feed the watcher with every buffer's peak.
+                foreach (var capture in new[] { typeof(AudioRecorderService), typeof(StreamingAudioCapture) })
+                {
+                    var peak = capture.GetEvent("BlockPeakDbfs");
+                    Assert(peak?.EventHandlerType == typeof(Action<double>),
+                        $"{capture.Name} does not raise BlockPeakDbfs, so its recordings can never warn");
+                }
+
+                var warning = new HyperWhisper.Views.Windows.MicSilenceWarningWindow();
+                Assert(warning.Width == 200, $"the warning is {warning.Width} wide, not the pill's 200");
+                Assert(!warning.ShowActivated && warning.Topmost && !warning.ShowInTaskbar,
+                    "the warning could take focus from the app being dictated into, or fall behind it");
+
+                var text = warning.Text;
+                Assert(text.TextTrimming == TextTrimming.CharacterEllipsis && text.TextWrapping == TextWrapping.NoWrap,
+                    "a long device name wraps or is cut without an ellipsis");
+                text.Text = MainViewModel.MicSilenceWarningText(
+                    "Microphone Array (Realtek(R) High Definition Audio with a very long vendor suffix)");
+                var root = (FrameworkElement)warning.Content;
+                root.Measure(new Size(warning.Width, warning.Height));
+                root.Arrange(new Rect(0, 0, warning.Width, warning.Height));
+                root.UpdateLayout();
+                Assert(text.ActualWidth <= warning.Width, $"the warning line is {text.ActualWidth} wide, wider than its pill");
+                Assert(text.ActualHeight < warning.Height, "the warning took more than one line");
+
+                // Centred over the 200x40 pill with a 6 DIP gap, so the pill itself never moves.
+                var at = HyperWhisper.Views.Windows.MicSilenceWarningWindow.TopLeftAbove(new Rect(400, 900, 200, 40), 200, 26);
+                Assert(at == new System.Windows.Point(400, 900 - 26 - 6), $"the warning sits at {at}, not just above the pill");
+
+                // Kept on the pill's monitor: a pill at the top edge gets the warning just below it,
+                // and a pill at a side edge never pushes the warning past that edge.
+                var workArea = new Rect(0, 0, 1920, 1040);
+                var below = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, 0, 200, 40), workArea, 200, 26);
+                Assert(below == new System.Windows.Point(400, 40 + 6), $"a pill at the top edge put the warning at {below}");
+                var mid = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, 900, 200, 40), workArea, 200, 26);
+                Assert(mid == at, $"a pill mid-screen put the warning at {mid}, not {at}");
+                var clamped = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(-20, 900, 200, 40), workArea, 240, 26);
+                Assert(clamped.X == 0, $"a pill at the left edge pushed the warning to x={clamped.X}");
+                var right = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(1720, 900, 200, 40), workArea, 240, 26);
+                Assert(right.X == 1920 - 240, $"a pill at the right edge pushed the warning to x={right.X}");
+                var dragged = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, -10, 200, 40), workArea, 200, 26);
+                Assert(dragged.Y == -10 - 26 - 6, $"a pill dragged above the work area lost its warning: y={dragged.Y}");
+            });
+
             Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
             {
                 // The export card reads "Vocabulary (N)". N was read once, in the page
@@ -24421,8 +24575,8 @@ internal static class Program
                     property.SetValue(data, null);
                     Assert(service.EnableErrorLogging,
                         "error reports are now OFF on a profile that never touched the setting. "
-                        + "That is a deliberate privacy change, not a refactor: mintlify-help/"
-                        + "data-privacy.mdx and mintlify-help/general-settings.mdx both state the "
+                        + "That is a deliberate privacy change, not a refactor: nextjs/src/content/"
+                        + "docs/data-privacy.mdx and general-settings.mdx both state the "
                         + "setting is ON by default, and both have to change with it.");
 
                     // And the setter still works in the direction a user needs, which is
@@ -27075,6 +27229,7 @@ internal static class Program
             CloudCreditsWarningChecks.RunAll(Run);
             InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
+            MonoFoldMidFrameChecks.RunAll(Run);
             ParakeetGuiLoadReloadChecks.RunAll(Run);
             TranscriptionRetryHandlerChecks.RunAll(Run);
             UpdateMessageWindowChecks.RunAll(Run);
@@ -29505,6 +29660,107 @@ internal static class Program
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         });
+
+        // Issue #2784: every successful reconnect used to start a fresh MaxReconnectAttempts
+        // loop, so a server that accepts each upgrade and drops it at once (a transient close
+        // frame, or a TCP drop with no close frame) was reconnected forever, never Error. The
+        // client now stops after MaxReconnectsWithoutTranscript (5) reconnects in a row with no
+        // transcript frame, and any transcript frame starts that count over.
+        const int reconnectBudget = 5; // StreamingTranscriptionClient.MaxReconnectsWithoutTranscript
+        foreach (var (closeFrame, sendsTranscript) in new[] { (true, false), (false, false), (true, true) })
+        {
+            var name = sendsTranscript
+                ? "StreamingTranscriptionClient keeps reconnecting while each connection sends a transcript (#2784)"
+                : $"StreamingTranscriptionClient gives up after the no-transcript reconnect budget ({(closeFrame ? "close 1001" : "TCP drop")}, #2784)";
+            RunAsync(name, async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    await AssertEveryConnectionDrops(closeFrame, sendsTranscript);
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+        }
+
+        static async Task AssertEveryConnectionDrops(bool closeFrame, bool sendsTranscript)
+        {
+            var wait = TimeSpan.FromSeconds(15);
+            var streaming = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var error = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var errors = new List<string>();
+
+            await using var server = new ScriptedLoopbackWebSocketServer(async (index, ws, socket, ct) =>
+            {
+                // The first drop waits for StartAsync to reach Streaming, or StartAsync's
+                // Connecting -> Streaming step could lose to the receive loop's Reconnecting.
+                if (index == 0)
+                    await streaming.Task.WaitAsync(wait, ct);
+                if (sendsTranscript)
+                    await ServerSendText(ws, $"{{\"t\":\"final\",\"text\":\"Segment {index}.\"}}", ct);
+
+                if (closeFrame)
+                {
+                    await ws.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, "going away", ct);
+                    await ServerDrainUntilGone(ws, ct);
+                    return;
+                }
+
+                socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                socket.Close();
+            });
+
+            var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+            await using var client = new StreamingTranscriptionClient(new LoopbackScriptedStrategy(server.Uri), config);
+            client.StateChanged += state =>
+            {
+                if (state == StreamingConnectionState.Streaming)
+                    streaming.TrySetResult();
+                if (state == StreamingConnectionState.Error)
+                    error.TrySetResult();
+            };
+            client.ErrorReceived += m => { lock (errors) errors.Add(m); };
+
+            Assert(await client.StartAsync(), $"StartAsync did not start the session (State {client.State})");
+
+            if (sendsTranscript)
+            {
+                // Twice the budget's connections, each with a transcript before its drop:
+                // the budget never runs out. The test stops the session itself.
+                var deadline = DateTime.UtcNow + wait;
+                while (server.ConnectionCount < 2 * (1 + reconnectBudget) && !error.Task.IsCompleted && DateTime.UtcNow < deadline)
+                    await Task.Delay(50);
+                var connections = server.ConnectionCount;
+                var stateBefore = client.State;
+                await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+                Assert(!error.Task.IsCompleted, $"a session that got a transcript on every connection ended in Error after {connections} connections");
+                Assert(connections >= 2 * (1 + reconnectBudget),
+                    $"expected reconnects past the budget while transcripts arrive, saw {connections} connections (State {stateBefore})");
+                lock (errors)
+                    Assert(errors.Count == 0, $"ErrorReceived fired while transcripts arrived: [{string.Join(" | ", errors)}]");
+                return;
+            }
+
+            Assert(await Task.WhenAny(error.Task, Task.Delay(wait)) == error.Task,
+                $"the client never gave up: State {client.State} after {server.ConnectionCount} connections");
+            // Long enough for one more reconnect's 500 ms backoff, had the budget not stopped it.
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+            var finalConnections = server.ConnectionCount;
+            var stateAfter = client.State;
+            await client.StopAsync(new CancellationTokenSource(wait).Token);
+
+            Assert(stateAfter == StreamingConnectionState.Error, $"expected State Error after the budget, got {stateAfter}");
+            Assert(finalConnections == 1 + reconnectBudget,
+                $"expected exactly {1 + reconnectBudget} connections (1 + budget), saw {finalConnections}");
+            lock (errors)
+                Assert(errors.Any(m => m.Contains("Streaming connection was lost and could not be restored.", StringComparison.Ordinal)),
+                    $"ErrorReceived never named the lost connection: [{string.Join(" | ", errors)}]");
+        }
     }
 
     // The close-frame path ends the session once the provider has failed it (State Error).

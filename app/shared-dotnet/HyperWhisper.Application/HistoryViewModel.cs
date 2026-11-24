@@ -451,7 +451,17 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             var ids = selected.Select(item => item.Id).ToArray();
             var deletion = await _repository.DeleteManyAsync(ids, DeleteAudio, cancellationToken);
             if (deletion.TranscriptsDeleted == 0)
-            { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
+            {
+                // Issue #2749: none of the selected rows is in the table any more, so another
+                // writer removed them. Drop them as a delete would, and mark the rows stale so the
+                // next visit queries again for anything else that writer changed. Then report, so
+                // "no longer exists" is what the user reads.
+                RemoveItems(ids.ToHashSet());
+                UpdateSelection([]);
+                MarkStale();
+                Status.Failure("history.not_found", "The transcript no longer exists.");
+                return;
+            }
             RemoveItems(ids.ToHashSet());
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)

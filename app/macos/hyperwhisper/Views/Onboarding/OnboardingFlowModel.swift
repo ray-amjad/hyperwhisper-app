@@ -744,6 +744,14 @@ final class OnboardingFlowModel: ObservableObject {
     /// "Error:" sentinel, so the view can render them differently.
     var transcriptIsError: Bool { transcript.hasPrefix("Error:") }
 
+    /// The status pill beside the try-it record control. A failed recording
+    /// shows no pill: the "Record again" button already offers the retry, and a
+    /// green "Recorded" next to the red error would read as a success.
+    var tryItPill: TryItPillState {
+        if transcript.isEmpty { return .none }
+        return transcriptIsError ? .failed : .recorded
+    }
+
     var transcriptBody: String {
         guard transcriptIsError else { return transcript }
         return String(transcript.dropFirst("Error:".count))
@@ -1016,4 +1024,11 @@ final class OnboardingFlowModel: ObservableObject {
         #endif
         taskBox.store(task, for: key)
     }
+}
+
+/// What the try-it step's record control shows once a test recording ends.
+enum TryItPillState: Equatable {
+    case none
+    case recorded
+    case failed
 }

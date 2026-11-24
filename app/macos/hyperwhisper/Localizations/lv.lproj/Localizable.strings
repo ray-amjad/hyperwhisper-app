@@ -885,6 +885,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "streaming.loading.streaming" = "Gaida runājamo...";
 "streaming.state.reconnecting" = "Atkārtoti pieslēdzas...";
 "recording.stop.help" = "Apturēt ierakstīšanu (%@)";
+"recording.warning.micSilent" = "Nav skaņas no ierīces %@";
 "recording.retry" = "Atkārtot";
 "recording.retry.inProgress" = "Atkārto…";
 "recording.retry.count" = "Atkārtot (%d)";

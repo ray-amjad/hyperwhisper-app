@@ -1,8 +1,9 @@
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 
 namespace HyperWhisper.Linux.Platform.Audio;
 
-public sealed class PulseAudioRecorder : IAudioRecorder
+public sealed class PulseAudioRecorder : IAudioRecorder, IAudioBlockPeakSource
 {
     private readonly object _gate = new();
     private readonly IPulseAudioApi _api;
@@ -29,6 +30,9 @@ public sealed class PulseAudioRecorder : IAudioRecorder
     }
 
     public event EventHandler<float>? AudioLevelChanged;
+
+    /// <summary>Each fragment's peak in dBFS, from the raw samples (#2411).</summary>
+    public event EventHandler<double>? BlockPeakDbfs;
 
     public bool IsRecording { get; private set; }
     public TimeSpan Duration => _format is null || _format.BytesPerSecond == 0
@@ -164,6 +168,7 @@ public sealed class PulseAudioRecorder : IAudioRecorder
                 _output!.Write(buffer, 0, read.Value);
                 Interlocked.Add(ref _dataBytes, read.Value);
                 RaiseAudioLevel(CalculateLevel(buffer.AsSpan(0, read.Value)));
+                RaiseBlockPeak(AudioBlockPeak.Pcm16Dbfs(buffer.AsSpan(0, read.Value)));
             }
         }
         catch (Exception exception) when (exception is IOException or ObjectDisposedException)
@@ -203,6 +208,16 @@ public sealed class PulseAudioRecorder : IAudioRecorder
         foreach (EventHandler<float> handler in handlers.GetInvocationList())
         {
             try { handler(this, level); } catch { }
+        }
+    }
+
+    private void RaiseBlockPeak(double peakDbfs)
+    {
+        var handlers = BlockPeakDbfs;
+        if (handlers is null) return;
+        foreach (EventHandler<double> handler in handlers.GetInvocationList())
+        {
+            try { handler(this, peakDbfs); } catch { }
         }
     }
 

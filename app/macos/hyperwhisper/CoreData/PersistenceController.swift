@@ -266,7 +266,7 @@ class PersistenceController: ObservableObject {
 
         // Initialize default modes on first launch
         if !inMemory {
-            initializeDefaultModes()
+            prepareModesOnLaunch()
             normalizeCloudRouteIdentifiersIfNeeded()
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
@@ -276,14 +276,34 @@ class PersistenceController: ObservableObject {
             // `geminiTranscribe`, so running this first would leave nothing to do
             // and then let the older migration write the value again.
             migrateGoogleChirp3TierIfNeeded()
-            // BEFORE repairModeNamesOnLaunch: that pass renames a duplicate
-            // name with a " 2" suffix, and a leaked row is gone sooner if it
-            // is never renamed in the first place (issue #1509).
-            purgeLeakedLocalAPITransientModesOnLaunch()
             repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
+            // Background task, one time only (#1524); returns at once.
+            scheduleOrphanedTrimmedUploadCopySweepOnLaunch()
         }
+    }
+
+    /// The first launch step: the leaked-row purge, then the default-mode
+    /// seed and repair. Internal rather than private so
+    /// `LocalAPITransientModeTests` can drive it on an in-memory store, which
+    /// `init` skips.
+    ///
+    /// The purge runs FIRST (issue #1546). `initializeDefaultModes()` moves the
+    /// default flag onto some row when none has it, and a store whose only
+    /// modes are leaked rows (the user deleted every real one) then gets a
+    /// leaked row as its default. Purging first leaves such a store empty, so
+    /// the seeder writes the real default mode instead. A leaked row an
+    /// earlier launch already made the default stays: no field tells it apart
+    /// from a default Mode a user made through the Local API.
+    ///
+    /// It also runs before `repairModeNamesOnLaunch()`: that pass renames a
+    /// duplicate name with a " 2" suffix, and a leaked row is gone sooner if
+    /// it is never renamed in the first place (issue #1509). The migrations
+    /// between the two read and write no name, sort order or default flag.
+    func prepareModesOnLaunch() {
+        purgeLeakedLocalAPITransientModesOnLaunch()
+        initializeDefaultModes()
     }
 
     private func purgeLeakedLocalAPITransientModesOnLaunch() {
@@ -1540,8 +1560,11 @@ class PersistenceController: ObservableObject {
 
         guard let update else {
             // The VAD output has no Core Data owner if the row was deleted or
-            // the path save failed. Remove it instead of leaking it on disk.
+            // the path save failed. Remove it instead of leaking it on disk,
+            // and its `.m4a` upload copy too (#1524) unless an upload may
+            // still use that copy.
             _ = await FileDeletion.deleteFiles(at: [trimmedPath])
+            await removeUploadCopiesNoUploadUses(afterFailedTrimSaveOf: trimmedPath, transcriptID: transcriptID)
             AppLogger.coreData.warning("Could not attach trimmed audio path; removed the unowned file")
             return false
         }
@@ -1554,6 +1577,62 @@ class PersistenceController: ObservableObject {
         let trimmedFormat = AudioConstants.diagnosticAudioFormat(URL(fileURLWithPath: trimmedPath).pathExtension)
         AppLogger.coreData.debug("Set trimmed audio path · format=\(trimmedFormat, privacy: .public)")
         return true
+    }
+
+    /// Of `paths`, the files no transcript records or derives, read on the
+    /// serial writer. For a file a flow wrote that no row recorded (#1524).
+    func unownedAudioPathsInBackground(_ paths: [String]) async -> [String] {
+        guard !paths.isEmpty else { return [] }
+        return await performWrite { context in
+            Self.audioPathsNoTranscriptOwns(paths, in: context)
+        }
+    }
+
+    /// Removes the `.m4a` upload copy of a trimmed WAV whose path could not be
+    /// saved, when no upload can still be using it (#1524; Ray: delete the
+    /// copy unless its upload is running, and otherwise leave it).
+    ///
+    /// No registry of running uploads exists, so "may still be uploading" is
+    /// read from the two places that do say a job is in flight:
+    /// - The row still exists with status "processing": its job has not
+    ///   finished. A file import calls `setTrimmedAudioPath` just BEFORE it
+    ///   uploads the copy, and a retry keeps the row processing until it
+    ///   writes its result.
+    /// - A running retry claims these VAD names
+    ///   (`TranscriptionRetryController.claimVADOutputs`); every retry of a
+    ///   recording writes the same names.
+    /// A copy another transcript records or derives is kept too. A kept copy
+    /// is left for the one-time sweep or the row's own delete.
+    @MainActor
+    private func removeUploadCopiesNoUploadUses(
+        afterFailedTrimSaveOf trimmedPath: String,
+        transcriptID: NSManagedObjectID
+    ) async {
+        let copies = TranscriptAudioFiles.derivedArtifactPaths(
+            for: TranscriptRecordedAudioPaths(audioFilePath: nil, trimmedAudioFilePath: trimmedPath)
+        )
+        let unclaimed = TranscriptionRetryController.vadOutputsNoRunUses(copies)
+        guard !unclaimed.isEmpty else { return }
+
+        let unowned = await performWrite { context -> [String] in
+            let stillRunning: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            stillRunning.predicate = NSPredicate(format: "SELF == %@ AND status == %@", transcriptID, "processing")
+            stillRunning.fetchLimit = 1
+            guard let running = try? context.count(for: stillRunning), running == 0 else {
+                return []
+            }
+            // Look up the trimmed WAV too: a row that records it derives the
+            // same copy name, and only a lookup by a recorded path finds it.
+            return Self.audioPathsNoTranscriptOwns([trimmedPath] + unclaimed, in: context)
+                .filter { unclaimed.contains($0) }
+        }
+
+        // Read the claims again: a retry can claim the copy and start its
+        // upload while the lookup above is pending. Claims are made on the
+        // main actor, and no await separates this check from the removal.
+        for path in TranscriptionRetryController.vadOutputsNoRunUses(unowned) {
+            try? FileManager.default.removeItem(atPath: path)
+        }
     }
 
     /// Deletes a transcript
