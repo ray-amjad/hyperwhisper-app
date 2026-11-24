@@ -19,6 +19,7 @@
 
 import type { SttProviderId } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import { modelVariant } from './model-variants';
 
 import { transcribeWithDeepgram } from './deepgram';
 import { transcribeWithGroq } from './groq';
@@ -77,14 +78,6 @@ export function transcribeWithProvider(
   initialPrompt?: string,
   context?: ProviderRequestContext,
 ): Promise<TranscriptionResult> {
-  return PROVIDER_FN[provider](audio, contentType, language, initialPrompt, context);
-}
-
-/**
- * Whether an adapter is wired for `provider`. For the completeness test and any
- * future caller that must ask before dispatching; the route never needs it,
- * because it only ever dispatches ids the registry gave it.
- */
-export function hasProviderAdapter(provider: SttProviderId): boolean {
-  return typeof PROVIDER_FN[provider] === 'function';
+  const transcribe = modelVariant(provider, context?.model)?.transcribe ?? PROVIDER_FN[provider];
+  return transcribe(audio, contentType, language, initialPrompt, context);
 }

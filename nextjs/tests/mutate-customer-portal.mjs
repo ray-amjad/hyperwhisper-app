@@ -36,8 +36,8 @@ const MUTANTS = [
   {
     file: TRPC,
     name: "drop the request headers from the context",
-    from: "return { user, isAdmin, headers: opts.headers };",
-    to: "return { user, isAdmin, headers: new Headers() };",
+    from: "    headers: opts.headers,\n",
+    to: "    headers: new Headers(),\n",
   },
   {
     file: TRPC,
@@ -80,8 +80,8 @@ const MUTANTS = [
   {
     file: CUSTOMER,
     name: "ask for the balance once per key instead of per owner",
-    from: "    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    const licensesWithCredits",
-    to: "    const userIds = licenses.map((l) => l.userId);\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    const licensesWithCredits",
+    from: "    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    // A key the owner deleted",
+    to: "    const userIds = licenses.map((l) => l.userId);\n    const balanceMap = await getCreditBalancesForUsers(userIds);\n\n    // A key the owner deleted",
   },
   {
     file: CUSTOMER,
@@ -164,13 +164,13 @@ const MUTANTS = [
   {
     file: CUSTOMER,
     name: "open the portal for the wrong key when the first has no customer",
-    from: "    const licenseWithStripe = licenses.find((l) => l.stripeCustomerId);",
-    to: "    const licenseWithStripe = licenses[licenses.length - 1];",
+    from: "      new Set(licenses.flatMap((l) => l.stripeCustomerId ?? [])),",
+    to: "      new Set(licenses.slice(-1).flatMap((l) => l.stripeCustomerId ?? [])),",
   },
   {
     file: CUSTOMER,
     name: "open a portal session for an account with no Stripe history",
-    from: "    if (!licenseWithStripe?.stripeCustomerId) {",
+    from: "    if (!stripeCustomerId) {",
     to: "    if (false) {",
   },
   {

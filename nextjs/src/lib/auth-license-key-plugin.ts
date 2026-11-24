@@ -3,11 +3,11 @@ import { setSessionCookie } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { authLogIpHash, emitAuthEvent } from "./auth-event-log";
 import { findAccountByKey } from "./db-layer";
 import { isLookupableLicenseKey } from "./license-key-input";
 import { sanitizeLicenseKeyRedirect } from "./license-key-redirect";
 
-import { sha256Hex } from "@/lib/shared/sha256";
 import { db } from "@/src/db";
 import { user } from "@/src/db/schema/auth";
 
@@ -43,31 +43,17 @@ function logSignIn(
     headers: Headers | undefined;
   },
 ): void {
-  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
-  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
-  const ip =
-    fields.headers?.get("cf-connecting-ip")?.trim() ||
-    fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const line = JSON.stringify({
-    event: "auth.license_key_sign_in",
+  emitAuthEvent(
+    {
+      event: "auth.license_key_sign_in",
+      outcome,
+      ...(fields.reason ? { reason: fields.reason } : {}),
+      ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
+      ...(fields.userId ? { userId: fields.userId } : {}),
+      ipHash: authLogIpHash(fields.headers),
+    },
     outcome,
-    ...(fields.reason ? { reason: fields.reason } : {}),
-    ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
-    ...(fields.userId ? { userId: fields.userId } : {}),
-    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
-  });
-
-  // The website's console output is its server log (Workers Logs), so this is the
-  // sink, not leftover debugging.
-  /* eslint-disable no-console */
-  if (outcome === "ok") {
-    console.log(line);
-  } else if (outcome === "rejected") {
-    console.warn(line);
-  } else {
-    console.error(line);
-  }
-  /* eslint-enable no-console */
+  );
 }
 
 export const licenseKeyPlugin = () => ({

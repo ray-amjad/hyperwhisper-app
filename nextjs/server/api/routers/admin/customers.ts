@@ -9,7 +9,7 @@ import { TRPCError } from "@trpc/server";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
-import { stripe, stripeRefundApi } from "@/lib/clients/stripe";
+import { stripeRefundApi } from "@/lib/clients/stripe";
 import {
   getAccountKeyCustomerPage,
   getOrCreateUser,
@@ -21,12 +21,17 @@ import {
   refundCreditGrant,
   revokeAccountKey,
   getAccountKeysWithCreditsForUserIds,
+  getStripeCustomerIdsForUserIds,
   getUserById,
   getUserByEmail,
   getUsersByIds,
   updateCustomerEmail,
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
+import {
+  cloudPurgeConfirmed,
+  purgeCloudLicenseCache,
+} from "@/lib/services/cloud-license-cache";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -36,7 +41,8 @@ import {
 import { emailTag } from "@/lib/shared/redact";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
-import { createCustomerSpendReader } from "./customer-spend";
+import { accountNetSpendCents } from "./customer-spend";
+import { customerSpendReader } from "./stripe-customer-spend";
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 
@@ -102,21 +108,9 @@ function dbErrorFields(error: unknown): AdminLogFields {
 // Distinct customers (by userId) per page of the admin Customers list.
 const CUSTOMERS_PAGE_SIZE = 100;
 
-const customerSpendReader = createCustomerSpendReader({
-  listCharges: async (stripeCustomerId) =>
-    stripe.charges
-      .list({ customer: stripeCustomerId, limit: 100 })
-      .autoPagingToArray({ limit: 10_000 }),
-  getLatestDisputeStatus: async (chargeId) => {
-    const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
-
-    return disputes.data[0]?.status ?? null;
-  },
-});
-
 // The refund flow runs on `stripeRefundApi`, pinned in lib/clients/stripe.ts
-// to the older API version it was tested against (#755). Everything else in
-// this router uses the shared `stripe`.
+// to the older API version it was tested against (#755). The spend reads use
+// the shared `stripe`, through `./stripe-customer-spend`.
 const customerPaymentRefunder = createCustomerPaymentRefunder({
   retrievePaymentIntent: async (stripeSessionId) => {
     const session =
@@ -171,9 +165,13 @@ export const customersRouter = createTRPCRouter({
 
         // Pull every license (with credit balance) for this page's customers,
         // plus canonical user.email for display.
-        const [licenses, userMap] = await Promise.all([
+        // The Stripe customer ids come from their own uncapped query: the
+        // license list is capped per customer, and an older paid key's
+        // customer id must still count toward Total spend (#3056).
+        const [licenses, userMap, stripeCustomerIdsByUserId] = await Promise.all([
           getAccountKeysWithCreditsForUserIds(userIds),
           getUsersByIds(userIds),
+          getStripeCustomerIdsForUserIds(userIds),
         ]);
 
         // Group licenses by their owning user. Display order is NOT derived
@@ -195,6 +193,10 @@ export const customersRouter = createTRPCRouter({
             // customer ID at all keep the default 0 here; the client tells
             // that state apart from "$0 spent" via `licenses`.
             totalSpentCents: number | null;
+            // True when ANY of this customer's keys (not only the listed,
+            // newest-100 ones) has a Stripe customer id: the view shows the
+            // spend, or its error, only then (#3056).
+            hasStripeCustomer: boolean;
             created: number;
             licenses: Array<{
               id: string;
@@ -208,11 +210,6 @@ export const customersRouter = createTRPCRouter({
           }
         >();
 
-        // Distinct Stripe customer IDs per customer (userId), collected once
-        // here during the license-grouping pass rather than re-derived from
-        // customer.licenses again later.
-        const stripeCustomerIdsByUserId = new Map<string, Set<string>>();
-
         for (const l of licenses) {
           const created = Math.floor(l.createdAt.getTime() / 1000);
           let customer = customerMap.get(l.userId);
@@ -225,6 +222,7 @@ export const customersRouter = createTRPCRouter({
               licenseCount: 0,
               totalCredits: 0,
               totalSpentCents: 0,
+              hasStripeCustomer: false,
               created,
               licenses: [],
             };
@@ -246,16 +244,6 @@ export const customersRouter = createTRPCRouter({
             stripeCustomerId: l.stripeCustomerId,
             created,
           });
-
-          if (l.stripeCustomerId) {
-            let ids = stripeCustomerIdsByUserId.get(l.userId);
-
-            if (!ids) {
-              ids = new Set();
-              stripeCustomerIdsByUserId.set(l.userId, ids);
-            }
-            ids.add(l.stripeCustomerId);
-          }
         }
 
         // Attach each customer's net lifetime Stripe spend, summed across all
@@ -282,26 +270,18 @@ export const customersRouter = createTRPCRouter({
           if (!customerStripeIds || customerStripeIds.size === 0) {
             // No Stripe customer ID on any of this customer's licenses —
             // nothing was fetched. Leave the default 0; the client tells
-            // this state apart from "$0 spent" via customer.licenses.
+            // this state apart from "$0 spent" via hasStripeCustomer.
             continue;
           }
+          customer.hasStripeCustomer = true;
 
-          let totalSpentCents = 0;
-          let hadFailedFetch = false;
-
-          for (const id of Array.from(customerStripeIds)) {
-            const cents = spendByStripeCustomerId.get(id);
-
-            if (cents === null || cents === undefined) {
-              hadFailedFetch = true;
-              break;
-            }
-            totalSpentCents += cents;
-          }
           // If ANY of this customer's Stripe customer IDs failed to fetch,
-          // report the whole total as unknown rather than a possibly-wrong
-          // (too low) number.
-          customer.totalSpentCents = hadFailedFetch ? null : totalSpentCents;
+          // the whole total is unknown rather than a possibly-wrong (too
+          // low) number. Shared with the admin MCP find_customer tool.
+          customer.totalSpentCents = accountNetSpendCents(
+            customerStripeIds,
+            spendByStripeCustomerId,
+          );
         }
 
         // Reorder explicitly by the canonical page order `userIds` came back
@@ -607,6 +587,16 @@ export const customersRouter = createTRPCRouter({
         // A key the owner already deleted stays `deleted` (it is dead
         // everywhere already): the refund above still lands, and `revoked`
         // reports false.
+        //
+        // A key revoked here must also be purged from HyperWhisper Cloud's
+        // licence cache (#2915). The cloud caches each key's verdict for an
+        // hour, so without the purge it keeps admitting the revoked key until
+        // that hour runs out, as a rotated or deleted key would. Only a key
+        // revoked by THIS call is purged: an owner-deleted key was purged when
+        // it was deleted. The purge is best effort and never throws, so the
+        // refund and the revoke above stand whatever the cloud answers; an
+        // unconfirmed purge is recorded on this mutation's log line (never
+        // the key) and the cached verdict expires on its own.
         let revoked = false;
 
         if (revokeLicense) {
@@ -615,6 +605,33 @@ export const customersRouter = createTRPCRouter({
           }));
         }
         log.revoked = revoked;
+
+        if (revoked) {
+          // Purge the string the row holds NOW, not the one read before the
+          // refund: the owner can rotate a `granted` key while the refund is
+          // in flight, and the revoke is by row id. A revoked row can no
+          // longer be rotated, so this re-read names the string just revoked.
+          // A failed re-read must not fail the committed refund: fall back to
+          // the string read before it. That string may not be the one revoked
+          // (a rotation may have replaced it), so the purge is then never
+          // reported as confirmed, whatever the cloud answers.
+          const revokedRow = await findAccountById(licenseKeyId).catch(
+            () => null,
+          );
+          const keyReread = Boolean(revokedRow);
+          const purge = await purgeCloudLicenseCache(
+            revokedRow?.key ?? license.key,
+          );
+
+          log.cloudPurgeKeyReread = keyReread;
+          log.cloudPurge =
+            keyReread && cloudPurgeConfirmed(purge)
+              ? "confirmed"
+              : "unconfirmed";
+          log.cloudPurged = purge.purged;
+          log.cloudPurgeFailed = purge.failed;
+          log.cloudPurgeSkipped = purge.skipped;
+        }
 
         return { success: true, revoked };
       });

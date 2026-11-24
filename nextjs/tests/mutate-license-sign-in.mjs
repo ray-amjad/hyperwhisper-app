@@ -15,6 +15,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const PLUGIN = "src/lib/auth-license-key-plugin.ts";
+// The client-IP hash and the outcome -> level mapping moved here (#2955).
+const EVENT_LOG = "src/lib/auth-event-log.ts";
 const SERVICE = "lib/services/license-key.ts";
 const PLUGIN_TEST = "tests/license-sign-in.test.ts";
 const SERVICE_TEST = "tests/license-key-generation.test.ts";
@@ -83,7 +85,7 @@ const MUTANTS = [
     source: PLUGIN,
     test: PLUGIN_TEST,
     name: "drop the re-read and trust the first lookup",
-    from: "const current = await findAccountByKey(licenseKey);",
+    from: "const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
     to: "const current = license;",
   },
   {
@@ -114,8 +116,8 @@ const MUTANTS = [
     from: "await setSessionCookie(ctx, { session, user: foundUser });",
     to: "",
     extra: {
-      from: "const current = await findAccountByKey(licenseKey);",
-      to: "await setSessionCookie(ctx, { session, user: foundUser });\n        const current = await findAccountByKey(licenseKey);",
+      from: "const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
+      to: "await setSessionCookie(ctx, { session, user: foundUser });\n        const current = await findAccountByKey(licenseKey, db, {\n          lockForShare: true,\n        });",
     },
   },
 
@@ -151,25 +153,25 @@ const MUTANTS = [
     to: "licenseKey: z.string().optional(),",
   },
   {
-    source: PLUGIN,
+    source: EVENT_LOG,
     test: PLUGIN_TEST,
     name: "hash the whole forwarded-for chain rather than the client ip",
-    from: 'fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();',
-    to: 'fields.headers?.get("x-forwarded-for");',
+    from: 'headers?.get("x-forwarded-for")?.split(",")[0]?.trim();',
+    to: 'headers?.get("x-forwarded-for");',
   },
   {
-    source: PLUGIN,
+    source: EVENT_LOG,
     test: PLUGIN_TEST,
     name: "hash the last proxy hop instead of the client ip",
     from: '?.split(",")[0]?.trim();',
     to: '?.split(",").at(-1)?.trim();',
   },
   {
-    source: PLUGIN,
+    source: EVENT_LOG,
     test: PLUGIN_TEST,
     name: "log the raw client ip instead of its hash",
-    from: "ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,",
-    to: "ipHash: ip ?? null,",
+    from: "return ip ? sha256Hex(ip).slice(0, 12) : null;",
+    to: "return ip ?? null;",
   },
   {
     source: PLUGIN,
@@ -179,7 +181,7 @@ const MUTANTS = [
     to: "",
   },
   {
-    source: PLUGIN,
+    source: EVENT_LOG,
     test: PLUGIN_TEST,
     name: "log a refusal at `log` instead of `warn`",
     from: '} else if (outcome === "rejected") {',
