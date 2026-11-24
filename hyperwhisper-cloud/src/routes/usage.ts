@@ -2,17 +2,18 @@
 // GET /usage - Query credit balance and rate limits
 
 import type { Context } from 'hono';
-import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { authDiagnosticsForLog, canonicalAccountKey, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { CREDITS_PER_MINUTE, LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
+import { authDiagnosticsForLog, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
+import { generateRequestId } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense, redis } from '../lib/redis';
 import { creditPoolBalanceKey } from '../lib/credit-hold-store';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { errorResponse, jsonResponse } from '../lib/responses';
-import { isIPBlocked } from '../lib/redis';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { openRequestGate } from '../middleware/request-gate';
 import { roundToTenth } from '../lib/utils';
+import { rawQuery } from '../lib/query';
+import { ACCOUNT_KEY_FIELDS, readAccountKey } from '../lib/account-key';
 
 export function readFiniteCredits(data: unknown): number | null {
   if (
@@ -71,7 +72,7 @@ type CreditsLookupError = 'http_error' | 'invalid_response' | 'network_error';
 async function getCreditsBalance(
   licenseKey: string,
 ): Promise<{ credits: number; error?: CreditsLookupError; status?: number; errorName?: string }> {
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
 
   try {
     // Taken BEFORE the request goes out: the pool balance cache orders replies
@@ -115,32 +116,27 @@ async function getCreditsBalance(
 export async function usageRoute(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
-
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'ip_blocked' });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // `auth: 'route'`: the per-key rate limit runs BEFORE this route's own key
+  // lookup (#2010; the gate says why), and the lookup below is /usage's own.
+  const gate = await openRequestGate(c, { endpoint: '/usage', auth: 'route' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'usage.request_rejected', { reason: gate.reason });
+    return gate.response;
   }
 
-  // `account_key` is the canonical param; `license_key` is the legacy alias that
-  // installed native apps still send, so we accept either.
+  // `/usage` alone also takes `identifier`: the macOS and Windows clients
+  // (`NetworkConfig` / `CloudManager`) send the key under that name here.
   // Trimmed (#2461): the cache and the balance lookup below key on it directly.
   const licenseKey =
-    canonicalAccountKey(c.req.query('account_key')) ||
-    canonicalAccountKey(c.req.query('license_key')) ||
-    canonicalAccountKey(c.req.query('identifier')) ||
-    null;
-  const forceRefresh = c.req.query('force_refresh') === 'true';
+    readAccountKey((field) => rawQuery(c.req.url, field), [...ACCOUNT_KEY_FIELDS, 'identifier']) ?? null;
+  const forceRefresh = rawQuery(c.req.url, 'force_refresh') === 'true';
 
   if (licenseKey) {
-    // Per-key rate limit (#2010), BEFORE any lookup: a force refresh calls the
-    // site's credits and validate routes, whose per-IP budgets every machine in
-    // a Fly region shares, so one key must not be able to spend them. The key
-    // is hashed, so an unknown key getting a bucket costs nothing.
-    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
-    if (rateLimited) {
-      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
-      return rateLimited;
+    // Per-key rate limit, BEFORE any lookup (see `auth` in RequestGateOptions).
+    const admission = await gate.admitKey(licenseKey);
+    if (!admission.ok) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: admission.reason, status: admission.response.status });
+      return admission.response;
     }
 
     let isValid = false;

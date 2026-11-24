@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { readBoundedText } from "@/src/lib/bounded-body";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import {
   checkLicenseKey,
@@ -13,6 +14,9 @@ import { describeDbError } from "@/lib/shared/db-error";
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+/** The only field read is a licence key; 16 KB is far above any real request (#3039). */
+const MAX_BODY_BYTES = 16 * 1024;
 
 /**
  * License Activation API (legacy compatibility)
@@ -64,7 +68,10 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+
+    if (text instanceof NextResponse) return text;
+    body = JSON.parse(text);
   } catch (err) {
     console.error(
       "License activate: request JSON did not parse",

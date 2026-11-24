@@ -6,22 +6,24 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
-import { resolveProviderLanguage } from '../lib/language-codes';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { resolveProviderLanguage } from './language-codes';
+import { findModelRow, getProviderDef } from '../lib/stt-models';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  billableSeconds,
   estimateSecondsFromBytes,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
-const DEFAULT_MODEL = 'gpt-4o-transcribe';
 // OpenAI serves this model only over a Realtime WebSocket session, not on
 // v1/audio/transcriptions. It stays registered (stt-models.ts), so the adapter
 // refuses it before the key check or any upstream call.
@@ -29,13 +31,16 @@ const LIVE_ONLY_MODEL = 'gpt-live-transcribe';
 
 // Models that accept a structured keyword list.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
-// Models OpenAI bills per audio minute rather than per token
-// (cost-calculator.ts). Each one is billed on the duration OpenAI reports
-// when it reports one, and on the conservative byte estimate only when it
-// does not. gpt-transcribe was billed on the byte estimate alone, which reads a
-// 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1 and
-// gpt-4o-transcribe to it, that would have tripled their bill.
-const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe']);
+// Whether OpenAI bills `model` per audio minute rather than per token — read
+// from its registry row's `billing`. Each such model is billed on the duration
+// OpenAI reports when it reports one, and on the conservative byte estimate
+// only when it does not. gpt-transcribe was billed on the byte estimate alone,
+// which reads a 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1
+// and gpt-4o-transcribe to it, that would have tripled their bill.
+function isDurationBilled(model: string): boolean {
+  const row = findModelRow('openai', model);
+  return row !== undefined && row.billing.kind !== 'tokens';
+}
 // OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
 // field per element — the same shape as the documented
 // `timestamp_granularities[]`.
@@ -76,7 +81,7 @@ export async function transcribeWithOpenAI(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'openai';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('openai').defaultModel;
 
   if (model === LIVE_ONLY_MODEL) {
     // Fail before spending a round trip, and name the reason. A
@@ -95,8 +100,9 @@ export async function transcribeWithOpenAI(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  if (audio.byteLength > OPENAI_INLINE_MAX_BYTES) {
-    throw new AudioTooLargeError('OpenAI', audio.byteLength, OPENAI_INLINE_MAX_BYTES);
+  const maxBytes = PROVIDER_AUDIO_CAPS.openai.adapterMaxBytes;
+  if (audio.byteLength > maxBytes) {
+    throw new AudioTooLargeError('OpenAI', audio.byteLength, maxBytes);
   }
 
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
@@ -172,12 +178,7 @@ export async function transcribeWithOpenAI(
     });
   }
 
-  let data: { text?: string; language?: string; duration?: number; usage?: OpenAIUsage };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('OpenAI', 'malformed 200 response body');
-  }
+  const data = await readJson200<{ text?: string; language?: string; duration?: number; usage?: OpenAIUsage }>(provider, 'OpenAI', response, startedAt, context);
 
   const transcript = data.text || '';
   // whisper-1 verbose_json gives a real duration, and a duration-billed model's
@@ -185,7 +186,7 @@ export async function transcribeWithOpenAI(
   // so estimate seconds from payload for telemetry (billing uses tokens
   // regardless).
   const rawWhisperDuration = data.duration ?? data.usage?.seconds ?? 0;
-  let durationSeconds = DURATION_BILLED_MODELS.has(model)
+  let durationSeconds = isDurationBilled(model)
     ? rawWhisperDuration
     : estimateSecondsFromBytes(audio.byteLength);
 
@@ -197,7 +198,7 @@ export async function transcribeWithOpenAI(
     // so it bills what OpenAI billed — or, with no `usage`, the byte-estimate
     // floor `computeOpenAITranscriptionCost` already falls back to.
     // (issue ray-amjad/hyperwhisper-app#2634)
-    const noSpeechCostUsd = DURATION_BILLED_MODELS.has(model)
+    const noSpeechCostUsd = isDurationBilled(model)
       ? 0
       : computeOpenAITranscriptionCost(model, {
         durationSeconds,
@@ -224,8 +225,8 @@ export async function transcribeWithOpenAI(
   // Fail-closed: a duration-billed model's successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate (never $0).
   // The gpt-4o branch already estimates from bytes above.
-  if (DURATION_BILLED_MODELS.has(model) && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
-    durationSeconds = estimateSecondsFromBytes(audio.byteLength);
+  if (isDurationBilled(model)) {
+    durationSeconds = billableSeconds(durationSeconds, audio.byteLength);
   }
 
   const costUsd = computeOpenAITranscriptionCost(model, {

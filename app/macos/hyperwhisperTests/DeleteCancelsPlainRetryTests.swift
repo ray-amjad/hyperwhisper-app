@@ -366,30 +366,7 @@ struct DeleteCancelsPlainRetryTests {
 
     /// Writes a mono 16-bit PCM WAV of a 440 Hz tone, and closes it.
     private func makeToneWAV(seconds: Double) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("retry-1743-tone-\(UUID().uuidString).wav")
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(seconds * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        // The scope releases the writer, which finalises the RIFF header.
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(prefix: "retry-1743-tone", seconds: seconds)
     }
 
     /// Waits for `task` to end; a cancel ends it. The 120 s bound is a hang

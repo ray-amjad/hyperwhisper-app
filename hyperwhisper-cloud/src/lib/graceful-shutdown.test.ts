@@ -33,8 +33,8 @@ import {
   RESPONSE_FLUSH_GRACE_MS,
   resetInFlightRequestsForTests,
   trackInFlightRequests,
-} from '../middleware/in-flight-requests';
-import { endActiveStreamingSessions, resetStreamingShutdownForTests } from '../routes/ws-streaming-shared';
+} from './in-flight-requests';
+import { endLiveSessions, resetLiveSessionsForTests } from './background-work';
 import { saveEnv } from '../test-support/env';
 
 const AUTH = { identifier: 'HW-ROUTINE-FIXTURE', credits: 1000, licenseKey: 'HW-ROUTINE-FIXTURE' };
@@ -113,13 +113,13 @@ function startStuckRequest(): () => void {
 
 /** Drop whatever another suite (or a mutant) left pending, so counts are this test's own. */
 async function settleLeftovers(): Promise<void> {
-  await endActiveStreamingSessions();
+  await endLiveSessions();
   await Promise.all([
     drainPendingDeductions(3_000),
     drainPendingLatencyReports(3_000),
     drainPendingHoldReleases(3_000),
   ]);
-  resetStreamingShutdownForTests();
+  resetLiveSessionsForTests();
   resetInFlightRequestsForTests();
 }
 
@@ -172,7 +172,7 @@ describe('runGracefulShutdown deadlines', () => {
     }) as unknown as typeof fetch;
 
     startStuckRequest();
-    void deductCredits(AUTH, 0.05, { requestId: 'before-signal' }, '203.0.113.1');
+    void deductCredits(AUTH, 0.05, { requestId: 'before-signal' });
 
     const { exit, exited } = captureExit();
     const startedReal = Date.now();
@@ -207,7 +207,7 @@ describe('runGracefulShutdown deadlines', () => {
         await delay(5);
         clock.advance(30_000);
         writesDoneAt.push(clock.since());
-        if (chainOpen) void deductCredits(AUTH, 0.05, { requestId: `chain-${writesDoneAt.length}` }, '203.0.113.1');
+        if (chainOpen) void deductCredits(AUTH, 0.05, { requestId: `chain-${writesDoneAt.length}` });
         return jsonOk({});
       }
       throw new Error(`Unexpected fetch: ${String(input)}`);
@@ -218,7 +218,7 @@ describe('runGracefulShutdown deadlines', () => {
     const finish = startStuckRequest();
     setTimeout(() => {
       clock.advance(60_000);
-      void deductCredits(AUTH, 0.05, { requestId: 'in-flight' }, '203.0.113.1');
+      void deductCredits(AUTH, 0.05, { requestId: 'in-flight' });
       finish();
     }, 20);
 
