@@ -82,6 +82,7 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        LoggingServiceFlushChecks.RunCrashChildIfRequested(); // #985 crash child; returns at once otherwise
         // Child mode for the settings-load checks (issue #2096). SettingsService is
         // a singleton whose paths are fixed at type init, so a load from a profile
         // the check seeded has to happen in a fresh process. This runs before the
@@ -1297,6 +1298,7 @@ internal static class Program
                     !debugEvidence.Contains("private-user", StringComparison.Ordinal),
                     "exception content entered the debug evidence");
             });
+            ReconcileClassificationChecks.RunAll(Run);
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
@@ -3486,6 +3488,9 @@ internal static class Program
                     ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
                     ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
                     ("gemini-3-flash-preview", "gemini-3.8-flash"),
+                    // Google deprecated 2.5 Pro / 2.5 Flash 2026-11-02, auto-routed 2026-12-01.
+                    ("gemini-2.5-pro", "gemini-3.8-flash"),
+                    ("gemini-2.5-flash", "gemini-3.5-flash-lite"),
                 };
 
                 foreach (var (oldId, replacement) in cases)
@@ -27161,9 +27166,14 @@ internal static class Program
             SynchronizationContext.SetSynchronizationContext(assemblyAiPreviousContext);
             ScriptGuardPorts.RunAll(Run);
             OutputMuteOwnershipChecks.RunAll(Run);
+            LoggingServiceFlushChecks.RunAll(Run);
             CloudCreditsWarningChecks.RunAll(Run);
             InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
+            ParakeetGuiLoadReloadChecks.RunAll(Run);
+            TranscriptionRetryHandlerChecks.RunAll(Run);
+            UpdateMessageWindowChecks.RunAll(Run);
+            WindowIconDpiChecks.RunAll(Run, EnsureSmokeApplication);
 
             // Issue #738: LicenseNetworkService over a scripted HttpClient (its internal
             // seam), so the rules that ACT on a server reply run without the backend.
@@ -29397,6 +29407,9 @@ internal static class Program
     /// </summary>
     private static Dictionary<string, long> SnapshotLogOffsets()
     {
+        // The log writer is buffered (#985): write out queued lines first, so
+        // they count as before the act step and not inside its window.
+        LoggingService.Flush();
         var offsets = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
@@ -29422,6 +29435,9 @@ internal static class Program
     /// </summary>
     private static string ReadLogSince(Dictionary<string, long> offsets)
     {
+        // The log writer is buffered (#985): write out the act step's queued
+        // lines before reading them back.
+        LoggingService.Flush();
         var directory = LoggingService.LogDirectory;
         if (!Directory.Exists(directory))
         {

@@ -9,12 +9,17 @@ import { db } from "@/src/db";
 import { env } from "@/src/env/server.mjs";
 import { DEFAULT_FROM_EMAIL, sendEmail } from "@/lib/clients/email";
 import { sha256Hex } from "@/lib/shared/sha256";
+import { authLogIpHash, emitAuthEvent } from "@/src/lib/auth-event-log";
 import { redactAddresses } from "@/lib/shared/redact";
 import {
   MAGIC_LINK_EXPIRY_SECONDS,
   magicLinkEmailHtml,
   magicLinkEmailText,
 } from "@/lib/templates/magic-link-email";
+import {
+  authPathAllowListPlugin,
+  DISABLED_AUTH_PATHS,
+} from "./auth-enabled-paths";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
 import { signInMethodForPath } from "./session-sign-in-method";
 import { authRateLimitOptions } from "./auth-rate-limit-storage";
@@ -114,39 +119,34 @@ function logMagicLinkVerify(ctx: {
     returned,
     newSession !== null,
   );
-  // cf-connecting-ip is set by Cloudflare and cannot be forged; the
-  // x-forwarded-for fallback only matters off Cloudflare (local dev, tests).
-  const ip =
-    ctx.headers?.get("cf-connecting-ip")?.trim() ||
-    ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const line = JSON.stringify({
-    event: "auth.magic_link_verify",
-    outcome,
-    ...(reason ? { reason } : {}),
-    ...(newSession
-      ? {
-          userId: newSession.user.id,
-          newUser: verifyContextsThatCreatedAUser.has(ctx.context),
-        }
-      : {}),
-    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
-  });
 
-  // The website's console output is its server log (Workers Logs).
-  /* eslint-disable no-console */
-  if (outcome === "ok") {
-    console.log(line);
-  } else if (outcome === "rejected") {
-    console.warn(line);
-  } else {
-    console.error(line);
-  }
-  /* eslint-enable no-console */
+  emitAuthEvent(
+    {
+      event: "auth.magic_link_verify",
+      outcome,
+      ...(reason ? { reason } : {}),
+      ...(newSession
+        ? {
+            userId: newSession.user.id,
+            newUser: verifyContextsThatCreatedAUser.has(ctx.context),
+          }
+        : {}),
+      ipHash: authLogIpHash(ctx.headers),
+    },
+    outcome,
+  );
 }
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
+  // Unmount built-in user/session routes the portal does not call. A
+  // license-key session is an ordinary cookie, so leaving them mounted would
+  // let that cookie list, revoke or rewrite sessions and the user record.
+  // The allow-list plugin (first below) 404s anything not in
+  // `./auth-enabled-paths.ts`, including dynamic routes this denylist cannot
+  // name. `nextCookies()` stays last.
+  disabledPaths: [...DISABLED_AUTH_PATHS],
   // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
   // with a 1-day `updateAge`, which signed active users out after a hard week.
   // 90 days + a daily rolling refresh keeps an active user signed in
@@ -278,6 +278,7 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    authPathAllowListPlugin(),
     magicLink({
       // Stated, not inherited. This was the plugin's 300-second default while
       // the email promised 10 minutes, so a link could be dead before the

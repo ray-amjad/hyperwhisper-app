@@ -28,6 +28,7 @@
  */
 import { NextRequest } from "next/server";
 
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyRow } from "@/src/lib/db-layer";
@@ -61,23 +62,9 @@ export const behaviour = {
   session: null as { user: { id: string; email?: string | null } } | null,
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-AAAA-0000-0001",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  key: "HW-AAAA-0000-0001",
+});
 
 export function resetHarness(): void {
   calls.getAccountKeysByEmail.length = 0;

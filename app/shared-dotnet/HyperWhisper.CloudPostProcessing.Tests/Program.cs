@@ -67,7 +67,8 @@ static Task TestModelRegistry()
         [CloudPostProcessingProvider.Grok] = 3,
         // 11 → 10: gemini-3-flash-preview removed 2026-10; Migrate sends it to gemini-3.8-flash.
         // 10 → 7: gemini-3.5-flash, gemini-3.7-flash and gemini-3.1-flash-lite removed 2026-10-16.
-        [CloudPostProcessingProvider.Gemini] = 7,
+        // 7 → 5: gemini-2.5-flash and gemini-2.5-pro removed 2026-11-03; Google deprecated both 11-02.
+        [CloudPostProcessingProvider.Gemini] = 5,
         [CloudPostProcessingProvider.Cerebras] = 2,
         [CloudPostProcessingProvider.Mistral] = 2,
     };
@@ -86,8 +87,8 @@ static Task TestModelRegistry()
     foreach (var retired in new[] { "gemma-3-12b-it", "gemma-3-27b-it" })
         Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, retired) == "gemini-3.8-flash",
             $"{retired} did not resolve to gemini-3.8-flash");
-    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash") == "gemini-2.5-flash",
-        "gemini-2.5-flash must stay a selectable row, not a redirect");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash-lite") == "gemini-2.5-flash-lite",
+        "gemini-2.5-flash-lite is not deprecated and must stay a selectable row");
     // 2026-10: Claude 4.5 rows retired; each alias goes straight to its 5.5 successor.
     foreach (var (retired, successor) in new[]
     {
@@ -124,6 +125,9 @@ static Task TestModelRegistry()
         (CloudPostProcessingProvider.Gemini, "gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
         (CloudPostProcessingProvider.Gemini, "gemini-3.5-flash", "gemini-3.6-flash"),
         (CloudPostProcessingProvider.Gemini, "gemini-3.7-flash", "gemini-3.8-flash"),
+        // 2026-11-03 model sync: Google deprecated 2.5 Pro / 2.5 Flash 2026-11-02, routed 12-01.
+        (CloudPostProcessingProvider.Gemini, "gemini-2.5-pro", "gemini-3.8-flash"),
+        (CloudPostProcessingProvider.Gemini, "gemini-2.5-flash", "gemini-3.5-flash-lite"),
     })
     {
         Assert(PostProcessingModelCatalog.ResolveModel(provider, retired) == successor,
