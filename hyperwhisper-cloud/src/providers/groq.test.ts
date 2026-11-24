@@ -155,7 +155,8 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
     captureMultipartRequest({ text: 'hello', duration: 0 });
 
     const result = await transcribeWithGroq(audio(), 'audio/wav');
-    expect(result.durationSeconds).toBe(0);
+    // Billed on the byte estimate (billableSeconds), floored by Groq's minimum.
+    expect(result.durationSeconds).toBeGreaterThan(0);
     expect(result.costUsd).toBeGreaterThan(0);
   });
 

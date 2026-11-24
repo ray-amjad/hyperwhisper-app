@@ -87,12 +87,8 @@ describe('prepareTranscriptionAudio credit enforcement', () => {
     // same byte length. The first check permits the allocation. The exact check
     // must then stop the request when the account cannot pay for the full clip.
     const audio = pcm16Wav(60, 16_000);
-    const minimumCredits = estimateCreditsForProviderFallbacks(
-      audio.byteLength, 'meta', undefined, false, undefined, undefined, 40,
-    );
-    const exactCredits = estimateCreditsForProviderFallbacks(
-      audio.byteLength, 'meta', undefined, false, undefined, undefined, 60,
-    );
+    const minimumCredits = estimateCreditsForProviderFallbacks({ sizeBytes: audio.byteLength, provider: 'meta', exactAudioSeconds: 40 });
+    const exactCredits = estimateCreditsForProviderFallbacks({ sizeBytes: audio.byteLength, provider: 'meta', exactAudioSeconds: 60 });
     expect(exactCredits).toBeGreaterThan(minimumCredits);
 
     let bodyReads = 0;
@@ -115,9 +111,7 @@ describe('prepareTranscriptionAudio credit enforcement', () => {
     // The adapter owns the public format error. The route must not replace it
     // with a credit error based on a duration estimate that the parser rejected.
     const malformedAudio = new ArrayBuffer(48_044);
-    const minimumCredits = estimateCreditsForProviderFallbacks(
-      malformedAudio.byteLength, 'meta', undefined, false, undefined, undefined, 1,
-    );
+    const minimumCredits = estimateCreditsForProviderFallbacks({ sizeBytes: malformedAudio.byteLength, provider: 'meta', exactAudioSeconds: 1 });
 
     const result = await prepareTranscriptionAudio({
       ...BASE_INPUT,

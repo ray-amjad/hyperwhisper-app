@@ -26,6 +26,7 @@
 //                                  failure, so it is retried and then fails
 //                                  over like any other 5xx.
 
+import { estimateUsageFromChars, type GroqUsage } from '../lib/cost-calculator';
 import { LLMRequestError, LLMTimeoutError } from './llm-errors';
 
 /**
@@ -66,6 +67,27 @@ export function computeLLMRequestTimeoutMs(transcriptChars: number): number {
 /** Total characters across every message of a chat payload (system prompt included). */
 export function promptCharCount(messages: ReadonlyArray<{ content: string }>): number {
   return messages.reduce((sum, message) => sum + message.content.length, 0);
+}
+
+// Fail-closed fallback for vendor usage-schema drift, the one rule for every
+// LLM provider: estimate tokens from character counts so a missing or
+// unrecognized `usage` block is billed instead of silently costing 0. Each
+// adapter passes the characters it sent and the characters of the completion it
+// got back (the whole body when it cannot find the completion text).
+export function estimateMissingLLMUsage(
+  provider: string,
+  promptChars: number,
+  completionChars: number,
+  requestId: string,
+): GroqUsage {
+  const estimatedUsage = estimateUsageFromChars(promptChars, completionChars);
+  console.warn('LLM response missing/unrecognized usage; billing char-based estimate', {
+    requestId,
+    provider,
+    estimatedUsage,
+  });
+
+  return estimatedUsage;
 }
 
 /**

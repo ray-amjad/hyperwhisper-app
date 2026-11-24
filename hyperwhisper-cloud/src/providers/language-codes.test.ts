@@ -172,7 +172,7 @@ describe('resolveProviderLanguage — the shared contract', () => {
     // loss has to be countable, not invisible.
     const events = captureEvents(() => {
       resolveProviderLanguage({
-        provider: 'deepgram', model: 'nova-3-medical', language: 'es', vocabularyTermCount: 7,
+        provider: 'deepgram', model: 'nova-3-medical', language: 'es', vocabularyTermsAtRisk: 7,
       });
     });
     expect(events.length).toBe(1);
