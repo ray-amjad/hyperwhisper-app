@@ -116,25 +116,13 @@ struct PostProcessingModels {
         // MARK: - Google Gemini Models
         // gemini-3.5-flash / gemini-3.7-flash rows removed: Google deprecated both
         // 2026-10-08 and routes them to 3.6 / 3.8 Flash; deprecatedModelMappings does too.
-        PostProcessingModel(
-            id: "gemini-2.5-flash",
-            displayName: "Gemini 2.5 Flash",
-            isAvailable: true,
-            description: "models.postProcessing.gemini2.5.flash.description".localized,
-            provider: .gemini
-        ),
+        // gemini-2.5-flash / gemini-2.5-pro rows removed: Google deprecated both 2026-11-02
+        // and routes them to 3.5 Flash Lite / 3.8 Flash from 2026-12-01; deprecatedModelMappings does too.
         PostProcessingModel(
             id: "gemini-2.5-flash-lite",
             displayName: "Gemini 2.5 Flash Lite",
             isAvailable: true,
             description: "models.postProcessing.gemini2.5.flashLite.description".localized,
-            provider: .gemini
-        ),
-        PostProcessingModel(
-            id: "gemini-2.5-pro",
-            displayName: "Gemini 2.5 Pro",
-            isAvailable: true,
-            description: "High quality, advanced reasoning",
             provider: .gemini
         ),
         PostProcessingModel(
@@ -364,6 +352,11 @@ struct PostProcessingModels {
             // successors (Gemini API changelog). No shutdown date yet.
             "gemini-3.5-flash": "gemini-3.6-flash",
             "gemini-3.7-flash": "gemini-3.8-flash",
+            // Google deprecated both 2026-11-02 and auto-routes their API requests to
+            // these successors from 2026-12-01 (Gemini API deprecations page).
+            // Matches Windows MigrateModelId and shared-dotnet Migrate.
+            "gemini-2.5-pro": "gemini-3.8-flash",
+            "gemini-2.5-flash": "gemini-3.5-flash-lite",
             // The preview left the picker 2026-10. 3.8 Flash on every route
             // (HyperWhisper Cloud does not serve 3.6). PARITY: hw-catalog
             // GEMINI_ALIASES, Windows MigrateModelId, shared-dotnet Migrate.

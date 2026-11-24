@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 
-import { isRecord, retryWithBackoff, roundToTenth, roundUpToTenth, safeReadText } from './utils';
+import { isRecord, retryWithBackoff, roundToTenth, roundUpToTenth } from './utils';
 
 // `lib/utils.ts` is small but sits under the two things that cost money:
 // `roundUpToTenth` is the round-up every credit charge goes through
-// (`creditsForCost`, `estimateCreditsFromSize`), `roundToTenth` is the balance
+// (`creditsForCost`), `roundToTenth` is the balance
 // the credit gate compares against, and `retryWithBackoff` is the retry engine
 // behind `callWithRetry` for the LLM providers.
 
@@ -33,36 +33,6 @@ describe('isRecord', () => {
     // safe today — but a caller that relies on it rejecting arrays would break.
     expect(isRecord([])).toBe(true);
     expect(isRecord([1, 2])).toBe(true);
-  });
-});
-
-describe('safeReadText', () => {
-  test('returns the body text', async () => {
-    expect(await safeReadText(new Response('upstream said no'))).toBe('upstream said no');
-  });
-
-  test('returns an empty string for an empty body, not undefined', async () => {
-    // Call sites log `errorText ?? '<none>'`, so '' and undefined are different
-    // outcomes: '' means the upstream answered with nothing, undefined means
-    // the body could not be read at all.
-    expect(await safeReadText(new Response(''))).toBe('');
-  });
-
-  test('returns undefined instead of throwing when the body is already consumed', async () => {
-    const response = new Response('read once');
-    await response.text();
-
-    expect(await safeReadText(response)).toBeUndefined();
-  });
-
-  test('returns undefined instead of throwing when the body stream errors', async () => {
-    const body = new ReadableStream({
-      start(controller) {
-        controller.error(new Error('connection reset'));
-      },
-    });
-
-    expect(await safeReadText(new Response(body))).toBeUndefined();
   });
 });
 

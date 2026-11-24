@@ -70,67 +70,6 @@ struct BackupImportSettingsRestoreTests {
         }
     }
 
-    /// Blanks the required `name` of the poison mode when a save is about to
-    /// write it, so the modes save fails validation. Removed by the caller.
-    @MainActor
-    private final class ModeSavePoison {
-        private(set) var fired = false
-        private var token: NSObjectProtocol?
-
-        init(context: NSManagedObjectContext, poisonName: String) {
-            token = NotificationCenter.default.addObserver(
-                forName: NSManagedObjectContext.willSaveObjectsNotification,
-                object: context,
-                queue: nil
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    for case let mode as Mode in context.insertedObjects where mode.name == poisonName {
-                        mode.name = nil
-                        self?.fired = true
-                    }
-                }
-            }
-        }
-
-        func remove() {
-            if let token {
-                NotificationCenter.default.removeObserver(token)
-            }
-            token = nil
-        }
-    }
-
-    /// Makes the save that writes `poisonWord` fail validation by adding a
-    /// Mode with no name to it (see `BackupImportAtomicityTests`).
-    @MainActor
-    private final class VocabularySavePoison {
-        private(set) var fired = false
-        private var token: NSObjectProtocol?
-
-        init(context: NSManagedObjectContext, poisonWord: String) {
-            token = NotificationCenter.default.addObserver(
-                forName: NSManagedObjectContext.willSaveObjectsNotification,
-                object: context,
-                queue: nil
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    let poisoned = context.insertedObjects.contains { ($0 as? Vocabulary)?.word == poisonWord }
-                    if poisoned {
-                        _ = Mode(context: context)
-                        self?.fired = true
-                    }
-                }
-            }
-        }
-
-        func remove() {
-            if let token {
-                NotificationCenter.default.removeObserver(token)
-            }
-            token = nil
-        }
-    }
-
     /// A complete settings section. Every argument differs between the
     /// "before" and the "backup" values the tests use.
     private static func settings(
@@ -217,41 +156,13 @@ struct BackupImportSettingsRestoreTests {
         )
     }
 
-    private static func backupMode(id: UUID, name: String) -> BackupMode {
-        BackupMode(
-            id: id,
-            name: name,
-            preset: "hyper",
-            language: "en",
-            model: "base",
-            punctuation: true,
-            capitalization: true,
-            profanityFilter: false,
-            customInstructions: nil,
-            languageModel: nil,
-            cloudProvider: nil,
-            cloudTranscriptionModel: nil,
-            postProcessingMode: 0,
-            postProcessingProvider: nil,
-            englishSpelling: nil,
-            userSystemPrompt: nil,
-            isDefault: false,
-            sortOrder: 0,
-            cloudAccuracyTier: nil,
-            removeTrailingPeriod: nil,
-            geminiCustomPrompt: nil,
-            cloudPostProcessingModel: nil,
-            cloudTranscriptionDomain: nil
-        )
-    }
-
     /// A legacy v1 file with Settings, Modes and Vocabulary. `poisonModes`
     /// adds the mode whose save fails; `poisonVocabulary` the word whose save
     /// fails.
     private static func v1File(poisonModes: Bool, poisonVocabulary: Bool) throws -> URL {
-        var modes = [backupMode(id: importedModeId, name: "percy1627-imported")]
+        var modes = [BackupTestFixtures.backupMode(id: importedModeId, name: "percy1627-imported")]
         if poisonModes {
-            modes.append(backupMode(id: poisonModeId, name: poisonName))
+            modes.append(BackupTestFixtures.backupMode(id: poisonModeId, name: poisonName))
         }
         var vocabulary = [BackupVocabularyItem(id: UUID(), word: "percy1627-word", replacement: nil, sortOrder: 0, source: "manual")]
         if poisonVocabulary {
@@ -308,22 +219,6 @@ struct BackupImportSettingsRestoreTests {
         return options
     }
 
-    /// Rows in the STORE, read on a fresh background context.
-    private func storedCount(_ entityName: String, in persistence: PersistenceController) throws -> Int {
-        let context = persistence.container.newBackgroundContext()
-        var count = 0
-        var failure: Error?
-        context.performAndWait {
-            do {
-                count = try context.count(for: NSFetchRequest<NSFetchRequestResult>(entityName: entityName))
-            } catch {
-                failure = error
-            }
-        }
-        if let failure { throw failure }
-        return count
-    }
-
     /// One local mode and one word, saved.
     private func seed(_ persistence: PersistenceController) throws {
         let local = persistence.createOrUpdateMode(
@@ -356,7 +251,7 @@ struct BackupImportSettingsRestoreTests {
     @Test func v1AFailedModesSavePutsTheSettingsBack() async throws {
         let persistence = PersistenceController(inMemory: true)
         try seed(persistence)
-        let modesBefore = try storedCount("Mode", in: persistence)
+        let modesBefore = try BackupTestFixtures.storedCount("Mode", in: persistence)
         let store = RecordingSettingsStore(live: Self.before())
         let backup = manager(persistence, store)
 
@@ -380,7 +275,7 @@ struct BackupImportSettingsRestoreTests {
         #expect(store.defaultModelByMode == [Self.localModeId.uuidString: "base"])
 
         // The store is as it was too.
-        #expect(try storedCount("Mode", in: persistence) == modesBefore)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == modesBefore)
         #expect(persistence.fetchAllModes().contains { $0.id == Self.importedModeId } == false)
 
         // Nothing changed, so a plain failure that says so.
@@ -399,7 +294,7 @@ struct BackupImportSettingsRestoreTests {
     @Test func v1AFailedVocabularySavePutsTheSettingsBack() async throws {
         let persistence = PersistenceController(inMemory: true)
         try seed(persistence)
-        let vocabularyBefore = try storedCount("Vocabulary", in: persistence)
+        let vocabularyBefore = try BackupTestFixtures.storedCount("Vocabulary", in: persistence)
         let store = RecordingSettingsStore(live: Self.before())
         let backup = manager(persistence, store)
 
@@ -416,7 +311,7 @@ struct BackupImportSettingsRestoreTests {
         #expect(store.defaultModelByMode == [Self.localModeId.uuidString: "base"])
 
         #expect(persistence.fetchAllModes().contains { $0.id == Self.importedModeId })
-        #expect(try storedCount("Vocabulary", in: persistence) == vocabularyBefore)
+        #expect(try BackupTestFixtures.storedCount("Vocabulary", in: persistence) == vocabularyBefore)
 
         #expect(!result.success)
         #expect(result.partialSuccess)
@@ -480,7 +375,7 @@ struct BackupImportSettingsRestoreTests {
     @Test func v2AFailedModesSavePutsTheSettingsAndForeignExtensionsBack() async throws {
         let persistence = PersistenceController(inMemory: true)
         try seed(persistence)
-        let modesBefore = try storedCount("Mode", in: persistence)
+        let modesBefore = try BackupTestFixtures.storedCount("Mode", in: persistence)
         let foreignBefore = #"{"windows":{"settings":{"percy1627":true}}}"#
         let store = RecordingSettingsStore(live: Self.before(), foreignTopLevelExtensions: foreignBefore)
         let backup = manager(persistence, store)
@@ -503,7 +398,7 @@ struct BackupImportSettingsRestoreTests {
         #expect(try Self.json(store.live) == Self.json(Self.before()))
         #expect(store.foreignTopLevelExtensions == foreignBefore)
         #expect(store.defaultModelByMode == [Self.localModeId.uuidString: "base"])
-        #expect(try storedCount("Mode", in: persistence) == modesBefore)
+        #expect(try BackupTestFixtures.storedCount("Mode", in: persistence) == modesBefore)
 
         #expect(!result.success)
         #expect(!result.settingsApplied)
