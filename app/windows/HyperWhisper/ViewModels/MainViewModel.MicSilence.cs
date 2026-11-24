@@ -35,16 +35,30 @@ public partial class MainViewModel
 
     private void AttachMicSilenceWatcher()
     {
-        _recorderService.BlockPeakDbfs += _micSilenceWatcher.ObserveBlockPeak;
+        _recorderService.BlockPeakDbfs += OnCaptureBlockPeak;
         _micSilenceWatcher.WarningChanged += OnMicSilenceWarningChanged;
     }
 
     private void DetachMicSilenceWatcher()
     {
-        _recorderService.BlockPeakDbfs -= _micSilenceWatcher.ObserveBlockPeak;
+        // Null-safe for a view model built with GetUninitializedObject (smoke tests).
+        if (_recorderService is not null)
+            _recorderService.BlockPeakDbfs -= OnCaptureBlockPeak;
+        if (_micSilenceWatcher is null)
+            return;
         _micSilenceWatcher.WarningChanged -= OnMicSilenceWarningChanged;
         _micSilenceWatcher.Dispose();
     }
+
+    /// <summary>
+    /// Every capture path (batch recorder, streaming capture) subscribes THIS
+    /// method, never <c>_micSilenceWatcher.ObserveBlockPeak</c> directly: the
+    /// delegate's target is the view model, so subscribing works on a view model
+    /// built with GetUninitializedObject (the #2242 streaming smoke harness),
+    /// where the watcher field was never initialized, and += / -= stay symmetric.
+    /// Raised on a capture thread; the watcher is thread-safe.
+    /// </summary>
+    private void OnCaptureBlockPeak(double peakDbfs) => _micSilenceWatcher?.ObserveBlockPeak(peakDbfs);
 
     /// <summary>
     /// Follows <see cref="IsRecording"/>: both start paths set it only once the
