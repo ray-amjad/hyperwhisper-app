@@ -1759,7 +1759,15 @@ class RecordingLifecycle {
             }
 
             // Update transcript with new path on the serial background writer.
-            await PersistenceController.shared.updateTranscriptAudioFilePathInBackground(transcriptID: transcriptID, newPath: m4aURL.path)
+            // A row deleted while this ran gets no M4A: it is removed (#1524).
+            guard await PersistenceController.shared.adoptConvertedAudioInBackground(
+                transcriptID: transcriptID,
+                sourcePath: wavURL.path,
+                convertedPath: m4aURL.path
+            ) else {
+                AppLogger.audio.info("Background WAV→M4A conversion discarded: its transcript is gone or changed")
+                return
+            }
 
             // Delete the WAV file since M4A was created successfully
             try? FileManager.default.removeItem(at: wavURL)
@@ -1801,7 +1809,15 @@ class RecordingLifecycle {
             }
 
             // Update transcript with new path on the serial background writer.
-            await PersistenceController.shared.updateTranscriptAudioFilePathInBackground(transcriptID: transcriptID, newPath: m4aURL.path)
+            // A row deleted while this ran gets no M4A: it is removed (#1524).
+            guard await PersistenceController.shared.adoptConvertedAudioInBackground(
+                transcriptID: transcriptID,
+                sourcePath: wavURL.path,
+                convertedPath: m4aURL.path
+            ) else {
+                AppLogger.audio.info("Background WAV→M4A conversion discarded: its transcript is gone or changed")
+                return
+            }
 
             // Delete the WAV file since M4A was created successfully
             try? FileManager.default.removeItem(at: wavURL)

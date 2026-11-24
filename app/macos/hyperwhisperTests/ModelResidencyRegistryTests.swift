@@ -31,6 +31,33 @@ private actor EvictionProbe {
     }
 }
 
+/// A settable clock for the idle-time rules of a pressure sweep.
+///
+/// The registry reads time through the `now` closure it was built with, and
+/// that closure is `@Sendable` and called from inside the actor, so the current
+/// time lives behind a lock rather than in a captured `var`.
+private final class FakeClock: @unchecked Sendable {
+    private let mutex = NSLock()
+    private var current: Date
+
+    init(_ start: Date = Date(timeIntervalSinceReferenceDate: 800_000_000)) {
+        current = start
+    }
+
+    var now: Date {
+        mutex.lock()
+        defer { mutex.unlock() }
+        return current
+    }
+
+    /// Move the clock to `seconds` after `origin`.
+    func set(_ origin: Date, plus seconds: TimeInterval) {
+        mutex.lock()
+        current = origin.addingTimeInterval(seconds)
+        mutex.unlock()
+    }
+}
+
 // The blocking handshake these tests drive their interleavings with lives in
 // `ResidencyGate.swift`, shared with `ResidentRuntimeLifecycleTests`.
 
@@ -42,8 +69,8 @@ private actor EvictionProbe {
 /// `HyperWhisper.app` via `TEST_HOST` (see `AutoDeleteCleanupServiceTests`), so
 /// `.shared` is the running app's live registry — claiming or evicting in it
 /// would fight the developer's real STT/LLM runtimes and could tear a loaded
-/// model out from under them. The synthesized `init()` is internal and reachable
-/// through `@testable import`.
+/// model out from under them. `init(now:)` is internal and reachable through
+/// `@testable import`; the idle-clock tests at the bottom pass it a `FakeClock`.
 struct ModelResidencyRegistryTests {
 
     /// Nothing to claim, so nothing is claimed. Under HYPERWHISPER-SQ this was
@@ -526,5 +553,117 @@ struct ModelResidencyRegistryTests {
         #expect(evictionsAfterB == 1)
         let resident = await registry.snapshot()
         #expect(resident.ids.isEmpty)
+    }
+
+    // MARK: - The idle clock (#1212)
+
+    // Every test above sweeps with `minIdle: 0`, under which the idle check
+    // never rejects a model. These four drive a fake clock through the
+    // production warning sweep's `minIdle: 30` (`MemoryPressureMonitor`) and pin
+    // which events reset a model's idle time.
+
+    /// The warning sweep's boundary: a model idle for 29 s is spared, one idle
+    /// for exactly 30 s is freed.
+    @Test func theWarningSweepFreesAModelOnlyOnceItHasBeenIdleThirtySeconds() async {
+        let clock = FakeClock()
+        let registry = ModelResidencyRegistry(now: { clock.now })
+        let probe = EvictionProbe()
+        let t0 = clock.now
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        clock.set(t0, plus: 29)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 30)
+        let evictionsAt29s = await probe.evictionCount(for: "stt")
+        #expect(evictionsAt29s == 0)
+        let residentAt29s = await registry.snapshot()
+        #expect(residentAt29s.ids == ["stt"])
+
+        clock.set(t0, plus: 30)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 30)
+        let evictionsAt30s = await probe.evictionCount(for: "stt")
+        #expect(evictionsAt30s == 1)
+        let residentAt30s = await registry.snapshot()
+        #expect(residentAt30s.ids.isEmpty)
+    }
+
+    /// A matched release restarts the idle clock: released at t0+25 s, the model
+    /// has been idle only 15 s at t0+40 s, so the warning sweep spares it.
+    @Test func aMatchedReleaseRefreshesTheIdleClock() async throws {
+        let clock = FakeClock()
+        let registry = ModelResidencyRegistry(now: { clock.now })
+        let probe = EvictionProbe()
+        let t0 = clock.now
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        let claim = await registry.markBusy(id: "stt")
+        let token = try #require(claim.token)
+
+        clock.set(t0, plus: 25)
+        await registry.markIdle(token)
+
+        clock.set(t0, plus: 40)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 30)
+        let evictions = await probe.evictionCount(for: "stt")
+        #expect(evictions == 0)
+        let resident = await registry.snapshot()
+        #expect(resident.ids == ["stt"])
+    }
+
+    /// An unmatched release must NOT restart the idle clock. The claim is taken
+    /// and repaid at t0; the same token arriving again at t0+25 s (a duplicated
+    /// release) names no live claim, so the model has been idle 40 s at t0+40 s
+    /// and the warning sweep frees it.
+    @Test func anUnmatchedReleaseDoesNotRefreshTheIdleClock() async throws {
+        let clock = FakeClock()
+        let registry = ModelResidencyRegistry(now: { clock.now })
+        let probe = EvictionProbe()
+        let t0 = clock.now
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        let claim = await registry.markBusy(id: "stt")
+        let token = try #require(claim.token)
+        await registry.markIdle(token)
+
+        clock.set(t0, plus: 25)
+        await registry.markIdle(token)
+        let outstanding = await registry.outstandingClaims(id: "stt")
+        #expect(outstanding == 0)
+
+        clock.set(t0, plus: 40)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 30)
+        let evictions = await probe.evictionCount(for: "stt")
+        #expect(evictions == 1)
+        let resident = await registry.snapshot()
+        #expect(resident.ids.isEmpty)
+    }
+
+    /// A use at t0+25 s restarts the idle clock: claimed and repaid at once,
+    /// the model has been idle 15 s at t0+40 s, so the warning sweep spares it.
+    @Test func markBusyRefreshesTheIdleClock() async throws {
+        let clock = FakeClock()
+        let registry = ModelResidencyRegistry(now: { clock.now })
+        let probe = EvictionProbe()
+        let t0 = clock.now
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        clock.set(t0, plus: 25)
+        let claim = await registry.markBusy(id: "stt")
+        let token = try #require(claim.token)
+        await registry.markIdle(token)
+
+        clock.set(t0, plus: 40)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 30)
+        let evictions = await probe.evictionCount(for: "stt")
+        #expect(evictions == 0)
+        let resident = await registry.snapshot()
+        #expect(resident.ids == ["stt"])
     }
 }

@@ -32,22 +32,45 @@ extension PersistenceController {
         }
     }
 
-    /// Update a transcript's audio file path (and its recording session's path)
-    /// on the serial writer — used by the background M4A conversion path.
-    func updateTranscriptAudioFilePathInBackground(
+    /// Records the background conversion's `convertedPath` as a transcript's
+    /// audio (and its recording session's) in place of `sourcePath`, on the
+    /// serial writer — used by the background M4A conversion path.
+    ///
+    /// Returns false when the row was deleted while the conversion ran, no
+    /// longer records `sourcePath`, or the save failed (#1524). No row would
+    /// ever record the converted file then, so it is removed, together with
+    /// the source if no transcript records it either (as before, the source
+    /// is the caller's to remove only once the row records the new file).
+    @discardableResult
+    func adoptConvertedAudioInBackground(
         transcriptID: NSManagedObjectID,
-        newPath: String
-    ) async {
-        await performWrite { context in
-            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
-                AppLogger.coreData.warning("updateTranscriptAudioFilePathInBackground: transcript row not found — skipping")
-                return
+        sourcePath: String,
+        convertedPath: String
+    ) async -> Bool {
+        let adopted = await performWriteRequiringSave { context -> Bool? in
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            request.predicate = NSPredicate(format: "SELF == %@", transcriptID)
+            request.fetchLimit = 1
+            guard let transcript = (try? context.fetch(request))?.first, !transcript.isDeleted else {
+                AppLogger.coreData.warning("adoptConvertedAudioInBackground: transcript row not found — removing the converted file")
+                return nil
             }
-            transcript.audioFilePath = newPath
+            guard transcript.audioFilePath == sourcePath else {
+                AppLogger.coreData.warning("adoptConvertedAudioInBackground: the row no longer records the source — removing the converted file")
+                return nil
+            }
+            transcript.audioFilePath = convertedPath
             if let session = transcript.recordingSession {
-                session.audioFilePath = newPath
+                session.audioFilePath = convertedPath
             }
+            return true
         }
+        guard adopted == true else {
+            let unowned = await unownedAudioPathsInBackground([convertedPath, sourcePath])
+            _ = await FileDeletion.deleteFiles(at: unowned)
+            return false
+        }
+        return true
     }
 
     /// Delete a recording session on the serial writer, then remove its audio file

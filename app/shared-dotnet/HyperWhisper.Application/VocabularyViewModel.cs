@@ -122,9 +122,40 @@ public sealed class VocabularyViewModel : ViewModelBase
     {
         TransferMessage = string.Empty;
         if (item == null) { Status.Failure("vocabulary.no_selection", "Select a vocabulary item to delete."); return; }
-        try { if (await _repository.DeleteAsync(item.Id, cancellationToken)) { Items.Remove(item); Status.Success("Vocabulary deleted"); } else Status.Failure("vocabulary.not_found", "The vocabulary item no longer exists."); }
+        try
+        {
+            if (await _repository.DeleteAsync(item.Id, cancellationToken)) { Items.Remove(item); Status.Success("Vocabulary deleted"); }
+            else
+            {
+                // Issue #2749: another writer removed the row, so Items no longer matches the
+                // table. Reload first, then report, so "no longer exists" is what the user reads.
+                await ReloadItemsAfterNotFoundAsync(cancellationToken);
+                Status.Failure("vocabulary.not_found", "The vocabulary item no longer exists.");
+            }
+        }
         catch (Exception) { Status.Failure("vocabulary.delete_failed", "Could not delete the vocabulary item."); }
         NotifyDerived();
+    }
+
+    /// <summary>
+    /// Issue #2749: puts <see cref="Items"/> back in line with the repository after a delete that
+    /// found no row. The row being edited keeps its instance, so the next save still updates it.
+    /// A selected row that is gone is let go through the backing field: the pill keeps the typed
+    /// text, and the next save adds it as a new term rather than writing a row that was removed.
+    /// A failed reload leaves the list alone; the caller still reports the not-found answer.
+    /// </summary>
+    private async Task ReloadItemsAfterNotFoundAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<VocabularyItem> rows;
+        try { rows = await _repository.ListAsync(cancellationToken); }
+        catch (Exception) { return; }
+        // Read before Clear: a list bound to Selected can null it while its items go.
+        var current = _selected;
+        Items.Clear();
+        foreach (var row in rows) Items.Add(current is not null && current.Id == row.Id ? current : row);
+        var kept = current is not null && Items.Contains(current) ? current : null;
+        // Backing field, not the setter: the setter reloads the pill from the row.
+        if (!ReferenceEquals(_selected, kept)) { _selected = kept; Notify(nameof(Selected)); }
     }
 
     /// <summary>
