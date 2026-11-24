@@ -8,15 +8,29 @@ import {
   Github,
   Globe,
   Keyboard,
+  Plus,
   Terminal,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { BTN_GLASS, BTN_LG, BTN_WHITE, WRAP } from "@/components/landing/dusk";
+import {
+  GLASS,
+  GLASS_ON,
+  ICON_TILE,
+  LINK_LAV,
+  SECTION,
+} from "@/components/landing/dusk-pages";
+import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import linuxLatest from "@/public/linux-latest.json";
 
 // The /linux landing page body. It reads the `linuxPage` namespace with
 // useTranslations, which works in a server component and under a
 // NextIntlClientProvider alike, so a test can render it in every locale.
+//
+// It is a Dusk sub-page (DuskPage + PageHero, the tokens in landing/dusk*.ts)
+// built from plain markup and a native <details> FAQ, so it ships no client
+// JavaScript of its own: no Reveal, no HeroUI.
 //
 // The version and the .deb URL come from public/linux-latest.json, imported at
 // build time. linux-release.yml rewrites and commits that file on every Linux
@@ -35,50 +49,71 @@ export const LINUX_INSTALL_COMMAND = `sudo apt install ./hyperwhisper_${LINUX_LA
 export const LINUX_INPUT_GROUP_COMMAND =
   'sudo usermod -aG hyperwhisper-input "$USER"';
 
-const CARD_CLASS_NAME =
-  "rounded-2xl border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-xl";
-const CTA_CLASS_NAME =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-3 text-lg font-semibold text-white transition-shadow hover:shadow-lg focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2";
-const SECTION_HEADING_CLASS_NAME =
-  "mb-8 text-center text-3xl font-bold text-white md:text-4xl";
+/** The terminal panel, as on the download page's Linux and Homebrew cards. */
+const TERMINAL =
+  "overflow-hidden rounded-2xl border border-[var(--dusk-line)] bg-[#070814] text-start";
+
+const H2_PAGE =
+  "text-2xl font-semibold tracking-[-0.02em] text-white md:text-[32px] [overflow-wrap:anywhere] [text-wrap:balance]";
+
+const BODY = "leading-[1.6] text-[var(--dusk-mute)]";
 
 function CommandBlock({ label, command }: { label: string; command: string }) {
   return (
-    <div
-      aria-label={label}
-      className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-800/80 p-3 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-      role="region"
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
-      tabIndex={0}
-    >
-      <code className="whitespace-pre font-mono text-sm text-gray-200">
-        {command}
-      </code>
+    <div className={TERMINAL}>
+      <div
+        aria-hidden="true"
+        className="flex items-center gap-[7px] border-b border-[var(--dusk-line)] px-3.5 py-[11px]"
+      >
+        <i className="size-2.5 rounded-full bg-[#2c2f46]" />
+        <i className="size-2.5 rounded-full bg-[#2c2f46]" />
+        <i className="size-2.5 rounded-full bg-[#2c2f46]" />
+      </div>
+      <div
+        aria-label={label}
+        className="overflow-x-auto px-4 py-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--dusk-lav)] sm:px-5"
+        role="region"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+        tabIndex={0}
+      >
+        <code
+          className="block whitespace-pre font-mono text-[13.5px] leading-8 text-[#e4e4f5]"
+          dir="ltr"
+        >
+          <span
+            aria-hidden="true"
+            className="me-2 select-none text-[var(--dusk-lav)]"
+          >
+            $
+          </span>
+          {command}
+        </code>
+      </div>
     </div>
   );
 }
 
 function FeatureCard({
   icon,
-  gradient,
   heading,
   body,
 }: {
   icon: ReactNode;
-  gradient: string;
   heading: string;
   body: string;
 }) {
   return (
-    <div className={`${CARD_CLASS_NAME} h-full`}>
-      <div
-        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r ${gradient}`}
-      >
+    <li className={`${GLASS} p-[26px] text-start`}>
+      <span aria-hidden="true" className={ICON_TILE}>
         {icon}
-      </div>
-      <h3 className="mb-2 text-xl font-semibold text-white">{heading}</h3>
-      <p className="text-sm leading-6 text-gray-400">{body}</p>
-    </div>
+      </span>
+      <h3 className="mt-5 text-[19px] font-semibold leading-snug text-white">
+        {heading}
+      </h3>
+      <p className="mt-2 text-[14.5px] leading-[1.55] text-[var(--dusk-mute)]">
+        {body}
+      </p>
+    </li>
   );
 }
 
@@ -88,26 +123,16 @@ export default function LinuxPageContent() {
   const t = useTranslations("linuxPage");
 
   return (
-    <article className="mx-auto w-full max-w-5xl pt-16 pb-24 md:pt-24">
-      {/* Hero */}
-      <header className="space-y-6 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-purple-400">
-          {t("eyebrow")}
-        </p>
-        <h1 className="mx-auto max-w-3xl bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold leading-tight text-transparent md:text-6xl">
-          {t("heading")}
-        </h1>
-        <p className="mx-auto max-w-2xl text-lg leading-8 text-gray-300">
-          {t("lead")}
-        </p>
-        <div className="flex flex-col items-center gap-3 pt-2">
-          <a className={CTA_CLASS_NAME} href={LINUX_LATEST.deb}>
-            <Download aria-hidden="true" className="h-5 w-5" />
+    <DuskPage>
+      <PageHero eyebrow={t("eyebrow")} lead={t("lead")} title={t("heading")}>
+        <div className="flex flex-col items-center gap-3">
+          <a className={`${BTN_WHITE} ${BTN_LG}`} href={LINUX_LATEST.deb}>
+            <Download aria-hidden="true" />
             {t("downloadCta", { version: LINUX_LATEST.version })}
           </a>
-          <p className="text-sm text-gray-400">{t("requirementsShort")}</p>
+          <p className="text-sm text-white/[.75]">{t("requirementsShort")}</p>
           <a
-            className="text-sm text-gray-400 underline underline-offset-4 transition-colors hover:text-gray-200"
+            className={LINK_LAV}
             href={LINUX_LATEST.releasePage}
             rel="noopener noreferrer"
             target="_blank"
@@ -115,136 +140,172 @@ export default function LinuxPageContent() {
             {t("releaseNotes")}
           </a>
         </div>
-      </header>
+      </PageHero>
 
-      {/* Install */}
-      <section className="mt-20 grid gap-6 md:grid-cols-2">
-        <div className={CARD_CLASS_NAME}>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-purple-500/30 bg-gradient-to-br from-purple-500/20 to-blue-500/20">
-              <Terminal
-                aria-hidden="true"
-                className="h-5 w-5 text-purple-300"
-              />
-            </div>
-            <h2 className="text-lg font-semibold text-white">
-              {t("installHeading")}
-            </h2>
-          </div>
-          <p className="mb-4 text-sm text-gray-400">{t("installBody")}</p>
-          <CommandBlock
-            command={LINUX_INSTALL_COMMAND}
-            label={t("installCommandLabel")}
-          />
-          <h3 className="mt-6 mb-2 text-base font-semibold text-white">
-            {t("cudaHeading")}
-          </h3>
-          <p className="text-sm text-gray-400">{t("cudaBody")}</p>
-        </div>
-        <div className={CARD_CLASS_NAME}>
-          <h2 className="mb-4 text-lg font-semibold text-white">
-            {t("requirementsHeading")}
-          </h2>
-          <ul className="list-disc space-y-2 ps-5 text-sm text-gray-300">
-            <li>{t("requirementArch")}</li>
-            <li>{t("requirementDistro")}</li>
-            <li>{t("requirementDesktop")}</li>
-          </ul>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="mt-20">
-        <h2 className={SECTION_HEADING_CLASS_NAME}>{t("featuresHeading")}</h2>
-        <div className="grid gap-6 md:grid-cols-2">
-          <FeatureCard
-            body={t("localBody")}
-            gradient="from-emerald-500 to-teal-500"
-            heading={t("localHeading")}
-            icon={<Cpu aria-hidden="true" className="h-6 w-6 text-white" />}
-          />
-          <FeatureCard
-            body={t("byokBody")}
-            gradient="from-purple-500 to-blue-500"
-            heading={t("byokHeading")}
-            icon={<Cloud aria-hidden="true" className="h-6 w-6 text-white" />}
-          />
-          <FeatureCard
-            body={t("languagesBody")}
-            gradient="from-orange-500 to-pink-500"
-            heading={t("languagesHeading")}
-            icon={<Globe aria-hidden="true" className="h-6 w-6 text-white" />}
-          />
-          <FeatureCard
-            body={t("openSourceBody")}
-            gradient="from-gray-600 to-gray-800"
-            heading={t("openSourceHeading")}
-            icon={<Github aria-hidden="true" className="h-6 w-6 text-white" />}
-          />
-        </div>
-      </section>
-
-      {/* Global shortcuts */}
-      <section className="mt-20">
-        <div className="rounded-2xl border border-purple-800/50 bg-gradient-to-r from-purple-900/20 to-blue-900/20 p-8 backdrop-blur-xl md:p-12">
-          <div className="mb-4 flex items-center gap-3">
-            <Keyboard aria-hidden="true" className="h-8 w-8 text-purple-400" />
-            <h2 className="text-2xl font-bold text-white md:text-3xl">
-              {t("hotkeysHeading")}
-            </h2>
-          </div>
-          <p className="mb-6 text-gray-300">{t("hotkeysBody")}</p>
-          <CommandBlock
-            command={LINUX_INPUT_GROUP_COMMAND}
-            label={t("hotkeysCommandLabel")}
-          />
-          <p className="mt-6 text-sm text-gray-400">{t("hotkeysFallback")}</p>
-          <p className="mt-2 text-sm text-gray-400">{t("hotkeysDefault")}</p>
-        </div>
-      </section>
-
-      {/* Wispr Flow */}
-      <section className="mx-auto mt-20 max-w-3xl text-center">
-        <h2 className={SECTION_HEADING_CLASS_NAME}>{t("compareHeading")}</h2>
-        <p className="text-lg leading-8 text-gray-300">{t("compareBody")}</p>
-      </section>
-
-      {/* FAQ */}
-      <section className="mx-auto mt-20 max-w-3xl">
-        <h2 className={SECTION_HEADING_CLASS_NAME}>{t("faqHeading")}</h2>
-        <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur-xl">
-          {FAQ_KEYS.map((key) => (
-            <details
-              key={key}
-              className="group border-b border-gray-800 last:border-b-0"
+      <section className={SECTION}>
+        <div className={WRAP}>
+          {/* Install and requirements, lifted onto the bottom of the sky band.
+              Above the fold, so a CSS entrance that plays from the server HTML. */}
+          <div
+            className="dusk-enter relative z-[3] -mt-[30px] grid gap-4 md:grid-cols-[1.35fr_1fr] md:gap-[18px]"
+            style={delay(320)}
+          >
+            <div
+              className={`${GLASS} min-w-0 p-6 text-start backdrop-blur-[14px] md:p-9`}
             >
-              <summary className="cursor-pointer list-none px-6 py-4 font-medium text-gray-200 transition-colors hover:bg-gray-800/50 [&::-webkit-details-marker]:hidden">
-                {t(`faq${key}Question`)}
-              </summary>
-              <p className="px-6 pt-2 pb-6 text-gray-400">
-                {t(`faq${key}Answer`)}
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className={ICON_TILE}>
+                  <Terminal />
+                </span>
+                <h2 className="text-xl font-semibold tracking-[-0.02em] text-white md:text-2xl">
+                  {t("installHeading")}
+                </h2>
+              </div>
+              <p className={`mt-3 ${BODY}`}>{t("installBody")}</p>
+              <div className="mt-5">
+                <CommandBlock
+                  command={LINUX_INSTALL_COMMAND}
+                  label={t("installCommandLabel")}
+                />
+              </div>
+              <h3 className="mt-7 text-base font-semibold text-white">
+                {t("cudaHeading")}
+              </h3>
+              <p className={`mt-1.5 text-[14.5px] ${BODY}`}>{t("cudaBody")}</p>
+            </div>
+
+            <div
+              className={`${GLASS} min-w-0 p-6 text-start backdrop-blur-[14px] md:p-9`}
+            >
+              <h2 className="text-xl font-semibold tracking-[-0.02em] text-white md:text-2xl">
+                {t("requirementsHeading")}
+              </h2>
+              <ul className="mt-4 space-y-3 text-[15px] leading-[1.55] text-[#d6d8ea]">
+                {(
+                  [
+                    "requirementArch",
+                    "requirementDistro",
+                    "requirementDesktop",
+                  ] as const
+                ).map((key) => (
+                  <li key={key} className="flex gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--dusk-lav)]"
+                    />
+                    <span>{t(key)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Features */}
+          <h2 className={`mt-20 text-center ${H2_PAGE}`}>
+            {t("featuresHeading")}
+          </h2>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            <FeatureCard
+              body={t("localBody")}
+              heading={t("localHeading")}
+              icon={<Cpu />}
+            />
+            <FeatureCard
+              body={t("byokBody")}
+              heading={t("byokHeading")}
+              icon={<Cloud />}
+            />
+            <FeatureCard
+              body={t("languagesBody")}
+              heading={t("languagesHeading")}
+              icon={<Globe />}
+            />
+            <FeatureCard
+              body={t("openSourceBody")}
+              heading={t("openSourceHeading")}
+              icon={<Github />}
+            />
+          </ul>
+
+          {/* Global shortcuts: the highlighted panel. */}
+          <div
+            className={`${GLASS_ON} mt-4 grid items-center gap-6 p-6 text-start md:grid-cols-[1fr_1fr] md:gap-10 md:p-9`}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className={ICON_TILE}>
+                  <Keyboard />
+                </span>
+                <h2 className="text-xl font-semibold tracking-[-0.02em] text-white md:text-2xl">
+                  {t("hotkeysHeading")}
+                </h2>
+              </div>
+              <p className={`mt-3 ${BODY}`}>{t("hotkeysBody")}</p>
+            </div>
+            <div className="min-w-0">
+              <CommandBlock
+                command={LINUX_INPUT_GROUP_COMMAND}
+                label={t("hotkeysCommandLabel")}
+              />
+              <p className="mt-4 text-sm leading-[1.55] text-[var(--dusk-mute)]">
+                {t("hotkeysFallback")}
               </p>
-            </details>
-          ))}
+              <p className="mt-2 text-sm leading-[1.55] text-[var(--dusk-mute)]">
+                {t("hotkeysDefault")}
+              </p>
+            </div>
+          </div>
+
+          {/* Wispr Flow */}
+          <div className="mx-auto mt-20 max-w-3xl text-center">
+            <h2 className={H2_PAGE}>{t("compareHeading")}</h2>
+            <p className={`mt-4 text-base md:text-lg ${BODY}`}>
+              {t("compareBody")}
+            </p>
+          </div>
+
+          {/* FAQ: native <details>, styled like the homepage FAQ list. */}
+          <div className="mx-auto mt-20 max-w-[820px]">
+            <h2 className={`text-center ${H2_PAGE}`}>{t("faqHeading")}</h2>
+            <div className="mt-8 border-t border-[var(--dusk-line)]">
+              {FAQ_KEYS.map((key) => (
+                <details
+                  key={key}
+                  className="group border-b border-[var(--dusk-line)]"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded px-1 py-5 text-start text-base font-medium text-[var(--dusk-ink)] transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] md:py-[22px] md:text-[17px] [&::-webkit-details-marker]:hidden">
+                    <span>{t(`faq${key}Question`)}</span>
+                    <Plus
+                      aria-hidden="true"
+                      className="size-[18px] flex-none text-[var(--dusk-mute)] transition-[rotate] duration-[250ms] ease-[var(--dusk-ease)] group-open:rotate-45 motion-reduce:transition-none"
+                    />
+                  </summary>
+                  <p className="max-w-[700px] px-1 pb-[22px] text-[15.5px] leading-[1.6] text-[var(--dusk-mute)]">
+                    {t(`faq${key}Answer`)}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+
+          {/* Docs */}
+          <div className="mx-auto mt-20 max-w-3xl text-center">
+            <h2 className="text-2xl font-semibold tracking-[-0.02em] text-white md:text-[28px]">
+              {t("docsHeading")}
+            </h2>
+            <p className={`mt-3 ${BODY}`}>{t("docsBody")}</p>
+            <a
+              className={`${BTN_GLASS} ${BTN_LG} mt-6`}
+              href={LINUX_DOCS_URL}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {t("docsCta")}
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </div>
         </div>
       </section>
-
-      {/* Docs */}
-      <section className="mx-auto mt-20 max-w-3xl text-center">
-        <h2 className="mb-3 text-2xl font-bold text-white">
-          {t("docsHeading")}
-        </h2>
-        <p className="mb-6 text-gray-400">{t("docsBody")}</p>
-        <a
-          className="inline-flex items-center gap-2 rounded-xl bg-gray-800 px-6 py-3 font-medium text-gray-200 transition-colors hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
-          href={LINUX_DOCS_URL}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {t("docsCta")}
-          <ExternalLink aria-hidden="true" className="h-4 w-4" />
-        </a>
-      </section>
-    </article>
+    </DuskPage>
   );
 }
