@@ -14,7 +14,7 @@
  * same deploy and keep every parameter, or the purchase lands on no wallet.
  *
  * Both routes are the real modules driven with real Requests. The checkout
- * redirect's one collaborator, its Upstash rate limiter (#2010), is replaced
+ * redirect's one collaborator, its rate limiter (#2010), is replaced
  * with an always-allow stub so the run needs no network; its 429 is covered in
  * tests/route-rate-limits.test.ts.
  */
@@ -25,9 +25,9 @@ import { NextRequest } from "next/server";
 
 import { GET as getConfig } from "../app/api/config/route";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
-moduleMock.module(new URL("../lib/rate-limit.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
     checkoutRateLimiter: { limit: async () => ({ success: true }) },
   },

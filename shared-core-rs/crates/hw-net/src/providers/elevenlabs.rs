@@ -7,15 +7,17 @@
 //!
 //! `model_id` (default `scribe_v2`), `tag_audio_events=false`, `language_code`
 //! (omitted when absent / empty / `"auto"`; normalized to the primary subtag,
-//! e.g. `en-US` → `en`), repeated `keyterms` (Scribe v2 and Scribe v2 Medical
-//! only — see below),
+//! e.g. `en-US` → `en`), repeated `keyterms` (Scribe v2, Scribe v2 Medical and
+//! Scribe v3 only — see below),
 //! then `file`.
 //!
-//! ## Vocabulary (Scribe v2 and Scribe v2 Medical only)
+//! ## Vocabulary (Scribe v2, Scribe v2 Medical and Scribe v3 only)
 //!
-//! Scribe **v2** and **v2 Medical** (`scribe_v2_medical`, same endpoint and
-//! request shape, #2201) accept vocabulary as repeated `keyterms` form fields, capped at
-//! [`ELEVENLABS_MAX_TERMS`] (100) terms, each dropped if longer than
+//! Scribe **v2**, **v2 Medical** (`scribe_v2_medical`, same endpoint and
+//! request shape, #2201) and **v3** (`scribe_v3`, same endpoint and request
+//! shape, #3049) accept vocabulary as repeated `keyterms` form fields, capped at
+//! [`ELEVENLABS_MAX_TERMS`] (100) terms (v3 itself takes up to 1,000; the shared
+//! 100 cap is kept for every model), each dropped if longer than
 //! [`ELEVENLABS_MAX_TERM_CHARS`] (50) chars. Scribe **v1** does not support
 //! vocabulary, so terms are silently dropped. Mirrors `ElevenLabsProvider.swift`
 //! and `ElevenLabsService.cs`.
@@ -47,6 +49,11 @@ pub const HEADER_API_KEY: &str = "xi-api-key";
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "elevenLabsScribeV2";
 
+/// ElevenLabs refuses a keyterm of more than this many words
+/// (`cloud-stt-catalog.json` `maxWordsPerPhrase`; the Cloud adapter's
+/// `MAX_KEYTERM_WORDS`).
+pub const MAX_KEYTERM_WORDS: usize = 5;
+
 /// Default model when the caller leaves `params.model` empty. Read from the
 /// shared catalog, which macOS and Windows read too — see
 /// [`super::defaults`] and issue #580.
@@ -61,9 +68,13 @@ pub const SCRIBE_V2: &str = "scribe_v2";
 /// and request shape, keyterms included (#2201).
 pub const SCRIBE_V2_MEDICAL: &str = "scribe_v2_medical";
 
+/// Scribe v3 (2026-11-09): the successor batch model, on the same endpoint and
+/// request shape, keyterms included (#3049).
+pub const SCRIBE_V3: &str = "scribe_v3";
+
 /// Whether `model_id` accepts `keyterms` vocabulary.
 fn supports_keyterms(model_id: &str) -> bool {
-    model_id == SCRIBE_V2 || model_id == SCRIBE_V2_MEDICAL
+    model_id == SCRIBE_V2 || model_id == SCRIBE_V2_MEDICAL || model_id == SCRIBE_V3
 }
 
 /// Build the ElevenLabs Scribe transcription request.
@@ -91,7 +102,7 @@ pub fn build_transcribe_request(
         parts.push(multipart_field("language_code", lang));
     }
 
-    // keyterms — Scribe v2 and v2 Medical only, capped 100 terms, drop terms > 50 chars.
+    // keyterms — Scribe v2, v2 Medical and v3 only, capped 100 terms, drop terms > 50 chars or > 5 words.
     if supports_keyterms(&model_id) {
         for term in keyterms(&params.vocabulary) {
             parts.push(multipart_field("keyterms", term));
@@ -121,7 +132,9 @@ pub fn build_transcribe_request(
 }
 
 /// Build the capped keyterms list: trim, drop empties, drop terms longer than
-/// [`ELEVENLABS_MAX_TERM_CHARS`], take at most [`ELEVENLABS_MAX_TERMS`].
+/// [`ELEVENLABS_MAX_TERM_CHARS`] or of more than [`MAX_KEYTERM_WORDS`] words,
+/// take at most [`ELEVENLABS_MAX_TERMS`]. A dropped term does not use a slot,
+/// as in the Cloud adapter.
 ///
 /// PARITY: the length filter counts Unicode scalar values (Swift `String.count`
 /// counts grapheme clusters and C# `string.Length` counts UTF-16 code units;
@@ -131,6 +144,7 @@ fn keyterms(vocabulary: &[String]) -> Vec<String> {
     keyword_boost_terms(vocabulary, None)
         .into_iter()
         .filter(|w| w.chars().count() <= ELEVENLABS_MAX_TERM_CHARS)
+        .filter(|w| w.split_whitespace().count() <= MAX_KEYTERM_WORDS)
         .take(ELEVENLABS_MAX_TERMS)
         .collect()
 }
@@ -204,6 +218,7 @@ fn transcript(text: &str) -> Transcript {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::test_support::fields;
     use crate::contract::{Body, Part};
 
     fn params() -> TranscribeParams {
@@ -213,16 +228,6 @@ mod tests {
             audio_path: "/tmp/rec.wav".to_string(),
             ..Default::default()
         }
-    }
-
-    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
-        parts
-            .iter()
-            .filter_map(|p| match p {
-                Part::Field { name: n, value } if n == name => Some(value.as_str()),
-                _ => None,
-            })
-            .collect()
     }
 
     #[test]

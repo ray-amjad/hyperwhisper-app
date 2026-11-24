@@ -22,7 +22,7 @@ import Testing
 
 @testable import HyperWhisper
 
-@Suite("Deleting a row cancels its plain Retry (#1743)")
+@Suite("Deleting a row cancels its plain Retry (#1743)", .timeLimit(.minutes(10)))
 struct DeleteCancelsPlainRetryTests {
 
     private static let originalText = "Transcription failed: the engine could not decode the audio"
@@ -366,36 +366,17 @@ struct DeleteCancelsPlainRetryTests {
 
     /// Writes a mono 16-bit PCM WAV of a 440 Hz tone, and closes it.
     private func makeToneWAV(seconds: Double) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("retry-1743-tone-\(UUID().uuidString).wav")
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(seconds * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        // The scope releases the writer, which finalises the RIFF header.
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(prefix: "retry-1743-tone", seconds: seconds)
     }
 
-    /// Waits up to two seconds for `task` to end; a cancel ends it.
+    /// Waits for `task` to end; a cancel ends it. The 120 s bound is a hang
+    /// guard, not a deadline: a loaded CI runner can stall the test process for
+    /// 20-90 s (#2505, #2540). The suite's time limit is the backstop.
     @MainActor
     private func ended(_ task: Task<Void, Never>) async -> Bool {
-        for _ in 0..<200 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(120))
+        while clock.now < deadline {
             if task.isCancelled { return true }
             try? await Task.sleep(nanoseconds: 10_000_000)
         }

@@ -412,5 +412,86 @@ pub fn build_fingerprint(
     ]
 }
 
+// ===========================================================================
+// Trailing-silence trim (#1503, #1504)
+// ===========================================================================
+
+/// Audio kept after the last window loud enough to be speech, in seconds.
+pub const TRIM_TAIL_SECONDS: f64 = 0.3;
+
+/// The trim never leaves less than this, in seconds: whisper.cpp skips input
+/// shorter than one second.
+pub const TRIM_MINIMUM_SECONDS: f64 = 1.1;
+
+/// Lowest speech threshold, as a linear RMS (about 40 on the 16-bit scale). A
+/// dead-quiet input's floor times six would otherwise flag mic hiss as speech.
+pub const TRIM_MINIMUM_THRESHOLD: f64 = 0.0012;
+
+/// Whisper invents a closing "Okay." or "Thank you." when a recording ends in
+/// silence (the user pausing before the hotkey). Returns how many samples to
+/// keep so the audio ends [`TRIM_TAIL_SECONDS`] after the last window loud
+/// enough to be speech.
+///
+/// Loudness is measured in 50 ms windows; a window counts as speech when it is
+/// 6x the recording's noise floor (its 10th-percentile window), capped at a
+/// fifth of its speech level (90th percentile) so a quiet last word on a noisy
+/// line still counts. Returns the full length when nothing stands out, and never
+/// less than [`TRIM_MINIMUM_SECONDS`].
+///
+/// A port of Windows' `TranscriptionService.TrailingSilenceTrimPoint` (#1505),
+/// same numbers. Two deliberate differences, both only on input Windows never
+/// produces: a sample rate under 20 Hz (no whole window) and a non-finite
+/// window both return `sample_count`, because a recording that cannot be
+/// measured is never cut.
+pub fn trailing_silence_trim_point(samples: &[f32], sample_rate: u32) -> u64 {
+    let window = window_len(sample_rate);
+    if window == 0 {
+        return samples.len() as u64;
+    }
+    let rms: Vec<f64> = samples
+        .chunks_exact(window)
+        .map(|chunk| {
+            let sum: f64 = chunk.iter().map(|&s| f64::from(s) * f64::from(s)).sum();
+            (sum / window as f64).sqrt()
+        })
+        .collect();
+    trailing_silence_trim_point_from_windows(&rms, samples.len() as u64, sample_rate)
+}
+
+/// [`trailing_silence_trim_point`] from the RMS of each whole 50 ms window, so a
+/// head can measure while it streams the decode and never holds every sample.
+/// A partial window at the end is not in `window_rms`; `sample_count` still
+/// counts it.
+pub fn trailing_silence_trim_point_from_windows(
+    window_rms: &[f64],
+    sample_count: u64,
+    sample_rate: u32,
+) -> u64 {
+    let window = window_len(sample_rate) as u64;
+    let window_count = window_rms.len();
+    if window == 0 || window_count == 0 || window_rms.iter().any(|r| !r.is_finite()) {
+        return sample_count;
+    }
+
+    let mut sorted = window_rms.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let floor = sorted[window_count / 10];
+    let speech = sorted[window_count * 9 / 10];
+    let threshold = (floor * 6.0).max(TRIM_MINIMUM_THRESHOLD).min(speech / 5.0);
+
+    let Some(last) = window_rms.iter().rposition(|&r| r > threshold) else {
+        return sample_count;
+    };
+
+    let keep = (last as u64 + 1) * window + (TRIM_TAIL_SECONDS * f64::from(sample_rate)) as u64;
+    let minimum = (TRIM_MINIMUM_SECONDS * f64::from(sample_rate)) as u64;
+    sample_count.min(keep.max(minimum))
+}
+
+/// Samples in one 50 ms window (integer division, as Windows does); 0 below 20 Hz.
+fn window_len(sample_rate: u32) -> usize {
+    (sample_rate / 20) as usize
+}
+
 #[cfg(test)]
 mod tests;

@@ -276,6 +276,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>これは既定のモードのため、名前を変更できません。他のモードの名前は変更できます。</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>その名前のモードは既に存在します。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>プロバイダー</value>
   </data>
@@ -896,6 +899,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (APIキーなし)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (キーが無効)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>読み込み失敗</value>
   </data>
@@ -1069,15 +1075,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeetモデルではカスタム語彙はサポートされていません。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1ではカスタム語彙はサポートされていません。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Baseモデルではカスタム語彙はサポートされていません。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisperモデルではカスタム語彙はサポートされていません。</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Novaモデルで自動検出を使用する場合、カスタム語彙は無効になります。語彙ブースティングを有効にするには、特定の言語を設定してください。</value>
@@ -2223,7 +2220,7 @@
     <value>インポートするセクションを少なくとも1つ選択してください。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0}個の新しい単語を追加、{1}個が既存の単語と競合します。続けますか？</value>
+    <value>新しい単語：{0} 個。既存の単語との競合：{1} 個。続けますか？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>ボキャブラリーをインポートしますか？</value>
@@ -2245,6 +2242,21 @@
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>設定を復元しました。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>APIキーを復元しました。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>1つ以上のAPIキーを復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>バックアップにAPIキーは含まれていません。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>設定を復元できませんでした。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>バックアップをインポートしましたが、問題が発生しました。{0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>単語が既に存在する場合:</value>

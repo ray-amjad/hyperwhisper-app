@@ -34,6 +34,7 @@ try
     MicrophoneSelectionTests.Run();
     await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
     await RunHistoryRetryTestsAsync(root);
+    await RunParakeetRetryConversionTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
     await RunHistoryRevisitTestsAsync(root);
@@ -71,6 +72,10 @@ try
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunModeNameTakenTestsAsync(Path.Combine(root, "mode-name-taken"));
+    await RunModeDeleteFailureCodeTestsAsync(Path.Combine(root, "mode-delete-failure-code"));
+    await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
+    await RunModeDeleteStaleCardTestsAsync(Path.Combine(root, "mode-delete-stale-card"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -79,6 +84,7 @@ try
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunShellCloudBalanceOnLaunchTestsAsync(Path.Combine(root, "shell-cloud-balance"));
+    await RunCloudLowCreditTestsAsync();
     RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
     await RunFileTranscriptionDurationTestsAsync(Path.Combine(root, "file-duration"));
@@ -268,7 +274,20 @@ try
     reloadedSettings.Set("selectedModeId", Guid.NewGuid().ToString("D"));
     Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
     var modeSelection = new ModesViewModel(modes, reloadedSettings);
+    // The Linux tray skips publishing while IsRefreshing, so every list change a reload makes
+    // (the Clear and each Add) must happen with it raised, and its drop must be announced.
+    var refreshingAtEachChange = new List<bool>();
+    var refreshingNotices = new List<bool>();
+    modeSelection.Items.CollectionChanged += (_, _) => refreshingAtEachChange.Add(modeSelection.IsRefreshing);
+    modeSelection.PropertyChanged += (_, e) =>
+    {
+        if (e.PropertyName == nameof(ModesViewModel.IsRefreshing)) refreshingNotices.Add(modeSelection.IsRefreshing);
+    };
     await modeSelection.RefreshAsync();
+    Assert(refreshingAtEachChange.Count > 1 && refreshingAtEachChange.All(value => value),
+        "a mode reload changed the list while IsRefreshing was false");
+    Assert(refreshingNotices.SequenceEqual(new[] { true, false }) && !modeSelection.IsRefreshing,
+        "a mode reload did not announce IsRefreshing rising and then dropping");
     Assert(modeSelection.CloudProviders.Contains("meta", StringComparer.Ordinal),
         "the portable mode editor does not offer the enabled Meta BYOK provider");
     Assert(modeSelection.Selected?.Id == mode.Id,
@@ -359,6 +378,52 @@ try
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
         "non-integer schemaVersion escaped structured validation");
+    // #2115: `2.0` is schemaVersion 2 by value (the core's `integral_i64`); `2.5` and `3.0` are not.
+    string WithRawSchemaVersion(string raw)
+    {
+        var document = JsonNode.Parse(exported)!.AsObject();
+        document["schemaVersion"] = JsonNode.Parse(raw);
+        return document.ToJsonString();
+    }
+    var wholeFloatVersion = WithRawSchemaVersion("2.0");
+    Assert(wholeFloatVersion.Contains("\"schemaVersion\":2.0", StringComparison.Ordinal),
+        "the #2115 fixture lost its 2.0 literal");
+    var wholeFloatInspect = backupService.Inspect(wholeFloatVersion);
+    Assert(wholeFloatInspect.IsSuccess && wholeFloatInspect.Value!.SchemaVersion == 2,
+        $"a backup with schemaVersion 2.0 was refused by Inspect: {wholeFloatInspect.Error?.Code} {wholeFloatInspect.Error?.Message}");
+    var wholeFloatImport = await backupService.ImportAsync(wholeFloatVersion);
+    Assert(wholeFloatImport.IsSuccess,
+        $"a backup with schemaVersion 2.0 was refused by import: {wholeFloatImport.Error?.Code} {wholeFloatImport.Error?.Message}");
+    Assert(backupService.Inspect(WithRawSchemaVersion("2.5")).Error?.Code == "backup.unsupported_version",
+        "a fractional schemaVersion 2.5 was accepted");
+    Assert(backupService.Inspect(WithRawSchemaVersion("3.0")).Error?.Code == "backup.unsupported_version",
+        "schemaVersion 3.0 was accepted");
+    // The same by-value read covers every field the schema types "integer" (sortOrder, postProcessingMode).
+    var wholeFloatFields = JsonNode.Parse(wholeFloatVersion)!.AsObject();
+    var wholeFloatMode = wholeFloatFields["modes"]!.AsArray()[0]!.AsObject();
+    wholeFloatMode["sortOrder"] = JsonNode.Parse("0.0");
+    wholeFloatMode["postProcessingMode"] = JsonNode.Parse("0.0");
+    wholeFloatFields["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.0");
+    wholeFloatFields["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse("61.0");
+    var wholeFloatFieldsImport = await backupService.ImportAsync(wholeFloatFields.ToJsonString());
+    Assert(wholeFloatFieldsImport.IsSuccess,
+        $"a backup with whole-float sortOrder / postProcessingMode was refused: {wholeFloatFieldsImport.Error?.Code} {wholeFloatFieldsImport.Error?.Message}");
+    Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+        "a whole-float typingSpeedWPM 61.0 was not stored as the integer 61");
+    // #2616: a schema-valid integer no Int32 read accepts is dropped, so the live value stays readable.
+    foreach (var outOfRange in new[] { "3000000000", "-3000000000" })
+    {
+        var outOfRangeSettings = JsonNode.Parse(wholeFloatFields.ToJsonString())!.AsObject();
+        outOfRangeSettings["settings"]!["advanced"]!["typingSpeedWPM"] = JsonNode.Parse(outOfRange);
+        var outOfRangeImport = await backupService.ImportAsync(outOfRangeSettings.ToJsonString());
+        Assert(outOfRangeImport.IsSuccess,
+            $"a backup with typingSpeedWPM {outOfRange} was refused: {outOfRangeImport.Error?.Code} {outOfRangeImport.Error?.Message}");
+        Assert(reloadedSettings.Get<int>("advanced.typingSpeedWPM") == 61,
+            $"typingSpeedWPM {outOfRange} replaced the live value 61 instead of being dropped");
+    }
+    var fractionalSortOrder = JsonNode.Parse(exported)!.AsObject();
+    fractionalSortOrder["vocabulary"]!.AsArray()[0]!["sortOrder"] = JsonNode.Parse("1.5");
+    Assert(backupService.Inspect(fractionalSortOrder.ToJsonString()).IsFailure, "a fractional vocabulary sortOrder 1.5 was accepted");
     var extendedBackup = JsonNode.Parse(exported)!.AsObject();
     var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
     extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
@@ -1549,6 +1614,17 @@ try
         && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
         "home typing speed did not persist");
 
+    // #2546: the Linux Start Recording card marks its step complete after every successful start.
+    // A second start must leave it ticked (it used to toggle it off) and keep the saved setting.
+    statisticsHome.CompleteGettingStartedStep("recording");
+    statisticsHome.CompleteGettingStartedStep("recording");
+    var reloadedGettingStartedSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    Assert(statisticsHome.IsRecordingStepComplete
+        && reloadedGettingStartedSettings.Load().IsSuccess
+        && reloadedGettingStartedSettings.Get("GettingStartedCompletedSteps", string.Empty) == "recording",
+        "completing the recording step twice un-ticked it or did not persist it as 'recording'");
+
     var diagnosticsDirectory = Path.Combine(root, "about-diagnostics");
     var about = new AboutViewModel(
         "1.2.3", "1.2.3-1",
@@ -1927,6 +2003,46 @@ static async Task RunShellCloudBalanceOnLaunchTestsAsync(string root)
     }
 }
 
+// Issue #2656: the server floors minutes_remaining (credits / 1.67), so a balance under one minute
+// arrives as 0 minutes with credits still above 0. IsCreditsLow wanted minutes > 0 and
+// IsCreditsExhausted wants credits <= 0, so neither banner showed in the most urgent case. The rule
+// is now the one macOS and Windows use since #2618: under 10 minutes while any credit is left.
+static async Task RunCloudLowCreditTestsAsync()
+{
+    var store = new MemoryCredentialStore();
+    var http = new CloudAccountHttpHandler();
+    using var service = new PortableCloudAccountService(
+        store,
+        new PortableLicenseStateStore(store, new MemoryPrivateFileService(), "/low-credit-license-state.json"),
+        new HttpClient(http) { Timeout = Timeout.InfiniteTimeSpan });
+    var account = new CloudAccountViewModel(service, new StaticDeviceIdentity(), "Ray Linux",
+        _ => PlatformResult.Success()) { AccountKey = "HW-0000-0000-2656" };
+    await account.ActivateAsync();
+    Assert(account.IsActiveAccount, "the test account did not activate");
+    var notified = new List<string?>();
+    account.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+    foreach (var (credits, minutes, low, exhausted) in new[]
+    {
+        ("1.5", 0, true, false),    // under a minute: the case the old rule missed
+        ("0", 0, false, true),      // nothing left: the exhausted banner, not the low one
+        ("18.4", 11, false, false), // eleven minutes: neither
+        ("11.7", 7, true, false),   // a few minutes: low, as before
+    })
+    {
+        http.UsageBody = $"{{\"credits_remaining\":{credits},\"minutes_remaining\":{minutes},\"credits_per_minute\":1.67,\"is_licensed\":true,\"is_anonymous\":false}}";
+        notified.Clear();
+        await account.RefreshCreditsAsync();
+        Assert(account.MinutesRemaining == minutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            $"{credits} credits / {minutes} minutes: the balance did not refresh ({account.Status.Message})");
+        Assert(account.IsCreditsLow == low && account.IsCreditsExhausted == exhausted,
+            $"{credits} credits / {minutes} minutes: IsCreditsLow {account.IsCreditsLow} (expected {low}), " +
+            $"IsCreditsExhausted {account.IsCreditsExhausted} (expected {exhausted})");
+        Assert(notified.Contains(nameof(CloudAccountViewModel.IsCreditsLow)),
+            $"{credits} credits / {minutes} minutes: a refresh did not notify IsCreditsLow, so the banner binding never re-reads it");
+    }
+}
+
 // #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
 // it on the UI thread froze the window that had just opened. The first database context is held
 // until a callback posted to the UI thread runs; that only happens if the UI thread is free.
@@ -2118,6 +2234,227 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+// Issue #2551: a save the repository refuses on a mode rule used to fall into SaveAsync's catch-all
+// and show "Could not save the mode or its secure endpoint configuration", which sent the user to
+// the keyring when the fix was a different name.
+static async Task RunModeNameTakenTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    var theDefault = editor.Items.Single(item => item.IsDefault);
+    Assert(theDefault.Name == "Hyper", $"the seeded default mode is '{theDefault.Name}', expected 'Hyper'");
+    var countBefore = (await repository.ListAsync()).Count;
+
+    foreach (var clash in new[] { "hyper", "  HYPER " })
+    {
+        editor.NewCommand.Execute(null);
+        editor.Name = clash;
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.name_taken"
+            && editor.Status.Message == "A mode with that name already exists.",
+            $"creating '{clash}' next to 'Hyper' showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+        Assert((await repository.ListAsync()).Count == countBefore, $"creating '{clash}' next to 'Hyper' inserted a mode");
+    }
+
+    // Renaming another mode onto a taken name is refused the same way; keeping a mode's own name is not.
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    editor.Name = "Hyper";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken", $"renaming 'Other' to 'Hyper' showed {editor.Status.ErrorCode}");
+    Assert((await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "Other", "a refused rename was saved");
+    Assert(editor.Items.Single(item => item.Id == other.Id).Name == "Other" && editor.Name == "Hyper",
+        "a refused rename left 'Hyper' on the listed mode, or cleared what the user typed");
+    editor.Name = "other";
+    await editor.SaveAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).Single(item => item.Id == other.Id).Name == "other",
+        $"re-casing a mode's own name was refused: {editor.Status.ErrorCode}");
+
+    // The repository reads the rows at save time, so a name taken after the list was loaded is
+    // refused the same way, not with the secure-endpoint error.
+    editor.NewCommand.Execute(null);
+    editor.Name = "Late arrival";
+    await repository.UpsertAsync(new Mode { Name = "Late Arrival", SortOrder = 2 });
+    var countBeforeRace = (await repository.ListAsync()).Count;
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.name_taken"
+        && !editor.Status.Message.Contains("secure endpoint", StringComparison.OrdinalIgnoreCase),
+        $"a name the repository refused showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == countBeforeRace, "a name the repository refused was inserted");
+
+    // The default-name rule surfaces under its own code as well. (The last-default rule cannot be
+    // reached from this editor, which never clears IsDefault.)
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.IsDefault);
+    editor.Name = "Renamed default";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.default_name_fixed",
+        $"renaming the default mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Single(item => item.IsDefault).Name == "Hyper"
+        && editor.Items.Single(item => item.IsDefault).Name == "Hyper", "the default mode was renamed");
+}
+
+// Issue #2561: DeleteAsync caught every InvalidOperationException as the last-mode rule, so an EF
+// fault on delete showed "modes.last_mode" with EF's own exception text.
+static async Task RunModeDeleteFailureCodeTestsAsync(string root)
+{
+    var paths = new TestPaths(root);
+    var faulted = false;
+    var database = new ApplicationDb(() =>
+    {
+        var context = new HyperWhisper.Data.HyperWhisperDbContext(paths);
+        // A disposed context throws ObjectDisposedException, an InvalidOperationException that is
+        // not a mode rule.
+        if (faulted) context.Dispose();
+        return context;
+    });
+    await database.InitializeAsync();
+    var repository = new ModeRepository(database);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 1, $"expected one seeded mode, got {editor.Items.Count}");
+
+    // The rule itself still shows under its own code.
+    editor.Selected = editor.Items.Single();
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"deleting the last mode showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert((await repository.ListAsync()).Count == 1, "the last mode was deleted");
+
+    var other = new Mode { Name = "Other", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == other.Id);
+    faulted = true;
+    await editor.DeleteAsync();
+    faulted = false;
+    Assert(editor.Status.ErrorCode == "modes.delete_failed" && editor.Status.Message == "Could not delete the mode.",
+        $"a storage fault on delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Any(item => item.Id == other.Id) && (await repository.ListAsync()).Any(item => item.Id == other.Id),
+        "a failed delete removed the mode");
+
+    await editor.DeleteAsync();
+    Assert(!editor.Status.HasError && (await repository.ListAsync()).All(item => item.Id != other.Id),
+        $"deleting a mode with another left failed: {editor.Status.ErrorCode}");
+}
+
+// Issue #2663: DeleteSafelyAsync read the rows, checked "last mode" and deleted with nothing around
+// the read and the write. Two overlapping deletes of different modes each saw two rows, both passed
+// the check, and the table could end with no modes. The interceptor holds the first delete after its read
+// until the second delete has read too, so the overlap happens every run, not by luck. The hold is
+// bounded: once the fix makes the second delete wait for the first, the first goes on alone.
+static async Task RunModeDeleteRaceTestsAsync(string root)
+{
+    // Two stores. In a healthy one the delete of the default also writes the other row (the flag
+    // moves to it), so on the old code the overlap ended either in an empty table or in a
+    // DbUpdateConcurrencyException, depending on which save landed first. A store restored with
+    // both rows flagged default moves nothing, and there the old code always deleted both modes.
+    foreach (var (store, secondIsDefault) in new[] { ("one-default", false), ("two-defaults", true) })
+    {
+        var directory = Path.Combine(root, store);
+        Directory.CreateDirectory(directory);
+        var overlap = new ModeReadOverlapInterceptor(TimeSpan.FromSeconds(2));
+        var options = new DbContextOptionsBuilder<HyperWhisper.Data.HyperWhisperDbContext>()
+            .UseSqlite($"Data Source={Path.Combine(directory, "hyperwhisper.db")}")
+            .AddInterceptors(overlap)
+            .Options;
+        var database = new ApplicationDb(() => new HyperWhisper.Data.HyperWhisperDbContext(options));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var first = new Mode { Name = "A", IsDefault = true, SortOrder = 0 };
+        var second = new Mode { Name = "B", IsDefault = secondIsDefault, SortOrder = 1 };
+        await repository.UpsertAsync(first);
+        await repository.UpsertAsync(second);
+
+        overlap.Armed = true;
+        var outcomes = await Task.WhenAll(new[] { first.Id, second.Id }.Select(id => Task.Run(async () =>
+        {
+            try { return await repository.DeleteSafelyAsync(id) ? "deleted" : "not found"; }
+            catch (ModeRuleViolationException rule) { return rule.Code; }
+            catch (Exception exception) { return exception.GetType().Name; }
+        }))).WaitAsync(TimeSpan.FromSeconds(60));
+        overlap.Armed = false;
+
+        var left = await repository.ListAsync();
+        Assert(overlap.Reads == 2, $"{store}: expected each delete to read the modes once, saw {overlap.Reads} reads");
+        Assert(outcomes.Count(item => item == "deleted") == 1 && outcomes.Count(item => item == "modes.last_mode") == 1,
+            $"{store}: two overlapping deletes answered [{string.Join(", ", outcomes)}] and left {left.Count} modes; " +
+            "expected one delete and one modes.last_mode refusal");
+        Assert(left.Count == 1 && left.Single().IsDefault,
+            $"{store}: two overlapping deletes left {left.Count} modes, {left.Count(item => item.IsDefault)} of them default");
+    }
+}
+
+// Issue #2667: a delete refused because another writer had removed a mode only set Status, so the
+// Modes page kept a card for a row that was gone.
+static async Task RunModeDeleteStaleCardTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var outsideWriter = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    var other = new Mode { Name = "B", SortOrder = 1 };
+    await repository.UpsertAsync(other);
+    await editor.RefreshAsync();
+    Assert(editor.Items.Count == 2, $"expected Hyper and B, got {editor.Items.Count} modes");
+
+    // The issue's steps: Hyper's editor is open with an edit not yet saved, B's row goes, and
+    // Delete Mode on Hyper is refused as the last mode.
+    var hyper = editor.Items.Single(item => item.IsDefault);
+    editor.Selected = hyper;
+    editor.CustomInstructions = "typed, not saved";
+    Assert(await outsideWriter.DeleteAsync(other.Id), "the outside writer could not delete B");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode" && editor.Status.Message == "Cannot delete the last remaining mode.",
+        $"the refused delete showed {editor.Status.ErrorCode}: {editor.Status.Message}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after the refused delete the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}], expected only Hyper");
+    // The selected mode keeps its instance, so the editor's Cancel (which restores Selected by
+    // reference) and the next save still find it in the list.
+    Assert(ReferenceEquals(editor.Selected, hyper) && editor.Items.Contains(hyper),
+        "the refused delete left Selected on an instance the list no longer holds");
+    Assert(editor.CustomInstructions == "typed, not saved", "the refused delete threw away the open editor's unsaved edit");
+    Assert((await repository.ListAsync()).Single().Id == hyper.Id, "the refused delete changed the stored modes");
+
+    // A delete of a mode that is already gone reloads the list the same way, and selects what is left.
+    var gone = new Mode { Name = "C", SortOrder = 2 };
+    await repository.UpsertAsync(gone);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == gone.Id);
+    Assert(await outsideWriter.DeleteAsync(gone.Id), "the outside writer could not delete C");
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.not_found", $"deleting a mode already gone showed {editor.Status.ErrorCode}");
+    Assert(editor.Items.Count == 1 && editor.Items.Single().Id == hyper.Id,
+        $"after deleting a mode already gone the Modes page lists [{string.Join(", ", editor.Items.Select(item => item.Name))}]");
+    Assert(editor.Selected is { } fallback && editor.Items.Contains(fallback) && fallback.Id == hyper.Id,
+        "deleting a mode already gone left Selected on it");
+
+    // The reload copies the stored values onto the selected mode, the default flag among them. When
+    // the outside writer removed the default, the repository moved the flag onto the selected mode,
+    // and the editor's name lock and default warning (IsDefaultModeSelected) must follow it.
+    var promoted = new Mode { Name = "D", SortOrder = 3 };
+    await repository.UpsertAsync(promoted);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == promoted.Id);
+    Assert(!editor.IsDefaultModeSelected, "D was the default before the outside delete");
+    Assert(await outsideWriter.DeleteSafelyAsync(hyper.Id), "the outside writer could not delete the default");
+    var raised = new List<string?>();
+    editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+    await editor.DeleteAsync();
+    Assert(editor.Status.ErrorCode == "modes.last_mode", $"deleting the promoted last mode showed {editor.Status.ErrorCode}");
+    Assert(editor.Selected is { IsDefault: true } && editor.Selected.Id == promoted.Id,
+        "the refused delete did not bring the moved default flag onto the selected mode");
+    Assert(editor.IsDefaultModeSelected && raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)),
+        $"after the refused delete IsDefaultModeSelected was {editor.IsDefaultModeSelected} and " +
+        $"{(raised.Contains(nameof(ModesViewModel.IsDefaultModeSelected)) ? "was" : "was not")} notified, so the editor left the default's name unlocked");
 }
 
 static async Task RunDictationModeTestsAsync(string root)
@@ -4102,6 +4439,128 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
     }
 }
 
+/// <summary>
+/// A retry of a Failed row whose audio is not WAV, in a local Parakeet mode,
+/// reaches the transcriber as a WAV (issue #1675).
+/// </summary>
+/// <remarks>
+/// Uses the REAL ffmpeg import Linux Transcribe File and the Local API run
+/// (<see cref="DurableAudioImportService"/> over the ffmpeg normalizer). Before
+/// the fix the WAV-only Parakeet daemon got the row's stored MP3 and failed at
+/// once. The row keeps its own audio, and the converted WAV is deleted after.
+/// </remarks>
+static async Task RunParakeetRetryConversionTestsAsync(string root)
+{
+    static Mode Parakeet() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet retry", Language = "en",
+        ProviderType = "local", LocalEngine = "parakeet",
+    };
+    static Mode Whisper() => new()
+    {
+        Id = Guid.NewGuid(), Name = "Whisper retry", Language = "en",
+        ProviderType = "local", LocalEngine = "whisper",
+    };
+    static bool IsWave(string path)
+    {
+        var header = File.ReadAllBytes(path).AsSpan(0, 12);
+        return header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WAVE"u8);
+    }
+
+    var storeRoot = Path.Combine(root, "retry-parakeet-convert");
+    Directory.CreateDirectory(storeRoot);
+    var paths = new TestPaths(storeRoot);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+    Directory.CreateDirectory(paths.RecordingsDirectory);
+    var mp3 = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    using (var ffmpeg = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ffmpeg")
+    {
+        ArgumentList = { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+            "-i", "sine=frequency=440:duration=3", "-ac", "1", "-ar", "16000", "-b:a", "16k", mp3 },
+        RedirectStandardError = true,
+    })!)
+    {
+        var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+        await ffmpeg.WaitForExitAsync();
+        Assert(ffmpeg.ExitCode == 0 && File.Exists(mp3), $"ffmpeg could not make the fixture MP3: {stderr}");
+    }
+    Assert(!IsWave(mp3), "the fixture MP3 is already a WAV; the test would prove nothing");
+
+    async Task<Transcript> FailedRowAsync(string audio)
+    {
+        var row = new Transcript
+        {
+            Text = "Transcription failed: The Parakeet daemon could not transcribe the audio.",
+            FailedReason = "The Parakeet daemon could not transcribe the audio.",
+            Status = TranscriptStatus.Failed,
+            AudioFilePath = audio,
+        };
+        await history.AddAsync(row);
+        return row;
+    }
+    TranscriptionWorkflow Workflow(FakeTranscriber transcriber) => new(
+        new FakeRecorder(mp3), new FakeDevices(), transcriber, history,
+        retryAudioImport: new DurableAudioImportService(new AcceptPrivateFileService(), paths));
+
+    // 1. MP3 row, Parakeet mode: the transcriber sees a WAV; the row completes,
+    //    keeps its MP3, and the converted WAV is gone afterwards.
+    string? seenPath = null;
+    var seenWave = false;
+    var converting = new FakeTranscriber((path, _, _) =>
+    {
+        seenPath = path;
+        seenWave = IsWave(path);
+        return Task.FromResult(PortableTranscriptionResult.Success("converted words", "Parakeet"));
+    });
+    var mp3Row = await FailedRowAsync(mp3);
+    using (var workflow = Workflow(converting))
+    {
+        var result = await workflow.RetryTranscriptAsync(mp3Row.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(mp3Row.Id);
+        Assert(result.IsSuccess && seenWave && seenPath != mp3, "a Parakeet retry of an MP3 row did not reach the transcriber as a WAV");
+        Assert(saved is { Status: TranscriptStatus.Completed, Text: "converted words" } && saved.AudioFilePath == mp3 && File.Exists(mp3),
+            "a converted Parakeet retry did not complete the row on its own audio");
+        Assert(seenPath is not null && !File.Exists(seenPath), "the converted retry WAV was left behind");
+    }
+
+    // 2. Bytes ffmpeg cannot decode: a clear format failure at once, and the
+    //    transcriber never runs.
+    var garbage = Path.Combine(paths.RecordingsDirectory, $"local-api-{Guid.NewGuid():N}.mp3");
+    await File.WriteAllBytesAsync(garbage, Enumerable.Repeat((byte)0x5A, 4096).ToArray());
+    var garbageRow = await FailedRowAsync(garbage);
+    var never = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("unreachable", "Parakeet")));
+    using (var workflow = Workflow(never))
+    {
+        var result = await workflow.RetryTranscriptAsync(garbageRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Parakeet()));
+        var saved = await history.GetAsync(garbageRow.Id);
+        Assert(!result.IsSuccess && result.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && result.Failure.Message.Contains("WAV", StringComparison.Ordinal) && never.CallCount == 0,
+            "an undecodable Parakeet retry did not fail with a clear format error before the transcriber");
+        Assert(saved is { Status: TranscriptStatus.Failed, RetryCount: 1 } && saved.FailedReason!.Contains("WAV", StringComparison.Ordinal)
+            && saved.AudioFilePath == garbage && File.Exists(garbage),
+            "an undecodable Parakeet retry did not leave the row Failed on its own audio with the format reason");
+        Assert(!Directory.GetFiles(paths.RecordingsDirectory).Any(file =>
+                file.EndsWith(".wav", StringComparison.Ordinal) || file.EndsWith(".partial", StringComparison.Ordinal)),
+            "a failed retry conversion left files in the recordings directory");
+    }
+
+    // 3. A Whisper mode reads any format: the MP3 passes through unconverted.
+    var whisperRow = await FailedRowAsync(mp3);
+    string? whisperPath = null;
+    var whisper = new FakeTranscriber((path, _, _) =>
+    {
+        whisperPath = path;
+        return Task.FromResult(PortableTranscriptionResult.Success("whisper words", "Whisper"));
+    });
+    using (var workflow = Workflow(whisper))
+    {
+        var result = await workflow.RetryTranscriptAsync(whisperRow.Id, new TranscriptionWorkflowRequest(SelectedMode: Whisper()));
+        Assert(result.IsSuccess && whisperPath == mp3, "a Whisper retry converted audio it did not need to");
+    }
+}
+
 static async Task RunHistoryRetryTestsAsync(string root)
 {
     static async Task<(ApplicationDb Database, HistoryRepository History)> CreateStoreAsync(string parent, string name)
@@ -4445,6 +4904,37 @@ file sealed class SingleThreadUiContext : SynchronizationContext
     }
 }
 
+/// <summary>
+/// Issue #2663: holds the first armed read of the Modes table open until a second one has run, or
+/// until <paramref name="hold"/> passes. Only reads count: the deletes and default-flag updates
+/// SaveChanges sends go through untouched.
+/// </summary>
+file sealed class ModeReadOverlapInterceptor(TimeSpan hold) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+{
+    private readonly TaskCompletionSource _secondRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _reads;
+    public volatile bool Armed;
+    public int Reads => Volatile.Read(ref _reads);
+
+    // Disposing runs after the reader is closed, so the held read keeps no SQLite lock of its own:
+    // whatever the second delete waits on is the code under test, not this hook.
+    public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult DataReaderDisposing(
+        System.Data.Common.DbCommand command,
+        Microsoft.EntityFrameworkCore.Diagnostics.DataReaderDisposingEventData eventData,
+        Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult result)
+    {
+        var text = command.CommandText.TrimStart();
+        if (Armed && text.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) && text.Contains("FROM \"Modes\"", StringComparison.Ordinal))
+        {
+            if (Interlocked.Increment(ref _reads) == 1)
+                _secondRead.Task.Wait(hold);
+            else
+                _secondRead.TrySetResult();
+        }
+        return result;
+    }
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -4618,6 +5108,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
     public string? ValidateLicenseKey { get; private set; }
     public int ValidateCalls { get; private set; }
     public int UsageCalls { get; private set; }
+    public string UsageBody { get; set; } =
+        "{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}";
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -4635,7 +5127,7 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         if (path == "/usage")
         {
             UsageCalls++;
-            return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+            return Json(UsageBody);
         }
         if (path == "/api/license/deactivate")
             return Json("{\"success\":true}");

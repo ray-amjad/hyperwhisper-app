@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>To je privzeti način, zato njegovega imena ni mogoče spremeniti. Vsak drug način lahko preimenujete.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Način s tem imenom že obstaja.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -808,6 +811,9 @@ Te akcije se ne da razveljaviti.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Ni ključa API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Neveljaven ključ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -978,15 +984,6 @@ Te akcije se ne da razveljaviti.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2219,7 +2216,7 @@ You can re-download it later.</value>
     <value>Izberite vsaj en razdelek za uvoz.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Dodaj {0} novih besed, {1} konfliktov z obstoječimi besedami. Nadaljuj?</value>
+    <value>Nove besede: {0}. Konflikti z obstoječimi besedami: {1}. Nadaljuj?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Uvoziti besednjak?</value>
@@ -2241,6 +2238,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Nastavitve obnovljene.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Ključi API obnovljeni.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Enega ali več ključev API ni bilo mogoče obnoviti.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Varnostna kopija ne vsebuje ključev API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Nastavitev ni bilo mogoče obnoviti.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Varnostna kopija uvožena s težavami. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Če beseda že obstaja:</value>

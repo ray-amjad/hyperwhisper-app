@@ -66,6 +66,11 @@ public partial class MainWindow : Window
     public static readonly StyledProperty<bool> IsHomeRecordingActiveProperty =
         AvaloniaProperty.Register<MainWindow, bool>(nameof(IsHomeRecordingActive));
     public bool IsHomeRecordingActive { get => GetValue(IsHomeRecordingActiveProperty); private set => SetValue(IsHomeRecordingActiveProperty, value); }
+    /// <summary>Home's "State: {0}" caption: the workflow state, or a live stream's own Recording / Failed,
+    /// which the batch workflow never sees (#2038).</summary>
+    public static readonly StyledProperty<string?> HomeRecordingStateProperty =
+        AvaloniaProperty.Register<MainWindow, string?>(nameof(HomeRecordingState));
+    public string? HomeRecordingState { get => GetValue(HomeRecordingStateProperty); private set => SetValue(HomeRecordingStateProperty, value); }
     private readonly LinuxInteractionCoordinator _interaction;
     private readonly LinuxTrayActionHandler _trayActions;
     private readonly LazyLinuxRecordingOverlayFeedback _overlay;
@@ -101,7 +106,7 @@ public partial class MainWindow : Window
         var priorSettings = _platformServices.PrivateFiles.ReadAllText(
             Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
         _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
-        _database = new ApplicationDb(_platformServices.Paths);
+        _database = LinuxApplicationDatabase.Open(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _onboardingReadiness = new LinuxOnboardingModeReadiness(
@@ -149,7 +154,10 @@ public partial class MainWindow : Window
                 () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle,
                 new FfmpegM4aAudioTransformer(
                     () => _settings.Get("storage.storeAsM4A", false))),
-            audioPreprocessor: _platformServices.AudioPreprocessor);
+            audioPreprocessor: _platformServices.AudioPreprocessor,
+            // A retry of a non-WAV row in a Parakeet mode is converted to WAV
+            // first, as Transcribe File and the Local API are (#1572, #1675).
+            retryAudioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
@@ -207,7 +215,9 @@ public partial class MainWindow : Window
             SelectDefaultMicrophone,
             () => SelectAdjacentMicrophone(-1),
             () => SelectAdjacentMicrophone(1),
-            CycleMode,
+            SelectModeFromTray,
+            () => _onboarding?.IsVisible == true,
+            () => NavigateFromTray("modes"),
             () => NavigateFromTray("history"),
             () => NavigateFromTray("settings"),
             () => OpenTrayUri(TrayHelpUri),
@@ -242,18 +252,27 @@ public partial class MainWindow : Window
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
+        _statusBarWatch = WatchStatusBarInputs(_viewModel.Status, _viewModel.Recording, _recordingSession, () =>
+        {
+            if (Dispatcher.UIThread.CheckAccess()) UpdateShortcutHint();
+            else Dispatcher.UIThread.Post(UpdateShortcutHint);
+        });
         _interaction.OperationFailed += OnInteractionFailed;
         _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
+        _recordingSession.ActivityChanged += OnRecordingActivityChanged;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
         _viewModel.Modes.PropertyChanged += OnModesChangedForParakeetPrewarm;
         _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForParakeetPrewarm;
+        _viewModel.Modes.PropertyChanged += OnModesChangedForTray;
+        _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForTray;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
             _viewModel.Recording.PropertyChanged += OnRecordingStatusChanged;
         }
+        UpdateHomeRecordingState();
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -315,6 +334,7 @@ public partial class MainWindow : Window
     /// tray clauses are replaced rather than appended.</summary>
     private async Task StartTrayAsync(bool launching)
     {
+        PublishTrayModeMenu();
         var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
         if (!launching)
         {
@@ -395,11 +415,16 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
         _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
+        _recordingSession.ActivityChanged -= OnRecordingActivityChanged;
+        _statusBarWatch?.Dispose();
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
         _viewModel.Modes.PropertyChanged -= OnModesChangedForParakeetPrewarm;
         _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForParakeetPrewarm;
+        _viewModel.Modes.PropertyChanged -= OnModesChangedForTray;
+        _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForTray;
+        if (_onboarding is not null) _onboarding.PropertyChanged -= OnOnboardingChangedForTray;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
@@ -875,6 +900,7 @@ public partial class MainWindow : Window
             _onboarding.SetDevices(recording.AudioDevices, recording.SelectedAudioDevice);
         }
         OnboardingOverlay.DataContext = _onboarding;
+        _onboarding.PropertyChanged += OnOnboardingChangedForTray;
         _onboarding.Show();
     }
 
@@ -1381,9 +1407,16 @@ public partial class MainWindow : Window
     /// and a missing local post-processing model goes to the Model Library. Linux carries the same
     /// distinctions in the error CODE, so the mapping is made from that rather than from the text.
     /// </summary>
-    private static LinuxErrorToastAction ClassifyErrorToastAction(string code)
+    internal static LinuxErrorToastAction ClassifyErrorToastAction(string code)
     {
         var value = code.ToLowerInvariant();
+        // An account page did not open (#2632). The Cloud settings page is where the user clicked Get
+        // Credits or Manage account, and nothing there fixes either case, so the toast offers no button.
+        // link_failed: the browser could not open the page; its message ends with the URL to copy.
+        // link_rejected: the URL was not one of the two known account pages, so OpenAccountUri never
+        // opened it and its message carries no URL.
+        if (value is "account.link_failed" or "account.link_rejected")
+            return LinuxErrorToastAction.None;
         if (value.Contains("credential", StringComparison.Ordinal)
             || value.Contains("api_key", StringComparison.Ordinal)
             || value.Contains("apikey", StringComparison.Ordinal)
@@ -1448,6 +1481,77 @@ public partial class MainWindow : Window
     private LinuxModeChangeToastWindow? _modeToast;
 
     /// <summary>
+    /// The tray's Select Mode row. The id comes from the list this window published
+    /// (LinuxStatusNotifierItemService resolves the helper's index against it), and the
+    /// mode may have been deleted since, so it is looked up again. False refuses the pick.
+    /// </summary>
+    private bool SelectModeFromTray(Guid id)
+    {
+        var mode = _viewModel.Modes.Items.FirstOrDefault(item => item.Id == id);
+        if (mode is null) return false;
+        if (ReferenceEquals(mode, _viewModel.Modes.Selected)) return true;
+        _viewModel.Modes.Selected = mode;
+        try
+        {
+            _overlay.ModeChanged(LinuxOverlayModeLabel.Create(mode.Name));
+            ShowModeChangeToast(mode.Name);
+        }
+        catch { /* Feedback must not undo a selection that already happened. */ }
+        return true;
+    }
+
+    private bool _trayModeMenuQueued;
+
+    private void OnModesChangedForTray(object? sender, PropertyChangedEventArgs e)
+    {
+        // IsRefreshing dropping is the end of a reload: the one publish it was holding back.
+        if (e.PropertyName is nameof(ModesViewModel.Selected) or nameof(ModesViewModel.IsRefreshing))
+            ScheduleTrayModeMenu();
+    }
+
+    // Add, delete, reload, and a saved rename (Save replaces the row) all land here.
+    private void OnModeItemsChangedForTray(
+        object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        ScheduleTrayModeMenu();
+
+    private void OnOnboardingChangedForTray(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LinuxOnboardingViewModel.IsVisible)) ScheduleTrayModeMenu();
+    }
+
+    /// <summary>A mode list reload raises one change per row; publish once, after the burst.</summary>
+    private void ScheduleTrayModeMenu()
+    {
+        if (_shuttingDown || _trayModeMenuQueued) return;
+        _trayModeMenuQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _trayModeMenuQueued = false;
+            PublishTrayModeMenu();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary>Windows' RefreshModeMenu: every mode in list order, the active one checked,
+    /// rows disabled while onboarding owns the active mode.</summary>
+    private void PublishTrayModeMenu()
+    {
+        if (_shuttingDown) return;
+        try
+        {
+            var modes = _viewModel.Modes;
+            // A reload clears the list before it awaits the database; publishing then would
+            // flash "No modes available" and drop a click on the open menu. The reload's end
+            // (IsRefreshing -> false) schedules the publish instead.
+            if (modes.IsRefreshing) return;
+            _platformServices.Tray.PublishModeMenu(TrayModeMenu.Create(
+                modes.Items.Select(mode => new TrayModeEntry(mode.Id, mode.Name)).ToList(),
+                modes.Selected?.Id,
+                enabled: _onboarding?.IsVisible != true));
+        }
+        catch { /* The tray mirrors state; it must never break the window. */ }
+    }
+
+    /// <summary>
     /// Windows raises ModeChangeToastWindow on every mode change, on top of whatever the recording
     /// overlay is showing (MainWindow.xaml.cs ShowModeChangeToast). Linux only annotated the
     /// overlay, so a mode cycled with the window hidden and no recording in progress — the case
@@ -1470,7 +1574,7 @@ public partial class MainWindow : Window
     private void OnTrayActionRequested(object? sender, StatusNotifierActionEventArgs e)
         => Dispatcher.UIThread.Post(async () =>
         {
-            var result = await _trayActions.HandleAsync(e.Action, _lifetime.Token);
+            var result = await _trayActions.HandleAsync(e, _lifetime.Token);
             if (result.IsFailure && result.Error?.Code is not "tray.busy" and not "tray.unsafe_state"
                 and not "tray.cancelled" and not "tray.disposed")
                 _viewModel.Status.Failure(result.Error!.Code, result.Error.Message);
@@ -1625,7 +1729,9 @@ public partial class MainWindow : Window
                 // A non-WAV upload to a Parakeet mode is converted to WAV with
                 // the same ffmpeg import Transcribe File uses, so the daemon can
                 // read it and its reply wait scales with the length (#1572).
-                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
+                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
+                // /recording/toggle records with the mode picked in the app (#2406).
+                selectedModeId: () => _viewModel.Modes.Selected?.Id);
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
@@ -2567,6 +2673,11 @@ public partial class MainWindow : Window
             if (PageContent is not null) PageContent.Margin = new Thickness(0);
             if (pageId == "localapi") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
             if (pageId == "shortcuts") Dispatcher.UIThread.Post(UpdateShortcutsUi);
+            // Each visit rebuilds the page from its DataTemplate, and the old page's localized
+            // bindings stay behind as dead entries in the app-wide bridge's weak-event table until
+            // the bridge raises PropertyChanged. Raise it once the old page has been detached, so
+            // Avalonia purges them instead of keeping them for the life of the process (#2100).
+            Dispatcher.UIThread.Post(_localization.CompactSubscriptions, DispatcherPriority.Background);
         }
         finally { _navigationSyncing = false; }
     }
@@ -2746,31 +2857,91 @@ public partial class MainWindow : Window
     private void UpdateShortcutHint()
     {
         if (StatusText is null) return;
-        var parts = new List<string>(3);
-        var message = _viewModel.Status.Message;
+        var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
+        var hintFormat = _localization["linux.status.record_hint"];
+        StatusText.Text = StatusBarLine(_viewModel.Status, shortcut, hintFormat, _recordingSession, _viewModel.Recording);
+        // Windows prints the same composed line a second time, under "No recordings yet" in the
+        // History empty state. Nothing was assigning it, so the Linux empty state showed the
+        // title alone where Windows shows two lines. That line keeps its hint in every state: the
+        // #2599 rule is for the status bar only, and the History empty state is out of its scope.
+        var status = _viewModel.Status;
+        _viewModel.History.HotkeyInstruction = ComposeStatusLine(
+            status.Message, status.HasError, status.ErrorCode, shortcut, hintFormat, withHint: true);
+    }
+
+    /// <summary>The status bar's line for the shell status and what is in flight (#2599): no record hint
+    /// while anything is in flight (a recording, a stream, a stop still finishing, a transcription, an
+    /// import, or a shell Busy line such as "Importing universal backup…"), where the shortcut would stop
+    /// rather than record or the app is busy, and none on an error line, as Windows' status.failed has none.
+    /// Every other line, the resting "Ready" among them, keeps it.</summary>
+    internal static string StatusBarLine(UiStatus status, string? shortcut, string hintFormat,
+        LinuxInteractionRecordingSession? session, TranscriptionWorkflowViewModel? recording) =>
+        ComposeStatusLine(status.Message, status.HasError, status.ErrorCode, shortcut, hintFormat,
+            withHint: !status.HasError && !status.IsBusy && !IsRecordingInFlight(session, recording));
+
+    private IDisposable? _statusBarWatch;
+
+    /// <summary>Calls <paramref name="changed"/> whenever an input of <see cref="StatusBarLine"/> changes, on
+    /// whatever thread changed it: any shell status property (message, error, Busy), the Home recorder's
+    /// CanCancel or IsImporting, and the session's ActivityChanged. The last is what brings the hint back
+    /// after a stop that wrote its own line while still finishing, such as "Transcription saved, but text
+    /// injection failed" or "Live transcription pasted and saved": nothing else changes after it (#2599).</summary>
+    internal static IDisposable WatchStatusBarInputs(UiStatus status, TranscriptionWorkflowViewModel? recording,
+        LinuxInteractionRecordingSession session, Action changed)
+    {
+        PropertyChangedEventHandler onStatus = (_, _) => changed();
+        PropertyChangedEventHandler onRecording = (_, e) =>
+        {
+            if (e.PropertyName is nameof(TranscriptionWorkflowViewModel.CanCancel)
+                or nameof(TranscriptionWorkflowViewModel.IsImporting))
+                changed();
+        };
+        EventHandler onActivity = (_, _) => changed();
+        status.PropertyChanged += onStatus;
+        if (recording is not null) recording.PropertyChanged += onRecording;
+        session.ActivityChanged += onActivity;
+        return new StatusBarWatch(() =>
+        {
+            status.PropertyChanged -= onStatus;
+            if (recording is not null) recording.PropertyChanged -= onRecording;
+            session.ActivityChanged -= onActivity;
+        });
+    }
+
+    private sealed class StatusBarWatch(Action unsubscribe) : IDisposable
+    {
+        private Action? _unsubscribe = unsubscribe;
+        public void Dispose() => Interlocked.Exchange(ref _unsubscribe, null)?.Invoke();
+    }
+
+    /// <summary>The message (or, for an error with no message, its code), then the record hint when
+    /// <paramref name="withHint"/> and a shortcut is set, joined with " - ".</summary>
+    internal static string ComposeStatusLine(string? message, bool hasError, string? errorCode,
+        string? shortcut, string hintFormat, bool withHint)
+    {
+        var parts = new List<string>(2);
         if (!string.IsNullOrWhiteSpace(message)) parts.Add(message);
         // The raw error code used to be appended next to the message, so the status bar read
         // "No audio input device is available. - workflow.start_failed - Press Ctrl+Alt to record".
         // The code is an internal identifier and reads as a crash. Windows shows only the message.
         // It is still shown when there is no message, so an error is never silent, and it is always
         // in the diagnostic log.
-        else if (_viewModel.Status.HasError && !string.IsNullOrWhiteSpace(_viewModel.Status.ErrorCode))
-            parts.Add(_viewModel.Status.ErrorCode!);
-        var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
-        if (!string.IsNullOrEmpty(shortcut))
-            parts.Add(string.Format(_localization["linux.status.record_hint"], shortcut));
-        StatusText.Text = string.Join(" - ", parts);
-        // Windows prints the same composed line a second time, under "No recordings yet" in the
-        // History empty state. Nothing was assigning it, so the Linux empty state showed the
-        // title alone where Windows shows two lines.
-        _viewModel.History.HotkeyInstruction = StatusText.Text;
+        else if (hasError && !string.IsNullOrWhiteSpace(errorCode))
+            parts.Add(errorCode!);
+        if (withHint && !string.IsNullOrEmpty(shortcut))
+            parts.Add(string.Format(hintFormat, shortcut));
+        return string.Join(" - ", parts);
     }
+
+    /// <summary>A recording or live stream is running or still finishing (the #1190 predicate), a failed live
+    /// stream is held until Stop (#1246), or the Home recorder is stopping, transcribing or importing (#2599).</summary>
+    internal static bool IsRecordingInFlight(LinuxInteractionRecordingSession? session, TranscriptionWorkflowViewModel? recording) =>
+        session is { IsRecordingOrFinishing: true } or { HasOpenSession: true } or { IsLiveStarting: true }
+        || recording is { CanCancel: true } or { IsImporting: true };
 
     private void OnShellStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (Dispatcher.UIThread.CheckAccess()) UpdateShortcutHint();
-        else Dispatcher.UIThread.Post(UpdateShortcutHint);
-
+        // The status bar line itself is re-composed by the status-bar watch (WatchStatusBarInputs).
         if (e.PropertyName is nameof(UiStatus.ErrorCode) or nameof(UiStatus.Message)
             && _viewModel.Status.HasError)
             QueueErrorToast(() => (_viewModel.Status.ErrorCode, _viewModel.Status.Message));
@@ -2790,6 +2961,7 @@ public partial class MainWindow : Window
         if (e.PropertyName is nameof(recording.IsImporting) or nameof(recording.ImportProgress))
             UpdateFileTranscriptionProgressWindow();
         if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
+        if (e.PropertyName is nameof(recording.State)) Dispatcher.UIThread.Post(UpdateHomeRecordingState);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -3031,8 +3203,8 @@ public partial class MainWindow : Window
     /// navigates and never records, because on Windows you start a recording with the global
     /// hotkey. On Linux the global hotkey frequently cannot register at all (which is what the
     /// shortcut-conflict banner above this card is about), and this button is the ONLY way to
-    /// start a recording from the UI. So it keeps its action and gains the completion toggle:
-    /// the step is "Try your first transcription", and pressing it does exactly that.
+    /// start a recording from the UI. So it keeps its action and marks the step complete (never
+    /// un-ticks it, #2546): the step is "Try your first transcription", and pressing it does exactly that.
     /// </summary>
     private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
@@ -3041,13 +3213,25 @@ public partial class MainWindow : Window
         // below it reported the failure. Tick it only once a recording is actually running.
         await _interaction.StartRecordingAsync();
         if (_viewModel.Recording is { HasError: false, State: "Recording" })
-            _viewModel.Home.ToggleGettingStartedStep("recording");
+            _viewModel.Home.CompleteGettingStartedStep("recording");
     }
 
     private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
 
     private void UpdateHomeRecordingActive() =>
         IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
+
+    // Raised from the live worker's thread as well as the UI thread (#2038).
+    /// <summary>On the UI thread the caption updates at once: a live start shows its overlay inline in the
+    /// same pass, and a posted update let one frame render the pill beside a stale Idle (#2038).</summary>
+    private void OnRecordingActivityChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) UpdateHomeRecordingState();
+        else Dispatcher.UIThread.Post(UpdateHomeRecordingState);
+    }
+
+    private void UpdateHomeRecordingState() =>
+        HomeRecordingState = _recordingSession.HomeRecordingState(_viewModel.Recording?.State);
 
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
@@ -3661,305 +3845,4 @@ public partial class MainWindow : Window
 
     private string L(string key) => _localization.GetRequired(key);
     private string LF(string key, params object?[] arguments) => _localization.Format(key, arguments);
-}
-
-internal sealed class LinuxTrayActionHandler : IDisposable
-{
-    private readonly Func<bool> _isRecording;
-    private readonly Func<bool> _isImporting;
-    private readonly Func<CancellationToken, Task> _start;
-    private readonly Func<CancellationToken, Task> _stop;
-    private readonly Func<CancellationToken, Task> _transcribeFile;
-    private readonly IReadOnlyDictionary<StatusNotifierAction, Action> _immediateActions;
-    private readonly SemaphoreSlim _operation = new(1, 1);
-    private readonly Func<string, string> _text;
-    private bool _disposed;
-
-    internal LinuxTrayActionHandler(
-        Func<bool> isRecording,
-        Func<bool> isImporting,
-        Func<CancellationToken, Task> start,
-        Func<CancellationToken, Task> stop,
-        Func<CancellationToken, Task> transcribeFile,
-        Action selectDefaultMicrophone,
-        Action selectPreviousMicrophone,
-        Action selectNextMicrophone,
-        Action cycleMode,
-        Action openHistory,
-        Action openSettings,
-        Action openHelp,
-        Action openSupport,
-        Action sendFeedback,
-        Action show,
-        Action hide,
-        Action quit,
-        Func<string, string> text)
-    {
-        _isRecording = isRecording;
-        _isImporting = isImporting;
-        _start = start;
-        _stop = stop;
-        _transcribeFile = transcribeFile;
-        _text = text ?? throw new ArgumentNullException(nameof(text));
-        _immediateActions = new Dictionary<StatusNotifierAction, Action>
-        {
-            [StatusNotifierAction.SelectDefaultMicrophone] = selectDefaultMicrophone,
-            [StatusNotifierAction.SelectPreviousMicrophone] = selectPreviousMicrophone,
-            [StatusNotifierAction.SelectNextMicrophone] = selectNextMicrophone,
-            [StatusNotifierAction.CycleMode] = cycleMode,
-            [StatusNotifierAction.OpenHistory] = openHistory,
-            [StatusNotifierAction.OpenSettings] = openSettings,
-            [StatusNotifierAction.OpenHelp] = openHelp,
-            [StatusNotifierAction.OpenSupport] = openSupport,
-            [StatusNotifierAction.SendFeedback] = sendFeedback,
-            [StatusNotifierAction.Show] = show,
-            [StatusNotifierAction.Hide] = hide,
-            [StatusNotifierAction.Quit] = quit,
-        };
-    }
-
-    internal async Task<PlatformResult> HandleAsync(
-        StatusNotifierAction action,
-        CancellationToken cancellationToken = default)
-    {
-        if (_disposed)
-            return PlatformResult.Failure("tray.disposed", _text("linux.error.tray_disposed"));
-        if (action is StatusNotifierAction.CycleMode or StatusNotifierAction.OpenHistory
-            or StatusNotifierAction.OpenSettings or StatusNotifierAction.OpenHelp
-            or StatusNotifierAction.OpenSupport or StatusNotifierAction.SendFeedback
-            or StatusNotifierAction.Show or StatusNotifierAction.Hide or StatusNotifierAction.Quit)
-        {
-            try
-            {
-                _immediateActions[action]();
-                return PlatformResult.Success();
-            }
-            catch
-            {
-                return PlatformResult.Failure("tray.action_failed", _text("linux.error.tray_action_failed"));
-            }
-        }
-        try
-        {
-            if (!await _operation.WaitAsync(0, cancellationToken).ConfigureAwait(true))
-                return PlatformResult.Failure("tray.busy", _text("linux.error.tray_busy"));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return PlatformResult.Failure("tray.cancelled", _text("linux.error.tray_cancelled"));
-        }
-        try
-        {
-            switch (action)
-            {
-                case StatusNotifierAction.StartRecording:
-                    if (_isRecording() || _isImporting()) return UnsafeState();
-                    await _start(cancellationToken).ConfigureAwait(true);
-                    break;
-                case StatusNotifierAction.StopRecording:
-                    if (!_isRecording() || _isImporting()) return UnsafeState();
-                    await _stop(cancellationToken).ConfigureAwait(true);
-                    break;
-                case StatusNotifierAction.TranscribeFile:
-                    if (_isRecording() || _isImporting()) return UnsafeState();
-                    await _transcribeFile(cancellationToken).ConfigureAwait(true);
-                    break;
-                case StatusNotifierAction.SelectDefaultMicrophone:
-                case StatusNotifierAction.SelectPreviousMicrophone:
-                case StatusNotifierAction.SelectNextMicrophone:
-                    if (_isRecording() || _isImporting()) return UnsafeState();
-                    _immediateActions[action]();
-                    break;
-                default:
-                    return PlatformResult.Failure("tray.action_unknown", _text("linux.error.tray_action_unknown"));
-            }
-            return PlatformResult.Success();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return PlatformResult.Failure("tray.cancelled", _text("linux.error.tray_cancelled"));
-        }
-        catch
-        {
-            return PlatformResult.Failure("tray.action_failed", _text("linux.error.tray_action_failed"));
-        }
-        finally
-        {
-            _operation.Release();
-        }
-    }
-
-    private PlatformResult UnsafeState() => PlatformResult.Failure(
-        "tray.unsafe_state", _text("linux.error.tray_unsafe_state"));
-
-    public void Dispose()
-    {
-        _disposed = true;
-    }
-}
-
-internal enum ShortcutRecorderVerdict { Accept, Ignore, SingleModifier, TypingKey }
-
-/// <summary>
-/// The recorder's verdict on a captured chord, kept free of Avalonia types so it can be exercised
-/// without a window.
-///
-/// The rule this class adds for #628 is a property of the KEY, not of the role and not of the
-/// session. A chord with no modifier fires on a plain press of that key:
-/// <list type="bullet">
-/// <item>On a true Xorg session the chord is grabbed with
-/// <c>XGrabKey(..., ownerEvents: false)</c> on the root window (X11GlobalShortcutService.cs:293),
-/// which CONSUMES the press -- no other application ever sees it. That is #628 as reported.</item>
-/// <item>On a Wayland/evdev session nothing is consumed: the reader opens <c>/dev/input/event*</c>
-/// read-only and never calls <c>EVIOCGRAB</c>. But <c>EvdevShortcutFilter</c> matches a binding
-/// with no modifier group on every press of its key (EvdevShortcutFilter.cs:69-70), so the ACTION
-/// still fires while the user types. Same fault, keystroke left in place.</item>
-/// </list>
-/// So the rule needs no session argument and no role argument: a bare key that ordinary typing
-/// produces is refused everywhere.
-///
-/// The exception is a key ordinary typing never produces -- F1-F24 and Escape. Both are grabbable
-/// on both backends (X11GlobalShortcutService.cs:246,251; EvdevShortcutMapper.MapKey), so a bare
-/// F13 toggle and the shipped bare Escape cancel (SettingsViewModel.cs:348) stay recordable for
-/// every role, exactly as on main.
-///
-/// Windows has the same rule since #1631: <c>ShortcutValidationService.ValidateActionShortcut</c>
-/// refuses a bare key unless it is F1-F24 or Escape, with the same sentence. There the reason is the
-/// ACTION, not the keystroke -- Windows routes a bare key through a NON-CONSUMING low-level keyboard
-/// hook (KeyboardShortcutService.cs), so the press still reaches the focused application, but the
-/// action still fires on every press of that key while the user types (#1631 saved a bare Tab as
-/// the global Toggle shortcut). Keep the two key sets in step.
-/// </summary>
-internal static class LinuxShortcutRecorderRules
-{
-    internal static ShortcutRecorderVerdict Evaluate(int modifierCount, string key)
-    {
-        if (key.Length == 0)
-        {
-            // Nothing held at all is not a capture yet.
-            if (modifierCount == 0) return ShortcutRecorderVerdict.Ignore;
-            // A SINGLE bare modifier would steal ordinary typing, but a deliberate multi-modifier
-            // chord such as Ctrl+Alt or Ctrl+Win is a real shortcut -- and Ctrl+Alt is the product
-            // default toggle chord, so it has to stay recordable. Unchanged from main.
-            return modifierCount == 1
-                ? ShortcutRecorderVerdict.SingleModifier
-                : ShortcutRecorderVerdict.Accept;
-        }
-
-        if (modifierCount > 0) return ShortcutRecorderVerdict.Accept;
-
-        // #628: a bare letter was accepted, saved and armed, so every press of that letter fired
-        // the action -- and on Xorg never reached the application the user was typing into.
-        return IsDedicatedKey(key) ? ShortcutRecorderVerdict.Accept : ShortcutRecorderVerdict.TypingKey;
-    }
-
-    /// <summary>
-    /// A key that ordinary typing never produces, so holding no modifier is safe. The names are the
-    /// ones <c>MainWindow.MapShortcutKey</c> emits; everything else it can emit -- a letter, a
-    /// digit, Space, Tab, Enter, Backspace, Delete, Insert, Home, End, PageUp, PageDown, an arrow
-    /// and every OEM punctuation key -- appears in a normal keystroke stream.
-    /// </summary>
-    private static bool IsDedicatedKey(string key)
-        => string.Equals(key, "Escape", StringComparison.Ordinal)
-            || (key.Length >= 2 && key[0] == 'F'
-                && int.TryParse(key.AsSpan(1), System.Globalization.NumberStyles.None,
-                    System.Globalization.CultureInfo.InvariantCulture, out var number)
-                && number is >= 1 and <= 24);
-
-    /// <summary>
-    /// The catalogue key a verdict paints, or null when the verdict paints nothing. Accept writes
-    /// the chord and Ignore is not a capture yet, so those two are the only silent outcomes; every
-    /// other verdict refuses a chord and owes the user a sentence. Keeping the map here rather
-    /// than in the key-down handler is what lets a test enumerate the enum and fail when a new
-    /// rejecting verdict arrives with no message.
-    /// </summary>
-    internal static string? ErrorMessageKey(ShortcutRecorderVerdict verdict) => verdict switch
-    {
-        ShortcutRecorderVerdict.SingleModifier => "linux.shortcuts.error.singleModifier",
-        ShortcutRecorderVerdict.TypingKey => "linux.shortcuts.error.typingKey",
-        _ => null,
-    };
-}
-
-internal static class LinuxTrayMicrophoneSelector
-{
-    /// <summary>The automatic pick (#2408: a virtual OS default gives way to the first non-virtual
-    /// input, in enumeration order, as in MicrophonePickerViewModel). With no device flagged default,
-    /// the first by Id, so the result does not depend on enumeration order.</summary>
-    internal static AudioInputDevice? SelectDefault(IEnumerable<AudioInputDevice> source)
-    {
-        var enumerated = source.ToArray();
-        if (enumerated.Any(device => device.IsDefault)) return MicrophoneSelection.AutomaticPick(enumerated);
-        return enumerated.OrderBy(device => device.Id, StringComparer.Ordinal).FirstOrDefault();
-    }
-
-    internal static AudioInputDevice? SelectAdjacent(
-        IEnumerable<AudioInputDevice> source,
-        string? selectedId,
-        int direction)
-    {
-        var enumerated = source.ToArray();
-        var devices = enumerated.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
-        if (devices.Length == 0) return null;
-        var selected = Array.FindIndex(devices,
-            device => string.Equals(device.Id, selectedId, StringComparison.Ordinal));
-        // The automatic pick from ENUMERATION order (#2408), as Default records from it.
-        if (selected < 0 && SelectDefault(enumerated) is { } automatic)
-            selected = Array.FindIndex(devices, device => string.Equals(device.Id, automatic.Id, StringComparison.Ordinal));
-        if (selected < 0) selected = 0;
-        var step = direction < 0 ? -1 : 1;
-        return devices[(selected + step + devices.Length) % devices.Length];
-    }
-}
-
-/// <summary>The hourly storage-maintenance loop on its one PeriodicTimer. A PeriodicTimer allows one
-/// pending WaitForNextTickAsync, so a second start returns the running loop instead of faulting a new
-/// one (#833). A failed tick is reported and the loop keeps ticking; only cancellation ends it.</summary>
-internal sealed class LinuxStorageMaintenanceLoop(
-    PeriodicTimer timer, Func<CancellationToken, Task> tick, Func<Exception, Task> report)
-{
-    internal Task? Running { get; private set; }
-
-    internal Task EnsureStarted(CancellationToken cancellationToken) => Running ??= RunAsync(cancellationToken);
-
-    private async Task RunAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-            {
-                try { await tick(cancellationToken).ConfigureAwait(false); }
-                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                { await report(exception).ConfigureAwait(false); }
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-    }
-}
-
-internal enum LinuxWindowOpenedWork { None, Launch, RetryStartUp, RestartTray }
-
-/// <summary>What a window Opened may start (#833). Avalonia raises Opened on every Show() after Hide(),
-/// so a later Opened only retries what has not yet succeeded, as main's re-run did: the start-up chain
-/// until it succeeds once, then the tray helper while it is down. Nothing starts while one is running.</summary>
-internal sealed class LinuxWindowStartupGate
-{
-    private bool _attempted, _running, _succeeded;
-
-    internal LinuxWindowOpenedWork Next(bool trayAvailable)
-    {
-        if (_running) return LinuxWindowOpenedWork.None;
-        if (_succeeded && trayAvailable) return LinuxWindowOpenedWork.None;
-        _running = true;
-        if (_succeeded) return LinuxWindowOpenedWork.RestartTray;
-        var first = !_attempted;
-        _attempted = true;
-        return first ? LinuxWindowOpenedWork.Launch : LinuxWindowOpenedWork.RetryStartUp;
-    }
-
-    internal void Finish(bool succeeded)
-    {
-        _running = false;
-        _succeeded |= succeeded;
-    }
 }

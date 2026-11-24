@@ -24,6 +24,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("failures do not expose path model or credentials", FailurePrivacy),
     ("WAV metadata is streamed from a sparse file", SparseWaveMetadata),
     ("RIFF truncation and oversized chunks are bounded", MalformedWaveMetadata),
+    ("an unpatched or past-EOF WAV data length reads to the end of the file", UnpatchedWaveDataLength),
     ("cancellation is stable and content-free", Cancellation),
 };
 
@@ -57,7 +58,7 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-2", 300L * ByteSizes.MiB, true),
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
         new ProviderLimit(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", 14L * ByteSizes.MiB, false),
-        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
+        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 128L * ByteSizes.MiB, true, "deepgramNova3"),
         new ProviderLimit(CloudTranscriptionProvider.Meta, "muse-voice-transcribe-1.0", 32L * ByteSizes.MiB, false),
     };
     foreach (var item in cases)
@@ -305,7 +306,7 @@ static async Task NonMuseCloudTierLimits()
         new(FileTranscriptionRoute.Cloud, "", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
             CloudCatalogTier: "gemini"));
     Assert(result.IsSuccess && result.Constraints is
-        { MaximumBytes: 2L * ByteSizes.GiB, MaximumDuration: null, RequiresMuseWave: false },
+        { MaximumBytes: 128L * ByteSizes.MiB, MaximumDuration: null, RequiresMuseWave: false },
         "a non-Muse cloud tier inherited catalog file limits");
 }
 
@@ -453,6 +454,48 @@ static async Task MalformedWaveMetadata()
         await File.WriteAllBytesAsync(oversized, bytes);
         value = await new StreamingFileAudioMetadataSource().ReadAsync(oversized);
         Assert(value is { LengthBytes: 20, Duration: null }, "oversized RIFF chunk overflowed or was accepted");
+    }
+    finally { Directory.Delete(root, recursive: true); }
+}
+
+static async Task UnpatchedWaveDataLength()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-preflight-unpatched-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        // A crash-interrupted recorder leaves the placeholder 0; piped ffmpeg/sox writes 0xFFFFFFFF.
+        foreach (var declared in new[] { 0u, uint.MaxValue })
+        {
+            var path = Path.Combine(root, $"unpatched-{declared:x}.wav");
+            var header = WaveHeader(dataBytes: 0, bytesPerSecond: 32_000);
+            BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4), declared);
+            BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(40), declared);
+            await File.WriteAllBytesAsync(path, [.. header, .. new byte[30 * 32_000]]);
+
+            var source = new StreamingFileAudioMetadataSource();
+            var metadata = await source.ReadAsync(path);
+            Assert(metadata?.Duration == TimeSpan.FromSeconds(30),
+                $"data length 0x{declared:x} was not read to the end of the file");
+
+            var result = await new PortableFileTranscriptionPreflight(
+                    source, new FakeLocalReadiness(), new FakeCredentials(api: true, account: false))
+                .ValidateAsync(path, new(FileTranscriptionRoute.Local, "base", LocalTranscriptionEngine.Whisper));
+            Assert(result.IsSuccess, $"preflight refused a WAV with data length 0x{declared:x}");
+
+            // Meta Muse uploads a canonical WAV as-is, so an unpatched header must be rewritten.
+            Assert(metadata is { DataLengthRecomputed: true, IsMuseCompatibleWave: false },
+                $"data length 0x{declared:x} passed as a canonical Muse WAV");
+            foreach (var target in MetaMuseTargets())
+            {
+                var muse = await new PortableFileTranscriptionPreflight(source, new FakeLocalReadiness(),
+                        new FakeCredentials(api: true,
+                            account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud))
+                    .ValidateAsync(path, target);
+                Assert(muse is { IsSuccess: true, RequiresNormalization: true },
+                    $"Meta Muse sent data length 0x{declared:x} without normalization");
+            }
+        }
     }
     finally { Directory.Delete(root, recursive: true); }
 }

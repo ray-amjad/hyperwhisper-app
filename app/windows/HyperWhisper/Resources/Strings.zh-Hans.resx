@@ -276,6 +276,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>这是默认模式，因此无法更改其名称。你可以重命名其他任何模式。</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>已存在同名模式。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>提供商</value>
   </data>
@@ -896,6 +899,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0}（无 API 密钥）</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0}（密钥无效）</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>加载失败</value>
   </data>
@@ -1069,15 +1075,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet 模型不支持自定义词汇。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 不支持自定义词汇。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base 模型不支持自定义词汇。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper 模型不支持自定义词汇。</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>使用 Nova 模型的自动检测时自定义词汇已禁用。设置特定语言以启用词汇增强。</value>
@@ -2223,7 +2220,7 @@
     <value>请至少选择一个要导入的部分。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>添加 {0} 个新词，{1} 个与现有词冲突。是否继续？</value>
+    <value>新词：{0} 个。与现有词冲突：{1} 个。是否继续？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>导入词汇？</value>
@@ -2245,6 +2242,21 @@
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>已恢复设置。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>已恢复 API 密钥。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>一个或多个 API 密钥无法恢复。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>备份中没有 API 密钥。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>无法恢复设置。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>备份已导入，但存在问题。{0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果词语已经存在：</value>

@@ -24,7 +24,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { ALL_STT_PROVIDER_IDS, getProviderDef, servedNameFor, type SttProviderId } from '../src/lib/stt-models';
-import { LLM_PROVIDER_NAMES } from '../src/lib/llm-provider';
+import { defaultModelFor, LLM_PROVIDERS, servedLLMName } from '../src/lib/llm-models';
 
 const BASE_URL = (process.env.SMOKE_BASE_URL || '').replace(/\/$/, '');
 const LICENSE_KEY = process.env.SMOKE_LICENSE_KEY || '';
@@ -78,12 +78,14 @@ const STT_CHECKS: SttCheck[] = [
 
 // Every post-process LLM provider gets exercised once — like the STT set, this
 // is NOT hand-maintained: it's derived from the server-side registry
-// (lib/llm-provider.ts → LLM_PROVIDER_NAMES). Each entry maps a provider id to
+// (lib/llm-models.ts: each provider's default row). Each entry maps a provider id to
 // the served name the backend echoes in the X-LLM-Provider response header for
 // that provider's DEFAULT model, used to detect a silent fallback to a
 // different provider. Adding a provider to the registry therefore exercises it
 // here automatically, and checkLLMProviderCoverage asserts the link can't drift.
-const LLM_CHECKS: Record<string, string> = LLM_PROVIDER_NAMES;
+const LLM_CHECKS: Record<string, string> = Object.fromEntries(
+  LLM_PROVIDERS.map((provider) => [provider, servedLLMName(provider, defaultModelFor(provider))]),
+);
 
 // The X-STT-Provider response header echoes the served name as `base/model`
 // (e.g. "deepgram/nova-3-general", "openai/gpt-4o-transcribe"). We check the
@@ -155,7 +157,7 @@ function checkProviderCoverage(): void {
 // Runs unconditionally so a registry/smoke drift is caught on every CI run.
 function checkLLMProviderCoverage(): void {
   const name = 'LLM provider coverage';
-  const registered = Object.keys(LLM_PROVIDER_NAMES);
+  const registered: readonly string[] = LLM_PROVIDERS;
   const covered = new Set(Object.keys(LLM_CHECKS));
   const missing = registered.filter((p) => !covered.has(p));
   if (missing.length) {
@@ -249,7 +251,11 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
   }
 }
 
-async function checkPostProcess(provider: string, expectedModel: string): Promise<void> {
+// All lowercase, no punctuation: a tier that post-processed anything changes it,
+// so a `corrected` equal to this is the route's raw fallback (#2143).
+const POST_PROCESS_INPUT = 'hello world this is a ci smoke test';
+
+async function checkPostProcess(provider: string, expectedModel: string, firstFallback = ''): Promise<void> {
   const name = `POST /post-process ${provider}`;
   try {
     const res = await fetchWithTimeout(`${BASE_URL}/post-process`, {
@@ -258,7 +264,7 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
       body: JSON.stringify({
         license_key: LICENSE_KEY,
         device_id: DEVICE_ID,
-        text: 'hello world this is a ci smoke test',
+        text: POST_PROCESS_INPUT,
         // The route wraps `text` in --TRANSCRIPT-- … --ENDTRANSCRIPT--
         // (buildTranscriptUserContent), and every real client prompt names that
         // wrapper. A prompt that does not lets gpt-5.6-luna echo the markers, the
@@ -277,11 +283,33 @@ async function checkPostProcess(provider: string, expectedModel: string): Promis
     // 2026-10-19): a fallback here hid a broken tier on every deploy. The
     // /transcribe fallback above stays a warning, so one STT vendor's bad minute
     // cannot block a prod deploy.
+    // One fallback is asked again before it fails: a broken tier falls back
+    // twice, a single 20 s upstream timeout does not (gemini 2026-10-25, grok
+    // 2026-10-21 each blocked a prod deploy and passed on the re-run).
+    // The header alone misses the raw fallback: when the requested provider's
+    // output is rejected (leakage, cut off, empty) and no retry serves it, the
+    // route returns the input unchanged with X-LLM-Provider still naming the
+    // requested model (#2143). So an unchanged `corrected` is a fallback too.
     const served = res.headers.get('X-LLM-Provider') || '?';
-    if (served !== expectedModel) {
-      return fail(name, `fell back — requested ${provider} (${expectedModel}), served ${served}`);
+    const body = (await res.json().catch(() => null)) as { corrected?: unknown } | null;
+    if (typeof body?.corrected !== 'string') {
+      return fail(name, `200 without a string \`corrected\` in a JSON body (served ${served})`);
     }
-    pass(name, `via ${served}`);
+    const corrected = body.corrected.trim();
+    let msg = '';
+    if (served !== expectedModel) {
+      msg = `fell back — requested ${provider} (${expectedModel}), served ${served}`;
+    } else if (!corrected || corrected === POST_PROCESS_INPUT) {
+      msg = `fell back to the raw input — ${provider} (${served}) returned ${JSON.stringify(corrected)}`;
+    }
+    if (msg) {
+      if (!firstFallback) {
+        warn(name, `${msg}; asking once more`);
+        return checkPostProcess(provider, expectedModel, msg);
+      }
+      return fail(name, msg === firstFallback ? `${msg} (twice)` : `${msg}; first request: ${firstFallback}`);
+    }
+    pass(name, `via ${served}: ${JSON.stringify(corrected.slice(0, 50))}`);
   } catch (err) {
     fail(name, String(err));
   }

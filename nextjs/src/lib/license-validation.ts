@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { findAccountByKey, type AccountKeyRow } from "@/src/lib/db-layer";
+import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import {
   probeLicenseKeyReadOnly,
   type LicenseInvalid,
@@ -35,6 +36,18 @@ export function invalidLicenseResponse(result: LicenseInvalid): NextResponse {
   );
 }
 
+/**
+ * The rejection for a key that cannot be looked up (a NUL byte, #2079): the
+ * request is malformed, so `bad_request`, never the `lookup_failed` incident
+ * the database's refusal used to surface as.
+ */
+const MALFORMED_KEY: LicenseInvalid = {
+  valid: false,
+  error: "Invalid license key",
+  status: 400,
+  reason: "bad_request",
+};
+
 export type LicenseCheckResult =
   | { valid: true; license: AccountKeyRow }
   | LicenseInvalid;
@@ -46,6 +59,8 @@ export type LicenseCheckResult =
 export async function probeLicenseKey(
   licenseKey: string,
 ): Promise<ReadOnlyLicenseProbeResult> {
+  if (!isLookupableLicenseKey(licenseKey)) return MALFORMED_KEY;
+
   return probeLicenseKeyReadOnly(licenseKey, {
     findStoredLicense: findAccountByKey,
   });
@@ -60,6 +75,8 @@ export async function probeLicenseKey(
 export async function checkLicenseKey(
   licenseKey: string,
 ): Promise<LicenseCheckResult> {
+  if (!isLookupableLicenseKey(licenseKey)) return MALFORMED_KEY;
+
   const license = await findAccountByKey(licenseKey.trim());
 
   if (!license) {

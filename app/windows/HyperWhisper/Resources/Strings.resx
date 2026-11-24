@@ -296,6 +296,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>This is the default mode, so its name cannot be changed. You can rename any other mode.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>A mode with that name already exists.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -1065,6 +1068,9 @@ Do you want to restart now?</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (No API key)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Key invalid)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -1283,15 +1289,6 @@ Do you want to restart now?</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2239,7 +2236,7 @@ You can re-download it later.</value>
     <value>Select at least one section to import.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Add {0} new words, {1} conflicts with existing words. Continue?</value>
+    <value>New words: {0}. Conflicts with existing words: {1}. Continue?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Import Vocabulary?</value>
@@ -2261,6 +2258,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Settings restored.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API keys restored.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>One or more API keys could not be restored.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>The backup holds no API keys.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Settings could not be restored.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Backup imported with problems. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>If a word already exists:</value>

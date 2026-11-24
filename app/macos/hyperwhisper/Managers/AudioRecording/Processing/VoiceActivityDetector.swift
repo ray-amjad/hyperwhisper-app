@@ -205,8 +205,17 @@ actor VoiceActivityDetector {
 
         // Load model
         // WHISPER.CPP FUNCTION: whisper_vad_init_from_file_with_params
-        // Loads the Silero VAD model from disk and returns an opaque context pointer
+        // Loads the Silero VAD model from disk and returns an opaque context pointer.
+        // It reaches the same `whisper_backend_init` as the model load, which can
+        // throw an uncaught C++ exception (#2678), so the init is bracketed too.
+        SentryService.beginNativeInit(SentryService.nativeInitSnapshot(
+            engine: .whisperVAD,
+            model: "silero-v5.1.2",
+            useGPU: contextParams.use_gpu,
+            flashAttention: false
+        ))
         let ctx = whisper_vad_init_from_file_with_params(modelPath, contextParams)
+        SentryService.endNativeInit(.whisperVAD, succeeded: ctx != nil)
 
         guard let ctx = ctx else {
             logger.error("Failed to load VAD model from: \(modelPath)")

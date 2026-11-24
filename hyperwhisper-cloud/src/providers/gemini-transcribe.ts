@@ -21,7 +21,7 @@
 // Verified against the live API. Only `/v1beta/interactions` serves these models,
 // which is why this is a separate adapter rather than another model row on the
 // Gemini one. The same rule is documented on the native side in
-// `shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`.
+// `shared-core-rs/crates/hw-net/src/providers/gemini_transcribe/mod.rs`.
 //
 // TRAP 2 — `custom_vocabulary` is mutually exclusive with BOTH
 // `diarization_mode` ("custom_vocabulary is incompatible with diarization.") and
@@ -37,12 +37,14 @@ import {
   computeGeminiTranscribeCost,
   estimateGeminiTranscribeOutputTokens,
 } from '../lib/cost-calculator';
-import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
+import { getProviderDef } from '../lib/stt-models';
 // A pure Content-Type → Google audio MIME mapper. Importing it is NOT the
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
 import { geminiMimeType } from './gemini';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   estimateAudioSeconds,
@@ -50,16 +52,19 @@ import {
   isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
+
+// The inline base64 cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['gemini-transcribe'].adapterMaxBytes;
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // Google versions this endpoint by date. Omitting the header selects whatever
 // the current default revision is, which is not a stable contract — pin it, and
 // re-verify the request/response shape before moving it.
 const API_REVISION = '2026-05-20';
-const DEFAULT_MODEL = 'gemini-3.5-transcribe';
 // WebSocket-only (BidiGenerateContent). `/v1beta/interactions` answers a request
 // for it with a 404 "Model not found", so this adapter rejects it up front
 // rather than spending a round trip — and so the failure names the real reason.
@@ -81,32 +86,12 @@ const MAX_VOCABULARY_TERM_CHARS = 80;
 export const INTERACTIONS_TIMEOUT_MS = 45_000;
 
 /**
- * Optional `transcription_config` extras. Both are dropped when vocabulary terms
- * are present — see {@link buildTranscriptionConfig}.
- *
- * Nothing in this backend requests them: `/transcribe` returns text only, so the
- * word offsets and speaker labels have nowhere to go, and never sending them
- * makes TRAP 2 unreachable in production. They are a parameter, rather than an
- * unwritten convention, so the exclusion rule has one directly testable home —
- * a future word-timings change must go through it instead of adding the field
- * next to the vocabulary and getting a 400 for every dictating user.
- */
-export interface TranscriptionConfigExtras {
-  /** e.g. `'speaker'`. */
-  diarizationMode?: string;
-  /** e.g. `['word']`. */
-  timestampGranularities?: string[];
-}
-
-/**
  * Build `generation_config.transcription_config`.
  *
- * **The single enforcement point for TRAP 2.** Google rejects `custom_vocabulary`
- * with a 400 when it arrives alongside `diarization_mode` or
- * `timestamp_granularities`. Rather than making each call site remember that,
- * this resolves the conflict: when vocabulary terms survive normalization they
- * are sent and the extras are dropped. HyperWhisper is a dictation app — correct
- * spellings of the user's own jargon beat speaker labels and word offsets.
+ * TRAP 2: Google rejects `custom_vocabulary` with a 400 when it arrives
+ * alongside `diarization_mode` or `timestamp_granularities`. `/transcribe`
+ * returns text only, so this never sends either; a future word-timings change
+ * must not add them next to the vocabulary.
  *
  * Returns a possibly-empty object; the caller omits `generation_config` entirely
  * when nothing is configured (auto-detect, no vocabulary).
@@ -114,7 +99,6 @@ export interface TranscriptionConfigExtras {
 export function buildTranscriptionConfig(
   language: string | undefined,
   terms: readonly string[],
-  extras: TranscriptionConfigExtras = {},
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {};
 
@@ -126,17 +110,7 @@ export function buildTranscriptionConfig(
   }
 
   if (terms.length > 0) {
-    // TRAP 2: vocabulary wins. `extras` is discarded, not merged.
     config.custom_vocabulary = [...terms];
-    return config;
-  }
-
-  const diarization = extras.diarizationMode?.trim();
-  if (diarization) {
-    config.diarization_mode = diarization;
-  }
-  if (extras.timestampGranularities && extras.timestampGranularities.length > 0) {
-    config.timestamp_granularities = [...extras.timestampGranularities];
   }
 
   return config;
@@ -160,7 +134,7 @@ export function toVocabularyTerms(initialPrompt: string): string[] {
 interface InteractionsUsage {
   input_tokens_by_modality?: Array<{ modality?: string; tokens?: number }>;
   total_input_tokens?: number;
-  /** Always 0 on this endpoint — see cost-calculator's GEMINI_TRANSCRIBE_RATES. */
+  /** Always 0 on this endpoint — see the Gemini 3.5 Transcribe block in cost-calculator.ts. */
   total_output_tokens?: number;
 }
 
@@ -225,7 +199,7 @@ export async function transcribeWithGeminiTranscribe(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'gemini-transcribe';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('gemini-transcribe').defaultModel;
 
   if (model === GEMINI_TRANSCRIBE_LIVE_MODEL) {
     // Fail before spending a round trip, and name the reason. A
@@ -238,18 +212,18 @@ export async function transcribeWithGeminiTranscribe(
   }
 
   // Same key as the Gemini LLM adapter — same Google project, no new secret.
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  const apiKey = readApiKey(GEMINI_API_KEY_ENV);
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
 
   // No Files-API overflow path exists on this endpoint, so an oversized payload
   // is a hard 413 (defense in depth behind the route's pre-buffer gate).
-  if (audio.byteLength > GEMINI_TRANSCRIBE_INLINE_MAX_BYTES) {
+  if (audio.byteLength > INLINE_MAX_BYTES) {
     logProviderEvent(provider, 'audio_too_large', {
-      model, audioBytes: audio.byteLength, maxBytes: GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
+      model, audioBytes: audio.byteLength, maxBytes: INLINE_MAX_BYTES,
     }, context);
-    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
+    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const terms = initialPrompt ? toVocabularyTerms(initialPrompt) : [];
@@ -306,14 +280,7 @@ export async function transcribeWithGeminiTranscribe(
     });
   }
 
-  let data: InteractionsResponse;
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Gemini 3.5 Transcribe', 'malformed 200 response body', {
-      kind: 'bad_response',
-    });
-  }
+  const data = await readJson200<InteractionsResponse>(provider, 'Gemini 3.5 Transcribe', response, startedAt, context);
 
   const transcript = collectTranscript(data);
   const { audioTokens, textTokens } = readInputTokens(data.usage);
@@ -361,7 +328,7 @@ export async function transcribeWithGeminiTranscribe(
 
   // `usage.total_output_tokens` is 0 on every response from this endpoint, so
   // the output half of the bill is estimated from the transcript we just
-  // received. See GEMINI_TRANSCRIBE_RATES in lib/cost-calculator.ts.
+  // received. See the Gemini 3.5 Transcribe block in lib/cost-calculator.ts.
   const outputTokens = estimateGeminiTranscribeOutputTokens(transcript);
   const costUsd = computeGeminiTranscribeCost(model, {
     audioInputTokens: audioTokens,

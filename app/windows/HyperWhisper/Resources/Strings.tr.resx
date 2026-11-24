@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Bu ada sahip bir mod zaten var.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Sağlayıcı</value>
   </data>
@@ -808,6 +811,9 @@ Bu işlem geri alınamaz.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (API anahtarı yok)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Anahtar geçersiz)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Yükleme başarısız</value>
   </data>
@@ -978,15 +984,6 @@ Bu işlem geri alınamaz.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet modellerinde özel kelime hazinesi desteklenmez.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1'de özel kelime hazinesi desteklenmez.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base modellerinde özel kelime hazinesi desteklenmez.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper modellerinde özel kelime hazinesi desteklenmez.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Nova modelleriyle otomatik algılama kullanılırken özel kelime hazinesi devre dışıdır. Kelime hazinesi güçlendirmeyi etkinleştirmek için belirli bir dil ayarlayın.</value>
@@ -2219,7 +2216,7 @@ Daha sonra yeniden indirebilirsiniz.</value>
     <value>İçe aktarmak için en az bir bölüm seçin.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} yeni kelime ekle, {1} mevcut kelimelerle çakışma. Devam edilsin mi?</value>
+    <value>Yeni kelimeler: {0}. Mevcut kelimelerle çakışmalar: {1}. Devam edilsin mi?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Kelime Hazinesi İçe Aktarılsın mı?</value>
@@ -2241,6 +2238,21 @@ Daha sonra yeniden indirebilirsiniz.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Ayarlar geri yüklendi.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API anahtarları geri yüklendi.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Bir veya daha fazla API anahtarı geri yüklenemedi.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Yedekte API anahtarı yok.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Ayarlar geri yüklenemedi.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Yedek sorunlarla içe aktarıldı. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Bir kelime zaten mevcutsa:</value>

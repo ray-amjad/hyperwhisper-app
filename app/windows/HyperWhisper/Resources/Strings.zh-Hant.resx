@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>已存在同名模式。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>服務商</value>
   </data>
@@ -808,6 +811,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0}（無 API 金鑰）</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0}（金鑰無效）</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>載入失敗</value>
   </data>
@@ -978,15 +984,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Parakeet 模型不支援自訂詞彙。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>ElevenLabs Scribe V1 不支援自訂詞彙。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Deepgram Base 模型不支援自訂詞彙。</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Deepgram Whisper 模型不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Nova 模型使用自動偵測語言時，會停用自訂詞彙。請設定特定語言以啟用詞彙加權。</value>
@@ -2218,7 +2215,7 @@
     <value>請至少選擇一個要匯入的部分。</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>新增 {0} 個詞，{1} 個與現有詞衝突。是否繼續？</value>
+    <value>新詞：{0} 個。與現有詞衝突：{1} 個。是否繼續？</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>匯入詞彙？</value>
@@ -2240,6 +2237,21 @@
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>已還原設定。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>已還原 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>一個或多個 API 金鑰無法還原。</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>備份中沒有 API 金鑰。</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>無法還原設定。</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>備份已匯入，但發生問題。{0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>如果詞語已經存在：</value>

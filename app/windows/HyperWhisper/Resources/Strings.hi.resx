@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>यह डिफ़ॉल्ट मोड है, इसलिए इसका नाम नहीं बदला जा सकता। आप किसी भी अन्य मोड का नाम बदल सकते हैं।</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>इस नाम का मोड पहले से मौजूद है।</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -808,6 +811,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (कोई API कुंजी नहीं)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (अमान्य कुंजी)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -978,15 +984,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2219,7 +2216,7 @@ You can re-download it later.</value>
     <value>आयात करने के लिए कम से कम एक अनुभाग चुनें।</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>{0} नए शब्द जोड़ें, {1} मौजूदा शब्दों से विरोध। जारी रखें?</value>
+    <value>नए शब्द: {0}। मौजूदा शब्दों से विरोध: {1}। जारी रखें?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>शब्दावली आयात करें?</value>
@@ -2241,6 +2238,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>सेटिंग्स पुनर्स्थापित की गईं।</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API कुंजियाँ पुनर्स्थापित की गईं।</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>एक या अधिक API कुंजियाँ पुनर्स्थापित नहीं की जा सकीं।</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>बैकअप में कोई API कुंजी नहीं है।</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>सेटिंग्स पुनर्स्थापित नहीं की जा सकीं।</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>बैकअप समस्याओं के साथ आयात हुआ। {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>यदि कोई शब्द पहले से मौजूद है:</value>

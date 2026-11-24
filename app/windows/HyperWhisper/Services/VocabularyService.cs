@@ -182,7 +182,7 @@ public class VocabularyService
                 context.VocabularyItems.Add(item);
                 context.SaveChanges();
 
-                LoggingService.Info($"VocabularyService: Added vocabulary '{trimmedWord}' (replacement={(!string.IsNullOrEmpty(trimmedReplacement)).ToString()})");
+                LoggingService.Info($"VocabularyService: Added vocabulary {item.Id} ({trimmedWord.Length} chars, replacement={(!string.IsNullOrEmpty(trimmedReplacement)).ToString()})");
             }
             catch (DbUpdateException ex)
             {
@@ -225,7 +225,7 @@ public class VocabularyService
                 context.VocabularyItems.Remove(item);
                 context.SaveChanges();
 
-                LoggingService.Info($"VocabularyService: Deleted vocabulary '{deletedWord}'");
+                LoggingService.Info($"VocabularyService: Deleted vocabulary {id} ({deletedWord.Length} chars)");
             }
             catch (DbUpdateException ex)
             {

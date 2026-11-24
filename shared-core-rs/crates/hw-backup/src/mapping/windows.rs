@@ -118,6 +118,15 @@ pub const WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS: i64 = 20 * 60;
 /// user's recordings at five minutes because of a value nobody chose.
 const MACOS_UNSET_MAX_RECORDING_DURATION_SECS: i64 = 300;
 
+/// The native keys whose `WindowsSettings` field is an integer (`Option<i64>`).
+///
+/// A universal file may spell these as whole floats: the schema's `integer`
+/// compares by value, so `600.0` is valid and the validator accepts it
+/// ([`integral_i64`]). `serde_json` would reject `600.0` for an `i64` and fail
+/// the WHOLE struct, so [`universal_to_windows_settings`] rewrites a whole float
+/// here to its integer spelling before deserializing (#2925).
+const WINDOWS_INTEGER_KEYS: &[&str] = &["TypingSpeedWPM", "MaxRecordingDuration"];
+
 /// `(native PascalCase key, universal camelCase key)`.
 ///
 /// PAIRS, not a bare `&[&str]` like [`MACOS_GENERAL_KEYS`](super::macos::MACOS_GENERAL_KEYS): macOS's native key
@@ -247,6 +256,10 @@ pub fn windows_settings_to_universal(windows: &WindowsSettings) -> UniversalSett
 /// set freely. Three rules, applied here so all three bindings answer the same
 /// way and `shared-conformance/backup-vectors.json` can pin them:
 ///
+/// Whole floats are read by value first (`600.0` is `600`), so every row below
+/// holds for both spellings — the same rule applies to `typingSpeedWPM`, which
+/// is otherwise passed through.
+///
 /// | Universal value | Native `MaxRecordingDuration` |
 /// |---|---|
 /// | `300` (the macOS never-exposed default) | ABSENT — keep the live value, as macOS does |
@@ -286,10 +299,19 @@ pub fn universal_to_windows_settings(
         }
     }
 
+    // Whole floats → integers, so `600.0` maps exactly like `600`. A fractional
+    // value (`95.5`) is left alone and still fails, as the validator rejects it.
+    for key in WINDOWS_INTEGER_KEYS {
+        if let Some(i) = flat.get(*key).and_then(integral_i64) {
+            flat.insert((*key).to_string(), Value::from(i));
+        }
+    }
+
     // The one non-rename step. Deliberately AFTER the table loop and keyed on the
     // NATIVE name, so it applies to whatever the table produced and cannot be
-    // bypassed by a future second row feeding the same field.
-    match flat.get("MaxRecordingDuration").and_then(Value::as_i64) {
+    // bypassed by a future second row feeding the same field. Read by value, so
+    // a float spelling cannot skip the rules.
+    match flat.get("MaxRecordingDuration").and_then(integral_i64) {
         None => {}
         Some(MACOS_UNSET_MAX_RECORDING_DURATION_SECS) => {
             flat.remove("MaxRecordingDuration");
@@ -506,6 +528,52 @@ mod tests {
 
         // macOS's never-exposed legacy default is not a user choice either.
         assert_eq!(imported(json!(300)), None);
+
+        // Whole-float spellings follow every row above (#2925).
+        assert_eq!(imported(json!(600.0)), Some(600));
+        assert_eq!(imported(json!(5000.0)), Some(1200));
+        assert_eq!(imported(json!(0.0)), None);
+        assert_eq!(imported(json!(-5.0)), None);
+        assert_eq!(imported(json!(300.0)), None);
+    }
+
+    /// #2925: a whole float in an integer field must not fail the whole struct.
+    #[test]
+    fn windows_import_reads_whole_float_integers_by_value() {
+        let out = universal_to_windows_settings(&universal(json!({
+            "general": { "launchMinimized": true },
+            "advanced": { "typingSpeedWPM": 95.0, "maxRecordingDuration": 600.0 }
+        })))
+        .unwrap();
+        assert_eq!(out.launch_minimized, Some(true));
+        assert_eq!(out.typing_speed_wpm, Some(95));
+        assert_eq!(out.max_recording_duration, Some(600));
+
+        // A fractional value is not an integer; it still fails, as before.
+        assert!(universal_to_windows_settings(&universal(json!({
+            "advanced": { "typingSpeedWPM": 95.5 }
+        })))
+        .is_err());
+    }
+
+    /// Guards [`WINDOWS_INTEGER_KEYS`] against drift: a native key is an integer
+    /// field exactly when `7` deserializes and serializes back as `7` (an `f64`
+    /// field writes `7.0`; a bool or string field rejects it).
+    #[test]
+    fn windows_integer_keys_are_exactly_the_integer_fields() {
+        let mut integer_keys: Vec<&str> = WINDOWS_SECTIONS
+            .iter()
+            .flat_map(|(_, pairs)| pairs.iter().map(|(native, _)| *native))
+            .filter(|native| {
+                let v = json!({ *native: 7 });
+                serde_json::from_value::<WindowsSettings>(v.clone())
+                    .is_ok_and(|s| serde_json::to_value(s).unwrap() == v)
+            })
+            .collect();
+        integer_keys.sort();
+        let mut expected = WINDOWS_INTEGER_KEYS.to_vec();
+        expected.sort();
+        assert_eq!(integer_keys, expected);
     }
 
     #[test]

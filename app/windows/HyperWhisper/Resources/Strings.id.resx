@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Mode dengan nama itu sudah ada.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Penyedia</value>
   </data>
@@ -808,6 +811,9 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Tidak ada kunci API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Kunci tidak valid)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Gagal memuat</value>
   </data>
@@ -978,15 +984,6 @@ Tindakan ini tidak dapat dibatalkan.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Kosakata khusus tidak didukung pada model Parakeet.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Base.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Kosakata khusus tidak didukung pada model Deepgram Whisper.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Kosakata khusus dinonaktifkan saat menggunakan deteksi otomatis dengan model Nova. Atur bahasa tertentu untuk mengaktifkan penguatan kosakata.</value>
@@ -2219,7 +2216,7 @@ Anda dapat mengunduhnya lagi nanti.</value>
     <value>Pilih setidaknya satu bagian untuk diimpor.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Tambahkan {0} kata baru, {1} konflik dengan kata yang ada. Lanjutkan?</value>
+    <value>Kata baru: {0}. Konflik dengan kata yang ada: {1}. Lanjutkan?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Impor Kosakata?</value>
@@ -2241,6 +2238,21 @@ Anda dapat mengunduhnya lagi nanti.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Pengaturan dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Kunci API dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Satu atau beberapa kunci API tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Cadangan tidak berisi kunci API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Pengaturan tidak dapat dipulihkan.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Cadangan diimpor dengan masalah. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jika kata sudah ada:</value>

@@ -13,12 +13,26 @@ import { isValidProviderId, type SttProviderId } from '../lib/stt-models';
 // that lifts them. See providers/audio-limits.ts.
 import { preBufferMaxBytes } from '../providers/audio-limits';
 
+// The request headers /transcribe reads. `index.ts` lists them in the CORS
+// `allowHeaders` (all are non-simple), so a header added here is allowed for
+// browser callers without a second edit.
+const STT_PROVIDER_HEADER = 'X-STT-Provider';
+const STT_MODEL_HEADER = 'X-STT-Model';
+const STT_DOMAIN_HEADER = 'X-STT-Domain';
+const LATENCY_OPT_OUT_HEADER = 'X-Latency-Opt-Out';
+export const TRANSCRIBE_REQUEST_HEADERS = [
+  STT_PROVIDER_HEADER,
+  STT_MODEL_HEADER,
+  STT_DOMAIN_HEADER,
+  LATENCY_OPT_OUT_HEADER,
+] as const;
+
 type ProviderSelection =
   | { ok: true; provider: SttProviderId }
   | { ok: false; provided: string };
 
 export function extractProvider(c: Context): ProviderSelection {
-  const header = c.req.header('X-STT-Provider')?.toLowerCase().trim();
+  const header = c.req.header(STT_PROVIDER_HEADER)?.toLowerCase().trim();
   // No header → historical default (many clients send only a provider, some
   // none). An explicitly-supplied but unknown provider is REJECTED (fail-closed)
   // rather than silently billed against a default upstream.
@@ -32,11 +46,11 @@ export function extractProvider(c: Context): ProviderSelection {
 }
 
 export function extractModel(c: Context): string | undefined {
-  return c.req.header('X-STT-Model')?.trim() || rawQuery(c.req.url, 'model')?.trim() || undefined;
+  return c.req.header(STT_MODEL_HEADER)?.trim() || rawQuery(c.req.url, 'model')?.trim() || undefined;
 }
 
 export function extractDomain(c: Context): string | undefined {
-  const domain = c.req.header('X-STT-Domain')?.toLowerCase().trim();
+  const domain = c.req.header(STT_DOMAIN_HEADER)?.toLowerCase().trim();
   return domain || undefined;
 }
 
@@ -58,7 +72,7 @@ const LATENCY_OPT_IN_VALUES = new Set(['', '0', 'false', 'no', 'off']);
  * lib/latency-report.ts for what that row holds.
  */
 export function isLatencyOptOut(c: Context): boolean {
-  const header = c.req.header('X-Latency-Opt-Out');
+  const header = c.req.header(LATENCY_OPT_OUT_HEADER);
   if (header === undefined) return false;
   return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
 }

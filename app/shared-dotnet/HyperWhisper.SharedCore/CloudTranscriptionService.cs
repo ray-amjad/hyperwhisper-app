@@ -37,7 +37,8 @@ public sealed class CloudTranscriptionService : IDisposable
             [CloudTranscriptionProvider.Grok] = 500L * 1024 * 1024,
             [CloudTranscriptionProvider.AzureMai] = 300L * 1024 * 1024,
             [CloudTranscriptionProvider.GoogleChirp] = 9_500_000L,
-            [CloudTranscriptionProvider.HyperWhisperCloud] = 2L * 1024 * 1024 * 1024,
+            // The server's body cap (hyperwhisper-cloud MAX_AUDIO_SIZE_BYTES).
+            [CloudTranscriptionProvider.HyperWhisperCloud] = 128L * 1024 * 1024,
             [CloudTranscriptionProvider.Meta] = 32L * 1024 * 1024,
         };
 

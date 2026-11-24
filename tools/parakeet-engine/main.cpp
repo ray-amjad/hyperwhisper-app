@@ -12,6 +12,10 @@
 //
 // PROTOCOL:
 //   Args:    --model <dir> --vad-model <path> [--engine <name>] [--language <code>] [--segment-join none|space] [--join-language <code>]
+//            [--provider auto|cpu] [--dml-adapter-luid <decimal LUID>]
+//            --provider cpu skips DirectML for Parakeet; --dml-adapter-luid runs
+//            Parakeet's DirectML on the DXGI adapter with that LUID instead of
+//            adapter 0 (#1846).
 //   Ready:   stdout: {"status":"ready","provider":"directml"|"cpu"}
 //   Request: stdin:  {"audio_path":"/path/to/file.wav"}
 //   Result:  stdout: {"text":"Hello world","duration_ms":1234}
@@ -40,6 +44,8 @@
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
+#include <dxgi.h>
+#pragma comment(lib, "dxgi.lib")
 #endif
 
 #include "sherpa-onnx/c-api/c-api.h"
@@ -51,6 +57,102 @@
 static void log_info(const char* msg) { fprintf(stderr, "[INFO] %s\n", msg); }
 static void log_warn(const char* msg) { fprintf(stderr, "[WARN] %s\n", msg); }
 static void log_error(const char* msg) { fprintf(stderr, "[ERROR] %s\n", msg); }
+
+// =========================================================================
+// DIRECTML ADAPTER SELECTION (#1846)
+// =========================================================================
+// sherpa-onnx v1.13.3 always calls OrtSessionOptionsAppendExecutionProvider_DML
+// with device_id 0 (session.cc), and DirectML's device_id is the DXGI adapter
+// index. On most PCs adapter 0 is the integrated GPU, so a discrete GPU sat idle
+// while Parakeet ran 2.5x slower than on the CPU. sherpa-onnx-c-api.dll imports
+// that function from onnxruntime.dll, so we rewrite its slot in the c-api DLL's
+// import address table to a shim that swaps in the adapter the host chose
+// (--dml-adapter-luid). Only that one slot of that one module changes; onnxruntime and
+// DirectML are untouched. If the slot is not found, DirectML stays on adapter 0
+// and the caller decides what to do about it.
+
+#ifdef _WIN32
+// OrtStatus* (*)(OrtSessionOptions*, int); both pointers are opaque here.
+typedef void* (*DmlAppendFn)(void*, int);
+
+static DmlAppendFn g_real_dml_append = nullptr;
+static int g_dml_device_id = 0;
+
+static void* dml_append_shim(void* session_options, int /*device_id*/) {
+    return g_real_dml_append(session_options, g_dml_device_id);
+}
+
+// Point sherpa-onnx-c-api.dll's import of OrtSessionOptionsAppendExecutionProvider_DML
+// at dml_append_shim. Returns true when the slot was rewritten.
+static bool redirect_dml_device(int device_id) {
+    HMODULE sherpa = GetModuleHandleA("sherpa-onnx-c-api.dll");
+    HMODULE ort = GetModuleHandleA("onnxruntime.dll");
+    if (!sherpa || !ort) return false;
+    auto real = reinterpret_cast<DmlAppendFn>(
+        GetProcAddress(ort, "OrtSessionOptionsAppendExecutionProvider_DML"));
+    if (!real) return false;
+
+    auto base = reinterpret_cast<BYTE*>(sherpa);
+    auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
+    auto nt = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
+    const IMAGE_DATA_DIRECTORY& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    if (dir.VirtualAddress == 0) return false;
+
+    // The import is by ordinal in the shipped DLL, so match the bound address,
+    // not the name: every IAT slot of onnxruntime.dll that holds `real`.
+    bool patched = false;
+    for (auto imp = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(base + dir.VirtualAddress);
+         imp->Name != 0; ++imp) {
+        const char* dll = reinterpret_cast<const char*>(base + imp->Name);
+        if (_stricmp(dll, "onnxruntime.dll") != 0) continue;
+        for (auto slot = reinterpret_cast<IMAGE_THUNK_DATA*>(base + imp->FirstThunk);
+             slot->u1.Function != 0; ++slot) {
+            if (reinterpret_cast<void*>(slot->u1.Function) != reinterpret_cast<void*>(real)) continue;
+            DWORD old_protect = 0;
+            if (!VirtualProtect(&slot->u1.Function, sizeof(slot->u1.Function), PAGE_READWRITE, &old_protect)) {
+                return false;
+            }
+            g_real_dml_append = real;
+            g_dml_device_id = device_id;
+            slot->u1.Function = reinterpret_cast<ULONG_PTR>(&dml_append_shim);
+            VirtualProtect(&slot->u1.Function, sizeof(slot->u1.Function), old_protect, &old_protect);
+            patched = true;
+        }
+    }
+    return patched;
+}
+
+// The DXGI adapter index of `luid` in THIS process's enumeration, the order
+// onnxruntime's DirectML device_id indexes. The host passes the LUID, not its
+// own index, because Windows can order adapters differently per executable
+// (a per-app GPU preference on a hybrid laptop). -1 when no adapter matches.
+static int dxgi_index_for_luid(long long luid) {
+    IDXGIFactory1* factory = nullptr;
+    if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
+        return -1;
+    }
+    int found = -1;
+    IDXGIAdapter1* adapter = nullptr;
+    for (UINT i = 0; found < 0 && factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+        DXGI_ADAPTER_DESC1 desc;
+        if (SUCCEEDED(adapter->GetDesc1(&desc))) {
+            // Unsigned arithmetic: HighPart is a signed LONG, and shifting a
+            // negative value is undefined before C++20. Same bits as the host's
+            // 8-byte read of the LUID struct.
+            unsigned long long bits =
+                (static_cast<unsigned long long>(static_cast<unsigned long>(desc.AdapterLuid.HighPart)) << 32) |
+                static_cast<unsigned long long>(desc.AdapterLuid.LowPart);
+            long long id = static_cast<long long>(bits);
+            if (id == luid) found = static_cast<int>(i);
+        }
+        adapter->Release();
+    }
+    factory->Release();
+    return found;
+}
+#endif
 
 // =========================================================================
 // SIMPLE JSON HELPERS
@@ -241,14 +343,160 @@ static bool read_file_utf8_path(const std::string& path, std::vector<char>& byte
 }
 #endif
 
-static const SherpaOnnxWave* read_wave_file(const std::string& path, std::vector<char>& wave_bytes) {
+// =========================================================================
+// WAV INPUT (#1541)
+// =========================================================================
+// The daemon reads the WAV itself and hands sherpa 16 kHz mono floats.
+// sherpa-onnx's own reader (SherpaOnnxReadWave*) rejects WAVE_FORMAT_EXTENSIBLE,
+// which ffmpeg and most DAWs write for more than two channels, keeps only the
+// FIRST channel, and returns the file's own rate, which the VAD (configured for
+// 16 kHz) and the decoder then read as 16 kHz: any other rate came out as
+// garbage. The Local API sends a caller's file as it is, so all three reached
+// users. The managed ARM64/Linux daemon does the same in ReadAudio.
+
+static constexpr int32_t kTargetSampleRate = 16000;
+// The rate comes from the caller's header. Outside this range the resampler's
+// tables (a huge rate) or its output (a tiny one) can need gigabytes.
+static constexpr uint32_t kMinSampleRate = 4000;
+static constexpr uint32_t kMaxSampleRate = 768000;
+
+static uint16_t le16(const unsigned char* p) { return static_cast<uint16_t>(p[0] | (p[1] << 8)); }
+static uint32_t le32(const unsigned char* p) {
+    return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) |
+           (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24);
+}
+
+static bool read_file_bytes(const std::string& path, std::vector<char>& bytes) {
 #ifdef _WIN32
-    if (!read_file_utf8_path(path, wave_bytes)) return nullptr;
-    return SherpaOnnxReadWaveFromBinaryData(wave_bytes.data(), static_cast<int32_t>(wave_bytes.size()));
+    // Win32 wide-path APIs, so UTF-8 JSON paths work even when the CRT's
+    // narrow fopen cannot resolve them.
+    return read_file_utf8_path(path, bytes);
 #else
-    (void)wave_bytes;
-    return SherpaOnnxReadWave(path.c_str());
+    bytes.clear();
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    char chunk[1 << 16];
+    size_t n;
+    while ((n = fread(chunk, 1, sizeof(chunk), f)) > 0) bytes.insert(bytes.end(), chunk, chunk + n);
+    bool ok = !ferror(f);
+    fclose(f);
+    return ok;
 #endif
+}
+
+// Decodes a PCM (8/16/24/32-bit) or IEEE float (32/64-bit) WAV, plain or
+// WAVE_FORMAT_EXTENSIBLE with a PCM/float SubFormat, averages every channel to
+// mono and resamples to 16 kHz. On failure, `reason` says why.
+static bool decode_wav_mono16k(const std::vector<char>& file, std::vector<float>& out, std::string& reason) {
+    out.clear();
+    const auto* data = reinterpret_cast<const unsigned char*>(file.data());
+    const size_t size = file.size();
+    if (size < 12 || memcmp(data, "RIFF", 4) != 0 || memcmp(data + 8, "WAVE", 4) != 0) {
+        reason = "not a RIFF/WAVE file";
+        return false;
+    }
+
+    const unsigned char* fmt = nullptr;
+    uint32_t fmt_size = 0;
+    const unsigned char* pcm = nullptr;
+    size_t pcm_size = 0;
+    for (size_t pos = 12; pos + 8 <= size;) {
+        const uint32_t chunk_size = le32(data + pos + 4);
+        const size_t body = pos + 8;
+        const size_t available = size - body;
+        if (memcmp(data + pos, "fmt ", 4) == 0) {
+            if (chunk_size > available) break;
+            fmt = data + body;
+            fmt_size = chunk_size;
+        } else if (memcmp(data + pos, "data", 4) == 0) {
+            pcm = data + body;
+            // A streaming writer can leave the size 0 or 0xFFFFFFFF: take what is there.
+            pcm_size = (chunk_size == 0 || chunk_size > available) ? available : chunk_size;
+            break;
+        }
+        if (chunk_size > available) break;
+        pos = body + chunk_size + (chunk_size & 1);  // chunks are word-aligned
+    }
+    if (!fmt || fmt_size < 16) { reason = "no fmt chunk"; return false; }
+    if (!pcm) { reason = "no data chunk"; return false; }
+
+    uint16_t tag = le16(fmt);
+    const uint16_t channels = le16(fmt + 2);
+    const uint32_t rate = le32(fmt + 4);
+    const uint16_t block_align = le16(fmt + 12);
+    const uint16_t bits = le16(fmt + 14);
+    if (tag == 0xFFFE) {
+        // WAVEFORMATEXTENSIBLE: cbSize 22, then valid bits (2), channel mask (4)
+        // and the SubFormat GUID, whose first two bytes are the plain tag and
+        // whose rest is the KSDATAFORMAT base 0000-0010-8000-00aa00389b71.
+        static const unsigned char kBase[14] = {0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,
+                                                0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71};
+        if (fmt_size < 40 || memcmp(fmt + 26, kBase, sizeof(kBase)) != 0) {
+            reason = "unsupported WAVE_FORMAT_EXTENSIBLE SubFormat";
+            return false;
+        }
+        tag = le16(fmt + 24);
+    }
+    const bool is_pcm = tag == 1 && (bits == 8 || bits == 16 || bits == 24 || bits == 32);
+    const bool is_float = tag == 3 && (bits == 32 || bits == 64);
+    if (!is_pcm && !is_float) {
+        reason = "unsupported format tag " + std::to_string(tag) + " / " + std::to_string(bits) + "-bit";
+        return false;
+    }
+    const uint32_t bytes_per_sample = bits / 8u;
+    if (channels == 0 || rate == 0 || block_align != channels * bytes_per_sample) {
+        reason = "inconsistent fmt header";
+        return false;
+    }
+    if (rate < kMinSampleRate || rate > kMaxSampleRate) {
+        reason = "unsupported sample rate " + std::to_string(rate) + " Hz";
+        return false;
+    }
+
+    const size_t frames = pcm_size / block_align;
+    std::vector<float> mono(frames);
+    for (size_t frame = 0; frame < frames; ++frame) {
+        const unsigned char* p = pcm + frame * block_align;
+        double sum = 0;
+        for (uint16_t c = 0; c < channels; ++c, p += bytes_per_sample) {
+            double v;
+            if (is_float) {
+                if (bits == 32) { float f; memcpy(&f, p, 4); v = f; }
+                else { double d; memcpy(&d, p, 8); v = d; }
+            } else if (bits == 8) {
+                v = (static_cast<int>(p[0]) - 128) / 128.0;
+            } else if (bits == 16) {
+                v = static_cast<int16_t>(le16(p)) / 32768.0;
+            } else if (bits == 24) {
+                int32_t x = static_cast<int32_t>(p[0] | (p[1] << 8) | (p[2] << 16));
+                if (x & 0x800000) x -= 0x1000000;
+                v = x / 8388608.0;
+            } else {
+                v = static_cast<int32_t>(le32(p)) / 2147483648.0;
+            }
+            sum += v;
+        }
+        mono[frame] = static_cast<float>(sum / channels);
+    }
+
+    if (rate == static_cast<uint32_t>(kTargetSampleRate) || mono.empty()) {
+        out.swap(mono);
+        return true;
+    }
+    if (rate > static_cast<uint32_t>(INT32_MAX) || mono.size() > static_cast<size_t>(INT32_MAX)) {
+        reason = "audio too large to resample";
+        return false;
+    }
+    const SherpaOnnxLinearResampler* resampler =
+        SherpaOnnxCreateLinearResampler(static_cast<int32_t>(rate), kTargetSampleRate, 0, 0);
+    if (!resampler) { reason = "could not create a resampler for " + std::to_string(rate) + " Hz"; return false; }
+    const SherpaOnnxResampleOut* resampled = SherpaOnnxLinearResamplerResample(
+        resampler, mono.data(), static_cast<int32_t>(mono.size()), /*flush=*/1);
+    if (resampled && resampled->n > 0) out.assign(resampled->samples, resampled->samples + resampled->n);
+    if (resampled) SherpaOnnxLinearResamplerResampleFree(resampled);
+    SherpaOnnxDestroyLinearResampler(resampler);
+    if (out.empty()) { reason = "resampling produced no audio"; return false; }
+    return true;
 }
 
 // Resolve an ONNX file in a model dir, preferring the int8 variant when present.
@@ -460,6 +708,8 @@ struct DaemonArgs {
     std::string segment_join; // "none" | "space" | "" (not passed: use the table)
     std::string vad_model_path;
     std::string engine = "nemo_transducer"; // nemo_transducer | qwen3 | nemotron_ml
+    std::string provider = "auto";          // auto (DirectML, then CPU) | cpu
+    long long dml_adapter_luid = 0;         // DXGI adapter LUID; 0 = sherpa's adapter 0
 };
 
 static bool parse_args(int argc, char** argv, DaemonArgs& args) {
@@ -476,6 +726,17 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
             args.vad_model_path = argv[++i];
         } else if (strcmp(argv[i], "--engine") == 0 && i + 1 < argc) {
             args.engine = argv[++i];
+        } else if (strcmp(argv[i], "--provider") == 0 && i + 1 < argc) {
+            args.provider = argv[++i];
+        } else if (strcmp(argv[i], "--dml-adapter-luid") == 0 && i + 1 < argc) {
+            // A bad value is ignored, not fatal: DirectML stays on adapter 0.
+            char* end = nullptr;
+            long long v = strtoll(argv[++i], &end, 10);
+            if (end && *end == '\0' && v != 0) {
+                args.dml_adapter_luid = v;
+            } else {
+                log_warn("Ignoring an invalid --dml-adapter-luid value");
+            }
         }
     }
 
@@ -487,6 +748,11 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
     if (args.engine != "nemo_transducer" && args.engine != "qwen3" &&
         args.engine != "nemotron_ml") {
         log_error(("Unknown --engine value: " + args.engine).c_str());
+        return false;
+    }
+
+    if (args.provider != "auto" && args.provider != "cpu") {
+        log_error(("Unknown --provider value: " + args.provider).c_str());
         return false;
     }
 
@@ -650,17 +916,33 @@ int main(int argc, char** argv) {
             return 1;
         }
     } else {
-        // Parakeet: try DirectML, fall back to CPU — unchanged.
-        config.model_config.provider = "directml";
-        log_info("Attempting DirectML provider...");
-
-        recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
+        // Parakeet: DirectML (on the host's adapter when it named one), falling
+        // back to CPU; or CPU straight away when the host asked for it (#1846).
+        if (args.provider == "cpu") {
+            log_info("Parakeet: CPU provider requested by the host");
+        } else {
+            if (args.dml_adapter_luid != 0) {
+#ifdef _WIN32
+                int index = dxgi_index_for_luid(args.dml_adapter_luid);
+                if (index < 0) {
+                    log_warn("No DXGI adapter has the requested LUID; sherpa-onnx will use adapter 0");
+                } else if (redirect_dml_device(index)) {
+                    log_info(("DirectML adapter: DXGI index " + std::to_string(index)).c_str());
+                } else {
+                    log_warn("Could not redirect the DirectML adapter; sherpa-onnx will use adapter 0");
+                }
+#endif
+            }
+            config.model_config.provider = "directml";
+            log_info("Attempting DirectML provider...");
+            recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
+        }
 
         if (recognizer) {
             active_provider = "directml";
             log_info("DirectML provider initialized successfully");
         } else {
-            log_warn("DirectML failed, falling back to CPU provider...");
+            if (args.provider != "cpu") log_warn("DirectML failed, falling back to CPU provider...");
             config.model_config.provider = "cpu";
             recognizer = SherpaOnnxCreateOfflineRecognizer(&config);
 
@@ -746,28 +1028,29 @@ int main(int argc, char** argv) {
 
         auto start_time = std::chrono::steady_clock::now();
 
-        // Read the WAV file using sherpa-onnx's built-in reader. On Windows,
-        // first load bytes through Win32 wide-path APIs so UTF-8 JSON paths
-        // work even when the CRT/sherpa narrow fopen path cannot resolve them.
-        std::vector<char> wave_bytes;
-        const SherpaOnnxWave* wave = read_wave_file(audio_path, wave_bytes);
-        if (!wave) {
-            log_error(("Failed to read WAV file: " + audio_path).c_str());
-            fprintf(stdout, "{\"error\":\"Failed to read audio file\"}\n");
-            fflush(stdout);
-            continue;
+        // Read the WAV as 16 kHz mono (#1541): see decode_wav_mono16k.
+        std::vector<float> audio;
+        {
+            std::vector<char> wave_bytes;
+            std::string reason = "could not read the file";
+            if (!read_file_bytes(audio_path, wave_bytes) ||
+                !decode_wav_mono16k(wave_bytes, audio, reason)) {
+                log_error(("Failed to read WAV file: " + audio_path + " (" + reason + ")").c_str());
+                fprintf(stdout, "{\"error\":\"Failed to read audio file\"}\n");
+                fflush(stdout);
+                continue;
+            }
         }
 
         char buf[128];
-        snprintf(buf, sizeof(buf), "Audio: %d samples at %d Hz (%.1f sec)",
-                 wave->num_samples, wave->sample_rate,
-                 static_cast<float>(wave->num_samples) / wave->sample_rate);
+        snprintf(buf, sizeof(buf), "Audio: %zu samples at %d Hz (%.1f sec)",
+                 audio.size(), kTargetSampleRate,
+                 static_cast<float>(audio.size()) / kTargetSampleRate);
         log_info(buf);
 
-        // Get audio data (sherpa-onnx reader already returns 16kHz mono)
-        const float* samples = wave->samples;
-        int32_t num_samples = wave->num_samples;
-        int32_t sample_rate = wave->sample_rate;
+        const float* samples = audio.data();
+        int32_t num_samples = static_cast<int32_t>(audio.size());
+        int32_t sample_rate = kTargetSampleRate;
 
         std::string full_text;
         bool stream_error = false;
@@ -813,7 +1096,6 @@ int main(int argc, char** argv) {
                             log_error("Failed to create offline stream (VAD branch)");
                             SherpaOnnxDestroySpeechSegment(segment);
                             SherpaOnnxVoiceActivityDetectorPop(vad);
-                            SherpaOnnxFreeWave(wave);
                             fprintf(stdout,
                                     "{\"error\":\"Failed to create offline stream (provider=%s)\"}\n",
                                     active_provider.c_str());
@@ -865,7 +1147,6 @@ int main(int argc, char** argv) {
 
             if (!stream) {
                 log_error("Failed to create offline stream (no-VAD branch)");
-                SherpaOnnxFreeWave(wave);
                 fprintf(stdout,
                         "{\"error\":\"Failed to create offline stream (provider=%s)\"}\n",
                         active_provider.c_str());
@@ -891,9 +1172,6 @@ int main(int argc, char** argv) {
             SherpaOnnxDestroyOfflineRecognizerResult(result);
             SherpaOnnxDestroyOfflineStream(stream);
         }
-
-        // Free the WAV data
-        SherpaOnnxFreeWave(wave);
 
         auto end_time = std::chrono::steady_clock::now();
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(

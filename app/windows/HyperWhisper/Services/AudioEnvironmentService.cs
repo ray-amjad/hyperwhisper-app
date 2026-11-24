@@ -6,7 +6,6 @@
 using System.IO;
 using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.Services.Muffle;
-using NAudio.CoreAudioApi;
 
 namespace HyperWhisper.Services;
 
@@ -19,7 +18,18 @@ public sealed class AudioEnvironmentService
     private static readonly Lazy<AudioEnvironmentService> _instance = new(() => new AudioEnvironmentService());
     public static AudioEnvironmentService Instance => _instance.Value;
 
-    private AudioEnvironmentService() { }
+    private AudioEnvironmentService()
+        : this(new NAudioOutputMuteEndpoints(), () => SettingsService.Instance.MediaControlMode) { }
+
+    // The smoke suite builds its own instance over a fake output device and a fixed mode (issue #2243).
+    internal AudioEnvironmentService(IOutputMuteEndpoints outputEndpoints, Func<string> mediaControlMode)
+    {
+        _outputEndpoints = outputEndpoints;
+        _mediaControlMode = mediaControlMode;
+    }
+
+    private readonly IOutputMuteEndpoints _outputEndpoints;
+    private readonly Func<string> _mediaControlMode;
 
     private readonly object _restoreLock = new();
     private int _restoreGeneration;
@@ -104,7 +114,7 @@ public sealed class AudioEnvironmentService
     public AudioEnvironmentState? PrepareForRecording(AudioEnvironmentRestoreClaim restoreClaim)
     {
         var inheritedRestoreState = restoreClaim.InheritedRestoreState;
-        var mode = SettingsService.Instance.MediaControlMode;
+        var mode = _mediaControlMode();
 
         if (mode.Equals(MuffleAudioMode, StringComparison.OrdinalIgnoreCase))
         {
@@ -381,32 +391,31 @@ public sealed class AudioEnvironmentService
 
     // ---------------------------------------------------------------- mute
 
-    private static AudioEnvironmentState? MuteOutput(int generation, AudioEnvironmentState? inheritedRestoreState)
+    private AudioEnvironmentState? MuteOutput(int generation, AudioEnvironmentState? inheritedRestoreState)
     {
         try
         {
-            using var enumerator = new MMDeviceEnumerator();
-            using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            var wasMuted = device.AudioEndpointVolume.Mute;
+            using var device = _outputEndpoints.GetDefault();
+            var wasMuted = device.Mute;
             var inheritedCurrentMute = inheritedRestoreState?.MutedByHyperWhisper == true;
 
             if (!wasMuted)
             {
-                device.AudioEndpointVolume.Mute = true;
-                LoggingService.Info($"AudioEnvironmentService: Muted output device for recording ({device.FriendlyName})");
+                device.Mute = true;
+                LoggingService.Info($"AudioEnvironmentService: Muted output device for recording ({device.Name})");
             }
             else if (inheritedCurrentMute)
             {
-                LoggingService.Debug($"AudioEnvironmentService: Output device already muted by pending HyperWhisper restore; taking ownership ({device.FriendlyName})");
+                LoggingService.Debug($"AudioEnvironmentService: Output device already muted by pending HyperWhisper restore; taking ownership ({device.Name})");
             }
             else
             {
-                LoggingService.Debug($"AudioEnvironmentService: Output device already muted ({device.FriendlyName})");
+                LoggingService.Debug($"AudioEnvironmentService: Output device already muted ({device.Name})");
             }
 
             return new AudioEnvironmentState(
-                device.ID,
-                device.FriendlyName,
+                device.Id,
+                device.Name,
                 inheritedRestoreState?.WasMuted ?? wasMuted,
                 !wasMuted || inheritedCurrentMute,
                 generation);
@@ -418,7 +427,7 @@ public sealed class AudioEnvironmentService
         }
     }
 
-    private static void TryRestoreMuteState(AudioEnvironmentState state, string reason)
+    private void TryRestoreMuteState(AudioEnvironmentState state, string reason)
     {
         try
         {
@@ -431,30 +440,25 @@ public sealed class AudioEnvironmentService
         }
     }
 
-    private static void RestoreMuteState(AudioEnvironmentState state, double delaySeconds)
+    private void RestoreMuteState(AudioEnvironmentState state, double delaySeconds)
     {
-        using var enumerator = new MMDeviceEnumerator();
-        using var device = GetDeviceOrDefault(enumerator, state.DeviceId);
-        if (device.AudioEndpointVolume.Mute)
+        using var device = _outputEndpoints.GetOrDefault(state.DeviceId);
+        if (!string.Equals(device.Id, state.DeviceId, StringComparison.OrdinalIgnoreCase))
         {
-            device.AudioEndpointVolume.Mute = state.WasMuted;
-            LoggingService.Info($"AudioEnvironmentService: Restored output mute state ({device.FriendlyName}, delay={delaySeconds:F1}s)");
+            // The muted device is gone. The default now is a device HyperWhisper never muted, so
+            // writing WasMuted to it could unmute an output the user muted (issue #2243).
+            LoggingService.Info($"AudioEnvironmentService: Skipping output restore because the muted device is gone ({state.DeviceName})");
+            return;
+        }
+
+        if (device.Mute)
+        {
+            device.Mute = state.WasMuted;
+            LoggingService.Info($"AudioEnvironmentService: Restored output mute state ({device.Name}, delay={delaySeconds:F1}s)");
         }
         else
         {
             LoggingService.Info("AudioEnvironmentService: Skipping output restore because audio was already unmuted");
-        }
-    }
-
-    private static MMDevice GetDeviceOrDefault(MMDeviceEnumerator enumerator, string deviceId)
-    {
-        try
-        {
-            return enumerator.GetDevice(deviceId);
-        }
-        catch
-        {
-            return enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
         }
     }
 
