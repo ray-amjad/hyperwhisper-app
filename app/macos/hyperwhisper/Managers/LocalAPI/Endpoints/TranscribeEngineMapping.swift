@@ -156,6 +156,11 @@ enum TranscribeEngineMapping {
         // asymmetry is a real open question, but closing it is a client-visible
         // behaviour change on the one head this change could not build locally,
         // so #356 routes the RESOLUTION and leaves the verdict alone.
+        //
+        // Issue #1934 closed it upstream: `resolve` runs
+        // `validateMixedPathEngineModel` first, which refuses an unknown engine
+        // with INVALID_REQUEST, so this arm is now reached only by a caller
+        // that skips that check.
         guard let resolvedEngine = localApiResolveEngineAlias(alias: trimmedEngine) else {
             if let m = model, !m.isEmpty { mode.model = m }
             return
@@ -224,6 +229,10 @@ enum TranscribeEngineMapping {
                 // select another engine's provider, so an unusable model is
                 // treated as absent and falls through to the inherit-or-default
                 // rule below; the response's `model` then reports what ran.
+                //
+                // Issue #1934: that drop is now the backstop. `resolve` runs
+                // `validateMixedPathEngineModel` first, which refuses a
+                // non-blank unknown Nemotron model with MODEL_NOT_FOUND.
                 mode.model = explicitVariant
             } else {
                 // No usable explicit model. Same reasoning as the cloud branch's
@@ -277,11 +286,12 @@ enum TranscribeEngineMapping {
     ///   it, like Windows (`ApplyEngineModel`) and Linux
     ///   (`ApplyTranscriptionOverrides`) do on both paths, rather than default
     ///   it to "base".
-    /// - `"cloud"` (any case, padded) throws "Unknown local model: <model>".
-    ///   The engine-only path already refuses it that way: `resolveProvider`
-    ///   passes it to `selectLocalProvider`, which matches no local model and
-    ///   throws exactly this. On the mixed path the same value would instead
-    ///   land on `mode.model`, where `selectProvider` reads it as Cloud.
+    /// - `"cloud"` (any case, padded) throws `APIInputError.whisperModelNotLocal`
+    ///   (INVALID_REQUEST, issue #1934, Ray's decision 2026-10-18). It used to
+    ///   throw "Unknown local model: <model>" (ENGINE_UNAVAILABLE), the error
+    ///   the engine-only path still gets from `selectLocalProvider`. On the
+    ///   mixed path the value would otherwise land on `mode.model`, where
+    ///   `selectProvider` reads it as Cloud.
     /// - `nil` (no `model` key) is NOT refused: it keeps the mixed path's
     ///   long-standing `base` default. Ray's question was about a blank value,
     ///   and a client that omits `model` with a saved mode is a shape callers
@@ -300,8 +310,16 @@ enum TranscribeEngineMapping {
     /// Parakeet model still defaults to v3 — `modelIdForSelection` answers v3
     /// for both, on both paths.
     ///
-    /// nemotron / qwen3Asr / appleSpeech write only their own ids, so they need
-    /// nothing. A cloud engine is skipped exactly as `applyEngineModel` and
+    /// NEMOTRON (issue #1934): a non-blank model that does not canonicalise to
+    /// a Nemotron variant throws `APIInputError.unknownNemotronModel`
+    /// (MODEL_NOT_FOUND), as `resolveProvider`'s nemotron arm does. A nil or
+    /// blank model is let through to `applyEngineModel`'s inherit-or-default.
+    ///
+    /// An UNKNOWN engine (issue #1934) throws `APIInputError.unknownEngine`
+    /// (INVALID_REQUEST), the engine-only form's answer.
+    ///
+    /// qwen3Asr / appleSpeech write only their own ids, so they need nothing. A
+    /// cloud engine is skipped exactly as `applyEngineModel` and
     /// `resolveProvider` check the cloud half first.
     @MainActor
     static func validateMixedPathEngineModel(engine: String, model: String?) throws {
@@ -322,7 +340,7 @@ enum TranscribeEngineMapping {
                 throw APIInputError.whisperModelRequired
             }
             if trimmedModel.lowercased() == "cloud" {
-                throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
+                throw APIInputError.whisperModelNotLocal(trimmedModel)
             }
         case .parakeet?:
             // The same two calls, in the same order, as `resolveProvider`.
@@ -330,8 +348,27 @@ enum TranscribeEngineMapping {
             if ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
                 throw APIInputError.unknownParakeetModel(requestedModelId)
             }
-        default:
+        case .nemotron?:
+            // Issue #1934 (Ray's decision 2026-10-18): a non-blank model that
+            // names no Nemotron variant is MODEL_NOT_FOUND, as on the
+            // engine-only form, with the same two calls `resolveProvider` makes.
+            // It used to be dropped by `applyEngineModel`, which then ran the
+            // saved or the default variant — a model the caller never asked
+            // for. A nil or blank model is not refused: it keeps the mixed
+            // path's inherit-or-default rule (`applyEngineModel`).
+            guard let model, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
+            if NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
+                throw APIInputError.unknownNemotronModel(requestedModelId)
+            }
+        case .qwen3Asr?, .appleSpeech?:
             return
+        case nil:
+            // Issue #1934: an engine that is neither a cloud provider nor a
+            // local engine is INVALID_REQUEST, the same answer the engine-only
+            // form gives. `applyEngineModel`'s `nil` arm used to patch only
+            // `model` and run the saved Mode's own engine with `ok: true`.
+            throw APIInputError.unknownEngine(trimmedEngine)
         }
     }
 

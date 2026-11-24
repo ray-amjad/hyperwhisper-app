@@ -9,6 +9,8 @@ import {
   scrollableBodyTables,
 } from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import { bestDictationSoftwareForWindows } from "@/src/content/code-posts/best-dictation-software-for-windows";
+import { freeSpeechToTextApp } from "@/src/content/code-posts/free-speech-to-text-app";
 import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
 
@@ -143,22 +145,26 @@ async function readPostSummaries(): Promise<BlogPostSummary[]> {
 /**
  * Posts written in the repo rather than published by Outrank, such as a
  * comparison page that has to cite its sources. They render, list and enter
- * the sitemap exactly like a stored post. A stored row with the same slug
- * wins, so Outrank can still replace one.
+ * the sitemap exactly like a stored post. A code post with the same slug
+ * replaces a stored row, so fact-checked copy in git is what the site serves.
  */
 const CODE_POSTS: BlogPost[] = [
+  bestDictationSoftwareForWindows,
+  freeSpeechToTextApp,
   hyperwhisperVsSpokenly,
   hyperwhisperVsHandyVsFluidvoice,
 ];
 
 function withCodePosts(stored: BlogPostSummary[]): BlogPostSummary[] {
-  const slugs = new Set(stored.map((post) => post.slug));
+  const codeSlugs = new Set(CODE_POSTS.map((post) => post.slug));
 
   return [
-    ...stored,
-    ...CODE_POSTS.filter((post) => !slugs.has(post.slug)).map(
-      ({ locale, slug, frontMatter }) => ({ locale, slug, frontMatter }),
-    ),
+    ...stored.filter((post) => !codeSlugs.has(post.slug)),
+    ...CODE_POSTS.map(({ locale, slug, frontMatter }) => ({
+      locale,
+      slug,
+      frontMatter,
+    })),
   ].sort(
     (a, b) => Date.parse(b.frontMatter.date) - Date.parse(a.frontMatter.date),
   );
@@ -168,28 +174,31 @@ export async function getBlogPosts(): Promise<BlogPostSummary[]> {
   return readPostSummaries();
 }
 
-export async function getBlogPost(slug: string): Promise<BlogPost | null> {
-  const normalizedSlug = normalizeSlug(slug);
-  // One row, found through the blog_posts_locale_slug_unique index. Every
-  // stored slug comes from the webhook's slugify(), which leaves no "/" in
-  // it, so matching the normalised slug exactly finds the same row the old
-  // whole-table .find() over normalizeSlug(row.slug) did.
+/**
+ * One stored English post, found through the blog_posts_locale_slug_unique
+ * index. Every stored slug comes from the webhook's slugify(), which leaves no
+ * "/" in it, so matching the normalised slug exactly finds the same row the old
+ * whole-table .find() over normalizeSlug(row.slug) did.
+ */
+async function readStoredPost(slug: string): Promise<BlogPost | undefined> {
   const [row] = await readStoredRows(() =>
     db
       .select(POST_COLUMNS)
       .from(blogPosts)
-      .where(
-        and(
-          eq(blogPosts.locale, BLOG_LOCALE),
-          eq(blogPosts.slug, normalizedSlug),
-        ),
-      )
+      .where(and(eq(blogPosts.locale, BLOG_LOCALE), eq(blogPosts.slug, slug)))
       .limit(1),
   );
-  // A stored row beats a code post with the same slug.
-  const stored = row
-    ? rowToPost(row)
-    : CODE_POSTS.find((item) => item.slug === normalizedSlug);
+
+  return row ? rowToPost(row) : undefined;
+}
+
+export async function getBlogPost(slug: string): Promise<BlogPost | null> {
+  const normalizedSlug = normalizeSlug(slug);
+  // A code post replaces a stored row with the same slug, so a code slug never
+  // reaches the database.
+  const stored =
+    CODE_POSTS.find((item) => item.slug === normalizedSlug) ??
+    (await readStoredPost(normalizedSlug));
 
   if (!stored) return null;
   // Sanitise again on read, so a row stored before the webhook sanitised its

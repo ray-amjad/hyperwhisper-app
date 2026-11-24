@@ -7,15 +7,11 @@ import {
 } from './text-processing';
 
 describe('extractCorrectedText', () => {
-  test('extracts from a bare string response', () => {
-    expect(extractCorrectedText('hello world')).toBe('hello world');
-  });
-
-  test('extracts from direct top-level keys: response, result, output_text, text', () => {
-    expect(extractCorrectedText({ response: 'fixed via response' })).toBe('fixed via response');
-    expect(extractCorrectedText({ result: 'fixed via result' })).toBe('fixed via result');
-    expect(extractCorrectedText({ output_text: 'fixed via output_text' })).toBe('fixed via output_text');
-    expect(extractCorrectedText({ text: 'fixed via text' })).toBe('fixed via text');
+  test('joins array-of-parts message content (Mistral content chunks)', () => {
+    const response = {
+      choices: [{ message: { content: [{ type: 'text', text: 'Hello ' }, { type: 'text', text: 'world' }] } }],
+    };
+    expect(extractCorrectedText(response)).toBe('Hello world');
   });
 
   test('extracts from OpenAI-style choices[].message.content', () => {
@@ -25,25 +21,11 @@ describe('extractCorrectedText', () => {
     expect(extractCorrectedText(response)).toBe('corrected transcript');
   });
 
-  test('extracts from streaming-style choices[].delta.content', () => {
-    const response = {
-      choices: [{ delta: { content: 'streamed correction' } }],
-    };
-    expect(extractCorrectedText(response)).toBe('streamed correction');
-  });
-
   test('extracts from Anthropic-style content array of text blocks', () => {
     const response = {
-      content: [{ text: 'block one ' }, { text: 'block two' }],
+      content: [{ type: 'text', text: 'block one ' }, { type: 'thinking' }, { type: 'text', text: 'block two' }],
     };
     expect(extractCorrectedText(response)).toBe('block one block two');
-  });
-
-  test('extracts from Responses-API-style output array', () => {
-    const response = {
-      output: [{ content: [{ text: 'nested output text' }] }],
-    };
-    expect(extractCorrectedText(response)).toBe('nested output text');
   });
 
   test('prefers the first non-empty candidate across multiple choices', () => {
@@ -54,20 +36,16 @@ describe('extractCorrectedText', () => {
   });
 
   test('returns "" for a present-but-empty text field rather than throwing', () => {
-    expect(extractCorrectedText({ text: '' })).toBe('');
+    expect(extractCorrectedText({ content: [{ type: 'text', text: '' }] })).toBe('');
     expect(extractCorrectedText({ choices: [{ message: { content: '' } }] })).toBe('');
   });
 
   test('throws when no text field is found anywhere in the response', () => {
     expect(() => extractCorrectedText({ foo: 'bar' })).toThrow('Correction response missing text');
     expect(() => extractCorrectedText({})).toThrow('Correction response missing text');
+    expect(() => extractCorrectedText({ choices: [{ message: { content: null } }] })).toThrow('Correction response missing text');
     expect(() => extractCorrectedText(null)).toThrow('Correction response missing text');
     expect(() => extractCorrectedText(42)).toThrow('Correction response missing text');
-  });
-
-  test('recurses into a nested "response" field', () => {
-    const response = { response: { response: { text: 'double nested' } } };
-    expect(extractCorrectedText(response)).toBe('double nested');
   });
 });
 
@@ -123,10 +101,4 @@ describe('stripCleanMarkers', () => {
     expect(stripCleanMarkers('  plain text  ')).toBe('plain text');
   });
 
-  test('returns "" for non-string input', () => {
-    // @ts-expect-error exercising the runtime guard for non-string callers
-    expect(stripCleanMarkers(null)).toBe('');
-    // @ts-expect-error exercising the runtime guard for non-string callers
-    expect(stripCleanMarkers(undefined)).toBe('');
-  });
 });

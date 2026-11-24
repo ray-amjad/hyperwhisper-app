@@ -101,7 +101,12 @@ afterEach(() => {
 const blogUrl = "https://www.hyperwhisper.com/en/blog/a-real-post";
 
 // The posts written in src/content/code-posts, newest first.
-const CODE_SLUGS = ["hyperwhisper-vs-handy-vs-fluidvoice", "hyperwhisper-vs-spokenly"];
+const CODE_SLUGS = [
+  "best-dictation-software-for-windows",
+  "free-speech-to-text-app",
+  "hyperwhisper-vs-handy-vs-fluidvoice",
+  "hyperwhisper-vs-spokenly",
+];
 
 describe("at runtime (a background revalidation)", () => {
   beforeEach(() => {
@@ -113,6 +118,12 @@ describe("at runtime (a background revalidation)", () => {
     await assert.rejects(blog.getBlogPosts(), /ECONNREFUSED/);
     await assert.rejects(blog.getBlogPost("a-real-post"), /ECONNREFUSED/);
     await assert.rejects(blog.getAllBlogPosts(), /ECONNREFUSED/);
+  });
+
+  test("a code post still renders with the database down: its slug never queries", async () => {
+    select = dbDown;
+    const post = await blog.getBlogPost("hyperwhisper-vs-spokenly");
+    assert.match(post?.frontMatter.title ?? "", /HyperWhisper vs Spokenly/);
   });
 
   test("a database error rejects the sitemap instead of dropping the posts", async () => {

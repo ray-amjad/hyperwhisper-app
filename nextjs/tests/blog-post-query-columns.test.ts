@@ -167,15 +167,23 @@ test("a slug with surrounding slashes is looked up normalised", async () => {
   assert.equal(post?.html, "<p>Body of a-real-post</p>");
 });
 
-test("no stored row falls back to the code post; an unknown slug is null", async () => {
+test("a code post is served without a query; an unknown slug queries and is null", async () => {
   const codePost = await blog.getBlogPost(CODE_SLUG);
   assert.ok(codePost);
   assert.match(codePost.frontMatter.title, /HyperWhisper vs Spokenly/);
+  assert.equal(queries.length, 0);
   assert.equal(await blog.getBlogPost("no-such-post"), null);
-  assert.equal(queries.length, 2);
+  assert.equal(queries.length, 1);
 });
 
-test("a stored row with a code post's slug wins", async () => {
+test("a code post replaces a stored row with the same slug", async () => {
   stored = [row(CODE_SLUG, { content_html: "<p>From Outrank</p>" })];
-  assert.equal((await blog.getBlogPost(CODE_SLUG))?.html, "<p>From Outrank</p>");
+  const post = await blog.getBlogPost(CODE_SLUG);
+  assert.ok(post);
+  assert.doesNotMatch(post.html, /From Outrank/);
+  assert.match(post.frontMatter.title, /HyperWhisper vs Spokenly/);
+  assert.equal(
+    (await blog.getBlogPosts()).filter((item) => item.slug === CODE_SLUG).length,
+    1,
+  );
 });
