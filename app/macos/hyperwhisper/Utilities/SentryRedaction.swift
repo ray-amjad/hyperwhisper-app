@@ -72,7 +72,7 @@ enum SentryRedaction {
         if let cut = base.firstIndex(where: { $0 == "?" || $0 == "#" }) {
             base = String(base[..<cut])
         }
-        if let userInfo { base = replacing(userInfo, in: base, with: "$1") }
+        // `scrubFreeText` strips the `user:password@` as well.
         return scrubFreeText(base)
     }
 
@@ -122,7 +122,10 @@ enum SentryRedaction {
         (try? NSRegularExpression(pattern: entry.0)).map { (regex: $0, template: entry.1) }
     }
 
-    private static let userInfo = try? NSRegularExpression(pattern: #"(://)[^/@\s]*@"#)
+    /// The `user:password@` of any URL in text (`https://user:pw@host/…`).
+    /// The class stops at `/`, `?`, `#` and whitespace, so an `@` later in a
+    /// path, a query or a following sentence is never mistaken for one.
+    private static let userInfo = try? NSRegularExpression(pattern: #"(://)[^/?#@\s]*@"#)
 
     /// `?name=value`, `&name=value`, `#name=value` or `;name=value` inside text.
     private static let embeddedParameter = try? NSRegularExpression(
@@ -130,10 +133,14 @@ enum SentryRedaction {
     )
 
     /// Text from an exception value, a message, a span description or a data
-    /// value, with every sensitively-named URL parameter's value and every
-    /// key-shaped substring redacted. Everything else is left byte for byte.
+    /// value, with every URL's `user:password@` removed and every
+    /// sensitively-named URL parameter's value and key-shaped substring
+    /// redacted. Everything else is left byte for byte.
     static func scrubFreeText(_ text: String) -> String {
         var result = redactEmbeddedParameters(in: text)
+        if let userInfo, result.contains("@") {
+            result = replacing(userInfo, in: result, with: "$1")
+        }
         for (regex, template) in secretPatterns {
             result = replacing(regex, in: result, with: template)
         }

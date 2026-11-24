@@ -139,6 +139,30 @@ struct SentryRedactionTests {
         #expect(scrubbed["blocked_main_thread"] as? Bool == false)
     }
 
+    /// A custom endpoint saved as `https://user:pw@host/…` must not leak its
+    /// password through a span description, an exception value or a message:
+    /// every one of those goes through `scrubFreeText`, not `scrubURL`.
+    @Test func freeTextStripsURLUserInfo() {
+        let userInfoValue = ["fake", "pw", "9876"].joined(separator: "-")
+        let description = "POST https://someone:\(userInfoValue)@llm.example.com/v1/chat?key=\(opaqueKey)"
+        let scrubbedDescription = SentryRedaction.scrubFreeText(description)
+        #expect(!scrubbedDescription.contains(userInfoValue))
+        #expect(!leaks(scrubbedDescription))
+        #expect(scrubbedDescription == "POST https://llm.example.com/v1/chat?key=[redacted]")
+
+        let exception = "Request to http://\(userInfoValue)@10.0.0.2:8080/v1 failed; contact ops@example.com"
+        let scrubbedException = SentryRedaction.scrubFreeText(exception)
+        #expect(!scrubbedException.contains(userInfoValue))
+        #expect(scrubbedException == "Request to http://10.0.0.2:8080/v1 failed; contact ops@example.com")
+
+        // An `@` in a path or a query is not userinfo.
+        let benign = "GET https://example.com/users/@me?mention=a@b"
+        #expect(SentryRedaction.scrubFreeText(benign) == benign)
+
+        let spanData = SentryRedaction.scrubData(["url": "https://someone:\(userInfoValue)@llm.example.com/v1"])
+        #expect(spanData["url"] as? String == "https://llm.example.com/v1")
+    }
+
     @Test func spanDescriptionLosesKeys() {
         let description = "GET https://generativelanguage.googleapis.com/v1/models?key=\(opaqueKey)"
         let scrubbed = SentryRedaction.scrubFreeText(description)
