@@ -277,9 +277,18 @@ extension SentryService {
         // Drop any suspicious extras
         var sanitized = event.extra ?? [:]
         for (key, value) in sanitized {
-            sanitized[key] = Self.redactedValue(forKey: key, value: value)
+            let kept = Self.redactedValue(forKey: key, value: value)
+            sanitized[key] = (kept as? String).map(SentryRedaction.scrubFreeText) ?? kept
         }
         event.extra = sanitized
+
+        // CREDENTIALS IN A FAILED REQUEST
+        // `failedRequestTargets` makes the SDK report every remote 5xx with
+        // the request attached: its URL, query, fragment and headers, which
+        // can hold the Account Key or the user's own provider key. Every
+        // decision is `SentryRedaction`'s, which the unit tests run.
+        Self.scrubRequest(of: event)
+        Self.scrubText(of: event)
 
         // APP HANG GROUPING (issue #683)
         // An SDK-raised AppHang never reaches capture(error:), so this is
@@ -316,7 +325,74 @@ extension SentryService {
     /// pipeline does not use `beforeSend`, so the opt-out is checked again here.
     static func sanitize(_ log: SentryLog) -> SentryLog? {
         guard AppLogger.isErrorLoggingEnabled else { return nil }
+        log.body = SentryRedaction.scrubFreeText(log.body)
         return log
+    }
+
+    /// `options.beforeSendSpan`. The SDK's `http.client` span keeps the
+    /// request URL in its data (`url`, `http.query`, `http.fragment`) and the
+    /// method and URL in its description, and tracing samples every
+    /// transaction, so every request the app makes passes through here.
+    static func sanitize(_ span: Span) -> Span? {
+        let data = span.data
+        let scrubbed = SentryRedaction.scrubData(data)
+        for key in data.keys {
+            // Each key is written back, so a value that does not change is
+            // a no-op; the scrub itself decides, not this loop.
+            span.setData(value: scrubbed[key], key: key)
+        }
+        if let description = span.spanDescription {
+            span.spanDescription = SentryRedaction.scrubFreeText(description)
+        }
+        return span
+    }
+
+    /// `options.beforeBreadcrumb`. Breadcrumbs never leave in an event
+    /// (`sanitize(_:)` drops them), but they are stored on disk and copied
+    /// into the crash reporter's state, and an http breadcrumb carries the
+    /// request `url`, `http.query` and `http.fragment`. Defence in depth.
+    static func sanitize(_ breadcrumb: Breadcrumb) -> Breadcrumb? {
+        if let data = breadcrumb.data {
+            breadcrumb.data = SentryRedaction.scrubData(data)
+        }
+        if let message = breadcrumb.message {
+            breadcrumb.message = SentryRedaction.scrubFreeText(message)
+        }
+        return breadcrumb
+    }
+
+    /// Two reads and writes per field; every decision is `SentryRedaction`'s.
+    private static func scrubRequest(of event: Event) {
+        if let request = event.request {
+            request.url = request.url.map(SentryRedaction.scrubURL)
+            request.queryString = SentryRedaction.scrubQueryString(request.queryString)
+            // A fragment can carry an OAuth token and is no use to a triage.
+            request.fragment = nil
+            request.headers = request.headers.map(SentryRedaction.scrubHeaders)
+            request.cookies = nil
+        }
+        // The SDK also copies the response headers (Set-Cookie and all) into
+        // `context.response.headers`.
+        if let context = event.context {
+            event.context = context.mapValues(SentryRedaction.scrubData)
+        }
+    }
+
+    /// Exception values, the message and tag values can quote a URL or a
+    /// server reply that echoes a key.
+    private static func scrubText(of event: Event) {
+        for exception in event.exceptions ?? [] {
+            exception.value = SentryRedaction.scrubFreeText(exception.value)
+        }
+        if let message = event.message {
+            let scrubbed = SentryMessage(formatted: SentryRedaction.scrubFreeText(message.formatted))
+            scrubbed.message = message.message.map(SentryRedaction.scrubFreeText)
+            scrubbed.params = message.params?.map(SentryRedaction.scrubFreeText)
+            event.message = scrubbed
+        }
+        if let tags = event.tags {
+            event.tags = tags.mapValues(SentryRedaction.scrubFreeText)
+        }
     }
     #endif
 }
