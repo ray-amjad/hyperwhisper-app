@@ -398,7 +398,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
 
-                StatusText = Loc.S("status.failed", ex.Message);
+                StatusText = TranscriptionFailureStatusText(ex);
             }
         }
         finally
