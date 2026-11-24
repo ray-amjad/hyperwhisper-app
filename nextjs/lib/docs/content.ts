@@ -1,14 +1,11 @@
 import "server-only";
 
-import YAML from "yaml";
 import type { ComponentType } from "react";
 
+import YAML from "yaml";
+
 import { splitFrontmatter, type DocFrontmatter } from "./frontmatter";
-import {
-  DOCS_ENTRIES,
-  type DocLocated,
-  type DocPage,
-} from "./nav";
+import { DOCS_ENTRIES, type DocLocated, type DocPage } from "./nav";
 import { type OpenApiSpec, listOperations, plainSummary } from "./openapi";
 
 import { SITE_URL } from "@/lib/site-metadata";
@@ -42,7 +39,6 @@ function rawText(mod: unknown): string {
   if (typeof value === "string") return value;
   throw new Error(`docs: a ?raw import is not a string (${typeof mod})`);
 }
-
 
 function keyFor(slug: string, table: Record<string, unknown>): string {
   const suffix = `/src/content/docs/${slug}.mdx`;
@@ -96,10 +92,18 @@ export function loadDoc(entry: DocLocated): DocSource {
 
   return {
     title: entry.title,
-    description: endpointDescription(entry.method, entry.path, operation.description),
+    description: endpointDescription(
+      entry.method,
+      entry.path,
+      operation.description,
+    ),
     entry,
     canonical,
-    body: endpointMarkdown(operation.method, operation.path, operation.description),
+    body: endpointMarkdown(
+      operation.method,
+      operation.path,
+      operation.description,
+    ),
   };
 }
 

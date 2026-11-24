@@ -17,7 +17,8 @@ import {
 // <details>, open when it holds the current page, as Mintlify's were.
 
 function containsHref(node: DocNode, href: string): boolean {
-  if (node.kind === "group") return node.items.some((n) => containsHref(n, href));
+  if (node.kind === "group")
+    return node.items.some((n) => containsHref(n, href));
 
   return node.href === href;
 }
@@ -34,7 +35,10 @@ function Items({ nodes, current }: { nodes: DocNode[]; current: string }) {
                 open={containsHref(node, current) || undefined}
               >
                 <summary>
-                  <ChevronRight aria-hidden="true" className="docs-nav-chevron" />
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="docs-nav-chevron"
+                  />
                   {node.title}
                 </summary>
                 <Items current={current} nodes={node.items} />

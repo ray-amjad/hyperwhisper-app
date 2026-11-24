@@ -27,18 +27,26 @@ export function llmsTxt(): string {
       } else {
         const doc = docs.get(node.slug);
 
-        lines.push(`- [${node.title}](${SITE_URL}${node.href}.md): ${doc?.description ?? ""}`);
+        lines.push(
+          `- [${node.title}](${SITE_URL}${node.href}.md): ${doc?.description ?? ""}`,
+        );
       }
     }
   };
 
   walk(DOCS_NAV, 2);
 
-  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trim()}\n`;
+  return `${lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()}\n`;
 }
 
 export function llmsFullTxt(): string {
   return loadAllDocs()
-    .map((doc) => `# ${doc.title}\n\nSource: ${doc.canonical}\n\n${doc.description}\n\n${doc.body.trimEnd()}\n`)
+    .map(
+      (doc) =>
+        `# ${doc.title}\n\nSource: ${doc.canonical}\n\n${doc.description}\n\n${doc.body.trimEnd()}\n`,
+    )
     .join("\n---\n\n");
 }

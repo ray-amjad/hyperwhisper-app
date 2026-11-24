@@ -76,10 +76,19 @@ function Callout({ kind, children }: { kind: Kind; children?: ReactNode }) {
   );
 }
 
-const isInternal = (href: string) => href.startsWith("/") || href.startsWith("#");
+const isInternal = (href: string) =>
+  href.startsWith("/") || href.startsWith("#");
 
-function DocLink({ href = "", children, ...rest }: ComponentPropsWithoutRef<"a">) {
-  if (href.startsWith("/") && !href.startsWith("//") && !/\.[a-z]+($|#)/.test(href)) {
+function DocLink({
+  href = "",
+  children,
+  ...rest
+}: ComponentPropsWithoutRef<"a">) {
+  if (
+    href.startsWith("/") &&
+    !href.startsWith("//") &&
+    !/\.[a-z]+($|#)/.test(href)
+  ) {
     return (
       <Link href={href} {...rest}>
         {children}
@@ -119,7 +128,9 @@ function Card({
       <div>
         <p className="docs-card-title">
           {title}
-          {href ? <ChevronRight aria-hidden="true" className="docs-card-arrow" /> : null}
+          {href ? (
+            <ChevronRight aria-hidden="true" className="docs-card-arrow" />
+          ) : null}
         </p>
         {children ? <div className="docs-card-text">{children}</div> : null}
       </div>
@@ -147,7 +158,13 @@ function Card({
   return <div className={className}>{body}</div>;
 }
 
-function CardGroup({ cols = 2, children }: { cols?: number; children?: ReactNode }) {
+function CardGroup({
+  cols = 2,
+  children,
+}: {
+  cols?: number;
+  children?: ReactNode;
+}) {
   return (
     <div className="docs-card-group" data-cols={cols}>
       {children}
@@ -168,7 +185,13 @@ function Step({ title, children }: { title?: string; children?: ReactNode }) {
   );
 }
 
-function Accordion({ title, children }: { title: string; children?: ReactNode }) {
+function Accordion({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   return (
     <details className="docs-accordion">
       <summary>
@@ -184,7 +207,13 @@ function AccordionGroup({ children }: { children?: ReactNode }) {
   return <div className="docs-accordion-group">{children}</div>;
 }
 
-function Frame({ caption, children }: { caption?: string; children?: ReactNode }) {
+function Frame({
+  caption,
+  children,
+}: {
+  caption?: string;
+  children?: ReactNode;
+}) {
   return (
     <figure className="docs-frame">
       {children}

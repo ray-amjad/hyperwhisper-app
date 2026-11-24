@@ -66,7 +66,14 @@ function endpoint(
 ): DocEndpoint {
   const slug = `api-reference/${endpointSlug(summary)}`;
 
-  return { kind: "endpoint", slug, title: summary, href: docHref(slug), method, path };
+  return {
+    kind: "endpoint",
+    slug,
+    title: summary,
+    href: docHref(slug),
+    method,
+    path,
+  };
 }
 
 function group(title: string, items: DocNode[]): DocGroup {
@@ -111,7 +118,10 @@ export const DOCS_NAV: DocGroup[] = [
       page("audio-input", "Audio Input Volume"),
       page("microphone-selection", "Select a Microphone or Audio Input Device"),
       page("keep-microphone-warm", "Keep Microphone Warm"),
-      page("voice-activity-detection", "Voice Activity Detection & Silence Trimming"),
+      page(
+        "voice-activity-detection",
+        "Voice Activity Detection & Silence Trimming",
+      ),
       page("system-audio", "Transcribing System Audio"),
     ]),
     group("Sounds & Media", [
@@ -154,8 +164,16 @@ export const DOCS_NAV: DocGroup[] = [
       endpoint("GET", "/recordings/search", "Search past transcripts"),
       endpoint("GET", "/recordings", "Search past transcripts (alias)"),
       endpoint("GET", "/recordings/{id}", "Fetch one recording"),
-      endpoint("POST", "/recording/toggle", "Start the microphone, or stop it and transcribe"),
-      endpoint("POST", "/recording/cancel", "Stop the microphone and keep no transcript"),
+      endpoint(
+        "POST",
+        "/recording/toggle",
+        "Start the microphone, or stop it and transcribe",
+      ),
+      endpoint(
+        "POST",
+        "/recording/cancel",
+        "Stop the microphone and keep no transcript",
+      ),
     ]),
   ]),
   group("Troubleshooting", [

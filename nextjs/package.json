@@ -93,6 +93,7 @@
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
+    "github-slugger": "2.0.0",
     "globals": "17.9.0",
     "prettier": "3.5.3",
     "tailwindcss": "4.1.11",

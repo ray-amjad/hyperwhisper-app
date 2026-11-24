@@ -78,10 +78,20 @@ test("every English-only entry is /en and a page gated to English", async () => 
   }
 });
 
-test("/docs is listed exactly once, with no locale prefix", async () => {
+test("every docs page is listed once, with no locale prefix", async () => {
+  const { DOCS_ENTRIES } = await import("../lib/docs/nav");
   const { entries, unprefixed } = await load();
-  assert.deepEqual(unprefixed, ["/docs"]);
-  assert.equal(entries.filter((e) => e.url.endsWith("/docs")).length, 1);
+  assert.deepEqual(
+    unprefixed.sort(),
+    DOCS_ENTRIES.map((e) => e.href).sort(),
+  );
+  assert.ok(unprefixed.includes("/docs/models"));
+  for (const href of unprefixed) {
+    assert.equal(entries.filter((e) => e.url === `${BASE}${href}`).length, 1, href);
+  }
+  for (const e of entries.filter((x) => x.url.startsWith(`${BASE}/docs`))) {
+    assert.equal(e.alternates, undefined, e.url);
+  }
 });
 
 test("the dead #735 paths are gone", async () => {

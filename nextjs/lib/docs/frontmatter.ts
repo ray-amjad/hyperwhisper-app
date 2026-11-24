@@ -9,7 +9,10 @@ export type DocFrontmatter = { title: string; description: string };
 
 const HEADER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-export function splitFrontmatter(raw: string, file = "docs page"): {
+export function splitFrontmatter(
+  raw: string,
+  file = "docs page",
+): {
   data: DocFrontmatter;
   body: string;
 } {

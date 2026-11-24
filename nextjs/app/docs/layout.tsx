@@ -22,10 +22,17 @@ import { defaultLocale } from "@/src/i18n/locales";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   // "Models - HyperWhisper": the title Mintlify served for every page.
-  title: { default: `Documentation - ${SITE_NAME}`, template: `%s - ${SITE_NAME}` },
+  title: {
+    default: `Documentation - ${SITE_NAME}`,
+    template: `%s - ${SITE_NAME}`,
+  },
   robots: { index: true, follow: true },
   icons: { icon: "/icon/32.png", apple: "/icon/256.png" },
-  twitter: { card: TWITTER_CARD, creator: TWITTER_CREATOR, images: TWITTER_IMAGES },
+  twitter: {
+    card: TWITTER_CARD,
+    creator: TWITTER_CREATOR,
+    images: TWITTER_IMAGES,
+  },
 };
 
 export default function DocsLayout({ children }: { children: ReactNode }) {

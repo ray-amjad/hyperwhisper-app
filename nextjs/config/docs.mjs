@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
  * for tables, heading ids for #anchors (the github-slugger ids Mintlify used),
  * and Shiki highlighting at build time, so no highlighter ships to the client.
  */
+/** @type {NonNullable<NonNullable<import('next').NextConfig['turbopack']>['rules']>} */
 export const mdxRules = {
   "*.mdx": [
     { condition: { query: "?raw" }, type: "raw" },
@@ -55,6 +56,7 @@ export const mdxRules = {
  * engines carry the old URL's ranking over. tests/docs-old-urls.test.ts checks
  * every one lands on a page that exists.
  */
+/** @type {{ source: string; destination: string; statusCode: 301 }[]} */
 export const docsRedirects = [
   { source: "/docs/model-management", destination: "/docs/models", statusCode: 301 },
 ];

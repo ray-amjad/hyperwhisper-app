@@ -83,7 +83,9 @@ export default async function DocsPage({ params }: Props) {
   const crumbs = [
     { name: "Home", url: `${SITE_URL}/${defaultLocale}` },
     { name: "Docs", url: `${SITE_URL}${DOCS_BASE}` },
-    ...(entry.slug === "index" ? [] : [{ name: doc.title, url: doc.canonical }]),
+    ...(entry.slug === "index"
+      ? []
+      : [{ name: doc.title, url: doc.canonical }]),
   ];
 
   let content;
@@ -103,7 +105,9 @@ export default async function DocsPage({ params }: Props) {
   return (
     <>
       <script
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd(crumbs)) }}
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(breadcrumbJsonLd(crumbs)),
+        }}
         type="application/ld+json"
       />
       <article className="docs-article">

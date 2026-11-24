@@ -57,8 +57,10 @@ export function MarkdownText({ text }: { text?: string }) {
 function constraints(schema: Schema): string[] {
   const out: string[] = [];
 
-  if (schema.enum) out.push(`one of ${schema.enum.map((v) => JSON.stringify(v)).join(", ")}`);
-  if (schema.default !== undefined) out.push(`default ${JSON.stringify(schema.default)}`);
+  if (schema.enum)
+    out.push(`one of ${schema.enum.map((v) => JSON.stringify(v)).join(", ")}`);
+  if (schema.default !== undefined)
+    out.push(`default ${JSON.stringify(schema.default)}`);
   if (schema.minimum !== undefined) out.push(`min ${schema.minimum}`);
   if (schema.maximum !== undefined) out.push(`max ${schema.maximum}`);
   if (schema.nullable) out.push("nullable");
@@ -92,14 +94,18 @@ function Field({
       <p className="docs-field-head">
         <code className="docs-field-name">{name}</code>
         <span className="docs-field-type">{typeLabel(spec, schema)}</span>
-        {required ? <span className="docs-field-required">required</span> : null}
+        {required ? (
+          <span className="docs-field-required">required</span>
+        ) : null}
       </p>
       {description ? (
         <div className="docs-field-desc">
           <MarkdownText text={description} />
         </div>
       ) : null}
-      {notes.length ? <p className="docs-field-notes">{notes.join(" · ")}</p> : null}
+      {notes.length ? (
+        <p className="docs-field-notes">{notes.join(" · ")}</p>
+      ) : null}
       {inner.properties && depth < 4 ? (
         <Fields depth={depth + 1} schema={inner} spec={spec} />
       ) : null}
@@ -148,7 +154,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function ParameterList({ spec, params }: { spec: OpenApiSpec; params: Parameter[] }) {
+function ParameterList({
+  spec,
+  params,
+}: {
+  spec: OpenApiSpec;
+  params: Parameter[];
+}) {
   return (
     <ul className="docs-fields">
       {params.map((param) => (
@@ -174,7 +186,8 @@ export function EndpointPage({
 }) {
   const server = spec.servers?.[0]?.url ?? "http://127.0.0.1:{port}";
   const pathParams = operation.parameters?.filter((p) => p.in === "path") ?? [];
-  const queryParams = operation.parameters?.filter((p) => p.in === "query") ?? [];
+  const queryParams =
+    operation.parameters?.filter((p) => p.in === "query") ?? [];
   const body = jsonSchema(operation.requestBody?.content);
   const auth = needsAuth(spec, operation);
 
@@ -192,13 +205,16 @@ export function EndpointPage({
       <p>
         {auth ? (
           <>
-            Send <code>Authorization: Bearer &lt;token&gt;</code>, with the token from the
-            discovery file.
+            Send <code>Authorization: Bearer &lt;token&gt;</code>, with the
+            token from the discovery file.
           </>
         ) : (
           <>No authentication: this route answers without a bearer token.</>
         )}{" "}
-        See the <Link href="/docs/api-reference/local-api/overview">Local API overview</Link>{" "}
+        See the{" "}
+        <Link href="/docs/api-reference/local-api/overview">
+          Local API overview
+        </Link>{" "}
         for the port, the token and the response envelope.
       </p>
       <MarkdownText text={operation.description} />
@@ -229,7 +245,8 @@ export function EndpointPage({
           return (
             <div key={status} className="docs-response">
               <h3 id={`response-${status}`}>
-                <span className="docs-status">{status}</span> {response.description}
+                <span className="docs-status">{status}</span>{" "}
+                {response.description}
               </h3>
               {schema ? (
                 <>
