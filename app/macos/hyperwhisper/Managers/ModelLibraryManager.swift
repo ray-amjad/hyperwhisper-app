@@ -281,6 +281,7 @@ final class ModelLibraryManager: ObservableObject {
         "scribe_v1":                         (3, 5),
         "scribe_v2":                         (3, 5),
         "scribe_v2_medical":                 (3, 5),
+        "scribe_v3":                         (3, 5),
         // Mistral
         "voxtral-mini-latest":               (4, 2),
         // Soniox

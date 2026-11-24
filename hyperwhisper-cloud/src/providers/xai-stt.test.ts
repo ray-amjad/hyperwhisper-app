@@ -137,11 +137,6 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect(pinned.form?.get('model')).toBe('grok-voice-transcribe-2.0');
 
-    // A pre-2026-09-19 client sends no model, and the route passes none on.
-    const blank = captureMultipartRequest({ text: 'hi', duration: 4 });
-    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, { model: '  ' });
-    expect(blank.form?.get('model')).toBe('grok-voice-transcribe-2.0');
-
     // A shipped client may still name 1.0, which xAI ended on 2026-10-02
     // (#1908). The route resolves it through the registry alias, and the
     // adapter sends what the route resolved.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ProviderInputError, UnsupportedAudioFormatError } from '../providers/types';
+import { ProviderInputError, UnsupportedAudioFormatError } from './types';
 import { parsePcm16Wav, type Pcm16WavPolicy } from './wav-header';
 
 const ANY: Pcm16WavPolicy = {
