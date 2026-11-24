@@ -1,10 +1,13 @@
 import Stripe from "stripe";
+import { z } from "zod";
 import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
 import { refundedCreditsTotal } from "@/lib/services/credit-refund";
 import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
+import type { AccountKeyRow } from "@/src/lib/db-layer";
+import { ACCOUNT_KEY_DELETED_STATUS } from "@/lib/account-key-limits";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -12,6 +15,8 @@ import {
 } from "@/lib/shared/db-error";
 import {
   findAccountByKey,
+  findAccountById,
+  findAccountsByStripeCustomer,
   getAccountKeysByEmail,
   findAccountByStripeSession,
   insertAccountKey,
@@ -21,6 +26,81 @@ import {
   hasProcessedStripeObject,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+
+/** The same id check `customer.rotateAccountKey` applies to its input. */
+const accountKeyId = z.string().uuid();
+
+/**
+ * The Account Key a top-up checkout was opened for, or null.
+ *
+ * The key string can change under an open checkout: the owner may rotate the
+ * key between opening the Stripe page and paying. So, in order:
+ * 1. by ROW ID (`metadata.account_key_id`), which never changes;
+ * 2. by the key string (`metadata.license_key`), which still works when no
+ *    rotation happened;
+ *    (A row found by 1 or 2 that the owner deleted resolves to the user's
+ *    newest live key: `liveSiblingIfDeleted`.)
+ * 3. by the session's Stripe customer. Checkouts opened before the id was
+ *    written carry only the string, which a rotation kills, but every top-up
+ *    checkout runs under the customer cached on its key row
+ *    (`app/api/checkout/credits/route.ts`), and a rotation keeps that. Used
+ *    only when every row billed to that customer belongs to one user, since
+ *    credits are the user's; the newest granted row wins.
+ */
+async function findTopUpAccount(
+  session: Pick<Stripe.Checkout.Session, "metadata" | "customer">,
+): Promise<AccountKeyRow | null> {
+  const id = session.metadata?.account_key_id;
+
+  if (id && accountKeyId.safeParse(id).success) {
+    const byId = await findAccountById(id);
+
+    if (byId) return liveSiblingIfDeleted(byId);
+  }
+
+  const key = session.metadata?.license_key;
+  const byKey = key ? await findAccountByKey(key) : null;
+
+  if (byKey) return liveSiblingIfDeleted(byKey);
+
+  const customerId = getStripeCustomerId(session.customer);
+
+  if (!customerId) return null;
+
+  const rows = await findAccountsByStripeCustomer(customerId);
+
+  if (rows.length === 0) return null;
+  // Ambiguous: the credits could land on the wrong user. Left unresolved, so
+  // the webhook answers 500 and the event surfaces for manual review.
+  if (new Set(rows.map((r) => r.userId)).size > 1) return null;
+
+  return rows.find((r) => r.status === "granted") ?? rows[0];
+}
+
+/**
+ * A top-up checkout opened on a key the owner has since deleted from the
+ * dashboard lands on the same user's newest live key instead: credits belong
+ * to the user, not the key, and the owner always keeps one live key. Any
+ * other status (revoked, refunded) is returned as is, and the top-up refuses
+ * it as before. With no live sibling (an admin revoked the rest), the deleted
+ * row is returned and refused too.
+ */
+async function liveSiblingIfDeleted(
+  row: AccountKeyRow,
+): Promise<AccountKeyRow> {
+  if (row.status !== ACCOUNT_KEY_DELETED_STATUS) return row;
+
+  const live = (await getAccountKeysByEmail(row.email)).find(
+    (k) => k.userId === row.userId && k.status === "granted",
+  );
+
+  return live ?? row;
+}
+
+/** Why a top-up's key row could not be found, for logs (never the full key). */
+function missingTopUpAccount(licenseKey: string): string {
+  return `top-up licence ${licenseKey.substring(0, 7)}... not found by row id, key or Stripe customer (deleted, or its key was rotated)`;
+}
 
 function getStripeCustomerId(
   customer: Stripe.Checkout.Session["customer"]
@@ -86,7 +166,8 @@ export async function handleCreditPurchase(
     );
   }
 
-  if (session.payment_status !== "paid") {
+  // no_payment_required: a 100%-off promotion code paid the whole order (#2055).
+  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
     console.log(
       `Skipping credit purchase for session ${session.id}: payment_status=${session.payment_status}`
     );
@@ -114,10 +195,10 @@ async function handleCreditTopUp(
     `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  const license = await findAccountByKey(licenseKey);
+  const license = await findTopUpAccount(session);
 
   if (!license) {
-    throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
+    throw new Error(missingTopUpAccount(licenseKey));
   }
 
   // Refuse to credit a non-granted (e.g. revoked) license: those credits would be
@@ -160,7 +241,8 @@ async function handleCreditTopUp(
   const emailResult = await emailService.sendCreditTopUp({
     customerName,
     customerEmail,
-    licenseKey,
+    // The row's current key, not the checkout's: it may have been rotated.
+    licenseKey: license.key,
     creditAmount,
     newBalance,
     productName: "HyperWhisper",
@@ -208,7 +290,6 @@ async function handleCreditMint(
   // key should top that key up, not get a second key with a split balance.
   // Only when the session hasn't already resolved a license (retry-safe), and
   // only for granted keys (a revoked key is dead — mint a fresh one instead).
-  let pooledIntoExisting = false;
   if (!license) {
     // An email can own several keys (e.g. a revoked key plus a live one), so
     // scan all of them newest-first and pool into the most recent GRANTED key.
@@ -220,7 +301,6 @@ async function handleCreditMint(
     const existing = existingKeys.find((k) => k.status === "granted");
     if (existing) {
       license = existing;
-      pooledIntoExisting = true;
     }
   }
 
@@ -297,10 +377,15 @@ async function handleCreditMint(
     return;
   }
 
-  // STEP 3: Email. When we pooled into an existing key, send a top-up receipt
-  // with the new balance (the buyer already has this key). A genuinely new key
-  // gets the mint email with its starting balance.
-  if (pooledIntoExisting) {
+  // STEP 3: Email. A key this session minted gets the mint email, the only
+  // email that carries the full key. A key minted earlier (pooled by email)
+  // gets a top-up receipt with the new balance: the buyer already has it.
+  // Decided from the row's stripe_session_id, never from which lookup found
+  // it: a concurrent delivery of this same session can miss the session
+  // lookup, then find the key the other delivery just minted by email, and
+  // win the grant. It must still send the mint email (#2947).
+  const mintedByThisSession = license.stripeSessionId === session.id;
+  if (!mintedByThisSession) {
     console.log(
       `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerTag}`
     );
@@ -510,10 +595,8 @@ async function permanentMissingGrantReason(
 
   const licenseKey = checkoutSession.metadata?.license_key;
   if (licenseKey) {
-    const license = await findAccountByKey(licenseKey);
-    if (!license) {
-      return `top-up licence ${licenseKey.substring(0, 7)}... does not exist`;
-    }
+    const license = await findTopUpAccount(checkoutSession);
+    if (!license) return missingTopUpAccount(licenseKey);
     if (license.status !== "granted") {
       return `top-up licence ${licenseKey.substring(0, 7)}... is ${license.status}`;
     }

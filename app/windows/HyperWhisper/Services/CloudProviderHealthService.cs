@@ -655,7 +655,8 @@ public class CloudProviderHealthService : IDisposable
     /// Do not "tidy" the override into the cache or RefreshAsync's return value.
     ///
     /// This deliberately does NOT raise <see cref="TranscriptionProviderStatusChanged"/>.
-    /// The only subscriber answers it with a blocking <c>Dispatcher.Invoke</c>, and
+    /// The Settings page answers it with a blocking <c>Dispatcher.Invoke</c> (the
+    /// status bar's <c>MainViewModel</c> only queues a <c>BeginInvoke</c>), and
     /// this method runs on the transcription thread — raising it here would put a
     /// synchronous UI-thread rendezvous on the hot path, and deadlock outright if
     /// the UI thread were ever waiting on the transcription. The Local API

@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Đây là chế độ mặc định nên không thể đổi tên. Bạn có thể đổi tên bất kỳ chế độ nào khác.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Đã có chế độ mang tên này.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@ Hành động này không thể được hoàn tác.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Không có khóa API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Khóa không hợp lệ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -942,15 +948,6 @@ Hành động này không thể được hoàn tác.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2182,7 +2179,7 @@ You can re-download it later.</value>
     <value>Chọn ít nhất một phần để nhập.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Thêm {0} từ mới, {1} xung đột với các từ hiện có. Tiếp tục?</value>
+    <value>Từ mới: {0}. Xung đột với các từ hiện có: {1}. Tiếp tục?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Nhập từ vựng?</value>
@@ -2204,6 +2201,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Đã khôi phục cài đặt.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Đã khôi phục khóa API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Không thể khôi phục một hoặc nhiều khóa API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Bản sao lưu không chứa khóa API nào.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Không thể khôi phục cài đặt.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Đã nhập bản sao lưu nhưng có sự cố. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Nếu từ đã tồn tại:</value>

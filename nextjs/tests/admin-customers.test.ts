@@ -25,6 +25,14 @@ import {
 import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
 import { captureConsole, type ConsoleCapture } from "./module-mock";
 
+// A refund that revokes the key now purges HyperWhisper Cloud's licence cache
+// (#2915), which loads `src/env/server.mjs`. It snapshots process.env on first
+// import (#682), which happens when the harness first loads the router, inside
+// a test. No cloud app is named, so the purge never leaves the process; its own
+// cases are in admin-refund-cloud-purge.test.ts.
+process.env.SKIP_ENV_VALIDATION = "1";
+process.env.HYPERWHISPER_CLOUD_URLS = "";
+
 const LICENSE_ID = "11111111-1111-4111-8111-111111111111";
 
 async function rejects(
@@ -253,6 +261,10 @@ describe("addCredits", () => {
     ["zero", 0],
     ["a negative amount", -50],
     ["more than 1,000,000", 1_000_001],
+    // numeric(20,2) would store these as 0.00, 0.00 and 1.01 (#2624).
+    ["a sub-cent amount (0.004)", 0.004],
+    ["a sub-cent amount (0.001)", 0.001],
+    ["an amount with three decimals (1.005)", 1.005],
   ] as const) {
     test(`rejects ${label} before it reads the license`, async () => {
       await rejects(
@@ -261,6 +273,24 @@ describe("addCredits", () => {
       );
       assert.equal(calls.findAccountById.length, 0);
       assert.equal(calls.grantCreditLot.length, 0);
+    });
+  }
+
+  for (const amount of [0.01, 0.29, 19.99, 999_999.99]) {
+    test(`accepts the whole-cent amount ${amount} and grants it unchanged`, async () => {
+      await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount });
+      assert.equal(calls.grantCreditLot[0].amount, amount);
+    });
+  }
+
+  for (const [label, amount, stored] of [
+    ["0.1 + 0.2", 0.1 + 0.2, 0.3],
+    ["999999.9900000001", 999999.9900000001, 999999.99],
+  ] as const) {
+    test(`grants and reports ${label} as the whole cent the ledger stores`, async () => {
+      const res = await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount });
+      assert.equal(calls.grantCreditLot[0].amount, stored);
+      assert.equal((res as { addedAmount: number }).addedAmount, stored);
     });
   }
 
@@ -319,6 +349,23 @@ describe("refund", () => {
     assert.deepEqual(calls.revokeAccountKey, [
       { id: LICENSE_ID, userId: "user_owner", options: { actingUserId: "admin_1" } },
     ]);
+  });
+
+  test("a key the owner deleted is refunded but stays deleted: revoked reports false", async () => {
+    behaviour.accountsById.set(
+      LICENSE_ID,
+      accountKeyRow({ id: LICENSE_ID, userId: "user_owner", status: "deleted" }),
+    );
+    behaviour.revokeRevoked = false;
+
+    const result = await callCustomers("refund", "mutation", {
+      licenseKeyId: LICENSE_ID,
+      revokeLicense: true,
+    });
+
+    assert.deepEqual(result, { success: true, revoked: false });
+    assert.equal(calls.createRefund.length, 1, "the money action still runs");
+    assert.equal(calls.revokeAccountKey.length, 1);
   });
 
   test("answers NOT_FOUND for an unknown license and touches no money", async () => {
@@ -484,6 +531,7 @@ describe("list", () => {
       licenseCount: number;
       totalCredits: number;
       totalSpentCents: number | null;
+      hasStripeCustomer: boolean;
       created: number;
       licenses: Array<{ id: string; key: string; credits: number }>;
     }>;
@@ -594,6 +642,25 @@ describe("list", () => {
     // 1500 (cus_a) + 1000 + 300 (won dispute) — the failed and lost charges do not count.
     assert.equal(customer.totalSpentCents, 2_800);
     assert.deepEqual([...calls.listCharges].sort(), ["cus_a", "cus_b"]);
+  });
+
+  test("counts and flags a Stripe id found only on a key older than the listed 100", async () => {
+    behaviour.customerPage = { userIds: ["user_1", "user_2"], totalCustomers: 2, page: 1 };
+    // user_1's listed keys have no Stripe id; its only paid key is unlisted.
+    behaviour.licenses = [
+      licenseRow({ id: "k1", userId: "user_1", stripeCustomerId: null }),
+      licenseRow({ id: "k2", userId: "user_2", stripeCustomerId: null }),
+    ];
+    behaviour.unlistedStripeIds.set("user_1", ["cus_old"]);
+    behaviour.charges.set("cus_old", [charge({ amount: 2_535 })]);
+
+    const byId = new Map((await list()).customers.map((c) => [c.userId, c]));
+
+    // The view shows the amount (not a dash) when hasStripeCustomer is true.
+    assert.equal(byId.get("user_1")?.hasStripeCustomer, true);
+    assert.equal(byId.get("user_1")?.totalSpentCents, 2_535);
+    assert.equal(byId.get("user_2")?.hasStripeCustomer, false);
+    assert.equal(byId.get("user_2")?.totalSpentCents, 0);
   });
 
   test("reports spend as unknown (null) when ANY of the customer's Stripe ids fails", async () => {
@@ -826,6 +893,13 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       paymentRefunded: true,
       creditsReversed: true,
       revoked: true,
+      // No cloud app is named in this file, so the purge (#2915) sent nothing
+      // and is recorded as unconfirmed; the refund still answers ok.
+      cloudPurgeKeyReread: true,
+      cloudPurge: "unconfirmed",
+      cloudPurged: 0,
+      cloudPurgeFailed: 0,
+      cloudPurgeSkipped: true,
     });
   });
 

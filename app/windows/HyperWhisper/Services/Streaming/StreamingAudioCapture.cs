@@ -7,7 +7,7 @@ namespace HyperWhisper.Services.Streaming;
 /// <summary>
 /// Captures microphone audio as 16 kHz mono PCM chunks for realtime transcription.
 /// </summary>
-public sealed class StreamingAudioCapture : IDisposable
+public sealed class StreamingAudioCapture : IStreamingAudioSource
 {
     /// <summary>
     /// Length of every capture buffer NAudio hands us, in milliseconds. It fixes

@@ -54,6 +54,13 @@
       <Color x:Key="HwInfoBorder">#B8DAFF</Color>
       <Color x:Key="HwErrorBorder">#F5C6CB</Color>
       <Color x:Key="HwDeleteHoverBackground">#FFEBEE</Color>
+      <!-- The RadioButton glyph (Styles.axaml): a solid disc, with a centre punched out of it
+           when checked. Dark copies the Windows dark page exactly (#FFFFFF / #212121). Light is
+           the same glyph inverted: a white disc vanished on the #FCFCFD card (~1.02:1), so the
+           disc takes the secondary text grey (5.1:1 on the card) and the punch takes the card
+           white (#2514). -->
+      <Color x:Key="HwRadioDisc">#6E6E73</Color>
+      <Color x:Key="HwRadioCentre">#FFFFFF</Color>
     </ResourceDictionary>
 
     <ResourceDictionary x:Key="Dark">
@@ -104,6 +111,8 @@
       <Color x:Key="HwInfoBorder">#1A5A8A</Color>
       <Color x:Key="HwErrorBorder">#662A30</Color>
       <Color x:Key="HwDeleteHoverBackground">#4D1F24</Color>
+      <Color x:Key="HwRadioDisc">#FFFFFF</Color>
+      <Color x:Key="HwRadioCentre">#212121</Color>
     </ResourceDictionary>
 
   </ResourceDictionary.ThemeDictionaries>

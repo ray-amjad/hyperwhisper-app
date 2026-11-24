@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Aquest és el mode per defecte, així que no se'n pot canviar el nom. Podeu canviar el nom de qualsevol altre mode.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Ja existeix un mode amb aquest nom.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@ Aquesta acció no es pot desfer.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Sense clau d'API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Clau no vàlida)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -942,15 +948,6 @@ Aquesta acció no es pot desfer.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2183,7 +2180,7 @@ You can re-download it later.</value>
     <value>Seleccioneu almenys una secció per importar.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Afegeix {0} paraules noves, {1} conflictes amb les paraules existents. Continuar?</value>
+    <value>Paraules noves: {0}. Conflictes amb paraules existents: {1}. Continuar?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Importar vocabulari?</value>
@@ -2205,6 +2202,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Configuració restaurada.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>Claus d'API restaurades.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>No s'han pogut restaurar una o més claus d'API.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>La còpia de seguretat no conté cap clau d'API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>No s'ha pogut restaurar la configuració.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Còpia de seguretat importada amb problemes. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Si una paraula ja existeix:</value>

@@ -28,6 +28,7 @@ import {
   WRITE_LICENSE_SCRIPT,
   cacheLicense,
   getCachedLicense,
+  invalidateCachedLicense,
   isIPBlocked,
   type CachedLicense,
   type RedisStore,
@@ -1145,5 +1146,53 @@ describe.skipIf(!redisServerPath)('the licence entry on redis-server (#1899)', (
     const order = [...issued].sort((a, b) => ((a * 7919) % 101) - ((b * 7919) % 101));
     await Promise.all(order.map((at) => write(at % 2 === 0 ? validAt(at) : refusalAt(at))));
     expect((await read())?.issuedAtMs).toBe(1_049);
+  });
+
+  // Account Key rotation: the site calls /internal/license-cache/invalidate.
+  test('invalidating a cached VALID key makes the next read a refusal for the full hour', async () => {
+    await write(validAt(1_000));
+    expect(await invalidateCachedLicense(() => store, 'KEY-123', 5_000)).toBe(true);
+    const after = await read();
+    expect(after?.isValid).toBe(false);
+    expect(after?.issuedAtMs).toBe(5_000);
+    expect(Number(await client!.send('TTL', ['license:KEY-123']))).toBeGreaterThan(LICENSE_CACHE_TTL_SECONDS - 5);
+  });
+
+  test('a slow "valid" reply asked BEFORE the rotation cannot undo the invalidation', async () => {
+    await invalidateCachedLicense(() => store, 'KEY-123', 5_000);
+    // A charge or validate sent at 4 999, before the site rotated the key.
+    await write(validAt(4_999, 99));
+    expect((await read())?.isValid).toBe(false);
+  });
+
+  test('invalidating a key with no entry still stores the refusal', async () => {
+    expect(await invalidateCachedLicense(() => store, 'KEY-123', 5_000)).toBe(true);
+    expect((await read())?.isValid).toBe(false);
+  });
+});
+
+describe('invalidateCachedLicense', () => {
+  const { loggedLine } = silenceConsoleError('Failed to invalidate cached license:');
+
+  test('reports a store failure as false instead of throwing, and logs no key', async () => {
+    // A real key's length: by-value redaction ignores strings too short to be one.
+    const key = ['HW', 'AAAA', 'BBBB', 'CCCC', 'DDDD'].join('-');
+    expect(await invalidateCachedLicense(() => throwingStore(new Error(`boom ${key}`)), key, 1)).toBe(false);
+    expect(loggedLine()).not.toContain(key);
+  });
+
+  test('stamps the refusal with the time it was asked, through the compare-and-set script', async () => {
+    const store = recordingStore();
+    await invalidateCachedLicense(() => store, 'KEY-123', 7_000);
+    expect(store.evals).toHaveLength(1);
+    expect(store.evals[0]?.script).toBe(WRITE_LICENSE_SCRIPT);
+    expect(store.evals[0]?.keys).toEqual(['license:KEY-123']);
+    expect(store.evals[0]?.args.slice(1)).toEqual([String(LICENSE_CACHE_TTL_SECONDS), '7000']);
+    expect(JSON.parse(String(store.evals[0]?.args[0]))).toEqual({
+      isValid: false,
+      credits: 0,
+      cachedAt: new Date(7_000).toISOString(),
+      issuedAtMs: 7_000,
+    });
   });
 });

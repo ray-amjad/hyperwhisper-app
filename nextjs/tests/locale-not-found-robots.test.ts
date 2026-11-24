@@ -9,8 +9,8 @@
  *
  * `app/global-not-found.tsx` serves every unmatched URL (/de/zzz). It must
  * wrap that same content in the [locale] layout, in the request locale, so the
- * page gets the site chrome, and set its own noindex on Vercel only: next start
- * injects one there, Vercel does not.
+ * page gets the site chrome, and leave robots to the noindex Next injects
+ * (next start and OpenNext on Workers both do).
  *
  * `app/not-found.tsx` catches a first segment that is not a locale. It wraps
  * the same content the same way, but must not read the request locale: Next
@@ -24,7 +24,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const MESSAGES_DIR = path.join(__dirname, "..", "messages");
 
@@ -83,7 +83,7 @@ function FakeLocaleLayout() {
   return null;
 }
 
-moduleMock.module("../app/[locale]/layout.tsx", {
+moduleMock.module(moduleUrl("../app/[locale]/layout.tsx"), {
   defaultExport: FakeLocaleLayout,
 });
 
@@ -142,7 +142,7 @@ test("[locale] not-found titles a thrown 404 in the segment's locale", async () 
 });
 
 test("[locale] not-found titles a non-locale segment in the default locale", async () => {
-  // /favicon.ico reaches [locale] with a param that is not a locale. The
+  // /x.png reaches [locale] with a param that is not a locale. The
   // fallback must not be getLocale(): on a prerendered route that headers()
   // read is a 500, not a 404 (#843).
   request.locale = "de";
@@ -151,7 +151,7 @@ test("[locale] not-found titles a non-locale segment in the default locale", asy
   )) as LocaleNotFoundModule;
 
   const metadata = await generateMetadata({
-    params: Promise.resolve({ locale: "favicon.ico" }),
+    params: Promise.resolve({ locale: "x.png" }),
   });
 
   assert.equal(metadata.title, en.title);
@@ -237,7 +237,7 @@ test("the English-only pages throw their 404 from generateMetadata too", () => {
 });
 
 test("the [locale] layout 404s an unknown locale in its metadata and its render", () => {
-  // The proxy matcher skips dotted paths, so /favicon.ico and /.env reach the
+  // The proxy matcher skips dotted paths, so /x.png and /.env reach the
   // layout with a "locale" that is not one. Both entry points must refuse it
   // before the canonical or the page is built from it (#1853). The real layout
   // imports CSS and next/font, so the source is read instead.
@@ -299,27 +299,18 @@ test("the root not-found wraps the [locale] 404 in the default locale, never the
   assert.equal((await generateMetadata()).title, `${en.title} - HyperWhisper`);
 });
 
-test("both root 404s mark the page noindex on Vercel only", async () => {
-  // Vercel served no noindex on an unmatched URL (/de/zzz); next start injects
-  // one itself, so a second there would be a duplicate tag.
+test("both root 404s leave robots to the noindex Next injects", async () => {
+  // next start and OpenNext on Workers both inject a noindex on an unmatched
+  // URL (/de/zzz), so one set here would be a duplicate tag. Only Vercel did
+  // not inject it, and the site no longer runs there.
   request.locale = "de";
   const modules = (await Promise.all([
     import(GLOBAL_NOT_FOUND_PATH),
     import(ROOT_NOT_FOUND_PATH),
   ])) as RootNotFoundModule[];
-  const vercel = process.env.VERCEL;
 
-  try {
-    for (const { generateMetadata } of modules) {
-      process.env.VERCEL = "1";
-      assert.deepEqual((await generateMetadata()).robots, { index: false });
-
-      delete process.env.VERCEL;
-      assert.equal((await generateMetadata()).robots, undefined);
-    }
-  } finally {
-    if (vercel === undefined) delete process.env.VERCEL;
-    else process.env.VERCEL = vercel;
+  for (const { generateMetadata } of modules) {
+    assert.equal((await generateMetadata()).robots, undefined);
   }
 });
 

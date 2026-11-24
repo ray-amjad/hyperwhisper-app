@@ -55,7 +55,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
 
-  // The proxy skips any path with a dot, so /favicon.ico or /.env reaches this
+  // The proxy skips any path with a dot, so /x.png or /.env reaches this
   // segment with a locale that is not one (#1853). 404 before the canonical is
   // built from it.
   if (!isSupportedLocale(locale)) notFound();
@@ -137,7 +137,10 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages({ locale });
 
   return (
-    <HtmlDocument locale={locale}>
+    <HtmlDocument
+      bodyClassName={clsx("font-sans antialiased", fontSans.variable)}
+      locale={locale}
+    >
       {/* The locale is passed, not inferred: app/not-found.tsx renders this
           layout with "en" on every page, its setRequestLocale("en") shares the
           render's cache, and the inferred locale then hydrated as "en", so
