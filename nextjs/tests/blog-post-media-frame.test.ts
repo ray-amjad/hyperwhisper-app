@@ -1,7 +1,7 @@
 /**
  * #1335: images and YouTube embeds inside a blog post's body get the same
- * frame as the cover above them (8px corner + 1px gray-800 border), and the
- * cover no longer stacks a second white/10 outline inside that border.
+ * frame as the cover above them (the Dusk GLASS edge: 22px corner + 1px
+ * --dusk-line border), with no white/10 outline stacked on the body images.
  *
  * Renders the real `[slug]` page to static markup. The blog loader and the
  * next-intl Link are mocked: neither resolves under node --test (the loader
@@ -72,12 +72,12 @@ function classOf(fragment: string): string[] {
 test("the prose wrapper frames body images and embeds like the cover", () => {
   const prose = classOf("<p>Body</p>");
   for (const token of [
-    "prose-img:rounded-lg",
+    "prose-img:rounded-[22px]",
     "prose-img:border",
-    "prose-img:border-gray-800",
-    "[&_iframe]:rounded-lg",
+    "prose-img:border-[var(--dusk-line)]",
+    "[&_iframe]:rounded-[22px]",
     "[&_iframe]:border",
-    "[&_iframe]:border-gray-800",
+    "[&_iframe]:border-[var(--dusk-line)]",
   ]) {
     assert.ok(prose.includes(token), `prose wrapper lacks ${token}`);
   }
@@ -90,7 +90,7 @@ test("the prose wrapper frames body images and embeds like the cover", () => {
 
 test("the cover keeps its frame and draws no second edge", () => {
   const wrapper = classOf('<img alt="A post"');
-  for (const token of ["rounded-lg", "border", "border-gray-800"]) {
+  for (const token of ["rounded-[22px]", "border", "border-[var(--dusk-line)]"]) {
     assert.ok(wrapper.includes(token), `cover wrapper lacks ${token}`);
   }
   const cover = /<img alt="A post" class="([^"]*)"/.exec(html);

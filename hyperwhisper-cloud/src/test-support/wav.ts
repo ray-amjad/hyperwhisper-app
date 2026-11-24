@@ -1,6 +1,6 @@
 /**
  * The shared WAV fixture builder for the cloud tests that need a whole upload.
- * `src/lib/wav-header.test.ts` keeps its own chunk-list builder, because the
+ * `src/providers/wav-header.test.ts` keeps its own chunk-list builder, because the
  * parser's unit tests need arbitrary chunk orders and sizes. Test code only:
  * nothing in `src/index.ts` imports this module.
  */

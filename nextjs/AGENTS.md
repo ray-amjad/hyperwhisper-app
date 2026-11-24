@@ -13,6 +13,7 @@ Default to tRPC. These REST endpoints are kept intentionally — don't migrate t
 | `/api/download` | GET does an HTTP redirect to the download URL, not a JSON response |
 | `/api/webhooks/stripe` | **Signature verification** - Needs raw request body for HMAC validation |
 | `/api/auth/*` | Better Auth handlers |
+| `/api/mcp/admin` | **MCP protocol** - An agent gateway speaks MCP (JSON-RPC), not tRPC; see `DEPLOY-CLOUDFLARE.md` section 7 |
 </important>
 
 <important if="you are changing the database schema or writing/running migrations">
@@ -31,6 +32,8 @@ Local builds require `SKIP_ENV_VALIDATION=1` to skip Stripe/service env var chec
 ```bash
 SKIP_ENV_VALIDATION=1 npm run build
 ```
+
+The deployed site is the Cloudflare Workers build (`DEPLOY-CLOUDFLARE.md`). To check that it still bundles, run `pnpm run cf:build` (it sets build-only placeholders for the server secrets). `next build` rewrites `tsconfig.json`'s `jsx` field, so check `git diff tsconfig.json` afterwards.
 </important>
 
 <important if="you are making i18n, locale, or translation-string changes">

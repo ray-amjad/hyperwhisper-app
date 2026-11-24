@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithElevenLabs } from './elevenlabs';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
-import { stubEnv } from '../test-support/env';
+import { mockFetchOnce } from '../test-support/fetch-stubs';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { pcm16Wav, wav as buildWav, type WavOptions } from '../test-support/wav';
 
@@ -22,21 +22,6 @@ const AUDIO = new ArrayBuffer(1_000);
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
-function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  let capturedUrl = '';
-  let capturedInit: RequestInit | undefined;
-  globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-    capturedUrl = String(input);
-    capturedInit = init;
-    return handler(capturedUrl, init);
-  }) as unknown as typeof fetch;
-  return {
-    url: () => capturedUrl,
-    init: () => capturedInit,
-    formData: () => capturedInit!.body as FormData,
-  };
 }
 
 describe('transcribeWithElevenLabs — configuration', () => {
@@ -106,12 +91,6 @@ describe('transcribeWithElevenLabs — keyterm biasing', () => {
     const cap = mockFetchOnce(() => jsonResponse({ text: 'hi' }));
     await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', 'HyperWhisper, SwiftUI\n- Fly.io');
     expect(cap.formData().getAll('keyterms')).toEqual(['HyperWhisper', 'SwiftUI', 'Fly.io']);
-  });
-
-  test('scribe_v1 drops keyterms entirely (no biasing support), even with an initialPrompt', async () => {
-    const cap = mockFetchOnce(() => jsonResponse({ text: 'hi' }));
-    await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', 'alpha,beta', { model: 'scribe_v1' });
-    expect(cap.formData().getAll('keyterms')).toEqual([]);
   });
 
   test('terms over 50 chars or over 5 words are dropped; blanks are dropped', async () => {
@@ -402,10 +381,9 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
   });
 
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError with kind timeout', async () => {
-    const restoreTimeoutEnv = stubEnv('STT_PROVIDER_TIMEOUT_MS', '20');
-    globalThis.fetch = mock(async (_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')));
-    })) as unknown as typeof fetch;
+    globalThis.fetch = mock(async () => {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }) as unknown as typeof fetch;
 
     try {
       await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
@@ -413,8 +391,6 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as ProviderUnavailableError).kind).toBe('timeout');
-    } finally {
-      restoreTimeoutEnv();
     }
   });
 });

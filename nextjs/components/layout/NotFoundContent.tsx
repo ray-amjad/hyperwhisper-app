@@ -3,6 +3,8 @@
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BTN_GLASS, BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
+import { DuskPage, PageHero } from "@/components/landing/DuskPage";
 import { isSupportedLocale } from "@/src/i18n/locales";
 
 export type NotFoundCopy = {
@@ -32,26 +34,25 @@ export default function NotFoundContent({
   const t = copyByLocale[locale] ?? copyByLocale[fallbackLocale];
 
   return (
-    <section className="flex flex-col items-center justify-center gap-6 py-32 text-center">
-      <p className="text-6xl font-extrabold tracking-tight text-gray-400">
-        404
-      </p>
-      <h1 className="text-3xl font-bold text-white">{t.heading}</h1>
-      <p className="max-w-md text-base text-gray-400">{t.description}</p>
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <NextLink
-          className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-3 font-semibold text-white"
-          href={`/${locale}`}
-        >
-          {t.home}
-        </NextLink>
-        <NextLink
-          className="rounded-xl border border-white/20 px-6 py-3 font-semibold text-white"
-          href={`/${locale}/download`}
-        >
-          {t.download}
-        </NextLink>
-      </div>
-    </section>
+    <DuskPage>
+      <PageHero
+        eyebrow="404"
+        lead={t.description}
+        sky="night"
+        title={t.heading}
+      >
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <NextLink className={`${BTN_WHITE} ${BTN_LG}`} href={`/${locale}`}>
+            {t.home}
+          </NextLink>
+          <NextLink
+            className={`${BTN_GLASS} ${BTN_LG}`}
+            href={`/${locale}/download`}
+          >
+            {t.download}
+          </NextLink>
+        </div>
+      </PageHero>
+    </DuskPage>
   );
 }

@@ -21,6 +21,17 @@ namespace HyperWhisper.ViewModels;
 ///     banker's rounding);
 ///   - a transcript row with a non-finite or negative duration contributes zero
 ///     seconds instead of poisoning the totals.
+///
+/// The Home page's totals are cached for the life of the process (#986): every
+/// Home visit used to re-read the full text of every transcript. Only a view
+/// model built with <c>cacheTotals: true</c> (HomePage) reads or fills the
+/// cache, so one built over another provider never sees the Home page's
+/// totals. A visit reuses them while
+/// the typing speed, the time zone and the local day are the ones they were
+/// worked out for (the shared core reads nothing else from "now"), and every
+/// HistoryService TranscriptAdded, TranscriptUpdated and TranscriptDeleted drops
+/// them. A pending row (#1589) that later reaches the database raises no event,
+/// but it was already counted with the same fields, so the totals do not move.
 /// </summary>
 public partial class HomeStatsBarViewModel : ObservableObject
 {
@@ -41,11 +52,34 @@ public partial class HomeStatsBarViewModel : ObservableObject
     private int _recomputeGeneration;
     private bool _firstRecomputeApplied;
 
-    public HomeStatsBarViewModel(HomeStatisticsService statisticsService, SettingsService settingsService)
+    private static readonly object CachedTotalsGate = new();
+    private static bool _cachedTotalsSubscribed;
+    private static int _cachedTotalsVersion;
+    private static CachedTotals? _cachedTotals;
+
+    /// <summary>One computed snapshot and the inputs it depends on besides the rows.</summary>
+    private sealed record CachedTotals(
+        HomeStatisticsSnapshot Snapshot,
+        int TypingSpeedWpm,
+        string TimeZoneId,
+        DateOnly LocalDay);
+
+    private readonly bool _cacheTotals;
+
+    public HomeStatsBarViewModel(
+        HomeStatisticsService statisticsService,
+        SettingsService settingsService,
+        bool cacheTotals = false)
     {
         _statisticsService = statisticsService;
         _settingsService = settingsService;
         _typingSpeedWpm = _settingsService.TypingSpeedWPM;
+        _cacheTotals = cacheTotals;
+
+        // Before this instance's own handlers, so a save drops the cache before the
+        // debounced recompute it schedules reads it.
+        if (_cacheTotals)
+            EnsureCachedTotalsSubscribed();
 
         HistoryService.Instance.TranscriptAdded += OnTranscriptsChanged;
         HistoryService.Instance.TranscriptUpdated += OnTranscriptsChanged;
@@ -131,10 +165,23 @@ public partial class HomeStatsBarViewModel : ObservableObject
             // read and word count ran on the dispatcher before the first await
             // yielded (#1486: 140 ms p50 per Home visit at 20k transcripts).
             var typingSpeedWpm = TypingSpeedWpm;
-            snapshot = await Task.Run(() => _statisticsService
-                    .GetAsync(typingSpeedWpm, DateTimeOffset.UtcNow, TimeZoneInfo.Local)
-                    .AsTask())
-                .ConfigureAwait(false);
+            var now = DateTimeOffset.UtcNow;
+            var zone = TimeZoneInfo.Local;
+            var localDay = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
+
+            snapshot = _cacheTotals ? TryGetCachedTotals(typingSpeedWpm, zone.Id, localDay) : null;
+            if (snapshot == null)
+            {
+                // Taken before the read: a save whose event lands while the read runs
+                // bumps it, and this result is then shown once but never cached.
+                var version = Volatile.Read(ref _cachedTotalsVersion);
+                snapshot = await Task.Run(() => _statisticsService
+                        .GetAsync(typingSpeedWpm, now, zone)
+                        .AsTask())
+                    .ConfigureAwait(false);
+                if (_cacheTotals)
+                    StoreCachedTotals(version, new CachedTotals(snapshot, typingSpeedWpm, zone.Id, localDay));
+            }
         }
         catch (Exception ex)
         {
@@ -169,5 +216,51 @@ public partial class HomeStatsBarViewModel : ObservableObject
 
             _firstRecomputeApplied = true;
         });
+    }
+
+    private static HomeStatisticsSnapshot? TryGetCachedTotals(int typingSpeedWpm, string timeZoneId, DateOnly localDay)
+    {
+        var cached = Volatile.Read(ref _cachedTotals);
+        return cached != null
+            && cached.TypingSpeedWpm == typingSpeedWpm
+            && cached.TimeZoneId == timeZoneId
+            && cached.LocalDay == localDay
+                ? cached.Snapshot
+                : null;
+    }
+
+    private static void StoreCachedTotals(int version, CachedTotals totals)
+    {
+        lock (CachedTotalsGate)
+        {
+            if (_cachedTotalsVersion == version)
+                _cachedTotals = totals;
+        }
+    }
+
+    /// <summary>
+    /// Subscribes the cache to HistoryService once per process. It lives as long as
+    /// the HistoryService singleton, so it is never removed.
+    /// </summary>
+    private static void EnsureCachedTotalsSubscribed()
+    {
+        lock (CachedTotalsGate)
+        {
+            if (_cachedTotalsSubscribed) return;
+            var history = HistoryService.Instance;
+            history.TranscriptAdded += (_, _) => InvalidateCachedTotals();
+            history.TranscriptUpdated += (_, _) => InvalidateCachedTotals();
+            history.TranscriptDeleted += (_, _) => InvalidateCachedTotals();
+            _cachedTotalsSubscribed = true;
+        }
+    }
+
+    private static void InvalidateCachedTotals()
+    {
+        lock (CachedTotalsGate)
+        {
+            _cachedTotalsVersion++;
+            _cachedTotals = null;
+        }
     }
 }

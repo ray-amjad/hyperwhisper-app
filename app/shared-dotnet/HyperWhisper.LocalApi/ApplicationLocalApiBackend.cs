@@ -81,6 +81,7 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
     private readonly Func<Mode?, SpeechOutputProcessingOptions>? _outputOptions;
     private readonly IPrivateFileService _privateFiles;
     private readonly DurableAudioImportService? _audioImport;
+    private readonly Func<Guid?>? _selectedModeId;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
     private readonly SemaphoreSlim _recordingToggle = new(1, 1);
@@ -97,7 +98,8 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         ILocalApiPostProcessor? postProcessor = null,
         VocabularyRepository? vocabulary = null,
         Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null,
-        DurableAudioImportService? audioImport = null)
+        DurableAudioImportService? audioImport = null,
+        Func<Guid?>? selectedModeId = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -114,6 +116,11 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         // Transcribe File already runs, reused for a non-WAV upload to a local
         // Parakeet mode (issue #1572). Null keeps /transcribe as it was.
         _audioImport = audioImport;
+        // The mode the user picked in the app (Linux `selectedModeId`).
+        // /recording/toggle records with it, as the in-app button and the
+        // hotkey do, not with the DB `IsDefault` row (issue #2406). Null keeps
+        // the IsDefault fallback.
+        _selectedModeId = selectedModeId;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)
