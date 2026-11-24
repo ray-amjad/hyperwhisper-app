@@ -885,6 +885,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "streaming.loading.streaming" = "Cekani na rec...";
 "streaming.state.reconnecting" = "Znovu pripojovani...";
 "recording.stop.help" = "Zastavit nahravani (%@)";
+"recording.warning.micSilent" = "Žádný zvuk ze zařízení %@";
 "recording.retry" = "Zkusit znovu";
 "recording.retry.inProgress" = "Opakovani…";
 "recording.retry.count" = "Zkusit znovu (%d)";

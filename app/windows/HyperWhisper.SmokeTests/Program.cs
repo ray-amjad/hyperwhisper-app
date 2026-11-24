@@ -22359,6 +22359,65 @@ internal static class Program
                     $"121-character one ({longHeight:F0}px), so the cap is cutting real messages");
             });
 
+            Run("recording overlay: 'No sound from {mic}' sits above the pill on one trimmed line — issue #2411", () =>
+            {
+                // The live "mic hears nothing" warning. The rule is the shared
+                // MicSilenceWatcher (Application.Tests); this pins the Windows head's
+                // text, wiring and layout. MEASURED, never Shown: CI has no desktop.
+                EnsureSmokeApplication();
+
+                var named = MainViewModel.MicSilenceWarningText("  USB Audio Device  ");
+                Assert(named == HyperWhisper.Localization.Loc.S("recording.warning.micSilent", "USB Audio Device"),
+                    $"the warning text is '{named}', not the localized string with the trimmed device name");
+                Assert(!named.Contains("{0}"), "the device name was not formatted into the warning");
+                var unnamed = MainViewModel.MicSilenceWarningText(null);
+                Assert(unnamed.Contains(HyperWhisper.Localization.Loc.S("menu.microphone")),
+                    $"a device with no name gave '{unnamed}' instead of a generic microphone name");
+
+                // Both capture paths feed the watcher with every buffer's peak.
+                foreach (var capture in new[] { typeof(AudioRecorderService), typeof(StreamingAudioCapture) })
+                {
+                    var peak = capture.GetEvent("BlockPeakDbfs");
+                    Assert(peak?.EventHandlerType == typeof(Action<double>),
+                        $"{capture.Name} does not raise BlockPeakDbfs, so its recordings can never warn");
+                }
+
+                var warning = new HyperWhisper.Views.Windows.MicSilenceWarningWindow();
+                Assert(warning.Width == 200, $"the warning is {warning.Width} wide, not the pill's 200");
+                Assert(!warning.ShowActivated && warning.Topmost && !warning.ShowInTaskbar,
+                    "the warning could take focus from the app being dictated into, or fall behind it");
+
+                var text = warning.Text;
+                Assert(text.TextTrimming == TextTrimming.CharacterEllipsis && text.TextWrapping == TextWrapping.NoWrap,
+                    "a long device name wraps or is cut without an ellipsis");
+                text.Text = MainViewModel.MicSilenceWarningText(
+                    "Microphone Array (Realtek(R) High Definition Audio with a very long vendor suffix)");
+                var root = (FrameworkElement)warning.Content;
+                root.Measure(new Size(warning.Width, warning.Height));
+                root.Arrange(new Rect(0, 0, warning.Width, warning.Height));
+                root.UpdateLayout();
+                Assert(text.ActualWidth <= warning.Width, $"the warning line is {text.ActualWidth} wide, wider than its pill");
+                Assert(text.ActualHeight < warning.Height, "the warning took more than one line");
+
+                // Centred over the 200x40 pill with a 6 DIP gap, so the pill itself never moves.
+                var at = HyperWhisper.Views.Windows.MicSilenceWarningWindow.TopLeftAbove(new Rect(400, 900, 200, 40), 200, 26);
+                Assert(at == new System.Windows.Point(400, 900 - 26 - 6), $"the warning sits at {at}, not just above the pill");
+
+                // Kept on the pill's monitor: a pill at the top edge gets the warning just below it,
+                // and a pill at a side edge never pushes the warning past that edge.
+                var workArea = new Rect(0, 0, 1920, 1040);
+                var below = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, 0, 200, 40), workArea, 200, 26);
+                Assert(below == new System.Windows.Point(400, 40 + 6), $"a pill at the top edge put the warning at {below}");
+                var mid = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, 900, 200, 40), workArea, 200, 26);
+                Assert(mid == at, $"a pill mid-screen put the warning at {mid}, not {at}");
+                var clamped = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(-20, 900, 200, 40), workArea, 240, 26);
+                Assert(clamped.X == 0, $"a pill at the left edge pushed the warning to x={clamped.X}");
+                var right = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(1720, 900, 200, 40), workArea, 240, 26);
+                Assert(right.X == 1920 - 240, $"a pill at the right edge pushed the warning to x={right.X}");
+                var dragged = HyperWhisper.Views.Windows.MicSilenceWarningWindow.Placement(new Rect(400, -10, 200, 40), workArea, 200, 26);
+                Assert(dragged.Y == -10 - 26 - 6, $"a pill dragged above the work area lost its warning: y={dragged.Y}");
+            });
+
             Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
             {
                 // The export card reads "Vocabulary (N)". N was read once, in the page

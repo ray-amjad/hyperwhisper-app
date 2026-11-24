@@ -885,6 +885,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "streaming.loading.streaming" = "Čekanje govora...";
 "streaming.state.reconnecting" = "Ponovno povezivanje...";
 "recording.stop.help" = "Zaustavi snimanje (%@)";
+"recording.warning.micSilent" = "Nema zvuka s uređaja %@";
 "recording.retry" = "Pokušaj ponovno";
 "recording.retry.inProgress" = "Ponovno pokušavanje…";
 "recording.retry.count" = "Pokušaj ponovno (%d)";

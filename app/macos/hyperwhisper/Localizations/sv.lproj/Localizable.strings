@@ -885,6 +885,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "streaming.loading.streaming" = "Väntar på tal...";
 "streaming.state.reconnecting" = "Återansluter...";
 "recording.stop.help" = "Stoppa inspelning (%@)";
+"recording.warning.micSilent" = "Inget ljud från %@";
 "recording.retry" = "Försök igen";
 "recording.retry.inProgress" = "Försöker igen...";
 "recording.retry.count" = "Försök igen (%d)";

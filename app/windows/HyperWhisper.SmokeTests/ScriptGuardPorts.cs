@@ -1363,6 +1363,7 @@ internal static class ScriptGuardPorts
 
         public event Action<byte[]>? AudioChunkAvailable { add => Handlers++; remove => Handlers--; }
         public event Action<float>? AudioLevelChanged { add => Handlers++; remove => Handlers--; }
+        public event Action<double>? BlockPeakDbfs { add => Handlers++; remove => Handlers--; }
 
         public void Start(int deviceNumber, int sampleRate) => StartedOn = deviceNumber;
         public void Stop() => Stopped = true;

@@ -885,6 +885,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "streaming.loading.streaming" = "Konuşma bekleniyor...";
 "streaming.state.reconnecting" = "Yeniden bağlanıyor...";
 "recording.stop.help" = "Kaydı Durdur (%@)";
+"recording.warning.micSilent" = "%@ cihazından ses gelmiyor";
 "recording.retry" = "Yeniden Dene";
 "recording.retry.inProgress" = "Yeniden deneniyor…";
 "recording.retry.count" = "Yeniden Dene (%d)";

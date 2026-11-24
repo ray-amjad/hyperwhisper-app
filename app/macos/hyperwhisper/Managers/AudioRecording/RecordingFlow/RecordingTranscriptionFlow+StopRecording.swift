@@ -121,6 +121,7 @@ extension RecordingTranscriptionFlow {
                 streamingDeliveryMode = .directInsert
                 streamingTargetBundleId = nil
                 recordingLifecycle.audioLevel = 0
+                recordingLifecycle.endSilentMicrophoneWatch()
 
                 if let service = streamingService {
                     await service.cancel()
