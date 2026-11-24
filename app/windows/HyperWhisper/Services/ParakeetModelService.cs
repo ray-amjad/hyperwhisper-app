@@ -22,12 +22,6 @@ namespace HyperWhisper.Services;
 public class ParakeetModelService
 {
     // =========================================================================
-    // CONSTANTS
-    // =========================================================================
-
-    private const string HuggingFaceBaseUrl = "https://huggingface.co";
-
-    // =========================================================================
     // PROPERTIES
     // =========================================================================
 
@@ -188,8 +182,6 @@ public class ParakeetModelService
             catch { /* Ignore cleanup errors */ }
         }
 
-        Directory.CreateDirectory(tempDir);
-
         // Dispose only a client this call created; an injected one belongs to the caller.
         using var ownedClient = _httpClient is null ? new HttpClient { Timeout = TimeSpan.FromHours(2) } : null;
         var httpClient = _httpClient ?? ownedClient!;
@@ -214,13 +206,23 @@ public class ParakeetModelService
                 return Result<string>.Failure(Loc.S("settings.models.download.failed", "no files found in model repository"));
             }
 
+            // Resolve every destination before anything is created or fetched: a
+            // tree path is network input, and one that is rooted (C:/..., //host/...),
+            // climbs out (../x) or names an NTFS stream (tokenizer:ads) fails the
+            // whole download here, with nothing written.
+            var destinations = filesToDownload
+                .Select(relativePath => HuggingFaceTreePaths.Contained(tempDir, relativePath))
+                .ToList();
+
+            Directory.CreateDirectory(tempDir);
+
             for (int i = 0; i < filesToDownload.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var relativePath = filesToDownload[i];
-                var downloadUrl = $"{HuggingFaceBaseUrl}/{model.HuggingFaceRepo}/resolve/main/{relativePath}";
-                var filePath = Path.Combine(tempDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
+                var downloadUrl = HuggingFaceTreePaths.ResolveUrl(model.HuggingFaceRepo, relativePath);
+                var filePath = destinations[i];
 
                 // Tree models contain subdirectories (e.g. tokenizer/) — ensure parents exist.
                 var parentDir = Path.GetDirectoryName(filePath);
@@ -327,14 +329,23 @@ public class ParakeetModelService
 
         // The HF tree API paginates via a cursor advertised in the Link: rel="next"
         // header. Follow every page so a repo larger than one page never silently
-        // truncates the download.
-        var nextUrl = $"{HuggingFaceBaseUrl}/api/models/{repo}/tree/main?recursive=true";
+        // truncates the download, but only on https://huggingface.co at this repo's
+        // tree path, never the same page twice, and at most MaximumTreePages pages.
+        Uri? nextUrl = HuggingFaceTreePaths.FirstTreePage(repo);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var pageNumber = 0;
 
-        while (!string.IsNullOrEmpty(nextUrl))
+        while (nextUrl is not null)
         {
+            HuggingFaceTreePaths.ValidateTreePage(nextUrl, repo, ++pageNumber, visited);
             LoggingService.Info($"  Enumerating model repo tree: {nextUrl}");
 
             using var response = await httpClient.GetAsync(nextUrl, cancellationToken);
+
+            // The client follows redirects (the file downloads need that for the HF
+            // CDN), so a valid tree URL can answer 302 to anywhere. Pin where the
+            // page actually came from, not only the URL asked for.
+            HuggingFaceTreePaths.ValidateTreeResponse(response.RequestMessage?.RequestUri ?? nextUrl, repo);
             response.EnsureSuccessStatusCode();
 
             await using (var stream = await response.Content.ReadAsStreamAsync(cancellationToken))
@@ -356,6 +367,7 @@ public class ParakeetModelService
                     if (path.Equals("README.md", StringComparison.OrdinalIgnoreCase)) continue;
                     if (path.StartsWith("test_wavs/", StringComparison.OrdinalIgnoreCase)) continue;
 
+                    HuggingFaceTreePaths.ValidateRelativePath(path);
                     files.Add(path);
                 }
             }
@@ -370,7 +382,7 @@ public class ParakeetModelService
     /// Extracts the <c>rel="next"</c> URL from an RFC 5988 <c>Link</c> header, or
     /// null when there is no next page.
     /// </summary>
-    private static string? GetNextPageLink(HttpResponseMessage response)
+    private static Uri? GetNextPageLink(HttpResponseMessage response)
     {
         if (!response.Headers.TryGetValues("Link", out var values)) return null;
 
@@ -384,8 +396,14 @@ public class ParakeetModelService
                     continue;
 
                 var urlPart = segments[0].Trim();
-                if (urlPart.StartsWith('<') && urlPart.EndsWith('>'))
-                    return urlPart.Substring(1, urlPart.Length - 2);
+                if (urlPart.Length > 2 && urlPart.StartsWith('<') && urlPart.EndsWith('>'))
+                {
+                    // A next link that is not an absolute URL is refused, not ignored:
+                    // dropping it would install a truncated tree.
+                    return Uri.TryCreate(urlPart.Substring(1, urlPart.Length - 2), UriKind.Absolute, out var next)
+                        ? next
+                        : throw new InvalidDataException("Model repository pagination was invalid.");
+                }
             }
         }
 

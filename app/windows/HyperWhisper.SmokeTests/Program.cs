@@ -7045,6 +7045,189 @@ internal static class Program
                 Assert(handler.Requested.Count == 1, $"expected only the tree request, got {handler.Requested.Count}");
             });
 
+            // CTF #17: a Qwen3 tree path is network input. Each hostile path below
+            // sits between two good files on the tree page; the download must fail
+            // before anything is fetched or created, and nothing may land outside
+            // the model folder (the scratch "outside" folder, or Parakeet\ itself).
+            foreach (var (label, makePath) in new (string, Func<string, string, string>)[]
+            {
+                ("a drive-rooted path (C:/...)", (outside, _) => outside.Replace('\\', '/') + "/escaped.onnx"),
+                ("a device path (//?/C:/...)", (outside, _) => "//?/" + outside.Replace('\\', '/') + "/escaped.onnx"),
+                ("a UNC path (//host/share/x)", (_, _) => "//localhost/hw-smoke-no-such-share/escaped.onnx"),
+                ("a parent climb (../x)", (_, escapeName) => "../" + escapeName),
+                ("a nested parent climb (tokenizer/../../x)", (_, escapeName) => "tokenizer/../../" + escapeName),
+                ("a leading backslash (\\x)", (_, escapeName) => "\\" + escapeName),
+                ("a backslash parent climb (..\\x)", (_, escapeName) => "..\\" + escapeName),
+                ("a backslash drive-rooted path (C:\\...)", (outside, _) => outside.Replace('/', '\\') + "\\escaped.onnx"),
+                ("a backslash UNC path (\\\\host\\share\\x)", (_, _) => "\\\\localhost\\hw-smoke-no-such-share\\escaped.onnx"),
+                ("an NTFS alternate data stream (tokenizer:ads)", (_, _) => "tokenizer:ads"),
+            })
+            {
+                RunAsync($"ParakeetModelService.DownloadModelAsync refuses a Qwen3 tree path that is {label} and writes nothing (CTF #17)", async () =>
+                {
+                    var id = Guid.NewGuid().ToString("N")[..8];
+                    var model = new ParakeetModelInfo(
+                        $"smoke-ctf17-path-{id}", "Smoke", "1 KB", 16, false, ["en"], [], $"smoke/ctf17-path-{id}",
+                        engine: ParakeetEngine.Qwen3);
+                    var outside = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"ctf17-outside-{id}");
+                    Directory.CreateDirectory(outside);
+                    var escapeName = $"smoke-ctf17-escape-{id}.onnx";
+                    var hostile = makePath(outside, escapeName);
+                    var handler = new HuggingFaceStubHandler((request, _) =>
+                        request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal)
+                            ? TreeJson(("file", "conv_frontend.int8.onnx"), ("file", hostile), ("file", "encoder.int8.onnx"))
+                            : Respond(HttpStatusCode.OK, "onnx"));
+                    var service = new ParakeetModelService(new HttpClient(handler));
+                    var finalDir = service.GetModelDirectory(model);
+                    try
+                    {
+                        var result = await service.DownloadModelAsync(model);
+
+                        Assert(result.IsFailure, $"a tree path '{hostile}' should fail the download");
+                        Assert(!handler.Requested.Any(u => u.Contains("/resolve/", StringComparison.Ordinal)),
+                            $"files were fetched before the tree was validated: {string.Join(", ", handler.Requested)}");
+                        Assert(!Directory.EnumerateFileSystemEntries(outside).Any(), $"'{hostile}' wrote outside the model folder");
+                        Assert(!File.Exists(Path.Combine(ParakeetModelService.ModelsDirectory, escapeName)),
+                            $"'{hostile}' wrote into the Parakeet models folder");
+                        Assert(!File.Exists(Path.Combine(Path.GetPathRoot(Path.GetFullPath(finalDir))!, escapeName)),
+                            $"'{hostile}' wrote into the root of the drive");
+                        Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was created or left behind");
+                        Assert(!Directory.Exists(finalDir), "a refused tree installed a model");
+                    }
+                    finally
+                    {
+                        try { Directory.Delete(outside, recursive: true); } catch { /* best effort */ }
+                        try { File.Delete(Path.Combine(ParakeetModelService.ModelsDirectory, escapeName)); } catch { /* best effort */ }
+                        try { File.Delete(Path.Combine(Path.GetPathRoot(Path.GetFullPath(finalDir))!, escapeName)); } catch { /* best effort */ }
+                        try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                        try { Directory.Delete(finalDir + ".temp", recursive: true); } catch { /* best effort */ }
+                    }
+                });
+            }
+
+            // CTF #17: the tree's Link: rel="next" is network input too. The stub
+            // serves a tree page for ANY /api/models/ URL on any host, so only the
+            // pin can stop the download; it caps itself at 200 pages so an
+            // unpinned loop ends (and installs) instead of hanging the suite.
+            foreach (var (label, nextFor) in new (string, Func<string, int, string>)[]
+            {
+                ("off-host", (repo, n) => $"https://hf-smoke.invalid/api/models/{repo}/tree/main?cursor={n}"),
+                ("plain http", (repo, n) => $"http://huggingface.co/api/models/{repo}/tree/main?cursor={n}"),
+                ("on another port", (repo, n) => $"https://huggingface.co:8443/api/models/{repo}/tree/main?cursor={n}"),
+                ("for another repo's tree", (_, n) => $"https://huggingface.co/api/models/someone/else/tree/main?cursor={n}"),
+                ("a page already fetched", (repo, _) => $"https://huggingface.co/api/models/{repo}/tree/main?recursive=true"),
+                ("one more page past the limit, forever", (repo, n) => $"https://huggingface.co/api/models/{repo}/tree/main?cursor={n}"),
+            })
+            {
+                RunAsync($"ParakeetModelService.DownloadModelAsync refuses a Qwen3 tree next link {label} (CTF #17)", async () =>
+                {
+                    var id = Guid.NewGuid().ToString("N")[..8];
+                    var repo = $"smoke/ctf17-next-{id}";
+                    var model = new ParakeetModelInfo(
+                        $"smoke-ctf17-next-{id}", "Smoke", "1 KB", 16, false, ["en"], [], repo,
+                        engine: ParakeetEngine.Qwen3);
+                    var treePages = 0;
+                    var handler = new HuggingFaceStubHandler((request, _) =>
+                    {
+                        if (!request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal))
+                            return Respond(HttpStatusCode.OK, "onnx");
+                        treePages++;
+                        var page = TreeJson(("file", $"encoder.part{treePages}.onnx"));
+                        if (treePages < 200)
+                            page.Headers.TryAddWithoutValidation("Link", $"<{nextFor(repo, treePages + 1)}>; rel=\"next\"");
+                        return page;
+                    });
+                    var service = new ParakeetModelService(new HttpClient(handler));
+                    var finalDir = service.GetModelDirectory(model);
+                    try
+                    {
+                        var result = await service.DownloadModelAsync(model);
+
+                        Assert(result.IsFailure, "a bad next link should fail the download");
+                        Assert(handler.Requested.All(u => u.StartsWith($"https://huggingface.co/api/models/{repo}/tree/main?", StringComparison.Ordinal)),
+                            $"a request left the repo's tree endpoint: {string.Join(", ", handler.Requested.Distinct().Take(5))}");
+                        Assert(treePages <= HuggingFaceTreePaths.MaximumTreePages,
+                            $"followed {treePages} tree pages; the limit is {HuggingFaceTreePaths.MaximumTreePages}");
+                        Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was created or left behind");
+                        Assert(!Directory.Exists(finalDir), "a refused tree installed a model");
+                    }
+                    finally
+                    {
+                        try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                    }
+                });
+            }
+
+            // CTF #17: the client follows redirects, so a valid tree URL answering
+            // 302 to elsewhere would be fetched and believed. The stub plays the
+            // followed redirect by setting the response's RequestMessage to the last
+            // hop, as SocketsHttpHandler does; the page itself is a good tree.
+            foreach (var (label, servedFrom) in new (string, Func<string, string>)[]
+            {
+                ("off-host", repo => $"https://hf-smoke.invalid/api/models/{repo}/tree/main?recursive=true"),
+                ("to another repo's tree", _ => "https://huggingface.co/api/models/someone/else/tree/main?recursive=true"),
+            })
+            {
+                RunAsync($"ParakeetModelService.DownloadModelAsync refuses a Qwen3 tree page redirected {label} (CTF #17)", async () =>
+                {
+                    var id = Guid.NewGuid().ToString("N")[..8];
+                    var repo = $"smoke/ctf17-redirect-{id}";
+                    var model = new ParakeetModelInfo(
+                        $"smoke-ctf17-redirect-{id}", "Smoke", "1 KB", 16, false, ["en"], [], repo,
+                        engine: ParakeetEngine.Qwen3);
+                    var handler = new HuggingFaceStubHandler((request, _) =>
+                    {
+                        if (!request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal))
+                            return Respond(HttpStatusCode.OK, "onnx");
+                        var page = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "encoder.int8.onnx"));
+                        page.RequestMessage = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, servedFrom(repo));
+                        return page;
+                    });
+                    var service = new ParakeetModelService(new HttpClient(handler));
+                    var finalDir = service.GetModelDirectory(model);
+                    try
+                    {
+                        var result = await service.DownloadModelAsync(model);
+
+                        Assert(result.IsFailure, $"a tree page served from {servedFrom(repo)} should fail the download");
+                        Assert(!handler.Requested.Any(u => u.Contains("/resolve/", StringComparison.Ordinal)),
+                            $"files were fetched from a redirected tree: {string.Join(", ", handler.Requested)}");
+                        Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was created or left behind");
+                        Assert(!Directory.Exists(finalDir), "a redirected tree installed a model");
+                    }
+                    finally
+                    {
+                        try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                    }
+                });
+            }
+
+            Run("HuggingFaceTreePaths accepts plain repo paths and refuses every rooted, climbing or stream path (CTF #17)", () =>
+            {
+                foreach (var ok in new[] { "encoder.int8.onnx", "tokenizer/vocab.json", "tokenizer\\merges.txt", "a/b/c.onnx", "..tokenizer/x", "x..onnx" })
+                {
+                    HuggingFaceTreePaths.ValidateRelativePath(ok);
+                }
+
+                foreach (var bad in new[]
+                {
+                    "", " ", "C:/x", "c:\\x", "C:x", "//host/share/x", "\\\\host\\share\\x", "//?/C:/x", "\\\\?\\C:\\x",
+                    "\\\\.\\pipe\\x", "/x", "\\x", "../x", "..\\x", "a/../../x", "a/..", "./a", "a//b", "a/", "tokenizer:ads",
+                    "tokenizer/vocab.json:ads", "a./b", "a /b", "a.", "a\0b",
+                })
+                {
+                    var refused = false;
+                    try { HuggingFaceTreePaths.ValidateRelativePath(bad); }
+                    catch (InvalidDataException) { refused = true; }
+                    Assert(refused, $"'{bad}' was accepted");
+                }
+
+                var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", "ctf17-root");
+                Assert(HuggingFaceTreePaths.Contained(root, "tokenizer/vocab.json")
+                        == Path.Combine(Path.GetFullPath(root), "tokenizer", "vocab.json"),
+                    "a plain path should resolve under the root");
+            });
+
             RunAsync("ParakeetModelService.DownloadModelAsync rejects a short body and keeps the old install (#1782, #1598)", async () =>
             {
                 var model = new ParakeetModelInfo(
