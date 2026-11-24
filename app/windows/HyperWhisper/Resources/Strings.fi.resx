@@ -949,15 +949,6 @@ Tätä toimintoa ei voi perua.</value>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
-  </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
   </data>
@@ -2189,7 +2180,7 @@ You can re-download it later.</value>
     <value>Valitse vähintään yksi osa tuotavaksi.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Lisää {0} uutta sanaa, {1} ristiriitaa nykyisten sanojen kanssa. Jatketaanko?</value>
+    <value>Uudet sanat: {0}. Ristiriidat nykyisten sanojen kanssa: {1}. Jatketaanko?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Tuodaanko sanasto?</value>

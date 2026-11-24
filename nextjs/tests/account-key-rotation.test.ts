@@ -6,8 +6,8 @@
  * `credit-ledger-harness.ts`). The licence verdicts afterwards come from the
  * real `/api/license/validate` and `/api/account/validate` routes.
  *
- * Mocked are only the edges a test cannot reach: the email provider (Resend),
- * Stripe's client, and the Upstash limiters (replaced by counting stubs, so the
+ * Mocked are only the edges a test cannot reach: the email provider (Cloudflare),
+ * Stripe's client, and the rate limiters (replaced by counting stubs, so the
  * rotate limit can be driven). The cloud purge is the real client; `fetch` is
  * stubbed for the cloud hosts only, so the request it sends is asserted.
  *
@@ -48,15 +48,11 @@ interface SentEmail {
 }
 const sentEmails: SentEmail[] = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: SentEmail) => {
-          sentEmails.push(payload);
-          return { data: { id: "email_1" }, error: null };
-        },
-      },
+    sendEmail: async (payload: SentEmail) => {
+      sentEmails.push(payload);
+      return { data: { id: "email_1" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -260,7 +256,7 @@ async function signInMethods(userId: string): Promise<Array<string | null>> {
 
 interface TrpcReply {
   status: number;
-  data?: { id: string; key: string };
+  data?: { id: string; key: string; cloudCleared: boolean };
   code?: string;
 }
 
@@ -279,7 +275,7 @@ async function rotate(
     }),
   );
   const body = (await response.json()) as {
-    result?: { data: { json: { id: string; key: string } } };
+    result?: { data: { json: { id: string; key: string; cloudCleared: boolean } } };
     error?: { json: { data: { code: string } } };
   };
   return {
@@ -327,6 +323,17 @@ async function sessionCount(userId: string): Promise<number> {
   return rows.length;
 }
 
+/** The `account_key.rotate` lines captured from index `from` on, parsed, with their level. */
+function rotateLogs(from = 0): Array<Record<string, unknown>> {
+  return logLines
+    .slice(from)
+    .filter((l) => l.includes('"event":"account_key.rotate"'))
+    .map((l) => {
+      const space = l.indexOf(" ");
+      return { level: l.slice(0, space), ...JSON.parse(l.slice(space + 1)) };
+    });
+}
+
 const KEY_FORMAT = /^HW-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
 // ---------------------------------------------------------------------------
@@ -363,6 +370,7 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(reply.status, 200, `rotate answered ${reply.code}`);
     assert.ok(reply.data);
     const newKey = reply.data.key;
+    assert.equal(reply.data.cloudCleared, true, "every cloud app confirmed the purge");
     // The notice is queued for after the response; the reply did not wait on it.
     assert.equal(sentEmails.length, 0, "no email before the response");
     assert.equal(afterResponseTasks.length, 1);
@@ -425,8 +433,27 @@ describe("customer.rotateAccountKey, end to end", () => {
     }
     assert.ok(sentEmails[0].text.includes(newKey.substring(0, 7)));
 
-    // No log line carries either key.
-    assert.ok(logLines.some((l) => l.includes("Account Key rotated")));
+    // One structured line per call: the rotation, then the stale probe above
+    // (the swept session's call is refused before the procedure runs). No log
+    // line carries either key.
+    assert.deepEqual(rotateLogs(), [
+      {
+        level: "log",
+        event: "account_key.rotate",
+        outcome: "ok",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+        devicesCleared: 2,
+      },
+      {
+        level: "warn",
+        event: "account_key.rotate",
+        outcome: "rejected",
+        reason: "stale",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    ]);
     for (const line of logLines) {
       assert.ok(!line.includes(owner.key), `old key in log: ${line}`);
       assert.ok(!line.includes(newKey), `new key in log: ${line}`);
@@ -456,6 +483,79 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(after.code, "UNAUTHORIZED", "the leaker's session was swept");
     assert.equal(await sessionCount(owner.userId), 1);
     assert.deepEqual(await signInMethods(owner.userId), ["email"]);
+  });
+
+  test("every outcome writes one account_key.rotate line, with no key or email", async () => {
+    const owner = await seedOwner("logged");
+    const email = "logged@example.test";
+    const ownerSession = await signInByEmail(email);
+    const leaker = await signIn(owner.key);
+    assert.ok(leaker.cookie);
+    const unknownId = "00000000-0000-4000-8000-000000000000";
+
+    const cases: Array<{
+      cookie: string;
+      input: { id: string; currentKey: string };
+      status: number;
+      reason: string;
+      licenseId: string;
+    }> = [
+      {
+        cookie: leaker.cookie,
+        input: { id: owner.keyId, currentKey: owner.key },
+        status: 403,
+        reason: "needs_email_sign_in",
+        licenseId: owner.keyId,
+      },
+      {
+        cookie: ownerSession,
+        input: { id: owner.keyId, currentKey: `${owner.key}-stale` },
+        status: 409,
+        reason: "stale",
+        licenseId: owner.keyId,
+      },
+      {
+        cookie: ownerSession,
+        input: { id: unknownId, currentKey: owner.key },
+        status: 404,
+        reason: "not_found",
+        licenseId: unknownId,
+      },
+    ];
+    for (const c of cases) {
+      const from = logLines.length;
+      const reply = await rotate(c.cookie, c.input);
+      assert.equal(reply.status, c.status);
+      assert.deepEqual(rotateLogs(from), [
+        {
+          level: "warn",
+          event: "account_key.rotate",
+          outcome: "rejected",
+          reason: c.reason,
+          userId: owner.userId,
+          licenseId: c.licenseId,
+        },
+      ], `one rejected line for ${c.reason}`);
+    }
+
+    const from = logLines.length;
+    const rotated = await rotate(ownerSession, { id: owner.keyId, currentKey: owner.key });
+    assert.equal(rotated.status, 200);
+    await flushAfterResponse();
+    const ok = rotateLogs(from);
+    assert.equal(ok.length, 1);
+    assert.equal(ok[0].level, "log");
+    assert.equal(ok[0].outcome, "ok");
+    assert.equal(ok[0].licenseId, owner.keyId);
+
+    // Nothing logged in the whole case (sign-ins included) carries a key or
+    // the owner's email.
+    assert.equal(rotateLogs().length, 4);
+    for (const line of logLines) {
+      assert.ok(!line.includes(owner.key), `old key in log: ${line}`);
+      assert.ok(!line.includes(rotated.data!.key), `new key in log: ${line}`);
+      assert.ok(!line.includes(email), `email in log: ${line}`);
+    }
   });
 
   test("a non-owner cannot rotate someone else's key", async () => {
@@ -497,6 +597,14 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(limited.code, "TOO_MANY_REQUESTS");
     assert.equal(await storedKey(owner.keyId), current, "a limited call changes nothing");
     assert.deepEqual(Array.from(rotateCalls.keys()), [owner.userId], "keyed by user id");
+    assert.deepEqual(
+      rotateLogs().map((l) => [l.level, l.outcome, l.reason]),
+      [
+        ["log", "ok", undefined],
+        ["log", "ok", undefined],
+        ["warn", "rejected", "rate_limited"],
+      ],
+    );
   });
 
   test("a revoked key is refused", async () => {
@@ -508,6 +616,16 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(reply.status, 412);
     assert.equal(reply.code, "PRECONDITION_FAILED");
     assert.equal(await storedKey(owner.keyId), owner.key);
+    assert.deepEqual(rotateLogs(), [
+      {
+        level: "warn",
+        event: "account_key.rotate",
+        outcome: "rejected",
+        reason: "not_granted",
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    ]);
   });
 
   test("two rotations at once: exactly one wins, the other is CONFLICT, no stale key", async () => {
@@ -537,11 +655,30 @@ describe("customer.rotateAccountKey, end to end", () => {
     try {
       const reply = await rotate(session.cookie, { id: owner.keyId, currentKey: owner.key });
       assert.equal(reply.status, 200);
+      // The owner is told the old key may still work in the cloud for a while.
+      assert.equal(reply.data!.cloudCleared, false);
       assert.equal((await validate(owner.key)).status, 400);
     } finally {
       globalThis.fetch = prev;
     }
     assert.ok(logLines.some((l) => l.includes("Cloud licence cache purge failed")));
+    const purgeLine = logLines.find((l) => l.includes('"event":"account_key.cloud_purge"'));
+    assert.ok(purgeLine, "the purge outcome is logged");
+    const space = purgeLine.indexOf(" ");
+    assert.deepEqual(
+      { level: purgeLine.slice(0, space), ...JSON.parse(purgeLine.slice(space + 1)) },
+      {
+        level: "warn",
+        event: "account_key.cloud_purge",
+        trigger: "rotate",
+        outcome: "unconfirmed",
+        purged: 0,
+        failed: 1,
+        skipped: false,
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    );
     for (const line of logLines) assert.ok(!line.includes(owner.key));
   });
 });

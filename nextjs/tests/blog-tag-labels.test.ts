@@ -95,7 +95,7 @@ const post = {
 moduleMock.module(moduleUrl("../src/content/blog.ts"), {
   namedExports: {
     getBlogPost: async (slug: string) => (slug === post.slug ? post : null),
-    // The first post is the featured card, which draws no chips.
+    // The first post is the featured card: no chips, its first tag in the date line.
     getBlogPosts: async () => [{ ...post, slug: "featured" }, post],
   },
 });
@@ -138,6 +138,8 @@ describe("the chips on both pages", () => {
     );
 
     assert.deepEqual(chips(html), expected);
+    // The featured card's date line names its first tag (Dusk, #2896).
+    assert.match(html, / · best AI writing assistant</);
   });
 
   test("a post's header", async () => {
