@@ -46,20 +46,14 @@
 // `SYNC_AUDIO_CONTENT_TYPE` below.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
-import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
-import { MEDICAL_DOMAIN } from '../lib/stt-models';
+import { MEDICAL_DOMAIN, getProviderDef } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { billableSeconds, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, readJson200, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
-// Universal-3.5 Pro is AssemblyAI's current default (GA 2026-07-01, successor to
-// Universal-3 Pro) — matches stt-models.ts's `assemblyai.defaultModel` and the
-// sync fast path's SYNC_DEFAULT_MODEL below. Legacy Pro ids are canonicalized
-// before dispatch.
-const DEFAULT_MODEL = 'universal-3-5-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
 const MAX_KEYTERM_CHARS = 50;
@@ -339,9 +333,11 @@ async function transcribeWithAssemblyAISync(
     return null;
   }
 
-  let job: SyncTranscriptResponse;
+  // A bad 200 body is not a failure here: like every other sync miss it falls
+  // back to the async path. readJson200 has already logged the body's shape.
+  let job: Partial<SyncTranscriptResponse>;
   try {
-    job = await response.json();
+    job = await readJson200<SyncTranscriptResponse>(provider, 'AssemblyAI sync', response, startedAt, context);
   } catch {
     logProviderEvent(provider, 'sync_fallback', { reason: 'malformed_response' }, context);
     return null;
@@ -371,9 +367,7 @@ async function transcribeWithAssemblyAISync(
   // Fail-closed, same as the async path: a successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate so we
   // never bill $0.
-  const durationSeconds = rawDurationMs > 0
-    ? rawDurationMs / 1000
-    : estimateSecondsFromBytes(audio.byteLength);
+  const durationSeconds = billableSeconds(rawDurationMs / 1000, audio.byteLength);
 
   logProviderEvent(provider, 'success', {
     model: SYNC_DEFAULT_MODEL, path: 'sync',
@@ -434,13 +428,7 @@ export async function transcribeWithAssemblyAI(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'assemblyai';
-  const requestedModel = context.model || DEFAULT_MODEL;
-  if (requestedModel === 'dictation') {
-    return transcribeWithAssemblyAIDictation(audio, contentType, language, initialPrompt, context);
-  }
-  const model = requestedModel === 'universal-3-pro' || requestedModel === 'slam-1'
-    ? DEFAULT_MODEL
-    : requestedModel;
+  const model = context.model || getProviderDef('assemblyai').defaultModel;
   const medical = (context.domain || '').toLowerCase() === MEDICAL_DOMAIN;
 
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
@@ -686,9 +674,7 @@ async function pollUntilTerminal(
 
         // Fail-closed: a successful transcript with a missing/non-positive
         // duration falls back to a byte-size estimate so we never bill $0.
-        const durationSeconds = (rawDuration > 0 && Number.isFinite(rawDuration))
-          ? rawDuration
-          : estimateSecondsFromBytes(audio.byteLength);
+        const durationSeconds = billableSeconds(rawDuration, audio.byteLength);
 
         // Bill the model that ACTUALLY ran, not the one requested. With the
         // `speech_models` priority list, the Universal-3.x Pro tier silently
