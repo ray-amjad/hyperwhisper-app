@@ -153,9 +153,46 @@ enum LocalAPIResponder {
         if let input = error as? TranscribeEndpoint.APIInputError {
             return (input.code, input.message, input.hint)
         }
+        if let modelId = unknownParakeetModelId(in: error) {
+            let input = TranscribeEndpoint.APIInputError.unknownParakeetModel(modelId)
+            return (input.code, input.message, input.hint)
+        }
         let (reason, params) = transcriptionFailure(for: error)
         let failure = localApiMapTranscriptionError(reason: reason, params: params)
         return (LocalAPIErrorCode(shared: failure.code), failure.message, failure.hint)
+    }
+
+    /// The model id `ParakeetProvider` names when it rejects an id it does not
+    /// know, or nil for any other error (issue #1934).
+    ///
+    /// A saved Mode can hold such an id (a stale catalog entry, a hand-edited
+    /// backup), and `mode_id` alone resolves it through `selectProvider`, which
+    /// reaches `ParakeetProvider.prepareIfNeeded`. Its throw is
+    /// `providerNotAvailable(provider: "Parakeet", reason: "Unknown Parakeet
+    /// model '<id>'")`, which the shared table maps to ENGINE_UNAVAILABLE "Try
+    /// again later" though the request fails the same way every time. Ray's
+    /// decision 2026-10-18: MODEL_NOT_FOUND, the bytes `engine: parakeet` with
+    /// the same model gets (`APIInputError.unknownParakeetModel`).
+    ///
+    /// Mapped HERE, in the Local API layer, rather than at the throw: dictation
+    /// reads the same error, and its message and its classification
+    /// (`TranscriptionPipeline+ErrorClassification`) must not change.
+    ///
+    /// Only an UNKNOWN id is rewritten. A known Parakeet id that is not on disk
+    /// throws `.modelNotDownloaded` before (and instead of) this, and stays
+    /// MODEL_NOT_INSTALLED.
+    static func unknownParakeetModelId(in error: Error) -> String? {
+        guard let transcriptionError = error as? TranscriptionError,
+              case .providerNotAvailable(let provider, let reason?) = transcriptionError,
+              provider == "Parakeet"
+        else {
+            return nil
+        }
+        let prefix = ParakeetProvider.ReportedFailureReason.unknownModelPrefix
+        guard reason.hasPrefix(prefix), reason.hasSuffix("'"), reason.count > prefix.count else {
+            return nil
+        }
+        return String(reason.dropFirst(prefix.count).dropLast())
     }
 
     /// The shared reason for a thrown error, and the slots its message and hint

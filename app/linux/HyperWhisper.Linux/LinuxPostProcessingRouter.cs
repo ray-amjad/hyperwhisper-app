@@ -75,7 +75,15 @@ internal sealed class LinuxPostProcessingRouter : ITranscriptionPostProcessor, I
         // (issue #314); pass it through untouched rather than re-reading
         // `mode.LanguageModel`, which is what was configured, not what ran.
         return result.WasApplied && !string.IsNullOrWhiteSpace(result.Provider)
-            ? PortablePostProcessingResult.Applied(result.Text, result.Provider, result.Model)
+            // The id is the Mode's OWN stored spelling, trimmed (issue #1158): this
+            // router only ever runs the Mode's provider, so it always names the one
+            // that ran. A mode synced from macOS stores `hyperwhisper` and gets
+            // `hyperwhisper` back, as Windows echoes it, not the canonical
+            // `hyperwhispercloud` the service would name. The label stays in
+            // `Provider` for UI.
+            ? PortablePostProcessingResult.Applied(
+                result.Text, result.Provider, result.Model,
+                mode.PostProcessingProvider!.Trim())
             : PortablePostProcessingResult.Skipped(
                 transcript,
                 // A missing credential on HyperWhisper Cloud is the account

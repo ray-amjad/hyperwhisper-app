@@ -139,8 +139,13 @@ public sealed class ModeProviderLineConverter : IValueConverter
         // card edge and clipped it: "HyperWhisper Cloud · scribe_v2 · anthropic:claude-h...".
         var provider = ProviderDisplayName(mode.CloudProvider, culture);
         if (IsHyperWhisperCloud(mode.CloudProvider)) return provider;
+        // The model by its catalog name, as Windows draws model.DisplayName: "Grok Voice
+        // Transcribe 2", not "grok-voice-transcribe-2.0". A retired id takes its successor's name
+        // (#1976), so the card agrees with the editor and the status bar.
         var model = mode.CloudTranscriptionModel ?? mode.Model;
-        return string.IsNullOrWhiteSpace(model) ? provider : $"{provider} · {model}";
+        return string.IsNullOrWhiteSpace(model)
+            ? provider
+            : $"{provider} · {HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(model, mode.CloudProvider)}";
     }
 
     /// <summary>
@@ -210,13 +215,8 @@ public sealed class StatusBarModelConverter : IValueConverter
 
         id = mode.CloudTranscriptionModel ?? mode.Model;
         if (string.IsNullOrWhiteSpace(id)) return "None";
-        var name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(id);
-        // A retired id the catalog no longer lists (Grok `grok-voice-transcribe-1.0`, #1908) is
-        // named by its successor, the model the editor shows and the request sends. Label hands an
-        // unknown id back unchanged.
-        if (string.IsNullOrWhiteSpace(name) || name == id)
-            name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(
-                HyperWhisper.SharedCore.SharedCoreBridge.ResolveCloudSttModelAlias(id, mode.CloudProvider));
+        // Label names a retired id (Grok `grok-voice-transcribe-1.0`, #1908) by its successor.
+        var name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(id, mode.CloudProvider);
         return string.IsNullOrWhiteSpace(name) ? id : name;
     }
 
