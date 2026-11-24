@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  MAX_LANGUAGE_TAG_LENGTH,
+  MAX_LANGUAGE_BYTES,
   checkLanguageParam,
   checkModeParam,
   checkRequestLabels,
@@ -32,30 +32,35 @@ describe('checkModeParam', () => {
 });
 
 describe('checkLanguageParam', () => {
-  // Every value prod saw from a client in the 30 days before this change, plus
-  // the longer tag shapes the provider maps handle.
+  // Every value prod saw from a client in the 30 days before this change, the
+  // longer tag shapes the provider maps handle, and free text a user can type
+  // into a mode's language box (main accepts it and falls back to auto-detect).
   test.each([
     undefined, '', 'auto', 'AUTO', 'en', 'de', 'ja-JP', 'hi-IN', 'en-US', 'en-us', 'zh-TW',
     'yue', 'haw', 'zh-Hant', 'zh-Hant-TW', 'sr-Latn-RS', 'pt_BR', 'es-419',
+    'en US', '中文', 'English (US)', 'e', 'Español', '1en', '{"a":1}',
   ])('accepts %p', (language) => {
     expect(checkLanguageParam(language)).toEqual({ ok: true });
   });
 
-  test('accepts a well-formed tag of exactly the maximum length', () => {
-    const tag = 'abcdefgh-abcdefgh-abcdefgh-abcdefgh';
-    expect(tag.length).toBe(MAX_LANGUAGE_TAG_LENGTH);
-    expect(checkLanguageParam(tag)).toEqual({ ok: true });
+  test('accepts a value of exactly the maximum bytes', () => {
+    expect(checkLanguageParam('a'.repeat(MAX_LANGUAGE_BYTES))).toEqual({ ok: true });
+    // 11 three-byte characters plus two ASCII: 35 bytes.
+    expect(checkLanguageParam(`${'語'.repeat(11)}ab`)).toEqual({ ok: true });
   });
 
   test.each([
+    ['a 36-byte value', 'a'.repeat(MAX_LANGUAGE_BYTES + 1)],
     ['a 17 KB value', 'e'.repeat(17_000)],
-    ['a long run of letters', 'english'.repeat(6)],
-    ['too many subtags', 'en-US-x-a-b-c'],
-    ['spaces', 'en US'],
-    ['a multi-byte value', '日本語'],
-    ['a leading digit', '1en'],
-    ['a single letter', 'e'],
-    ['JSON-ish text', '{"a":1}'],
+    ['a multi-byte value over 35 bytes (12 characters, 36 bytes)', '語'.repeat(12)],
+    ['a 4-byte-character value over 35 bytes', '😀'.repeat(9)],
+    ['a C0 control character', 'en\u0001'],
+    ['a NUL', '\u0000'],
+    ['a newline', 'en\nUS'],
+    ['a tab', 'en\tUS'],
+    ['DEL', 'en\u007F'],
+    ['a C1 control character', 'en\u0085'],
+    ['the last C1 control character', '\u009F'],
   ])('rejects %s', (_label, language) => {
     const check = checkLanguageParam(language);
     expect(check.ok).toBe(false);

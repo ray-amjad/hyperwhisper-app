@@ -14,21 +14,24 @@
 // so a UUID is the whole set of values a client can hold. Absent or empty
 // means "no mode", as before.
 //
-// `language`: a BCP 47 style tag (`en`, `en-US`, `zh-Hant-TW`, `auto`), or
-// absent / empty for auto-detect. Each provider maps the tag to its own code
-// in `providers/language-codes.ts`; this only bounds its shape and length.
+// `language`: absent / empty for auto-detect, or any value of at most
+// MAX_LANGUAGE_BYTES UTF-8 bytes with no control characters. Deliberately not
+// a tag-shape check: users type free text (`en US`, `English (US)`, `中文`)
+// into a mode's language box, restore it from a backup or send it through the
+// Local API, and the providers already map what they know and fall back to
+// auto-detect for the rest (`providers/language-codes.ts`). Only the length,
+// which is what reaches the charge, and control characters are refused.
 
-/** RFC 5646 §4.4.1: a tag of up to 35 characters must be supported. */
-export const MAX_LANGUAGE_TAG_LENGTH = 35;
+/** RFC 5646 §4.4.1's 35, counted in UTF-8 bytes so multi-byte text stays bounded too. */
+export const MAX_LANGUAGE_BYTES = 35;
 
 const MODE_ID_PATTERN = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
 
-/**
- * A primary subtag of letters (2-8, which covers `auto`), then up to three
- * more letter-or-digit subtags. `_` is accepted as a separator beside `-`:
- * `language-codes.ts` already treats the two alike.
- */
-const LANGUAGE_TAG_PATTERN = /^[A-Za-z]{2,8}(?:[-_][A-Za-z0-9]{1,8}){0,3}$/;
+/** C0 controls, DEL and C1 controls. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARACTER = /[\u0000-\u001F\u007F-\u009F]/;
+
+const encoder = new TextEncoder();
 
 export type LabelCheck = { ok: true } | { ok: false; field: 'mode' | 'language'; message: string };
 
@@ -41,11 +44,17 @@ export function checkModeParam(mode: string | undefined): LabelCheck {
 
 export function checkLanguageParam(language: string | undefined): LabelCheck {
   if (language === undefined || language === '') return OK;
-  if (language.length <= MAX_LANGUAGE_TAG_LENGTH && LANGUAGE_TAG_PATTERN.test(language)) return OK;
+  // Length first, on UTF-16 units (a UTF-8 byte count is never smaller), so a
+  // huge value is refused without encoding it.
+  if (
+    language.length <= MAX_LANGUAGE_BYTES
+    && encoder.encode(language).length <= MAX_LANGUAGE_BYTES
+    && !CONTROL_CHARACTER.test(language)
+  ) return OK;
   return {
     ok: false,
     field: 'language',
-    message: `language must be a language code such as "en" or "en-US" (at most ${MAX_LANGUAGE_TAG_LENGTH} characters), or omitted for auto-detect.`,
+    message: `language must be at most ${MAX_LANGUAGE_BYTES} bytes with no control characters (for example "en" or "en-US"), or omitted for auto-detect.`,
   };
 }
 
