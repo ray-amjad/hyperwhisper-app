@@ -185,7 +185,7 @@ export default async function BlogPostPage({ params }: Props) {
 
               <div
                 dangerouslySetInnerHTML={{ __html: post.html }}
-                className={`prose prose-invert mt-10 max-w-none text-[#c9cbe0] prose-p:leading-[1.75] prose-headings:tracking-[-0.02em] prose-headings:text-white prose-strong:text-white prose-li:marker:text-[var(--dusk-dim)] prose-hr:border-[var(--dusk-line)] prose-blockquote:border-[rgba(196,181,253,.35)] prose-blockquote:text-[var(--dusk-mute)] prose-pre:border prose-pre:border-[var(--dusk-line)] prose-pre:bg-[#070814] prose-th:text-white prose-td:border-[var(--dusk-line)] [&_iframe]:aspect-video [&_img]:outline-1 [&_img]:-outline-offset-1 [&_img]:outline-white/10 [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
+                className={`prose prose-invert mt-10 max-w-none text-[#c9cbe0] prose-p:leading-[1.75] prose-headings:tracking-[-0.02em] prose-headings:text-white prose-strong:text-white prose-li:marker:text-[var(--dusk-dim)] prose-hr:border-[var(--dusk-line)] prose-blockquote:border-[rgba(196,181,253,.35)] prose-blockquote:text-[var(--dusk-mute)] prose-pre:border prose-pre:border-[var(--dusk-line)] prose-pre:bg-[#070814] prose-th:text-white prose-td:border-[var(--dusk-line)] [&_iframe]:aspect-video prose-img:rounded-[22px] prose-img:border prose-img:border-[var(--dusk-line)] [&_iframe]:rounded-[22px] [&_iframe]:border [&_iframe]:border-[var(--dusk-line)] [&_:not(pre)>code]:break-words ${PROSE_TEXT_LINK}`}
               />
 
               <BlogDownloadCta />
