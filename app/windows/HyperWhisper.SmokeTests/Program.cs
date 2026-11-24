@@ -27229,6 +27229,7 @@ internal static class Program
             CloudCreditsWarningChecks.RunAll(Run);
             InsufficientCreditsMessageChecks.RunAll(Run);
             PendingHistoryUnreadableChecks.RunAll(Run);
+            MonoFoldMidFrameChecks.RunAll(Run);
             ParakeetGuiLoadReloadChecks.RunAll(Run);
             TranscriptionRetryHandlerChecks.RunAll(Run);
             UpdateMessageWindowChecks.RunAll(Run);
