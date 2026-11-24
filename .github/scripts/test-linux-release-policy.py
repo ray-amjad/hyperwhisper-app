@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Regression checks for fail-closed Linux release workflow wiring."""
 
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -120,7 +124,100 @@ def main() -> None:
     require(RELEASE, "LINUX_APT_SSH_KNOWN_HOSTS", "SSH host identity is pinned")
     require(RELEASE, "mv -Tf", "APT current symlink is switched atomically")
 
+    check_preflight_keeps_signing_key_out_of_default_keyring()
+
     print("PASS Linux release cannot bypass required CI or publication policy")
+
+
+def release_step_script(name: str) -> str:
+    for job in RELEASE_DOCUMENT["jobs"].values():
+        for step in job.get("steps", []):
+            if step.get("name") == name:
+                return step["run"]
+    raise SystemExit(f"FAIL: release workflow has no step named {name!r}")
+
+
+def check_preflight_keeps_signing_key_out_of_default_keyring() -> None:
+    """Run the APT credential preflight for real with a throwaway key.
+
+    The step imports LINUX_APT_SIGNING_KEY to prove it is a usable GPG key. It
+    must do so in a private GNUPGHOME that is gone when the step ends, so the
+    private key is never left in the runner's default ~/.gnupg keyring.
+    """
+    if shutil.which("gpg") is None or shutil.which("gpgconf") is None:
+        raise SystemExit("FAIL: gpg and gpgconf are required to check the APT key preflight")
+
+    script = release_step_script("Verify APT deployment credentials")
+    with tempfile.TemporaryDirectory(prefix="hyperwhisper-apt-preflight-") as scratch:
+        root = Path(scratch)
+        home = root / "home"
+        runner_temp = root / "runner"
+        stub_bin = root / "bin"
+        key_home = root / "keygen"
+        for directory in (home, runner_temp, stub_bin, key_home):
+            directory.mkdir(mode=0o700)
+        # The SSH reachability probe is out of scope here; let it succeed.
+        ssh_stub = stub_bin / "ssh"
+        ssh_stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        ssh_stub.chmod(0o755)
+
+        # A throwaway key made at run time; nothing secret is checked in.
+        subprocess.run(
+            ["gpg", "--batch", "--quiet", "--homedir", str(key_home), "--passphrase", "",
+             "--quick-gen-key", "APT preflight test <apt-preflight@example.invalid>",
+             "ed25519", "sign", "never"],
+            check=True,
+        )
+        armored = subprocess.run(
+            ["gpg", "--batch", "--quiet", "--homedir", str(key_home), "--armor",
+             "--export-secret-keys"],
+            check=True, capture_output=True, text=True,
+        ).stdout
+        subprocess.run(["gpgconf", "--homedir", str(key_home), "--kill", "all"], check=False)
+        if "PRIVATE KEY BLOCK" not in armored:
+            raise SystemExit("FAIL: could not create a throwaway APT signing key")
+
+        env = {
+            "PATH": f"{stub_bin}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
+            "HOME": str(home),
+            "RUNNER_TEMP": str(runner_temp),
+            "APT_DEPLOY_HOST": "apt.example.invalid",
+            "APT_DEPLOY_USER": "deploy",
+            "APT_DEPLOY_PATH": "/srv/apt",
+            "APT_SSH_PRIVATE_KEY": "unused",
+            "APT_SSH_KNOWN_HOSTS": "unused",
+            "APT_SIGNING_KEY": armored,
+        }
+        result = subprocess.run(
+            ["bash", "-e", "-c", script], env=env, capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise SystemExit(
+                "FAIL: APT credential preflight rejected a valid signing key:\n"
+                + result.stdout + result.stderr
+            )
+
+        default_secret_keys = subprocess.run(
+            ["gpg", "--batch", "--with-colons", "--list-secret-keys"],
+            env={**env, "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+            capture_output=True, text=True,
+        ).stdout
+        # Stop any agent the check itself (or a regression) started on HOME.
+        subprocess.run(
+            ["gpgconf", "--homedir", str(home / ".gnupg"), "--kill", "all"],
+            check=False, capture_output=True,
+        )
+        if any(line.startswith("sec:") for line in default_secret_keys.splitlines()):
+            raise SystemExit(
+                "FAIL: APT credential preflight left the signing key in the default GPG keyring"
+            )
+        leftovers = sorted(p.name for p in runner_temp.iterdir() if "gnupg" in p.name)
+        if leftovers:
+            raise SystemExit(
+                f"FAIL: APT credential preflight left its private GNUPGHOME behind: {leftovers}"
+            )
+        if any(runner_temp.glob("*.asc")):
+            raise SystemExit("FAIL: APT credential preflight left the signing key file behind")
 
 
 if __name__ == "__main__":

@@ -154,6 +154,48 @@ EOF
     echo "apt offers hyperwhisper-cuda $candidate, which depends on hyperwhisper (= $VERSION)"
 fi
 
+# Signed generation with a throwaway key made here (nothing secret is checked
+# in): the signatures verify with gpgv, and the private key never reaches the
+# default keyring or outlives the generator's own private GNUPGHOME.
+if command -v gpg >/dev/null 2>&1 && command -v gpgconf >/dev/null 2>&1 \
+    && command -v gpgv >/dev/null 2>&1; then
+    SIGN_ROOT="$TEST_ROOT/signed"
+    install -d -m 0700 "$SIGN_ROOT/keygen" "$SIGN_ROOT/home" "$SIGN_ROOT/tmp"
+    gpg --batch --quiet --homedir "$SIGN_ROOT/keygen" --passphrase '' \
+        --quick-gen-key 'APT test <apt-test@example.invalid>' ed25519 sign never
+    ( umask 077
+      gpg --batch --quiet --homedir "$SIGN_ROOT/keygen" --armor \
+          --export-secret-keys > "$SIGN_ROOT/signing.asc" )
+    gpgconf --homedir "$SIGN_ROOT/keygen" --kill all >/dev/null 2>&1 || true
+    env -u GNUPGHOME HOME="$SIGN_ROOT/home" TMPDIR="$SIGN_ROOT/tmp" SOURCE_DATE_EPOCH=0 \
+        "$SCRIPT_DIR/generate-apt-repository.sh" \
+        "${PACKAGE_ARGS[@]}" \
+        --output-dir "$SIGN_ROOT/repo" \
+        --signing-key-file "$SIGN_ROOT/signing.asc" >/dev/null
+    gpg --dearmor < "$SIGN_ROOT/repo/hyperwhisper-archive-keyring.asc" \
+        > "$SIGN_ROOT/archive-keyring.gpg"
+    gpgv --keyring "$SIGN_ROOT/archive-keyring.gpg" \
+        "$SIGN_ROOT/repo/dists/stable/InRelease" 2>/dev/null
+    gpgv --keyring "$SIGN_ROOT/archive-keyring.gpg" \
+        "$SIGN_ROOT/repo/dists/stable/Release.gpg" \
+        "$SIGN_ROOT/repo/dists/stable/Release" 2>/dev/null
+    if grep -q 'PRIVATE KEY' -r "$SIGN_ROOT/repo"; then
+        echo "Signed APT repository output contains private key material." >&2
+        exit 1
+    fi
+    if [[ -e "$SIGN_ROOT/home/.gnupg" ]] \
+        && env -u GNUPGHOME HOME="$SIGN_ROOT/home" gpg --batch --with-colons --list-secret-keys 2>/dev/null \
+            | grep -q '^sec:'; then
+        echo "The APT signing key was left in the default GPG keyring." >&2
+        exit 1
+    fi
+    if compgen -G "$SIGN_ROOT/tmp/hyperwhisper-gnupg.*" >/dev/null; then
+        echo "The generator left its private GNUPGHOME behind." >&2
+        exit 1
+    fi
+    echo "Signed APT repository verifies with gpgv; signing key stayed isolated"
+fi
+
 if SOURCE_DATE_EPOCH=0 "$SCRIPT_DIR/generate-apt-repository.sh" \
     --deb "$PACKAGE_PATH" --output-dir "$TEST_ROOT/first" >/dev/null 2>&1; then
     echo "Generator unexpectedly accepted a non-empty output directory." >&2

@@ -211,7 +211,17 @@ jobs:
 
           ssh_dir="${RUNNER_TEMP}/apt-ssh-preflight"
           key_file="${RUNNER_TEMP}/apt-signing-key-preflight.asc"
-          cleanup() { rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"; }
+          # The import below goes into a private, throwaway GNUPGHOME, never
+          # the runner's default ~/.gnupg, so the private signing key does not
+          # outlive this step in any keyring.
+          gnupg_home="$(mktemp -d "${RUNNER_TEMP}/apt-gnupg-preflight.XXXXXXXX")"
+          chmod 0700 "$gnupg_home"
+          export GNUPGHOME="$gnupg_home"
+          cleanup() {
+            rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"
+            gpgconf --homedir "$gnupg_home" --kill all >/dev/null 2>&1 || true
+            rm -rf -- "$gnupg_home"
+          }
           trap cleanup EXIT
           install -d -m 0700 "$ssh_dir"
           umask 077
@@ -236,7 +246,7 @@ jobs:
 
           # Prove the signing key actually imports. A truncated or wrong-armour
           # key passes the non-empty check above and then fails at signing time.
-          if ! gpg --batch --import "$key_file" >/dev/null 2>&1; then
+          if ! gpg --batch --homedir "$gnupg_home" --import "$key_file" >/dev/null 2>&1; then
             echo "::error::LINUX_APT_SIGNING_KEY is not an importable GPG key. Re-author it in Infisical (--env=prod)."
             exit 1
           fi

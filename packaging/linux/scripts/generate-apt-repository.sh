@@ -137,6 +137,9 @@ GNUPG_TEMP=""
 cleanup() {
     rm -rf -- "$STAGING_ROOT"
     if [[ -n "$GNUPG_TEMP" ]]; then
+        # Stop the agent first so no process keeps the signing key in memory
+        # once its private home directory is gone.
+        gpgconf --homedir "$GNUPG_TEMP" --kill all >/dev/null 2>&1 || true
         rm -rf -- "$GNUPG_TEMP"
     fi
 }
@@ -195,6 +198,9 @@ if [[ -n "$SIGNING_KEY_FILE" ]]; then
     fi
     GNUPG_TEMP="$(mktemp -d -t hyperwhisper-gnupg.XXXXXXXX)"
     chmod 0700 "$GNUPG_TEMP"
+    # Every gpg call below also names --homedir; exporting it keeps any helper
+    # gpg starts (gpg-agent, keyboxd) out of the default ~/.gnupg as well.
+    export GNUPGHOME="$GNUPG_TEMP"
     gpg --batch --quiet --homedir "$GNUPG_TEMP" --import "$SIGNING_KEY_FILE"
     KEY_FINGERPRINT="$(
         gpg --batch --homedir "$GNUPG_TEMP" --with-colons --list-secret-keys \
