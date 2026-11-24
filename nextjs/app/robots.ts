@@ -7,10 +7,9 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    // Crawlers read robots.txt only at the host root, so the docs sitemap
-    // (served by Mintlify through the /docs rewrite in
-    // config/mintlify-rewrites.mjs) has to be named here; its own
-    // /docs/robots.txt is never read (#1884).
+    // The docs pages are in /sitemap.xml. /docs/sitemap.xml (app/docs/sitemap.ts)
+    // lists them again at the URL the Mintlify docs sitemap had, which has been
+    // named here since #1884, so a search console that holds it keeps working.
     sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/docs/sitemap.xml`],
   };
 }

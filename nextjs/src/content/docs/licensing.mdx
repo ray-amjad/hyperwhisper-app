@@ -1,0 +1,123 @@
+---
+title: Pricing & Cloud Credits
+description: What is free, what HyperWhisper Cloud credits are, how to buy them, and how to manage your billing.
+---
+
+HyperWhisper is open source and free. **All on-device transcription and all local models are free and unlimited.** There are no daily limits and no limit on downloads. Only **HyperWhisper Cloud** costs money. HyperWhisper Cloud is an optional hosted transcription service. You pay for it with prepaid credits.
+
+HyperWhisper does not sell a license or a subscription. There is no paid tier of the app itself — the full app, on every platform, is free and open source under Apache-2.0. If you bought a "Pro license" from HyperWhisper before, read [Going Open Source](/docs/going-open-source) for what changed and what happened to your license.
+
+## Free features and paid features
+
+| | Local (free for everyone) | HyperWhisper Cloud (paid) |
+| --- | --- | --- |
+| On-device transcription | **Unlimited** | — |
+| Local model downloads | **Unlimited** | — |
+| BYOK providers (OpenAI, Groq, Deepgram, and more) | ✓ | — |
+| Auto-paste, custom modes, vocabulary | ✓ | ✓ |
+| Hosted (cloud) transcription | — | Prepaid **credits** (pay-as-you-go) |
+| Cost | Free | Credits that you buy when you need them |
+
+## What are HyperWhisper Cloud credits?
+
+Credits pay for the HyperWhisper Cloud hosted transcription service. HyperWhisper Cloud subtracts credits from your balance for each transcription. The number of credits depends on the length of the audio. The default ElevenLabs Scribe v2 tier costs about 9.83 credits for each minute of audio.
+
+5,000 credits cost \$5, or \$0.001 for each credit. At 9.83 credits for each minute, cloud transcription costs about **\$0.0098 per minute**. You spend credits only when you select a HyperWhisper Cloud provider. BYOK providers use your own API key, and they do not spend credits.
+
+HyperWhisper Cloud needs an account key for every request. There is no free trial and no anonymous use. You do not buy the key separately. Your first credit purchase (from \$5) creates a key and sends it to you by email. This key is your Cloud account, your credit wallet, and your license key. After you enter the key, the app shows **Active / Licensed – Full Access**.
+
+<Note>
+  Credits belong to your account key, not to one device. You can use the credits on every machine where you enter that key.
+</Note>
+
+## Local transcription is unlimited
+
+On-device use has no limits. You can record for as long as you want and as often as you want. You can also download as many local models as you want. All of this is free, and you do not need an account. HyperWhisper is open source, so on-device transcription has no paywall.
+
+You spend money only when you select **HyperWhisper Cloud** for hosted transcription. You pay for HyperWhisper Cloud with prepaid credits, as described above.
+
+## How to buy HyperWhisper Cloud credits
+
+To add credits, open the **HyperWhisper Cloud** panel from the app sidebar or from **Settings → HyperWhisper Cloud**. Click **Purchase Credits** to open the checkout page in your browser. If you do not have an account key yet, this button shows **Get Credits**.
+
+<Steps>
+  <Step title="Open HyperWhisper Cloud in the app">
+    From the menu bar (macOS) or tray (Windows), open **Settings → HyperWhisper Cloud**.
+
+    You can also go to [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) directly.
+  </Step>
+  <Step title="Choose an amount and complete checkout">
+    Select a preset amount (\$5 or \$10), or enter a whole-dollar amount from \$5 to \$500. If you do not have an account key yet, enter your email address. HyperWhisper sends your new key to that address. Checkout adds a 6% processing fee on top of the credit value. This fee is not refundable, and the checkout page shows it as a separate line item before you pay. You can use promotion codes. This is a one-time purchase, not a subscription. A 14-day money-back guarantee covers the credit value that you did not spend. For the details, read the refund policy on [hyperwhisper.com](https://www.hyperwhisper.com).
+  </Step>
+  <Step title="Receive your account key">
+    If this is your first purchase, HyperWhisper sends your new account key by email to the address that you entered. This key is your credit wallet and your license. If you already have a key, HyperWhisper adds the credits to the balance of that key.
+  </Step>
+</Steps>
+
+## How to activate an existing account key
+
+<Steps>
+  <Step title="Open Settings → HyperWhisper Cloud">
+    From the menu bar (macOS) or tray (Windows), open **Settings → HyperWhisper Cloud**.
+  </Step>
+  <Step title="Paste your account key">
+    Paste the key from your purchase confirmation email into the key field.
+
+    HyperWhisper removes spaces and line breaks at the start and end of the key. If the text cannot be an account key, for example it has a space inside it or more than 64 characters, HyperWhisper does not send it and shows "That doesn't look like an account key."
+  </Step>
+  <Step title="Click Activate">
+    HyperWhisper checks the key online. The app then shows **Active / Licensed – Full Access** and the credit balance of that key.
+  </Step>
+</Steps>
+
+Activation needs an internet connection one time. After activation, you can use HyperWhisper offline with local models.
+
+## How to manage your billing
+
+After your account key is active, a **Manage Billing** button appears in **Settings → HyperWhisper Cloud** on macOS and on Windows. This button opens your billing dashboard at [hyperwhisper.com/user](https://www.hyperwhisper.com/user). On the dashboard you can do these tasks:
+
+- See your remaining cloud credit balance
+- See your purchase history
+- When your balance is low, buy more cloud credits
+- Update your payment method
+- Rotate your account key (see [Rotate your account key](#rotate-your-account-key))
+
+<Note>
+  The Manage Billing button appears only when you have an active account key. If you do not have a key yet, go to [hyperwhisper.com/user](https://www.hyperwhisper.com/user) directly. You can also buy credits at [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) to get a key.
+</Note>
+
+## Using your account key on more than one machine
+
+One account key is for your personal use on the machines that you own, for example a desktop and a laptop. There is no fixed limit on the number of devices. But the key belongs to your account, and you must not give it to other people.
+
+On macOS, HyperWhisper keeps the account key and its cached license state in the Data Protection Keychain. The item is available only while the device is unlocked. It is device-only and does not sync through iCloud Keychain, so enter the key on each Mac where you use it. When you update from an older version, HyperWhisper moves the existing key to this protected item automatically.
+
+If you want to use HyperWhisper in a team or on many machines, write to [hi@support.hyperwhisper.com](mailto:hi@support.hyperwhisper.com) about volume licensing.
+
+## How to move to a new Mac or PC
+
+There is no activation limit for each device. Your account key does not belong to one machine. Deactivation removes the key only from that device. There are no device "slots" to free — the server does record a device ID against your key on each validation, but only for fair-usage monitoring, not to enforce a device count. When you replace a device or sell an old one, use these steps:
+
+<Steps>
+  <Step title="Deactivate on the old machine (recommended)">
+    On the machine that you leave, open **Settings → HyperWhisper Cloud → Deactivate**. That machine then no longer stores your key.
+  </Step>
+  <Step title="Install HyperWhisper on the new machine">
+    Download the app from [hyperwhisper.com](https://www.hyperwhisper.com).
+  </Step>
+  <Step title="Activate with the same key">
+    On the new machine, paste your account key in **Settings → HyperWhisper Cloud**.
+  </Step>
+</Steps>
+
+If you cannot use the old machine, activate your key on the new machine. No other action is necessary. If the machine was lost or stolen, you can also [rotate your key](#rotate-your-account-key) so that the old machine can no longer use it.
+
+## Rotate your account key
+
+If someone else has your key, replace it. Open [hyperwhisper.com/user](https://www.hyperwhisper.com/user), click **Rotate key** under the key, and confirm. HyperWhisper makes a new key, and the old key stops working right away on every device. Your credits, plan, and purchase history stay with your account. Enter the new key in HyperWhisper on each of your devices.
+
+HyperWhisper also signs you out of the website in your other browsers and sends you an email, "Your Account Key was replaced". If you signed in to the dashboard with your account key, confirm by email first: click **Email me a sign-in link**, open the link, then rotate the key.
+
+## Lost your account key?
+
+HyperWhisper sends your account key by email when you buy credits. The email calls this key your license key. If you cannot find the email, search your inbox for "HyperWhisper" or "Stripe" (our payment processor). You can also get your key at [hyperwhisper.com/user](https://www.hyperwhisper.com/user). Sign in with the email address that you used for the purchase. If you still cannot find the key, write to [hi@support.hyperwhisper.com](mailto:hi@support.hyperwhisper.com) and give your purchase email address.

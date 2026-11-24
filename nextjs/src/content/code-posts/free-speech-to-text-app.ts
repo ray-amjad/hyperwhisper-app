@@ -1,7 +1,7 @@
 import type { BlogPost } from "@/src/content/blog";
 
 // HyperWhisper facts come from this site's own copy (messages/en.json:
-// hero.*, features.*, faq.questions.*) and in-repo docs (mintlify-help/models.mdx,
+// hero.*, features.*, faq.questions.*) and in-repo docs (src/content/docs/models.mdx,
 // system-requirements.mdx, transcription-modes.mdx). Built-in OS and browser
 // tools are described in general terms. This page does not invent ratings,
 // user counts, competitor prices, or a paid HyperWhisper app tier.

@@ -148,15 +148,13 @@ export const config = {
   // - API routes (/api and /api/*)
   // - Raw model inventory endpoint (/models and /models/*)
   // - Next.js internals (/_next and /_next/*)
-  // - Documentation (/docs and /docs/* only) and Mintlify's own paths
-  //   (/_mintlify/*, /mintlify-assets/*). These are next.config rewrites
-  //   (config/mintlify-rewrites.mjs), and middleware runs BEFORE rewrites, so
-  //   without the exclusion next-intl would redirect them to /en/....
-  //   (/api/request is covered by the /api exclusion.)
+  // - Documentation (/docs and /docs/* only): app/docs, English only with no
+  //   locale prefix. Without the exclusion next-intl would redirect them to
+  //   /en/docs/..., which is not a page.
   // - Static files with extensions (*.*)
   // Each prefix is anchored with (?:/|$), so /docsx or /apix still goes
   // through the locale proxy and 404s (#1125).
   matcher: [
-    "/((?!(?:api|models|_next|_mintlify|mintlify-assets|docs)(?:/|$)|.*\\..*).*)",
+    "/((?!(?:api|models|_next|docs)(?:/|$)|.*\\..*).*)",
   ],
 };

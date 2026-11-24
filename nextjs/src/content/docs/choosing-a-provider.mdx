@@ -1,0 +1,202 @@
+---
+title: Providers
+description: Select a transcription model by language accuracy and cost. Covers the HyperWhisper Cloud providers, silence-free billing, and BYOK alternatives.
+---
+
+HyperWhisper Cloud gives you four featured transcription providers with automatic failover. HyperWhisper also supports bring-your-own-key (BYOK) for direct provider access, and offline local models.
+
+## HyperWhisper Cloud featured providers
+
+HyperWhisper Cloud is built in. You do not need an API key or a separate account. Select a provider for speed, for balance, or for accuracy. All of them are pay-as-you-go with no markup. You pay the rate of the provider.
+
+Each provider has an accuracy rating of **Highest**, **High**, or **Medium**. The rating and the cost are independent: two providers with the same rating can have very different costs per minute.
+
+<Tip>
+  For speed, read the public [latency page](https://www.hyperwhisper.com/en/latency). It gives the measured p50, p95, and p99 times of each provider in each server region, from the last 90 days of real HyperWhisper Cloud requests. A cell needs a minimum of 3 attempts to show a number. The p99 column needs 500 attempts, because a 99th percentile from a small sample is only its slowest call. A cell below that limit shows a dash. These measurements come from the users who leave **Share anonymous speed data** on — read [General Settings](/docs/general-settings#share-anonymous-speed-data) for that setting.
+</Tip>
+
+<Note>
+  These four providers are the featured providers. If one provider fails, HyperWhisper Cloud sends the request to a backup provider. The full HyperWhisper Cloud picker gives all 12 supported engines with no key. The list includes Meta Muse Voice Transcribe, Soniox, Azure MAI-Transcribe, and Google Gemini 3.5 Transcribe. The Provider row of the picker shows 11 companies, because Gemini 3.5 Transcribe and Gemini are both Google and share one row — read [Transcription Modes](/docs/transcription-modes). Providers outside the featured four do not get automatic failover. The [Provider Health](/docs/provider-health) page describes the failover chains.
+</Note>
+
+<Card title="Highest — ElevenLabs Scribe v2" icon="sparkles" horizontal>
+  The top-accuracy provider, and the recommended default. It gives the best results on accents, noisy environments, and technical vocabulary.
+
+  **~\$0.59 / hour** · *9.83 credits/min*
+</Card>
+
+<CardGroup cols={3}>
+  <Card title="High — Grok STT (SpaceXAI)" icon="scale-balanced">
+    \$0.10 / hour
+    *1.67 credits/min*
+
+    Good multilingual accuracy at a low cost per minute.
+  </Card>
+  <Card title="Medium — Deepgram Nova-3" icon="gauge">
+    ~\$0.33 / hour
+    *5.5 credits/min*
+
+    High English accuracy, low latency, and support for custom vocabulary.
+  </Card>
+  <Card title="Medium — Groq Whisper Large v3 Turbo" icon="bolt">
+    ~\$0.04 / hour
+    *0.667 credits/min*
+
+    Latency of less than one second. Good for English and the major European languages.
+  </Card>
+</CardGroup>
+
+<Note>
+  One credit costs **\$0.001 USD**. A \$5 purchase creates your account key with 5,000 credits. You can add more credits with the \$5 or \$10 presets, or with a custom amount up to \$500. Card payments have a processing fee of approximately 6%.
+</Note>
+
+## Read the latency page
+
+The public [latency page](https://www.hyperwhisper.com/en/latency) gives one row for each provider company. It names each row the way the **Provider** menu in the app names it. Gemini 3.5 Transcribe and Gemini are both Google, so they share one **Google** row.
+
+The buttons above the table select the **Metric** (p50, p95, p99, or the error rate) and the **Clip length** group. Hold the pointer on a cell to see the number of attempts behind it.
+
+Click **Break down by model** to open each company into its models. This control is off when the page opens. The models keep the order of the **Model** menu in the app, and a **default** badge marks the model that a new selection of that company uses. A model row counts only the attempts that ran on that model. Thus a model row shows a dash more frequently than the row of its company.
+
+## Use the model chooser
+
+The public [model chooser](https://www.hyperwhisper.com/en/choosing-a-model) ranks the Cloud models and the on-device models that HyperWhisper ships. The **Choose a model** item in the site menu opens it. The page is in English only. It is not a general leaderboard: it contains only the models that the app gives you.
+
+You have **100 points**. Give the points to the four properties that the ranking uses:
+
+| Property | Question that it answers |
+| --- | --- |
+| Accuracy | How frequently the model gets a word wrong |
+| Speed | How long you wait for the text |
+| Cost | What one minute of audio costs you |
+| Privacy | If the audio goes off your machine |
+
+The five presets — **Balanced**, **Accuracy first**, **Cheapest**, **Fastest**, and **Fully private** — set the points for you. You can then move each slider. HyperWhisper adjusts the other three sliders in proportion, thus the total stays at 100 points.
+
+Three more controls make the list smaller:
+
+- **Your platform** — macOS or Windows. The on-device models are different on each platform.
+- **Language** — English only, European, or Wide multilingual. A model with no published language count stays in the English list, but the page removes it from the two multilingual lists.
+- **Must have** — Live streaming, Custom vocabulary, or No preview models.
+
+The page gives the best match first, then the full ranked list. For a Cloud model, the list gives the cost in credits for each minute, the word error rate, and an estimate for each audio minute. For an on-device model, it gives the download size and no cost.
+
+<Tip>
+  The **Closest region** menu selects which measurements the ranking uses. The page finds your closest region for you. The measured column gives the median time for one dictation clip of less than 10 seconds, from the last 90 days. This is not a figure for each minute. A cell needs the same minimum of 3 attempts that the latency page needs. If a model is too new to have its own measurements, the page uses the measurements of its provider.
+</Tip>
+
+### Meta Muse Voice Transcribe
+
+Meta Muse Voice Transcribe 1 is available through HyperWhisper Cloud or with your own Meta Model API key. The Cloud route costs **3 credits per audio minute**, or **\$0.003 per minute**. This is **\$0.18 per audio hour**. The direct route uses your Meta account and does not use HyperWhisper credits.
+
+For direct use, add the key in **Model Library → API Keys**, then select **Your Provider → Meta → Muse Voice Transcribe 1**. The app stores the key in the operating system's secure credential store. Your device sends the audio directly to `api.meta.ai`; the request does not reach HyperWhisper servers.
+
+Meta has extensively evaluated 25 languages. Meta does not publish the closed language-code list in the Model API reference. HyperWhisper therefore does not claim a language code until it can map that code to Meta's API.
+
+The shared catalog decodes this capability record for Muse:
+
+| Capability | Catalog value |
+| --- | --- |
+| Code switching | Yes |
+| Endpointing | Yes |
+| Context bias | Yes |
+| Language bias | Yes |
+| Turn-level timestamps | Yes |
+| Speaker diarization | Yes |
+| Word-level timestamps | No |
+
+These values describe the upstream model. HyperWhisper currently uses Meta's pre-recorded push-to-talk API. HyperWhisper returns the transcript text, but it does not expose all turn metadata in the app.
+
+Meta also provides a real-time Muse API. HyperWhisper does not have a Meta WebSocket relay, so Muse is not available in **HyperWhisper Live**. The **Live streaming** filter correctly removes this model. Do not use Meta's streaming benchmark as a batch WER or speed result.
+
+For the primary sources, read Meta's [Muse launch article](https://research.meta.ai/blog/introducing-muse-voice-transcribe) and [speech-to-text API reference](https://dev.meta.ai/docs/speech-to-text/).
+
+## You pay only for speech
+
+HyperWhisper Cloud detects silence and blank audio automatically. If a recording contains no speech, **you pay 0 credits** on the models that bill by audio length. The token-billed models are the exception: Google Gemini, Gemini 3.5 Transcribe, and the OpenAI GPT-4o transcribe models. The provider charges for the audio tokens even when no words come back, so HyperWhisper charges the same. HyperWhisper does not bill for silence at the start of a clip or for pauses between thoughts. HyperWhisper also does not bill for an empty recording that you start by accident.
+
+In a typical working day of push-to-talk dictation, you pay only for the minutes that you spoke.
+
+## Accuracy by language
+
+For English, any of these providers gives good results. **ElevenLabs Scribe v2 (Highest)** is the most accurate on accents, noisy audio, and technical vocabulary. **Deepgram Nova-3** and **Groq Whisper Large v3 Turbo** share the same **Medium** accuracy rating — Groq is not less accurate than Deepgram, it is simply cheaper and lower-latency. **Grok STT (High)** costs a little more than Groq but less than ElevenLabs, and is a few percent less accurate than the top provider.
+
+<Note>
+  SpaceXAI does not publish a table of WER values per language for Grok STT. HyperWhisper does not apply older third-party benchmark numbers to this provider, because those numbers measure a different provider.
+</Note>
+
+## Cost examples
+
+At 1 credit = \$0.001 USD, this table gives the cost of each featured provider at typical usage levels. **HyperWhisper bills only for speech.** Therefore "30 min/day" means 30 minutes of speech, not 30 minutes with the app open.
+
+| Daily speech | Highest (ElevenLabs) | High (Grok) | Medium (Deepgram) | Medium (Groq) |
+|---|---|---|---|---|
+| 15 min | ~\$0.15 | ~\$0.03 | ~\$0.08 | ~\$0.01 |
+| 30 min | ~\$0.30 | ~\$0.05 | ~\$0.17 | ~\$0.02 |
+| 1 hour | ~\$0.59 | ~\$0.10 | ~\$0.33 | ~\$0.04 |
+| 2 hours | ~\$1.18 | ~\$0.20 | ~\$0.66 | ~\$0.08 |
+| 8 hours | ~\$4.72 | ~\$0.80 | ~\$2.64 | ~\$0.32 |
+
+The monthly cost at 30 min/day is **~\$9 ElevenLabs / ~\$1.50 Grok / ~\$5 Deepgram / ~\$0.60 Groq.** A single \$5 top-up gives approximately 8 hours of speech on ElevenLabs Scribe v2, or approximately 50 hours on Grok STT.
+
+## Alternatives
+
+<Tabs>
+  <Tab title="Bring Your Own Key">
+    If you have API credits, or your own free tier (Deepgram \$200, AssemblyAI \$50), add a key on the [API Keys](/docs/api-keys) page. You then pay the provider directly at the published rate.
+
+    | Provider | Model | \$/min |
+    |---|---|---|
+    | Groq | Whisper Large v3 Turbo | \$0.00067 |
+    | SpaceXAI | Grok STT | \$0.00167 |
+    | Soniox | Soniox STT | \$0.00167 |
+    | Deepgram | Nova-3 (batch) | \$0.0055 |
+    | AssemblyAI | Universal-3.5 Pro | \$0.0035 |
+    | OpenAI | GPT Transcribe | \$0.0045 |
+    | ElevenLabs | Scribe v2 | \$0.00983 |
+
+    HyperWhisper also supports Mistral and Google Gemini for BYOK. The [API Keys](/docs/api-keys) page shows how to configure them.
+
+    <Note>
+      When you use your own key, you must remove your audio from model training. Each provider has a different setting in its dashboard. The [Data Privacy & Model Training](/docs/data-privacy) page gives an LLM prompt that you can copy. This prompt finds the current opt-out method for any provider.
+    </Note>
+  </Tab>
+  <Tab title="Local / offline">
+    Offline models (Whisper, Parakeet, Nemotron, Apple Speech Analyzer, Qwen3 ASR) run on your device. They need no network and they cost nothing. Their accuracy is a little lower than the best cloud tier. For English and the larger European languages, this accuracy is sufficient. The [Models](/docs/models) page lists them.
+  </Tab>
+</Tabs>
+
+## Increase accuracy with any provider
+
+- **[Custom vocabulary](/docs/vocabulary)** — add domain terms such as product names, frameworks, specialist terms, and the names of colleagues. This gives the largest single increase in accuracy for technical or professional use.
+- **Low-noise environment** — background noise makes every model less accurate. The [Best Practices](/docs/best-practices) page gives more information.
+- **Natural pace** — speech that is too fast or too slow also makes accuracy lower.
+
+<Note>
+  If you use custom vocabulary with Deepgram Nova-3, set the language and do not use `auto`. On Nova-3, the `keyterm` parameter is active only in monolingual mode.
+</Note>
+
+## FAQ
+
+**Does HyperWhisper Cloud add a markup to the cost of the provider?**
+No. You pay the same rate per minute that you pay with a direct API key from the provider.
+
+**What happens if my provider is temporarily unavailable?**
+HyperWhisper Cloud sends the request to another provider in the chain. The transcription still succeeds. You pay the rate of the provider that did the work.
+
+**Which provider gives the highest quality?**
+ElevenLabs Scribe v2 has the **Highest** accuracy rating, and it is the recommended default. It gives the best accuracy on accents, noisy audio, and technical vocabulary. Deepgram Nova-3 costs less and is a good choice for everyday dictation.
+
+## AssemblyAI Dictation
+
+Select **AssemblyAI → Dictation** in your mode's cloud model picker. You can use your own AssemblyAI API key or HyperWhisper Cloud credits on macOS, Windows, and Linux.
+
+- Select a supported language. Dictation supports 32 languages, including English and Japanese, but does not support Automatic language detection or Medical Mode.
+- Record up to 120 seconds. The upload must be PCM16 WAV. macOS converts its CAF/M4A recordings automatically; convert unsupported imported files to PCM16 WAV before using Dictation.
+- Dictation includes cleanup: it removes filler words and resolves spoken corrections. Cleanup stays on when app post-processing is off. Your explicitly enabled translation or custom post-processing still runs after Dictation.
+- Custom vocabulary is supported, up to 100 terms and 8000 characters in total (the app also limits each term to 80 characters).
+- The price is \$0.62 per audio hour, including cleanup, or about 10.33 HyperWhisper Cloud credits per minute.
+
+Dictation returns the cleaned text when available, or the original transcript otherwise. It does not provide live partial transcripts. A failed or overlong request does not fall back to ordinary AssemblyAI transcription.
+
+See [AssemblyAI's Dictation documentation](https://www.assemblyai.com/docs/dictation).

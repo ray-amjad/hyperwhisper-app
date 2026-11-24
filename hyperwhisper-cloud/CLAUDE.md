@@ -234,7 +234,7 @@ Add a row to `PREMIUM_ROUTES` in `src/providers/reservation.ts` as well **if** t
 
 <important if="you are touching a provider's data retention / logging / training opt-out behaviour, or adding a new provider">
 
-The **public source of truth** for our retention/training posture is the docs site page `mintlify-help/data-privacy.mdx` (in the app repo, ships at hyperwhisper.com/docs/data-privacy) — keep it accurate when this behaviour shifts.
+The **public source of truth** for our retention/training posture is the docs site page `nextjs/src/content/docs/data-privacy.mdx` (in the app repo, ships at hyperwhisper.com/docs/data-privacy) — keep it accurate when this behaviour shifts.
 
 Controls applied in this backend: Deepgram `mip_opt_out=true` per request (also in `ws-streaming-deepgram.ts`); AssemblyAI `DELETE /v2/transcript/{id}` after fetch (`bestEffortDeleteTranscript`); Soniox async-artifact delete; Groq account-level ZDR; Gemini paid-tier (no training), which covers both `gemini` and `gemini-transcribe` — same key, same project, and neither endpoint offers a per-request opt-out flag, nor does the `gemini-transcribe` live WebSocket; OpenAI clean by default.
 
@@ -247,5 +247,5 @@ Anonymous speed data is **on by default**, so it is only collected from clients 
 
 - A new client (iOS) contributes nothing until it is added to that map, and it should only be added once its own settings screen has the switch. Failing closed is the point.
 - When a request is not recorded, `transcribe.request_done` carries `latencySkipped: 'opted_out' | 'client_too_old'`. Query that before assuming ingest is broken.
-- The public copy that describes this lives in `mintlify-help/data-privacy.mdx`, `mintlify-help/general-settings.mdx`, and the "Who is counted" entry on `nextjs/app/[locale]/latency/page.tsx`. Change the map, change all four.
+- The public copy that describes this lives in `nextjs/src/content/docs/data-privacy.mdx`, `nextjs/src/content/docs/general-settings.mdx`, and the "Who is counted" entry on `nextjs/app/[locale]/latency/page.tsx`. Change the map, change all four.
 </important>

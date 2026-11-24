@@ -51,7 +51,7 @@ export default async function PrivacyPolicyPage({
 
 
   return (
-    <LegalDocument title="Privacy Policy" updated="Last Updated: October 29, 2026">
+    <LegalDocument title="Privacy Policy" updated="Last Updated: November 24, 2026">
 
       <p>
         HyperWhisper is built to keep your data on your device. You can
@@ -1084,34 +1084,10 @@ export default async function PrivacyPolicyPage({
         transcripts, or the desktop app.
       </p>
       <p>
-        Our documentation at hyperwhisper.com/docs is hosted by{" "}
-        <a
-          href="https://www.mintlify.com/legal/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Mintlify
-        </a>
-        . When you read a docs page, Mintlify records the page view: the
-        page address and title, the referrer, your browser user agent, your
-        screen and window size, your browser language, your time zone, and
-        your network type. It keeps a random identifier in your
-        browser&apos;s local storage so that it can link your visits, and it
-        sends a session identifier with each page view. Mintlify receives
-        your IP address. When you use the docs search, what you type into the
-        search box is sent to Mintlify to find matching pages. The search
-        uses{" "}
-        <a
-          href="https://www.hcaptcha.com/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          hCaptcha
-        </a>
-        , a bot-detection service: when you open the search, your browser
-        loads hCaptcha, which receives your IP address and details
-        about your browser. The docs pages have no access to your audio, your
-        transcripts, or the desktop app.
+        Our documentation at hyperwhisper.com/docs is served by this website
+        itself, on the same infrastructure as the rest of hyperwhisper.com.
+        The docs pages have no access to your audio, your transcripts, or the
+        desktop app.
       </p>
 
       <h2 id="children-s-privacy">Children&apos;s Privacy</h2>
@@ -1219,9 +1195,7 @@ export default async function PrivacyPolicyPage({
         for details. Where required, appropriate safeguards are used by those
         providers, including Upstash (for example, adequacy decisions,
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
-        served from the United States. Mintlify, which hosts our
-        documentation as described above, may process the docs page views it
-        records and the docs search queries it receives in the United States.
+        served from the United States.
         Hugging Face, which serves local model downloads as described under
         Transcription Processing, may process those requests in the United
         States and other countries.

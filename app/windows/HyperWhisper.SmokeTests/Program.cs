@@ -24758,8 +24758,8 @@ internal static class Program
                     property.SetValue(data, null);
                     Assert(service.EnableErrorLogging,
                         "error reports are now OFF on a profile that never touched the setting. "
-                        + "That is a deliberate privacy change, not a refactor: mintlify-help/"
-                        + "data-privacy.mdx and mintlify-help/general-settings.mdx both state the "
+                        + "That is a deliberate privacy change, not a refactor: nextjs/src/content/"
+                        + "docs/data-privacy.mdx and general-settings.mdx both state the "
                         + "setting is ON by default, and both have to change with it.");
 
                     // And the setter still works in the direction a user needs, which is

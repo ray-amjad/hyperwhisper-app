@@ -30,7 +30,7 @@
 //
 // Data retention: same Google paid-tier posture as `providers/gemini.ts` (no
 // training on paid API traffic) — it is the same API key and project. There is
-// no per-request opt-out flag on this endpoint. See `mintlify-help/data-privacy.mdx`.
+// no per-request opt-out flag on this endpoint. See `nextjs/src/content/docs/data-privacy.mdx`.
 
 import {
   GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND,

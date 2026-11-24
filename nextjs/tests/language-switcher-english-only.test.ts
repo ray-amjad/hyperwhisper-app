@@ -22,6 +22,9 @@ test("isEnglishOnlyRoute matches the bare English-only paths", () => {
     "/choosing-a-model",
     "/blog",
     "/blog/some-post",
+    "/docs",
+    "/docs/models",
+    "/docs/api-reference/list-models",
   ]) {
     assert.equal(isEnglishOnlyRoute(pathname), true, pathname);
   }
@@ -35,6 +38,7 @@ test("isEnglishOnlyRoute leaves translated pages alone", () => {
     "/legal/privacy-policy",
     "/latencyx",
     "/blogroll",
+    "/docsx",
   ]) {
     assert.equal(isEnglishOnlyRoute(pathname), false, pathname);
   }
@@ -57,6 +61,12 @@ test("the language switcher never styles <html> (WebKit closed the phone menu)",
   );
 
   assert.doesNotMatch(source, /document\.documentElement/);
+});
+
+test("/docs is never redirected to /en/docs", async () => {
+  const { englishOnlyRedirectPath } = await import("../src/i18n/english-only");
+  assert.equal(englishOnlyRedirectPath("/docs"), null);
+  assert.equal(englishOnlyRedirectPath("/docs/models"), null);
 });
 
 /*

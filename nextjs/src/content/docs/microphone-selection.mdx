@@ -1,0 +1,144 @@
+---
+title: Select a Microphone or Audio Input Device
+description: Select the microphone or audio input device that HyperWhisper records from, and see how HyperWhisper handles device changes.
+---
+
+You can select any audio input device on your system in **Settings → Sound → Microphone** on macOS, Windows, and Linux. You can also select it from the menu bar (macOS), the system tray (Windows and Linux), or the **Audio input** picker on the Linux **Home** page. All of these share one choice. This includes the built-in microphone, a USB microphone, AirPods, a Bluetooth headset, and a virtual audio cable. HyperWhisper remembers your selection across restarts. For more information, see [Persistence](#persistence). The device list refreshes when you connect or disconnect hardware.
+
+## Change the active input device
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Sound settings">
+        Open **Settings → Sound**.
+      </Step>
+      <Step title="Pick a microphone">
+        In the **Microphone** card, select the device that you want to use from the **Microphone** picker.
+      </Step>
+    </Steps>
+
+    The first option, **Default · &lt;device&gt;**, follows the macOS default input device. If you select it, HyperWhisper records from the macOS default device at the time of each recording.
+
+    Your choice applies to HyperWhisper only. It does not change the macOS default input device, so other apps keep their own input.
+
+    You can also click the HyperWhisper icon in the menu bar, move the pointer onto **Microphone**, and click a device. A checkmark shows the active device. The submenu and **Settings → Sound** share the same choice.
+
+    **If you cannot see the HyperWhisper icon in the menu bar:**
+
+    - On a MacBook with a notch, macOS hides menu bar icons that do not fit beside the notch. HyperWhisper is still running. Hold **Command** and drag other icons out of the menu bar, or quit some menu bar apps, until the HyperWhisper icon shows.
+    - On macOS 26 and later, open **System Settings → Menu Bar** and make sure that HyperWhisper is allowed in the menu bar.
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Sound settings">
+        Open **Settings → Sound**.
+      </Step>
+      <Step title="Pick a microphone">
+        In the **Microphone** card, select the device that you want to use from the **Microphone** picker.
+      </Step>
+    </Steps>
+
+    The first option, **Default · &lt;device&gt;**, follows the Windows default input device. Select it to clear your choice.
+
+    You can also right-click the HyperWhisper icon in the system tray, move the pointer onto **Microphone**, and click a device. A checkmark shows the active device. The tray menu and **Settings → Sound** share the same choice.
+
+    You cannot change the microphone while the guided setup is open.
+
+    At each launch, HyperWhisper uses your saved device if it is connected. Otherwise it uses the Windows default input device. For more information, see [When a device disconnects](#when-a-device-disconnects).
+  </Tab>
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Open Sound settings">
+        Open **Settings → Sound**.
+      </Step>
+      <Step title="Pick a microphone">
+        In the **Microphone** card, select the device that you want to use from the **Microphone** picker.
+      </Step>
+    </Steps>
+
+    The first option, **Default · &lt;device&gt;**, follows the default source of your audio service.
+
+    You can also use the **Audio input** picker in the **Record and transcribe** section of the **Home** page, or the **Microphone** submenu of the tray icon (**Use system default**, **Previous microphone**, **Next microphone**). All of them share the same choice.
+
+    The list comes from the active PipeWire or PulseAudio service, which HyperWhisper reads with `pactl`. The **Audio input** row shows only when the list has at least one device. If `pactl` is not on your `PATH`, the row does not show and HyperWhisper reports `pulse_devices_unavailable`.
+  </Tab>
+</Tabs>
+
+<Note>
+  If the system default input is a virtual device, for example BlackHole, Loopback, VB-Cable, or VoiceMeeter, and a physical microphone is connected, the **Default** option does not record from the virtual device. It uses the first physical microphone instead, because a virtual device carries app audio and not your voice. The same rule applies when your selected microphone is disconnected. If only virtual inputs are connected, HyperWhisper records from the system default. A device that you select by hand is always used.
+</Note>
+
+## Real-time device discovery
+
+You do not need to restart HyperWhisper after you connect new hardware.
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper registers CoreAudio property listeners for the device list and for the default input device. When you connect a USB microphone, pair AirPods, or change the system default in **System Settings → Sound**, the Microphone submenu and the **Settings → Sound** picker update automatically. HyperWhisper makes this update with an async main-actor dispatch.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper subscribes to the Windows Core Audio API (`MMDeviceEnumerator`). It receives device-added, device-removed, device-state-changed, and default-device-changed events. HyperWhisper debounces these notifications by 250 ms. As a result, a USB hub with many devices causes one refresh, not one refresh for each device. The Microphone submenu and the **Settings → Sound** picker update automatically after the debounce window.
+  </Tab>
+  <Tab title="Linux">
+    HyperWhisper watches your audio service with `pactl subscribe`. When a source is added or removed, or the default source changes, the **Settings → Sound** picker and the **Audio input** picker update automatically. You can also click **Refresh devices** on the **Home** page to read the list again.
+  </Tab>
+</Tabs>
+
+## When a device disconnects
+
+A Bluetooth disconnection or a USB unplug can remove your selected microphone. If this occurs, HyperWhisper keeps your choice. The picker shows **&lt;name&gt; (not connected)** with an amber line, "Using &lt;device&gt; until &lt;name&gt; is reconnected." Meanwhile HyperWhisper records from the default input device. When the device returns, HyperWhisper changes back to it.
+
+<Tabs>
+  <Tab title="macOS">
+    If the device disconnects during a recording, the recording continues on the macOS default input device, in the same file.
+  </Tab>
+  <Tab title="Windows">
+    If your saved device is unplugged and no other microphone is connected, the amber line reads "No microphone is connected. HyperWhisper will use &lt;name&gt; when it is reconnected."
+  </Tab>
+</Tabs>
+
+<Note>
+  Your microphone choice applies to HyperWhisper only. It does not change the system default input device, so other apps, such as video calls and voice memos, keep their own input.
+</Note>
+
+## Persistence
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper stores your selected device ID in `UserDefaults`, under the key `selectedMicrophoneId`, and the device name under `selectedMicrophoneName`. An empty value tells HyperWhisper to use the macOS system default. The setting stays after app restarts and macOS updates.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper stores the name of your selected device in `settings.json`, under the key `LastSelectedMicrophone`. A `null` value tells HyperWhisper to use the Windows default input device. At each launch, HyperWhisper uses the saved device if it is connected, else the Windows default.
+  </Tab>
+  <Tab title="Linux">
+    HyperWhisper stores the name of your selected device in your settings file, under the key `audio.inputDeviceName`. At each launch, HyperWhisper uses the saved device if it is connected, else the default source of your audio service.
+  </Tab>
+</Tabs>
+
+## Keep Microphone Warm
+
+All three desktop platforms have a **Keep Microphone Warm** option. This option holds an idle capture stream open between recordings. As a result, the audio start delay is shorter when you press your shortcut. The delay is longest with Bluetooth devices, because these devices power down the microphone when they are idle.
+
+<Tabs>
+  <Tab title="macOS">
+    Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
+  </Tab>
+  <Tab title="Windows">
+    Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
+  </Tab>
+  <Tab title="Linux">
+    Enable **Keep microphone warm** in **Settings → Sound**. It is off by default. Linux saves the change automatically.
+
+    Linux holds the stream open on the device that the next recording uses. The stream follows a change of device, including a fallback to the default source or a reconnect.
+  </Tab>
+</Tabs>
+
+<Note>
+  Keep Microphone Warm increases the background use of the microphone permission. If your operating system shows that HyperWhisper uses the microphone when you do not record, this setting is the cause.
+</Note>
+
+## Related
+
+- [Audio Input Volume](/docs/audio-input) — see and adjust the input level of your microphone
+- [Transcribing System Audio](/docs/system-audio) — send system audio from meetings and videos into HyperWhisper with a virtual audio cable
