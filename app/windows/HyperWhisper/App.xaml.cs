@@ -47,6 +47,9 @@ public partial class App : WpfApplication
         // constructs the real App to get App.xaml's resources but never calls Run(),
         // so OnStartup would never run for it.
         Utilities.ComboBoxWheelGuard.Install();
+
+        // Same reasoning: every window's title-bar icon at its own DPI (#1941).
+        Utilities.WindowIconDpi.Install();
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -120,13 +123,22 @@ public partial class App : WpfApplication
             var ex = args.ExceptionObject as Exception;
             LoggingService.Error("Unhandled non-UI exception (IsTerminating=" + args.IsTerminating + ")", ex);
 
-            // A terminating block would otherwise close the app with no word at all.
-            if (HandleApplicationControlBlock(ex, "non_ui_unhandled", showNotice: args.IsTerminating))
+            try
             {
-                return;
-            }
+                // A terminating block would otherwise close the app with no word at all.
+                if (HandleApplicationControlBlock(ex, "non_ui_unhandled", showNotice: args.IsTerminating))
+                {
+                    return;
+                }
 
-            SentryService.Capture(ex, "Unhandled non-UI exception");
+                SentryService.Capture(ex, "Unhandled non-UI exception");
+            }
+            finally
+            {
+                // Lines logged after the Error above (the block report, Sentry's own)
+                // must reach the file before the process dies (#985).
+                LoggingService.Flush();
+            }
         };
 
         TaskScheduler.UnobservedTaskException += (s, args) =>
@@ -577,5 +589,9 @@ public partial class App : WpfApplication
         SentryService.Shutdown();
 
         LoggingService.Info("========== APPLICATION EXITING ==========");
+
+        // The log is written by a background thread (#985); put its last lines on
+        // disk now rather than trusting process exit to run its handler.
+        LoggingService.Flush();
     }
 }

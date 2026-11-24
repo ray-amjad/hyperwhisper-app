@@ -1,11 +1,11 @@
 // DEEPGRAM NOVA-3 PROVIDER
-// Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
+// Primary STT provider - best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { resolveProviderLanguage } from '../lib/language-codes';
-import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { resolveProviderLanguage } from './language-codes';
+import { getProviderDef } from '../lib/stt-models';
+import { billableSeconds, emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, readJson200, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -101,7 +101,7 @@ export async function transcribeWithDeepgram(
   }
 
   const keyterms = initialPrompt ? convertToKeyterms(initialPrompt) : [];
-  const model = context.model || 'nova-3-general';
+  const model = context.model || getProviderDef('deepgram').defaultModel;
   const provider = 'deepgram';
 
   // Language support is per-MODEL here, not per-provider: the medical models are
@@ -111,7 +111,7 @@ export async function transcribeWithDeepgram(
   // One call: resolves, logs the fallback if there is one, and returns what to
   // send.
   const languageSent = resolveProviderLanguage({
-    provider, model, language, context, vocabularyTermCount: keyterms.length,
+    provider, model, language, context, vocabularyTermsAtRisk: keyterms.length,
   });
   const url = buildDeepgramUrl(model, languageSent, keyterms);
 
@@ -141,7 +141,9 @@ export async function transcribeWithDeepgram(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     results?: {
       channels?: Array<{
         alternatives?: Array<{ transcript?: string }>;
@@ -152,14 +154,7 @@ export async function transcribeWithDeepgram(
       duration?: number;
       request_id?: string;
     };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Deepgram', 'malformed 200 response body');
-  }
+  }>(provider, 'Deepgram', response, startedAt, context);
 
   const channel = data.results?.channels?.[0];
   const transcript = channel?.alternatives?.[0]?.transcript || '';
@@ -192,18 +187,20 @@ export async function transcribeWithDeepgram(
     });
   }
 
+  const billedSeconds = billableSeconds(data.metadata?.duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     detectedLanguage: channel?.detected_language,
   }, context);
 
   return {
     text: transcript,
     language: channel?.detected_language,
-    durationSeconds: duration,
-    costUsd: computeDeepgramTranscriptionCost(duration),
+    durationSeconds: billedSeconds,
+    costUsd: computeDeepgramTranscriptionCost(billedSeconds),
     source: 'deepgram',
     requestId: data.metadata?.request_id,
   };

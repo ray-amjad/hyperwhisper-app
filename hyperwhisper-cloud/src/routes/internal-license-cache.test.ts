@@ -8,8 +8,8 @@
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
+import { INTERNAL_SECRET_HEADER } from '../lib/internal-secret';
 import {
-  INTERNAL_SECRET_HEADER,
   createLicenseCacheInvalidateRoute,
   secretMatches,
 } from './internal-license-cache';

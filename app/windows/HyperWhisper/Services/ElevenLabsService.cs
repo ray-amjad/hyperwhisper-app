@@ -5,9 +5,9 @@
 //
 // REQUEST FORMAT: multipart/form-data
 // - file: Audio file
-// - model_id: Model ID (scribe_v2, scribe_v2_medical)
+// - model_id: Model ID (scribe_v2, scribe_v2_medical, scribe_v3)
 // - language_code: ISO 639-1 language code (optional, auto-detect if not specified)
-// - keyterms: Array of strings for vocabulary boosting (scribe_v2 and scribe_v2_medical, up to 100 terms)
+// - keyterms: Array of strings for vocabulary boosting (scribe_v2, scribe_v2_medical and scribe_v3, up to 100 terms)
 //
 // RESPONSE FORMAT: { "text": "transcribed text", ... }
 //
@@ -16,9 +16,10 @@
 // LIMITS:
 // - Supported formats: mp3, mp4, m4a, wav, webm, ogg, flac
 // - Keyterms: max 100 terms, each < 50 characters, max 5 words per term
+//   (ElevenLabs allows scribe_v3 up to 1,000; the shared 100 cap is kept for every model, #3049)
 //
 // VOCABULARY SUPPORT:
-// - scribe_v2, scribe_v2_medical: Support keyterms for custom vocabulary boosting
+// - scribe_v2, scribe_v2_medical, scribe_v3: Support keyterms for custom vocabulary boosting
 // - scribe_v1: Does NOT support custom vocabulary
 //
 // scribe_v1 was retired by ElevenLabs 2026-07-09. Legacy "scribe_v1" IDs are resolved
@@ -105,8 +106,9 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
     {
         var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
-        // Scribe v2 Medical takes keyterms the same way (#2201); the core owns the gate.
-        var sendsKeyterms = request.ModelId is "scribe_v2" or "scribe_v2_medical";
+        // Scribe v2 Medical (#2201) and Scribe v3 (#3049) take keyterms the same way;
+        // the core owns the gate (hw-net elevenlabs.rs supports_keyterms).
+        var sendsKeyterms = request.ModelId is "scribe_v2" or "scribe_v2_medical" or "scribe_v3";
 
         LoggingService.Info("========== ELEVENLABS CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Model: {request.ModelId}");
@@ -132,7 +134,7 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop. The core owns language
-        // normalization, keyterms (scribe_v2, scribe_v2_medical), tag_audio_events, and the
+        // normalization, keyterms (scribe_v2, scribe_v2_medical, scribe_v3), tag_audio_events, and the
         // multi-format ({text} / {transcripts} / {words}) response parsing.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");

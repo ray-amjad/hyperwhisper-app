@@ -6,6 +6,7 @@ import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { HeightTween } from "@/components/ui/HeightTween";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   ALERT_ERROR,
@@ -28,6 +29,26 @@ import {
   TH,
   TR_HOVER,
 } from "@/components/user/panel-styles";
+
+const COLUMNS = ["Email", "Account Key", "Devices"] as const;
+
+/**
+ * The table's header row. The first-load skeleton draws its own copy, laid
+ * out over the skeleton's columns (#1242).
+ */
+function DevicesTableHead({ className }: { className?: string }) {
+  return (
+    <thead className={className}>
+      <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
+        {COLUMNS.map((column) => (
+          <th key={column} className={TH}>
+            {column}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -87,6 +108,21 @@ export default function DevicesClient() {
 
   // The first load's rows paint at opacity 0, then fade in.
   const revealed = useRevealAfterLoad(loading);
+
+  // #1242: the skeleton layer is drawn from the first load on; a mount with
+  // the rows already cached shows none, as before. isLoading is true whenever
+  // a fetch starts with no rows on screen: the first load, and a Refresh
+  // after a failed first load (react-query v5 puts a query with no data back
+  // to "pending"). When keepPreviousData still has rows to show (a range
+  // switch, or a Refresh after a failed one), isLoading stays false and the
+  // dimmed rows stay instead, as on main. So any load draws it, set during
+  // render so it shows in the same commit, as the skeleton rows did before.
+  // Once drawn it stays mounted and fades.
+  const [hasSkeleton, setHasSkeleton] = useState(loading);
+
+  if (loading && !hasSkeleton) setHasSkeleton(true);
+  // Paused, not removed: a bar frozen mid-pulse does not jump while it fades.
+  const pulse = `${SKEL}${revealed ? " [animation-play-state:paused]" : ""}`;
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -167,47 +203,49 @@ export default function DevicesClient() {
         )}
       </ErrorReveal>
 
-      {/* Devices Table */}
-      <div
-        aria-busy={loading || isTransitioning}
-        className={`${CARD} overflow-hidden transition-opacity ${
+      {/* Devices Table. A range switch that changes the row count tweens
+          the card's height (#2757, as #916 did on Customers) instead of
+          stepping in one frame; the first load's rows land at once. */}
+      <HeightTween
+        className={`${CARD} overflow-hidden ${
           isTransitioning ? "opacity-50" : "opacity-100"
         }`}
+        // Tailwind's transition-opacity, kept beside the height tween.
+        transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
+        trigger={data}
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem]">
-            <thead>
-              <tr className="border-b border-[var(--dusk-line)] bg-white/[.02]">
-                <th className={TH}>
-                  Email
-                </th>
-                <th className={TH}>
-                  Account Key
-                </th>
-                <th className={TH}>
-                  Devices
-                </th>
-              </tr>
-            </thead>
-            {/* First load only: skeleton rows, then the real rows fade in.
-                A range switch keeps the previous rows mounted (above). */}
-            {loading && (
-              <tbody aria-hidden className={TBODY}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-48 ${SKEL}`} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-28 ${SKEL}`} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={`h-4 w-12 ${SKEL}`} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            )}
+        {/* aria-busy sits here: HeightTween's box takes no aria props, and
+            this box holds the whole table. The box scrolls sideways on a
+            phone, so it is a named region with a tab stop (#1148, as #1145
+            did on /download): a keyboard user can scroll it.
+            The ring is inset (-outline-offset-2), and rounded like the card:
+            the card clips its overflow, so an outset ring would be hidden. */}
+        <div
+          aria-busy={loading || isTransitioning}
+          aria-label="Device activations table"
+          className="t-skel grid overflow-x-auto overflow-y-hidden rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
+          role="region"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+          tabIndex={0}
+        >
+          <table className="[grid-area:1/1] self-start w-full min-w-[36rem]">
+            {/* While the skeleton shows, its own header is the visible one,
+                laid out over its bars; this one is laid out over the empty
+                table's header text alone, so its labels sit elsewhere. It
+                cross-fades in with the rows, as the skeleton's header fades
+                out, so the labels move only by the rows' own column widths,
+                as they did when the skeleton shared this table. */}
+            <DevicesTableHead
+              className={
+                hasSkeleton
+                  ? `transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                      revealed
+                        ? "opacity-100 blur-[0px]"
+                        : "opacity-0 blur-[2px]"
+                    }`
+                  : undefined
+              }
+            />
             <tbody
               className={`t-skel-content ${TBODY} transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
@@ -242,8 +280,54 @@ export default function DevicesClient() {
               )}
             </tbody>
           </table>
+          {/* While loading: the skeleton rows, in the same grid slot as the
+              table, under its own copy of the header (#1242, the #1236
+              cross-fade on /older-versions). A <tbody> cannot share a slot,
+              so the skeleton is its own table. It stays mounted, as #1236's
+              does: once the rows land it fades out on the same signal that
+              fades them in (at once under reduced motion), its pulse pauses
+              where it is, and it stops taking height (h-0), so the table
+              alone sets the box's height and a short result never waits on
+              the fade. Nor does it set the column's width (min-w-0, its
+              overflow clipped sideways), so the settled table is as wide as
+              before; still in the column, it fades over the table at the
+              table's width. overflow-y-hidden clips what hangs below a short
+              table. A range switch keeps the previous rows mounted (above). */}
+          {hasSkeleton && (
+            <div
+              aria-hidden
+              className={`t-skel-skeleton [grid-area:1/1] self-start pointer-events-none transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                loading ? "" : "h-0 min-w-0 overflow-x-clip"
+              } ${revealed ? "opacity-0 blur-[2px]" : "opacity-100 blur-[0px]"}`}
+            >
+              <table className="w-full min-w-[36rem]">
+                <DevicesTableHead />
+                <tbody className={TBODY}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-48 ${pulse}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-28 ${pulse}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
+                          className={`h-4 w-12 ${pulse}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
+      </HeightTween>
 
       {/* Row Count */}
       {!loading && devices.length > 0 && (
@@ -317,6 +401,8 @@ export function DeviceRow({
     (device) => !seenIds.has(device.deviceId) && seenIds.add(device.deviceId),
   );
   const total = data?.pages[data.pages.length - 1]?.total ?? 0;
+  // The search result's identity: the device list tweens when it changes.
+  const firstPage = data?.pages[0];
   const nextCount = Math.min(DEVICE_PAGE_SIZE, total - loadedDevices.length);
   // A search refetch dims the rows it will replace; "Show more" does not.
   const dimmed = isFetching && !isFetchingNextPage;
@@ -399,90 +485,100 @@ export function DeviceRow({
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
-                  {isLoading ? (
-                    <div className="space-y-2">
-                      {Array.from({ length: 2 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-4 w-64 ${SKEL}`}
-                        />
-                      ))}
-                    </div>
-                  ) : loadedDevices.length === 0 ? (
-                    <p className="text-[var(--dusk-mute)] text-sm">
-                      {debouncedSearch
-                        ? "No devices match that search."
-                        : "No devices found."}
-                    </p>
-                  ) : (
-                    <div
-                      aria-busy={isFetching}
-                      className={`space-y-2 transition-opacity ${
-                        dimmed ? "opacity-50" : "opacity-100"
-                      }`}
-                    >
-                      {loadedDevices.map((device) => (
-                        <div
-                          key={device.deviceId}
-                          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 px-3.5 rounded-xl border border-[var(--dusk-line)] bg-white/[.03]"
-                        >
-                          <div className="flex items-center gap-3">
-                            <svg
-                              className="w-4 h-4 shrink-0 text-[var(--dusk-dim)]"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={1.5}
-                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                              />
-                            </svg>
-                            {/* <bdi> isolates a user-typed name, so an Arabic name or a
-                                bracket never reorders the id beside it on an RTL page (#1659).
-                                The gap sits on the parent: a margin on the <bdi> follows the
-                                id's own LTR direction and lands on the wrong side in RTL. */}
-                            <div className="flex flex-wrap items-baseline gap-x-2">
-                              <bdi className="text-white text-sm">
-                                {device.deviceName || device.deviceId}
-                              </bdi>
-                              {device.deviceName && (
-                                <bdi className="text-[var(--dusk-dim)] text-xs font-mono">
-                                  {device.deviceId}
-                                </bdi>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right text-xs text-[var(--dusk-mute)] tabular-nums">
-                            <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
-                            <div>
-                              Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <p className="text-[var(--dusk-mute)] text-xs tabular-nums">
-                          Showing {formatCount(loadedDevices.length)} of{" "}
-                          {formatCount(total)} device{total !== 1 ? "s" : ""}
-                        </p>
-                        {hasNextPage && (
-                          <button
-                            className={BTN_SECONDARY_XS}
-                            disabled={isFetchingNextPage}
-                            type="button"
-                            onClick={() => fetchNextPage()}
-                          >
-                            {isFetchingNextPage
-                              ? "Loading..."
-                              : `Show ${formatCount(nextCount)} more`}
-                          </button>
-                        )}
+                  {/* A search swaps this list for one of another length, so
+                      it tweens its height too (#2757). It keys on the first
+                      page, not `data`: "Show more" appends a page, and
+                      structural sharing keeps the first page the same object,
+                      so an append grows the list at once instead of pinning
+                      it. A new search is a new query, so a new first page. It
+                      sits inside the .t-cell-reveal clip, which only animates
+                      the open; the first page after the open lands at once. */}
+                  <HeightTween trigger={firstPage}>
+                    {isLoading ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`h-4 w-64 ${SKEL}`}
+                          />
+                        ))}
                       </div>
-                    </div>
-                  )}
+                    ) : loadedDevices.length === 0 ? (
+                      <p className="text-[var(--dusk-mute)] text-sm">
+                        {debouncedSearch
+                          ? "No devices match that search."
+                          : "No devices found."}
+                      </p>
+                    ) : (
+                      <div
+                        aria-busy={isFetching}
+                        className={`space-y-2 transition-opacity ${
+                          dimmed ? "opacity-50" : "opacity-100"
+                        }`}
+                      >
+                        {loadedDevices.map((device) => (
+                          <div
+                            key={device.deviceId}
+                            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 px-3.5 rounded-xl border border-[var(--dusk-line)] bg-white/[.03]"
+                          >
+                            <div className="flex items-center gap-3">
+                              <svg
+                                className="w-4 h-4 shrink-0 text-[var(--dusk-dim)]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                />
+                              </svg>
+                              {/* <bdi> isolates a user-typed name, so an Arabic name or a
+                                  bracket never reorders the id beside it on an RTL page (#1659).
+                                  The gap sits on the parent: a margin on the <bdi> follows the
+                                  id's own LTR direction and lands on the wrong side in RTL. */}
+                              <div className="flex flex-wrap items-baseline gap-x-2">
+                                <bdi className="text-white text-sm">
+                                  {device.deviceName || device.deviceId}
+                                </bdi>
+                                {device.deviceName && (
+                                  <bdi className="text-[var(--dusk-dim)] text-xs font-mono">
+                                    {device.deviceId}
+                                  </bdi>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right text-xs text-[var(--dusk-mute)] tabular-nums">
+                              <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
+                              <div>
+                                Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                          <p className="text-[var(--dusk-mute)] text-xs tabular-nums">
+                            Showing {formatCount(loadedDevices.length)} of{" "}
+                            {formatCount(total)} device{total !== 1 ? "s" : ""}
+                          </p>
+                          {hasNextPage && (
+                            <button
+                              className={BTN_SECONDARY_XS}
+                              disabled={isFetchingNextPage}
+                              type="button"
+                              onClick={() => fetchNextPage()}
+                            >
+                              {isFetchingNextPage
+                                ? "Loading..."
+                                : `Show ${formatCount(nextCount)} more`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </HeightTween>
                 </div>
               </div>
             </div>

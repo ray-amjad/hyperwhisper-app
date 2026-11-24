@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-import RotateAccountKeyView, {
-  issueRefusal,
-  type RotatePhase,
-} from "./RotateAccountKeyView";
+import RotateAccountKeyView, { issueRefusal } from "./RotateAccountKeyView";
+import { useKeyAction } from "./use-key-action";
 
 import { MAX_LIVE_ACCOUNT_KEYS } from "@/lib/account-key-limits";
-import { authClient } from "@/src/lib/auth-client";
 import { api } from "@/lib/trpc/client";
 
 interface IssueAccountKeyControlProps {
@@ -55,8 +51,12 @@ export default function IssueAccountKeyControl({
 }: IssueAccountKeyControlProps) {
   const t = useTranslations("licenseKeysCard");
   const utils = api.useUtils();
-  const [phase, setPhase] = useState<RotatePhase>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const { phase, setPhase, error, onRefusal, viewHandlers } = useKeyAction({
+    email,
+    emailProven,
+    onNotice,
+    linkSentKey: "issueLinkSent",
+  });
 
   const issue = api.customer.issueAccountKey.useMutation({
     onSuccess: (data) => {
@@ -83,36 +83,9 @@ export default function IssueAccountKeyControl({
       onNotice(t("issued"));
     },
     onError: (err) => {
-      const refusal = issueRefusal(err.data?.code);
-
-      if (refusal.refetch) void utils.customer.licensesWithCredits.invalidate();
-      setPhase(refusal.phase);
-      setError(
-        refusal.message
-          ? t(refusal.message, { max: MAX_LIVE_ACCOUNT_KEYS })
-          : null,
-      );
+      onRefusal(issueRefusal(err.data?.code), { max: MAX_LIVE_ACCOUNT_KEYS });
     },
   });
-
-  async function sendLink() {
-    setError(null);
-    setPhase("sending");
-    const { error: linkError } = await authClient.signIn.magicLink({
-      email,
-      callbackURL: window.location.pathname,
-    });
-
-    if (linkError) {
-      setPhase("verify");
-      setError(t("linkFailed"));
-
-      return;
-    }
-
-    setPhase("idle");
-    onNotice(t("issueLinkSent"));
-  }
 
   const disabledReason =
     liveKeyCount >= MAX_LIVE_ACCOUNT_KEYS
@@ -140,24 +113,7 @@ export default function IssueAccountKeyControl({
       licenseId="account"
       notice={notice}
       phase={phase}
-      onCancel={() => {
-        setError(null);
-        setPhase("idle");
-      }}
-      onConfirm={() => {
-        if (issue.isPending) return;
-        setError(null);
-        setPhase("rotating");
-        issue.mutate();
-      }}
-      onSendLink={() => {
-        void sendLink();
-      }}
-      onStart={() => {
-        onNotice(null);
-        setError(null);
-        setPhase(emailProven ? "confirming" : "verify");
-      }}
+      {...viewHandlers(() => issue.mutate(), issue.isPending)}
     />
   );
 }
