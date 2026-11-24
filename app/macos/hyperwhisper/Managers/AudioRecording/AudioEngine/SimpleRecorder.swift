@@ -224,9 +224,10 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// ran to 10 s.
     nonisolated static let recorderStopTimeout: DispatchTimeInterval = .seconds(5)
 
-    /// The deadline `stopRecording()` uses. Test seam, so a test does not wait
-    /// the full 5 s. Production never changes it.
-    var stopTimeout: DispatchTimeInterval = SimpleRecorder.recorderStopTimeout
+    /// The deadline `stopRecording()` uses. Test seam, so a test fires it by hand
+    /// instead of racing a wall-clock timer on a loaded CI runner (#1866).
+    /// Production never changes it.
+    var stopDeadline: DeadlineGate.Deadline = DeadlineGate.after(SimpleRecorder.recorderStopTimeout)
 
     /// Test seam: put `recorder` in the installed slot without starting it, the
     /// meter loop, or `isRecording`, so a test can reach the publish guards in
@@ -279,7 +280,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// The meter read itself (`updateMeters` + `averagePower`) DID move, to
     /// `meterQueue` — see `requestMeterRead(from:)` (Sentry HYPERWHISPER-KB) —
     /// and so did the live recorder's `stop()`, behind it on the same queue —
-    /// see `stopOnMeterQueue(_:on:timeout:using:)` (#1359). Resuming the
+    /// see `stopOnMeterQueue(_:on:deadline:using:)` (#1359). Resuming the
     /// continuation establishes the happens-before edge for each handoff, which
     /// is why no `@unchecked Sendable` conformance is needed anywhere.
     ///
@@ -609,7 +610,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     }
 
     /// Stop `recorder` on `queue` once every meter read queued ahead of it has
-    /// returned, and wait at most `timeout` for that (#1359).
+    /// returned, and wait for that until `deadline` fires (#1359).
     ///
     /// **Why the meter queue:** `requestMeterRead(from:)` reads the same recorder on
     /// `meterQueue`. `AVAudioRecorder` is not documented as thread-safe, and a
@@ -618,16 +619,16 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// moment of stop. The queue is serial, so a read and a stop never overlap.
     ///
     /// **Why bounded:** the read ahead of the stop can be stuck for 10 s or more.
-    /// `DeadlineGate` stops waiting after `timeout` and returns `.timedOut`. The
+    /// `DeadlineGate` stops waiting when `deadline` fires and returns `.timedOut`. The
     /// stop is not cancelled (`.runAnyway`): it runs when the lock frees, so the
     /// microphone is released then. Its file is the caller's to leave alone.
     nonisolated static func stopOnMeterQueue(
         _ recorder: any LiveAudioRecording,
         on queue: DispatchQueue,
-        timeout: DispatchTimeInterval,
+        deadline: @escaping DeadlineGate.Deadline,
         using stopper: @escaping RecorderStopper
     ) async -> RecorderStopOutcome {
-        let gate = DeadlineGate(queue: queue, timeout: timeout, queuedPastDeadline: .runAnyway)
+        let gate = DeadlineGate(queue: queue, deadline: deadline, queuedPastDeadline: .runAnyway)
         let outcome = await gate.run({
             SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: stopper)
         }, discardLate: { _ in
@@ -689,7 +690,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// wait sees a recorder that is already stopped.
     ///
     /// - Returns: `.stopped` once `stop()` has returned and the file is finalised, or
-    ///   `.timedOut` after `stopTimeout` (5 s) with the file NOT finalised. On
+    ///   `.timedOut` after `recorderStopTimeout` (5 s) with the file NOT finalised. On
     ///   `.timedOut` the caller must not read the file; leave it for
     ///   `CrashRecoveryManager` (Ray, 2026-10-07).
     func stopRecording() async -> RecorderStopOutcome {
@@ -709,7 +710,7 @@ class SimpleRecorder: NSObject, ObservableObject {
         let outcome = await SimpleRecorder.stopOnMeterQueue(
             retired,
             on: meterQueue,
-            timeout: stopTimeout,
+            deadline: stopDeadline,
             using: recorderStopper
         )
         switch outcome {
