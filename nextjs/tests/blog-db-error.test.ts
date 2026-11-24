@@ -81,7 +81,12 @@ afterEach(() => {
 const blogUrl = "https://www.hyperwhisper.com/en/blog/a-real-post";
 
 // The posts written in src/content/code-posts, newest first.
-const CODE_SLUGS = ["hyperwhisper-vs-handy-vs-fluidvoice", "hyperwhisper-vs-spokenly"];
+const CODE_SLUGS = [
+  "best-dictation-software-for-windows",
+  "free-speech-to-text-app",
+  "hyperwhisper-vs-handy-vs-fluidvoice",
+  "hyperwhisper-vs-spokenly",
+];
 
 describe("at runtime (a background revalidation)", () => {
   beforeEach(() => {

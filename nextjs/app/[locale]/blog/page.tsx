@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPosts } from "@/src/content/blog";
+import { formatTagLabel } from "@/src/content/blog-tags";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { englishStaticPageMetadata } from "@/lib/site-metadata";
 import { WRAP } from "@/components/landing/dusk";
@@ -90,7 +91,7 @@ function PostMeta({ post }: { post: Post }) {
   return (
     <p className={LABEL}>
       {formatLongUTCDate(post.frontMatter.date)}
-      {tag ? ` · ${tag}` : null}
+      {tag ? ` · ${formatTagLabel(tag)}` : null}
     </p>
   );
 }
@@ -207,7 +208,7 @@ export default async function BlogPage({ params }: Props) {
                               key={tag}
                               className="rounded-full border border-[var(--dusk-line)] px-3 py-1 text-xs text-[#dcdcf0]"
                             >
-                              {tag}
+                              {formatTagLabel(tag)}
                             </span>
                           ))}
                         </div>

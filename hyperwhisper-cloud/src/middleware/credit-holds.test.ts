@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { AuthContext } from './auth';
 import type { CreditHoldStore, ReserveHoldRequest, ReserveHoldResult } from '../lib/credit-hold-store';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
+import { RedisNotConfiguredError } from '../lib/redis-client';
 
 const cacheWrites: number[] = [];
 mock.module('../lib/redis', () => ({
@@ -288,6 +289,128 @@ describe('settling a hold through deductCredits', () => {
     });
     await settle();
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+});
+
+describe('a reservation whose reply was lost (#2921)', () => {
+  // The script ran in Redis, then the reply never came back (network error or
+  // timeout after the EVAL). `lossyStore` throws after the memory twin has
+  // already applied the write, which is exactly that.
+  function lossyStore(loseReply: (call: number) => boolean): CreditHoldStore {
+    let call = 0;
+    return {
+      async reserve(request) {
+        const result = await store.reserve(request);
+        call += 1;
+        if (loseReply(call)) throw new Error('fetch failed: socket closed before response');
+        return result;
+      },
+      release: (account, holdId) => store.release(account, holdId),
+    };
+  }
+
+  test('a hold whose reserve reply was lost is still released when the request ends', async () => {
+    setCreditHoldStoreForTests(lossyStore((call) => call === 1));
+    await captureErrors(async () => {
+      // Request 1: 5-credit estimate, reply lost -> fails open, is served,
+      // bills nothing (e.g. the provider failed) and ends.
+      const first = await withCreditHoldScope(() => validateCredits(auth(5), 5));
+      expect(first.ok).toBe(true);
+      await settle();
+
+      // Request 2 on the same key a moment later, same 5-credit balance.
+      const second = await withCreditHoldScope(() => validateCredits(auth(5), 5));
+      await settle();
+
+      expect(second.ok).toBe(true);
+      expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+    });
+  });
+
+  test('a lost reply on a RESIZE of a granted hold is released whole when the request ends', async () => {
+    setCreditHoldStoreForTests(lossyStore((call) => call === 2));
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        expect((await validateCredits(a, 2)).ok).toBe(true);
+        // The resize to 5 lands in Redis but its reply is lost: the hold
+        // believes it has 2, Redis has 5.
+        expect((await validateCredits(a, 5)).ok).toBe(true);
+        expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
+      });
+    });
+    await settle();
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+    expect(store.calls.filter((call) => call.op === 'release')).toHaveLength(1);
+  });
+
+  test('a lost reply on the settle-time grow fails open, charges in full, and releases after the charge', async () => {
+    const order: string[] = [];
+    const lossy = lossyStore((call) => call === 2);
+    setCreditHoldStoreForTests({
+      reserve: lossy.reserve,
+      release: async (account, holdId) => {
+        order.push(`release(cache=${cacheWrites.length})`);
+        await store.release(account, holdId);
+      },
+    });
+    globalThis.fetch = mock(async () => {
+      order.push('charge');
+      return Response.json({ credits_remaining: 7 });
+    }) as unknown as typeof fetch;
+
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        const a = auth(10);
+        await validateCredits(a, 1);
+        // 2.5 credits, above the 1-credit hold: the grow lands, its reply is lost.
+        expect(await deductCredits(a, 0.0025, { endpoint: '/transcribe' }).recorded).toBe(2.5);
+      });
+      await settle();
+    });
+
+    expect(order).toEqual(['charge', 'release(cache=1)']);
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('a lost reply on a live session hold is released by the session', async () => {
+    setCreditHoldStoreForTests(lossyStore(() => true));
+    await captureErrors(async () => {
+      const { hold, outcome } = await reserveSessionHold(auth(10), 1, 5);
+      expect(outcome.kind).toBe('unavailable');
+      expect(store.outstandingMilli(ACCOUNT)).toBe(5000);
+      await hold.release();
+    });
+    expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+
+  test('a refusal with a known reply wrote nothing and calls no release', async () => {
+    // Another request holds 8 of the 10 credits, so the store refuses 5.
+    await store.reserve({
+      account: ACCOUNT, holdId: 'other', minMilli: 8000, maxMilli: 8000,
+      balanceMilli: 10_000, nowMs: Date.now(), ttlMs: 60_000,
+    });
+    await withCreditHoldScope(async () => {
+      expect((await validateCredits(auth(10), 5)).ok).toBe(false);
+    });
+    await settle();
+    expect(store.calls.map((call) => call.op)).toEqual(['reserve', 'reserve']);
+    expect([...store.holds(ACCOUNT).keys()]).toEqual(['other']);
+  });
+
+  test('an unconfigured store never sent the script and calls no release', async () => {
+    let releases = 0;
+    setCreditHoldStoreForTests({
+      reserve: async () => { throw new RedisNotConfiguredError(); },
+      release: async () => { releases += 1; },
+    });
+    await captureErrors(async () => {
+      await withCreditHoldScope(async () => {
+        expect((await validateCredits(auth(10), 4)).ok).toBe(true);
+      });
+    });
+    await settle();
+    expect(releases).toBe(0);
   });
 });
 
