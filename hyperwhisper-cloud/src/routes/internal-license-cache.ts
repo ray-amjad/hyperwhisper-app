@@ -24,8 +24,8 @@ import { invalidateCachedLicense } from '../lib/redis-core';
 import { validateContentLength } from '../lib/request-limits';
 import { readAccountKey } from '../lib/account-key';
 import { createRedisGetter } from '../lib/redis-client';
+import { INTERNAL_SECRET_HEADER, internalSecret } from '../lib/internal-secret';
 
-export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
 
 /** Longer than any key the site mints (19 chars). */
 const MAX_KEY_LENGTH = 128;
@@ -96,6 +96,6 @@ export function createLicenseCacheInvalidateRoute(deps: LicenseCacheInvalidateDe
 const getRedis = createRedisGetter();
 
 export const licenseCacheInvalidateRoute = createLicenseCacheInvalidateRoute({
-  secret: () => process.env.HYPERWHISPER_INTERNAL_SECRET,
+  secret: internalSecret,
   invalidate: (licenseKey) => invalidateCachedLicense(getRedis, licenseKey),
 });

@@ -3,7 +3,7 @@
 //   - mai-transcribe-1.5 — 42 documented locales
 //   - mai-transcribe-2   — 60 documented locales
 // Both take phrase-list biasing. The model is chosen by `X-STT-Model`; the
-// per-model locale tables live in `lib/language-codes.ts`.
+// per-model locale tables live in `language-codes.ts`.
 //
 // API: POST https://<resource>.cognitiveservices.azure.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15
 // Auth: Ocp-Apim-Subscription-Key
@@ -15,13 +15,14 @@
 // IMPORTANT: the `definition` part MUST be sent as application/json. The
 // service rejects text/plain JSON with HTTP 400.
 
-import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   audioExtensionFromContentType,
   computeUploadTimeoutMs,
   fetchWithTimeout,
@@ -30,6 +31,10 @@ import {
   splitVocabularyTerms,
   readJson200,
 } from './utils';
+import { flyRegion as currentFlyRegion } from '../lib/fly-machine';
+
+// Azure's upload cap, from the one per-provider table (audio-limits.ts).
+const MAX_UPLOAD_BYTES = PROVIDER_AUDIO_CAPS['azure-mai'].adapterMaxBytes;
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -69,7 +74,7 @@ function parsePhraseList(initialPrompt: string): string[] {
   });
 }
 
-// Locale normalization lives in `lib/language-codes.ts`. Stripping the region
+// Locale normalization lives in `language-codes.ts`. Stripping the region
 // was never the whole job: the picker offers Norwegian as `no`, and Azure's
 // operational table lists only `nb`. `resolveProviderLanguage` applies that
 // alias and checks the result against the codes Azure documents FOR THE MODEL
@@ -87,7 +92,7 @@ const APAC_FLY_REGIONS = new Set(['hkg', 'nrt', 'sin', 'syd', 'maa']);
 const EU_FLY_REGIONS = new Set(['ams', 'arn', 'cdg', 'fra', 'lhr', 'mad', 'otp', 'waw', 'jnb']);
 
 function pickAzureRegion(): AzureMaiRegion {
-  const flyRegion = (process.env.FLY_REGION || '').toLowerCase();
+  const flyRegion = (currentFlyRegion() ?? '').toLowerCase();
   let preferred: AzureMaiRegion = 'eastus';
   if (APAC_FLY_REGIONS.has(flyRegion)) preferred = 'southeastasia';
   else if (EU_FLY_REGIONS.has(flyRegion)) preferred = 'northeurope';
@@ -117,12 +122,12 @@ export async function transcribeWithAzureMai(
   const startedAt = performance.now();
   const provider = 'azure-mai';
 
-  if (audio.byteLength > AZURE_MAI_MAX_BYTES) {
+  if (audio.byteLength > MAX_UPLOAD_BYTES) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      maxBytes: AZURE_MAI_MAX_BYTES,
+      maxBytes: MAX_UPLOAD_BYTES,
     }, context);
-    throw new AudioTooLargeError('Azure MAI', audio.byteLength, AZURE_MAI_MAX_BYTES);
+    throw new AudioTooLargeError('Azure MAI', audio.byteLength, MAX_UPLOAD_BYTES);
   }
 
   // MAI takes only wav/mp3/flac, so an unmatched content type is a hard 415
@@ -210,7 +215,7 @@ export async function transcribeWithAzureMai(
     localeSent: resolvedLocale ?? 'auto',
     phraseCount: phrases.length,
     azureRegion,
-    flyRegion: process.env.FLY_REGION,
+    flyRegion: currentFlyRegion(),
   }, context);
 
   const response = await fetchWithTimeout(provider, url, {
@@ -282,18 +287,20 @@ export async function transcribeWithAzureMai(
     };
   }
 
+  const billedSeconds = billableSeconds(durationSeconds, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startedAt),
     transcriptChars: transcript.length,
-    durationSeconds,
+    durationSeconds: billedSeconds,
     detectedLanguage,
   }, context);
 
   return {
     text: transcript,
     language: detectedLanguage,
-    durationSeconds,
-    costUsd: computeAzureMaiTranscriptionCost(durationSeconds, model),
+    durationSeconds: billedSeconds,
+    costUsd: computeAzureMaiTranscriptionCost(billedSeconds, model),
     source: 'azure-mai',
   };
 }

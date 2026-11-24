@@ -172,6 +172,9 @@ A failed run throws, so it shows as an error in Workers Logs. Test locally with
 
 ## 5. Cutover (done 2026-10-29; kept for reference)
 
+`workers_dev` is false. The `*.workers.dev` hostname in step 1 was only for
+this cutover; the site is served on the custom domains in step 2.
+
 1. Before merging: the real Hyperdrive id is in `wrangler.jsonc`;
    `PLANETSCALE_DATABASE_URL` is in the GitHub `Production` environment
    (synced from Infisical) and that environment is limited to `main`

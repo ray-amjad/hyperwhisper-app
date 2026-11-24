@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { servedNameFor, type SttProviderId } from './lib/stt-models';
-import { defaultModelFor, servedLLMName, type LLMProvider } from './lib/llm-provider';
+import { defaultModelFor, servedLLMName, type LLMProvider } from './providers/llm-provider';
 
 /** The provider's static label: its default row's served name. */
 const providerLabel = (provider: LLMProvider): string => servedLLMName(provider, defaultModelFor(provider));

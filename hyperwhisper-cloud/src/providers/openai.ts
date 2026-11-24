@@ -6,18 +6,20 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { findModelRow, getProviderDef } from '../lib/stt-models';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  billableSeconds,
   estimateSecondsFromBytes,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -98,8 +100,9 @@ export async function transcribeWithOpenAI(
     throw new Error('OPENAI_API_KEY not configured');
   }
 
-  if (audio.byteLength > OPENAI_INLINE_MAX_BYTES) {
-    throw new AudioTooLargeError('OpenAI', audio.byteLength, OPENAI_INLINE_MAX_BYTES);
+  const maxBytes = PROVIDER_AUDIO_CAPS.openai.adapterMaxBytes;
+  if (audio.byteLength > maxBytes) {
+    throw new AudioTooLargeError('OpenAI', audio.byteLength, maxBytes);
   }
 
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
@@ -175,12 +178,7 @@ export async function transcribeWithOpenAI(
     });
   }
 
-  let data: { text?: string; language?: string; duration?: number; usage?: OpenAIUsage };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('OpenAI', 'malformed 200 response body');
-  }
+  const data = await readJson200<{ text?: string; language?: string; duration?: number; usage?: OpenAIUsage }>(provider, 'OpenAI', response, startedAt, context);
 
   const transcript = data.text || '';
   // whisper-1 verbose_json gives a real duration, and a duration-billed model's
@@ -227,8 +225,8 @@ export async function transcribeWithOpenAI(
   // Fail-closed: a duration-billed model's successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate (never $0).
   // The gpt-4o branch already estimates from bytes above.
-  if (isDurationBilled(model) && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
-    durationSeconds = estimateSecondsFromBytes(audio.byteLength);
+  if (isDurationBilled(model)) {
+    durationSeconds = billableSeconds(durationSeconds, audio.byteLength);
   }
 
   const costUsd = computeOpenAITranscriptionCost(model, {

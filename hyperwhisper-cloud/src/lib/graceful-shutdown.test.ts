@@ -172,7 +172,7 @@ describe('runGracefulShutdown deadlines', () => {
     }) as unknown as typeof fetch;
 
     startStuckRequest();
-    void deductCredits(AUTH, 0.05, { requestId: 'before-signal' }, '203.0.113.1');
+    void deductCredits(AUTH, 0.05, { requestId: 'before-signal' });
 
     const { exit, exited } = captureExit();
     const startedReal = Date.now();
@@ -207,7 +207,7 @@ describe('runGracefulShutdown deadlines', () => {
         await delay(5);
         clock.advance(30_000);
         writesDoneAt.push(clock.since());
-        if (chainOpen) void deductCredits(AUTH, 0.05, { requestId: `chain-${writesDoneAt.length}` }, '203.0.113.1');
+        if (chainOpen) void deductCredits(AUTH, 0.05, { requestId: `chain-${writesDoneAt.length}` });
         return jsonOk({});
       }
       throw new Error(`Unexpected fetch: ${String(input)}`);
@@ -218,7 +218,7 @@ describe('runGracefulShutdown deadlines', () => {
     const finish = startStuckRequest();
     setTimeout(() => {
       clock.advance(60_000);
-      void deductCredits(AUTH, 0.05, { requestId: 'in-flight' }, '203.0.113.1');
+      void deductCredits(AUTH, 0.05, { requestId: 'in-flight' });
       finish();
     }, 20);
 

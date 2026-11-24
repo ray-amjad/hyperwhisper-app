@@ -2,7 +2,7 @@
 // High accuracy STT using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';

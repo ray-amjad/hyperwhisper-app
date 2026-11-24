@@ -287,3 +287,29 @@ fn elevenlabs_medical_drops_keyterms_over_five_words() {
         vec!["atrial fibrillation".to_string()]
     );
 }
+
+/// Scribe v3 (#3049) takes keyterms on the same request shape and gets the
+/// same caps as v2: a six-word term is dropped without a slot, and at most 100
+/// terms are sent. ElevenLabs allows v3 up to 1,000 keyterms; the shared
+/// 100-term cap is kept on purpose, so every ElevenLabs model sends the same
+/// vocabulary.
+#[test]
+fn elevenlabs_scribe_v3_keeps_the_five_word_and_100_term_caps() {
+    let mut words = vec![
+        "one two three four five".to_string(),
+        "a b c d e f".to_string(),
+    ];
+    words.extend((0..150).map(|i| format!("t{i}")));
+    let p = TranscribeParams {
+        api_key: "el-test".into(),
+        model: "scribe_v3".into(),
+        vocabulary: words,
+        audio_path: "/tmp/a.wav".into(),
+        ..Default::default()
+    };
+    let terms = elevenlabs_keyterms(&p);
+    assert_eq!(terms.len(), 100);
+    assert_eq!(terms[0], "one two three four five");
+    assert!(!terms.iter().any(|t| t == "a b c d e f"));
+    assert_eq!(terms[99], "t98");
+}

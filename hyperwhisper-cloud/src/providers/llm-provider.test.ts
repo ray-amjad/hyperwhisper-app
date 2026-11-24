@@ -12,10 +12,10 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
 import { callWithRetry, shouldFallback, type LLMProvider } from './llm-provider';
-import { buildCorrectionRequest } from '../providers/llm-contract';
-import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
-import { LLM_REQUEST_TIMEOUT_MS } from '../providers/llm-fetch';
-import { refusedUrl, silentUpstream, type TestUpstream } from '../providers/test-upstreams';
+import { buildCorrectionRequest } from './llm-contract';
+import { LLMRequestError, LLMTimeoutError } from './llm-errors';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
+import { refusedUrl, silentUpstream, type TestUpstream } from './test-upstreams';
 import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;

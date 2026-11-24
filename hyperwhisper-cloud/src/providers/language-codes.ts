@@ -49,8 +49,8 @@
 // an upstream offers several for one language, and the picker-code aliases the
 // catalogs cannot express.
 
-import type { ProviderRequestContext } from '../providers/types';
-import { isExplicitLanguage, logProviderEvent } from '../providers/utils';
+import type { ProviderRequestContext } from './types';
+import { isExplicitLanguage, logProviderEvent } from './utils';
 
 /**
  * Strip a region/script subtag down to the primary subtag, lowercased.
@@ -126,13 +126,14 @@ export interface ResolveProviderLanguageOptions {
   language: string | undefined;
   context?: ProviderRequestContext;
   /**
-   * Number of custom-vocabulary terms riding on this request, if any. Deepgram
-   * honours `keyterm`/`keywords` only in monolingual mode, so dropping the
-   * language quietly voids the user's vocabulary too — that second loss is
-   * reported on the same event instead of being invisible. See GROUP D note on
-   * `buildDeepgramUrl`.
+   * Custom-vocabulary terms the upstream drops when the language falls back to
+   * auto-detect, if any. Deepgram honours `keyterm`/`keywords` only in
+   * monolingual mode, so dropping the language quietly voids the user's
+   * vocabulary too — that second loss is reported on the same event instead of
+   * being invisible. See GROUP D note on `buildDeepgramUrl`. An adapter whose
+   * vocabulary survives auto-detect leaves it out.
    */
-  vocabularyTermCount?: number;
+  vocabularyTermsAtRisk?: number;
 }
 
 /**
@@ -148,7 +149,7 @@ export function resolveProviderLanguage({
   model,
   language,
   context,
-  vocabularyTermCount = 0,
+  vocabularyTermsAtRisk = 0,
 }: ResolveProviderLanguageOptions): string | null {
   if (!isExplicitLanguage(language)) return null;
 
@@ -165,7 +166,7 @@ export function resolveProviderLanguage({
     fallback: 'auto_detect',
     // > 0 means the language fallback also cost the user their custom
     // vocabulary — Deepgram drops keyterms outside monolingual mode.
-    vocabularyTermsAtRisk: provider === 'deepgram' ? vocabularyTermCount : 0,
+    vocabularyTermsAtRisk,
   }, context);
   return null;
 }

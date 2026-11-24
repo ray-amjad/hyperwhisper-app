@@ -22,6 +22,7 @@
 
 import { FLY_REPLAY_MAX_BODY_BYTES } from '../lib/constants';
 import type { SttProviderId } from '../lib/stt-models';
+import { flyRegion } from '../lib/fly-machine';
 
 interface GeoBlockDef {
   /** Fly regions that serve the provider's geo-block page instead of the API. */
@@ -49,7 +50,7 @@ const GEO_BLOCKS: Partial<Record<SttProviderId, GeoBlockDef>> = {
  * import to be seen.
  */
 function currentRegion(): string {
-  return process.env.FLY_REGION || '';
+  return flyRegion() ?? '';
 }
 
 function blockFor(provider: SttProviderId, region: string): GeoBlockDef | undefined {

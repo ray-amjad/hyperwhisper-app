@@ -46,6 +46,16 @@ export const GEMINI_TRANSCRIBE_INLINE_MAX_BYTES = 14 * 1024 * 1024;
 // than after allocating the buffer. Shared with the adapter (defense-in-depth).
 export const OPENAI_INLINE_MAX_BYTES = 25 * 1024 * 1024;
 
+// Soniox supports async files up to 300 min, but our request-scoped poll budget
+// is POLL_DEADLINE_MS (providers/soniox.ts), and a transcription still "processing" at the deadline
+// CANNOT be deleted (Soniox returns 409 transcription_invalid_state) — so
+// abandoning it there leaks a running, billable upstream job. Gate overly-long
+// uploads BEFORE creating any upstream file/job so we only accept audio we can
+// reliably poll to completion and clean up. ~30 min at the 64 kbps byte→seconds
+// estimate comfortably covers dictation while keeping a wide margin under the
+// deadline at Soniox's faster-than-realtime batch throughput.
+export const SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE;
+
 // Azure MAI-Transcribe accepts payloads up to ~300 MB across its multipart
 // upload — beyond that the gateway 413s with a generic "Request entity too
 // large" before any model code runs.
