@@ -196,85 +196,17 @@ class AudioFileConverter {
         }
         assetWriter.add(writerInput)
 
-        // STEP 9: Start reading and writing
-        guard assetReader.startReading() else {
-            AppLogger.audio.error("convertAudioToAAC: reader.startReading() failed; status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
-            throw AudioError.exportFailed
-        }
-
-        guard assetWriter.startWriting() else {
-            AppLogger.audio.error("convertAudioToAAC: writer.startWriting() failed; status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
-            throw AudioError.exportFailed
-        }
-
-        assetWriter.startSession(atSourceTime: .zero)
-
-        // STEP 10: Stream audio samples from reader to writer
-        // This is an async operation that processes samples in chunks
-        let success = await withCheckedContinuation { continuation in
-            let queue = DispatchQueue(label: "audio.conversion")
-
-            // ATOMIC GUARD FOR CONTINUATION SAFETY:
-            // ManagedAtomic ensures the continuation is only resumed once, even if
-            // the callback is invoked multiple times or from different code paths.
-            // The atomic exchange is a single CPU instruction - faster than locks.
-            let isFinished = ManagedAtomic(false)
-
-            // Request media data and append samples as they become available
-            writerInput.requestMediaDataWhenReady(on: queue) {
-                // Early exit if already finished (another path resumed the continuation)
-                if isFinished.load(ordering: .acquiring) { return }
-
-                while writerInput.isReadyForMoreMediaData {
-                    // Check again inside loop in case we finished during iteration
-                    if isFinished.load(ordering: .acquiring) { return }
-
-                    if let sampleBuffer = readerOutput.copyNextSampleBuffer() {
-                        // Append the sample buffer to the writer
-                        if !writerInput.append(sampleBuffer) {
-                            // Append failed - atomically mark as finished and cancel
-                            if isFinished.exchange(true, ordering: .acquiring) == false {
-                                AppLogger.audio.error("convertAudioToAAC: writerInput.append() returned false; writerStatus=\(assetWriter.status.rawValue) writerError=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
-                                assetReader.cancelReading()
-                                assetWriter.cancelWriting()
-                                continuation.resume(returning: false)
-                            }
-                            return
-                        }
-                    } else {
-                        // No more samples (end of file or error)
-                        // Atomically mark as finished before resuming continuation
-                        if isFinished.exchange(true, ordering: .acquiring) == false {
-                            writerInput.markAsFinished()
-
-                            // Check reader status to distinguish success from failure
-                            if assetReader.status == .failed || assetReader.status == .cancelled {
-                                AppLogger.audio.error("convertAudioToAAC: reader ended in status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
-                                assetWriter.cancelWriting()
-                                continuation.resume(returning: false)
-                            } else {
-                                // Reader finished successfully, finalize writing
-                                assetWriter.finishWriting {
-                                    let completed = assetWriter.status == .completed
-                                    if !completed {
-                                        AppLogger.audio.error("convertAudioToAAC: writer.finishWriting completed with status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
-                                    }
-                                    continuation.resume(returning: completed)
-                                }
-                            }
-                        }
-                        return
-                    }
-                }
-            }
-        }
-
-        // STEP 11: Check conversion result
-        if !success {
-            // Clean up failed output file
-            try? FileManager.default.removeItem(at: destinationURL)
-            throw AudioError.exportFailed
-        }
+        // STEP 9: Start reading and writing, then stream samples from reader to writer.
+        // pumpSamples throws AudioError.exportFailed (and removes any partial output) on failure.
+        try await pumpSamples(
+            reader: assetReader,
+            readerOutput: readerOutput,
+            writer: assetWriter,
+            writerInput: writerInput,
+            destinationURL: destinationURL,
+            logPrefix: "convertAudioToAAC",
+            queueLabel: "audio.conversion"
+        )
 
         // Return format metadata for logging and verification
         return (sampleRate: sampleRate, channels: channels, bitrate: bitrate)
@@ -530,27 +462,79 @@ class AudioFileConverter {
         }
         assetWriter.add(writerInput)
 
-        // STEP 6: Start reading and writing
+        // STEP 6: Start reading and writing, then stream samples from reader to writer.
+        // pumpSamples throws AudioError.exportFailed (and removes any partial output) on failure.
+        try await pumpSamples(
+            reader: assetReader,
+            readerOutput: readerOutput,
+            writer: assetWriter,
+            writerInput: writerInput,
+            destinationURL: destinationURL,
+            logPrefix: "convertAudioToWAV",
+            queueLabel: "audio.wav.conversion"
+        )
+
+        AppLogger.audio.info("convertAudioToWAV: wrote \(Int(targetSampleRate))Hz \(targetChannels)ch WAV → \(destinationURL.lastPathComponent, privacy: .public)")
+
+        // Return the format actually written, not the source format
+        return (sampleRate: targetSampleRate, channels: targetChannels)
+    }
+
+    // MARK: - Sample Pump
+
+    /// Streams every sample buffer from the reader into the writer and finalises the file.
+    ///
+    /// **Purpose:**
+    /// The one reader → writer pump shared by `convertAudioToAAC` and `convertAudioToWAV`.
+    /// The caller has already added `readerOutput` to the reader and `writerInput` to the
+    /// writer; the two converters differ only in those settings, never in how samples move.
+    ///
+    /// **What This Does:**
+    /// 1. **Start**: `startReading()`, `startWriting()`, then a session at time zero
+    /// 2. **Stream**: Append sample buffers whenever the writer input is ready for more
+    /// 3. **Finalize**: Mark the input finished and call `finishWriting` once the reader runs dry
+    ///
+    /// **Parameters:**
+    /// - `logPrefix`: The calling method's name (`"convertAudioToAAC"` / `"convertAudioToWAV"`).
+    ///   Every log line starts with it, exactly as when each converter had its own copy.
+    /// - `queueLabel`: Label of the serial queue the writer input's ready callback runs on.
+    ///
+    /// **Throws:**
+    /// - `AudioError.exportFailed`: If reading or writing cannot start, an append fails, the
+    ///   reader ends failed or cancelled, or `finishWriting` does not complete. In the last
+    ///   three cases the partial output at `destinationURL` is removed first.
+    private func pumpSamples(
+        reader assetReader: AVAssetReader,
+        readerOutput: AVAssetReaderTrackOutput,
+        writer assetWriter: AVAssetWriter,
+        writerInput: AVAssetWriterInput,
+        destinationURL: URL,
+        logPrefix: String,
+        queueLabel: String
+    ) async throws {
+        // Start reading and writing
         guard assetReader.startReading() else {
-            AppLogger.audio.error("convertAudioToWAV: reader.startReading() failed; status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
+            AppLogger.audio.error("\(logPrefix, privacy: .public): reader.startReading() failed; status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
             throw AudioError.exportFailed
         }
 
         guard assetWriter.startWriting() else {
-            AppLogger.audio.error("convertAudioToWAV: writer.startWriting() failed; status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+            AppLogger.audio.error("\(logPrefix, privacy: .public): writer.startWriting() failed; status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
             throw AudioError.exportFailed
         }
 
         assetWriter.startSession(atSourceTime: .zero)
 
-        // STEP 7: Stream audio samples from reader to writer
+        // Stream audio samples from reader to writer.
+        // This is an async operation that processes samples in chunks.
         let success = await withCheckedContinuation { continuation in
-            let queue = DispatchQueue(label: "audio.wav.conversion")
+            let queue = DispatchQueue(label: queueLabel)
 
             // ATOMIC GUARD FOR CONTINUATION SAFETY:
             // The append-failure path, the end-of-stream path and the finishWriting callback
-            // can all reach the continuation. ManagedAtomic makes sure exactly one of them
-            // resumes it — a single CPU instruction, no lock, no deadlock risk.
+            // can all reach the continuation, and the writer input can invoke its ready
+            // block again after one of them has run. ManagedAtomic makes sure exactly one of
+            // them resumes it — a single CPU instruction, no lock, no deadlock risk.
             let isFinished = ManagedAtomic(false)
 
             // Request media data and append samples as they become available
@@ -567,7 +551,7 @@ class AudioFileConverter {
                         if !writerInput.append(sampleBuffer) {
                             // Append failed - atomically mark as finished and cancel
                             if isFinished.exchange(true, ordering: .acquiring) == false {
-                                AppLogger.audio.error("convertAudioToWAV: writerInput.append() returned false; writerStatus=\(assetWriter.status.rawValue) writerError=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+                                AppLogger.audio.error("\(logPrefix, privacy: .public): writerInput.append() returned false; writerStatus=\(assetWriter.status.rawValue) writerError=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
                                 assetReader.cancelReading()
                                 assetWriter.cancelWriting()
                                 continuation.resume(returning: false)
@@ -582,7 +566,7 @@ class AudioFileConverter {
 
                             // Check reader status to distinguish success from failure
                             if assetReader.status == .failed || assetReader.status == .cancelled {
-                                AppLogger.audio.error("convertAudioToWAV: reader ended in status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
+                                AppLogger.audio.error("\(logPrefix, privacy: .public): reader ended in status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
                                 assetWriter.cancelWriting()
                                 continuation.resume(returning: false)
                             } else {
@@ -590,7 +574,7 @@ class AudioFileConverter {
                                 assetWriter.finishWriting {
                                     let completed = assetWriter.status == .completed
                                     if !completed {
-                                        AppLogger.audio.error("convertAudioToWAV: writer.finishWriting completed with status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+                                        AppLogger.audio.error("\(logPrefix, privacy: .public): writer.finishWriting completed with status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
                                     }
                                     continuation.resume(returning: completed)
                                 }
@@ -602,17 +586,12 @@ class AudioFileConverter {
             }
         }
 
-        // STEP 8: Check conversion result
+        // Check conversion result
         if !success {
             // Clean up failed (partial) output file
             try? FileManager.default.removeItem(at: destinationURL)
             throw AudioError.exportFailed
         }
-
-        AppLogger.audio.info("convertAudioToWAV: wrote \(Int(targetSampleRate))Hz \(targetChannels)ch WAV → \(destinationURL.lastPathComponent, privacy: .public)")
-
-        // Return the format actually written, not the source format
-        return (sampleRate: targetSampleRate, channels: targetChannels)
     }
 
     // MARK: - Helper Methods
