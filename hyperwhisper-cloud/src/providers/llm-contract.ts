@@ -3,7 +3,7 @@
 // their vendor-specific request bodies.
 
 export type ChatMessage = {
-  role: 'system' | 'user' | 'assistant' | 'tool';
+  role: 'system' | 'user';
   content: string;
 };
 

@@ -109,7 +109,7 @@ extension ModeEditorView {
     /// - Whisper models: NO vocabulary support
     ///
     /// ELEVENLABS VOCABULARY SUPPORT:
-    /// - Scribe v2: Supports 'keyterms' (up to 100 terms, each ≤50 characters)
+    /// - Scribe v2, v2 Medical and v3: Support 'keyterms' (up to 100 terms, each ≤50 characters)
     /// - Scribe v1: NO vocabulary support
     var showVocabularyUnsupportedNotice: Bool {
         // Parakeet supports vocabulary via phonetic matching (Beider-Morse) + exact replacement

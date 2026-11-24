@@ -43,12 +43,8 @@ const {
   parseGeminiLiveFrame,
   wsStreamingGeminiTranscribePreflight,
 } = await import('./ws-streaming-gemini-transcribe');
-const {
-  createStreamingEventsFor,
-  endActiveStreamingSessions,
-  resetStreamingShutdownForTests,
-  routePathFor,
-} = await import('./ws-streaming-shared');
+const { createStreamingEventsFor, routePathFor } = await import('./ws-streaming-shared');
+const { endLiveSessions, resetLiveSessionsForTests } = await import('../lib/background-work');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -1274,12 +1270,12 @@ describe('gemini live socket lifecycle', () => {
     // A session opened by an earlier test and never closed is still registered.
     // Settle those first, so each test counts only the sessions it opens.
     // The latch is module state and bun runs every test file in one process.
-    afterEach(() => resetStreamingShutdownForTests());
+    afterEach(() => resetLiveSessionsForTests());
 
     async function settleLeftoverSessions(): Promise<void> {
-      await endActiveStreamingSessions();
+      await endLiveSessions();
       // Ending latches the machine as shutting down; reopen it for this test.
-      resetStreamingShutdownForTests();
+      resetLiveSessionsForTests();
       await drainPendingDeductions(2000);
       licenseCharges.length = 0;
     }
@@ -1294,7 +1290,7 @@ describe('gemini live socket lifecycle', () => {
 
       let ending: Promise<number> = Promise.resolve(-1);
       const { entries, serialised } = captureStreamingLogs(() => {
-        ending = endActiveStreamingSessions();
+        ending = endLiveSessions();
       });
       expect(await ending).toBe(1);
       expect(await drainPendingDeductions(2000)).toBe(1);
@@ -1324,7 +1320,7 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toEqual([]);
 
       // ...and the session left the set.
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
     });
 
     test('a session the client already closed is not ended again at shutdown', async () => {
@@ -1334,7 +1330,7 @@ describe('gemini live socket lifecycle', () => {
       await harness.endSession();
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
 
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
       await drainPendingDeductions(2000);
       expect(licenseCharges).toHaveLength(1);
     });

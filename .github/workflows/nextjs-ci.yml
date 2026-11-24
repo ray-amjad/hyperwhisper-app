@@ -22,6 +22,9 @@ on:
     paths: &ci-paths
       - 'nextjs/**'
       - 'shared-app-classification/**'
+      # Read by nextjs/tests (choosing-a-model catalog, credits-per-minute pin).
+      - 'shared-models/**'
+      - 'hyperwhisper-cloud/src/lib/constants.ts'
       - '.github/workflows/nextjs-ci.yml'
   push:
     branches: [main]
