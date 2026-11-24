@@ -135,7 +135,10 @@ test("the blog post template has a crawlable download CTA", () => {
     "utf8",
   );
   assert.match(page, /BlogDownloadCta/);
-  assert.match(cta, /href="\/download"/);
+  // Blog posts are English-only, so the href is the absolute /en/download.
+  assert.match(cta, /href=\{`\/en\$\{downloadPath\(\)\}`\}/);
   assert.match(cta, /Download HyperWhisper/);
-  assert.match(cta, /cta: "blog_post"/);
+  assert.match(cta, /cta="blog_post"/);
+  // A plain click opens the email-capture modal, like every other CTA.
+  assert.match(cta, /onOpen=\{openModal\}/);
 });

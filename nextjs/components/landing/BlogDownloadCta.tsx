@@ -1,12 +1,18 @@
 "use client";
 
-import { Link } from "@/src/i18n/navigation";
+import { DownloadCta, downloadPath } from "@/components/landing/DownloadCta";
 import { BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
 import { GLASS } from "@/components/landing/dusk-pages";
-import { captureDownloadClicked } from "@/src/lib/capture-seo-event";
+import { useDownloadModal } from "@/contexts/DownloadModalContext";
 
-/** Crawlable download CTA at the end of every English blog post. */
+/**
+ * Crawlable download CTA at the end of every English blog post. Like every
+ * other download CTA, a plain left-click opens the email-capture modal; the
+ * href is the /en/download landing page (blog posts are English-only).
+ */
 export function BlogDownloadCta() {
+  const { openModal } = useDownloadModal();
+
   return (
     <div className={`${GLASS} mt-12 p-6 text-center md:p-8`}>
       <p className="text-lg font-semibold text-white">Download HyperWhisper</p>
@@ -14,15 +20,14 @@ export function BlogDownloadCta() {
         Free dictation and speech-to-text for macOS, Windows, and Linux.
       </p>
       <div className="mt-5 flex justify-center">
-        <Link
+        <DownloadCta
           className={`${BTN_WHITE} ${BTN_LG}`}
-          href="/download"
-          onClick={() => {
-            void captureDownloadClicked({ cta: "blog_post" });
-          }}
+          cta="blog_post"
+          href={`/en${downloadPath()}`}
+          onOpen={openModal}
         >
           Download
-        </Link>
+        </DownloadCta>
       </div>
     </div>
   );

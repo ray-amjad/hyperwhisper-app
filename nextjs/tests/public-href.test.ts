@@ -44,3 +44,10 @@ test("off-site and already-www URLs are left alone", () => {
   assert.equal(isOffSiteHref(`${SITE_URL}/docs`), false);
   assert.equal(isOffSiteHref("/en/legal/refund-policy"), false);
 });
+
+test("a look-alike host that only shares a prefix with the site is off-site", () => {
+  assert.equal(isOffSiteHref(`${SITE_URL}.example.com/docs`), true);
+  assert.equal(isOffSiteHref(`${APEX_SITE_URL}.example.com`), true);
+  assert.equal(isOffSiteHref(`${APEX_SITE_URL}/docs`), false);
+  assert.equal(isOffSiteHref(SITE_URL), false);
+});

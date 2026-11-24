@@ -23,8 +23,21 @@ export function rewritePublicHref(url: string, locale: string): string {
   return url;
 }
 
+const OWN_HOSTS = new Set([
+  new URL(SITE_URL).host,
+  new URL(APEX_SITE_URL).host,
+]);
+
+/**
+ * True for an absolute http(s) URL on another host. Compares the parsed host,
+ * not a string prefix, so `https://www.hyperwhisper.com.example.com` is off-site.
+ */
 export function isOffSiteHref(url: string): boolean {
   if (!url.startsWith("http://") && !url.startsWith("https://")) return false;
 
-  return !url.startsWith(SITE_URL) && !url.startsWith(APEX_SITE_URL);
+  try {
+    return !OWN_HOSTS.has(new URL(url).host);
+  } catch {
+    return true;
+  }
 }
