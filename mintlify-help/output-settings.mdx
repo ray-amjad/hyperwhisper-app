@@ -23,10 +23,20 @@ When **Paste result automatically** is on, HyperWhisper copies the transcript to
 
 <Tabs>
   <Tab title="macOS">
-    1. Go to **System Settings → Privacy & Security → Accessibility**.
-    2. Unlock the list.
-    3. Turn on the toggle next to HyperWhisper.
-    4. If the app was open when you changed the setting, restart the app.
+    <Steps>
+      <Step title="Open Accessibility settings">
+        Go to **System Settings → Privacy & Security → Accessibility**.
+      </Step>
+      <Step title="Unlock the list">
+        Unlock the list.
+      </Step>
+      <Step title="Turn on HyperWhisper">
+        Turn on the toggle next to HyperWhisper.
+      </Step>
+      <Step title="Restart the app if needed">
+        If the app was open when you changed the setting, restart the app.
+      </Step>
+    </Steps>
   </Tab>
   <Tab title="Windows">
     Auto Paste sends a **Ctrl+V** keystroke to the focused application. It does not use UI Automation for the paste. HyperWhisper uses UI Automation only before the paste, to find password fields. If the field is a password field, HyperWhisper skips the paste. Auto Paste needs no extra permission.
