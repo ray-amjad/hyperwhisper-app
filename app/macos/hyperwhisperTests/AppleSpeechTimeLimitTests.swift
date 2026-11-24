@@ -490,6 +490,31 @@ struct AppleSpeechTimeLimitTests {
         #expect(outcome.error is CancellationError, "got \(String(describing: outcome.error))")
     }
 
+    /// A task cancelled before `run`, with work that ignores the cancel and
+    /// returns AT ONCE: the cancel must still win. The cancel claims the one
+    /// resume before the work watcher starts, so a fast value never reaches a
+    /// cancelled caller. Repeated, since the old order lost only some races.
+    @Test func aTaskAlreadyCancelledGetsCancellationErrorEvenFromFastWork() async {
+        for _ in 0..<50 {
+            let caller = Task { () -> Error? in
+                withUnsafeCurrentTask { $0?.cancel() }
+                do {
+                    _ = try await AppleSpeechTimeLimit.run(
+                        limit: .seconds(30),
+                        sleep: { _ in try await Task.sleep(for: .seconds(3600)) },
+                        onTimeout: {},
+                        operation: { 42 }
+                    )
+                    return nil
+                } catch {
+                    return error
+                }
+            }
+            let error = await caller.value
+            #expect(error is CancellationError, "got \(String(describing: error))")
+        }
+    }
+
     /// The caller cancels and the work honours it: the work's end cancels the
     /// timer, so a limit that fires anyway later must not run the hook.
     @Test func aCancelledWorkThatEndsNeverRunsTheHook() async {

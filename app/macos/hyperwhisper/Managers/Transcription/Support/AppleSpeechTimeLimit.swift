@@ -126,6 +126,15 @@ enum AppleSpeechTimeLimit {
 
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+                // `onCancel` already ran (the task was cancelled before `run`):
+                // it found no continuation, so end here instead. This comes
+                // BEFORE the work watcher starts, so a fast operation cannot
+                // claim `finished` first and hand a cancelled caller a value.
+                if !cancelBox.install(continuation),
+                   finished.exchange(true, ordering: .acquiringAndReleasing) == false {
+                    continuation.resume(throwing: CancellationError())
+                }
+
                 let timer = Task {
                     do {
                         try await sleep(limit)
@@ -152,14 +161,6 @@ enum AppleSpeechTimeLimit {
                     timer.cancel()
                     guard finished.exchange(true, ordering: .acquiringAndReleasing) == false else { return }
                     continuation.resume(with: result)
-                }
-
-                // `onCancel` already ran (the task was cancelled before `run`
-                // or during the lines above): it found no continuation, so end
-                // here instead.
-                if !cancelBox.install(continuation),
-                   finished.exchange(true, ordering: .acquiringAndReleasing) == false {
-                    continuation.resume(throwing: CancellationError())
                 }
             }
         } onCancel: {
