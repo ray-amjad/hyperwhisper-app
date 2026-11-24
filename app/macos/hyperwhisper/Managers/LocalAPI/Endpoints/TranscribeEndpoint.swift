@@ -33,7 +33,7 @@ enum TranscribeEndpoint {
         do { req = try LocalAPIResponder.decoder.decode(TranscribeRequest.self, from: body) } catch {
             return LocalAPIResponder.badRequest(
                 message: "Invalid JSON body",
-                hint: "Required: file (absolute path) plus either mode_id, or engine + model."
+                hint: APIInputError.requestShapeHint
             )
         }
 
@@ -304,6 +304,24 @@ enum TranscribeEndpoint {
         let message: String
         let hint: String?
 
+        /// What a `/transcribe` body must carry. Sent with the not-JSON 400
+        /// and with `modeIdOrEngineRequired`, so both answers name the same
+        /// fields.
+        static let requestShapeHint = "Required: file (absolute path) plus either mode_id, or engine + model."
+
+        /// `/transcribe` with audio but no `mode_id` and no `engine` (a blank
+        /// or whitespace-only value counts as absent; issue #1100). It used to
+        /// throw `TranscriptionError.invalidRequest`, which the shared table
+        /// renders as a bare "Invalid request." naming no field. The message
+        /// is the Windows head's bytes
+        /// (`WindowsLocalApiBackend.ModeResolution.cs`); still INVALID_REQUEST
+        /// on HTTP 200, so a client that branches on `code` sees no change.
+        static let modeIdOrEngineRequired = APIInputError(
+            code: .invalidRequest,
+            message: "Provide 'mode_id' or 'engine'",
+            hint: requestShapeHint
+        )
+
         /// `engine: whisper` (any alias of `whisperLocal`) with no or a blank
         /// `model` (issue #1493, Ray's decision via inbox #295). A request
         /// mistake, so INVALID_REQUEST with a hint to send `model` — not the
@@ -519,9 +537,7 @@ enum TranscribeEndpoint {
 
         // engine + model path: synthesize a transient Mode so cloud providers
         // can still read `cloudTranscriptionModel` etc. off it.
-        guard let engine = trimmedEngine, !engine.isEmpty else {
-            throw TranscriptionError.invalidRequest
-        }
+        let engine = try requiredEngine(req.engine)
 
         let selection = try await router.resolveProvider(
             engine: engine,
@@ -546,6 +562,18 @@ enum TranscribeEndpoint {
             cloudProviderType: selection.cloudProviderType,
             whisperModel: selection.whisperModel
         )
+    }
+
+    /// The engine of the engine-only `/transcribe` form, trimmed, or
+    /// `APIInputError.modeIdOrEngineRequired` when it is missing, empty or
+    /// whitespace only (issue #1100). `resolve` reaches this only once
+    /// `mode_id` is absent or blank, so the throw means neither was sent.
+    static func requiredEngine(_ rawEngine: String?) throws -> String {
+        guard let engine = rawEngine?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !engine.isEmpty else {
+            throw APIInputError.modeIdOrEngineRequired
+        }
+        return engine
     }
 
     /// The saved Mode `modeId` names, or MODE_NOT_FOUND "No mode with id
