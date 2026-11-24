@@ -1,23 +1,23 @@
 // MISTRAL VOXTRAL PROVIDER
-// Synchronous multipart transcription ($0.003/audio-min). Vocabulary biasing
+// Synchronous multipart transcription. Vocabulary biasing
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderUnavailableError } from './types';
+import { getProviderDef } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
-  estimateSecondsFromBytes,
+  billableSeconds,
   explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
-const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
 const MAX_CONTEXT_BIAS_TERM_CHARS = 80;
 
@@ -87,7 +87,7 @@ export async function transcribeWithMistral(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'mistral';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('mistral').defaultModel;
 
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
@@ -147,16 +147,11 @@ export async function transcribeWithMistral(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     text?: string;
     language?: string;
     usage?: { prompt_audio_seconds?: number };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Mistral', 'malformed 200 response body');
-  }
+  }>(provider, 'Mistral', response, startedAt, context);
 
   const transcript = restoreSpacedTerms(data.text || '', contextBias);
   const rawDurationSeconds = data.usage?.prompt_audio_seconds || 0;
@@ -171,9 +166,7 @@ export async function transcribeWithMistral(
 
   // Fail-closed: a successful transcript with a missing/non-positive duration
   // falls back to a byte-size estimate so we never bill $0.
-  const durationSeconds = (rawDurationSeconds > 0 && Number.isFinite(rawDurationSeconds))
-    ? rawDurationSeconds
-    : estimateSecondsFromBytes(audio.byteLength);
+  const durationSeconds = billableSeconds(rawDurationSeconds, audio.byteLength);
 
   logProviderEvent(provider, 'success', {
     model,

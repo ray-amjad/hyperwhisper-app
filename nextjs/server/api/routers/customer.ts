@@ -9,6 +9,8 @@
  * - billingProviders: Check which billing providers the user has history with
  * - stripePortalUrl: Generate Stripe billing portal session URL
  * - rotateAccountKey: Replace one of the user's Account Keys with a fresh one
+ * - issueAccountKey: Add one more Account Key to the user's account
+ * - deleteAccountKey: Delete one of the user's Account Keys (never the last)
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -23,6 +25,7 @@ import { stripe } from "@/lib/clients/stripe";
 import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { env } from "@/src/env/server.mjs";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
+import { ACCOUNT_KEY_DELETED_STATUS } from "@/lib/account-key-limits";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
 
 const presentCreditHistory = createCreditHistoryPresenter();
@@ -63,19 +66,24 @@ export const customerRouter = createTRPCRouter({
     const userIds = Array.from(new Set(licenses.map((l) => l.userId)));
     const balanceMap = await getCreditBalancesForUsers(userIds);
 
-    const licensesWithCredits = licenses.map((license) => {
-      const credits = balanceMap.get(license.userId) || 0;
-      return {
-        id: license.id,
-        key: license.key,
-        status: license.status,
-        credits,
-        minutesRemaining: Math.floor(credits / CREDITS_PER_MINUTE),
-        createdAt: license.createdAt.toISOString(),
-        stripeCustomerId: license.stripeCustomerId,
-        polarCustomerId: license.polarCustomerId,
-      };
-    });
+    // A key the owner deleted leaves the list. Its row stays (purchase
+    // history, the Stripe link), so the balance and billing reads above and
+    // below still count it.
+    const licensesWithCredits = licenses
+      .filter((license) => license.status !== ACCOUNT_KEY_DELETED_STATUS)
+      .map((license) => {
+        const credits = balanceMap.get(license.userId) || 0;
+        return {
+          id: license.id,
+          key: license.key,
+          status: license.status,
+          credits,
+          minutesRemaining: Math.floor(credits / CREDITS_PER_MINUTE),
+          createdAt: license.createdAt.toISOString(),
+          stripeCustomerId: license.stripeCustomerId,
+          polarCustomerId: license.polarCustomerId,
+        };
+      });
 
     const totalCredits = userIds.reduce(
       (sum, uid) => sum + (balanceMap.get(uid) || 0),
@@ -268,5 +276,39 @@ export const customerRouter = createTRPCRouter({
       // need at import time.
       const { rotateKeyForCaller } = await import("./customer-rotate-key");
       return rotateKeyForCaller(ctx, input);
+    }),
+
+  /**
+   * Add one more Account Key to the signed-in user's account. Same user, so
+   * the same credit pool, credit_pool_id and Stripe customer; nothing is
+   * granted with it. Only for a user who already holds a granted key, and at
+   * most `MAX_LIVE_ACCOUNT_KEYS` live keys. Needs an email-proven session.
+   *
+   * Returns the new key once, to show it on the dashboard. Never logs it.
+   */
+  issueAccountKey: protectedProcedure.mutation(async ({ ctx }) => {
+    // Loaded on first use, like rotation.
+    const { issueKeyForCaller } = await import("./customer-manage-keys");
+    return issueKeyForCaller(ctx);
+  }),
+
+  /**
+   * Delete one of the signed-in user's Account Keys, never their last live
+   * one. The key dies everywhere as a rotated-away key does; the row stays as
+   * `deleted` (purchase history, the Stripe link) and leaves the dashboard.
+   *
+   * `currentKey` is the key the dashboard showed: a key rotated in another
+   * tab answers CONFLICT instead of being deleted unseen.
+   */
+  deleteAccountKey: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        currentKey: z.string().trim().min(1).max(64),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { deleteKeyForCaller } = await import("./customer-manage-keys");
+      return deleteKeyForCaller(ctx, input);
     }),
 });

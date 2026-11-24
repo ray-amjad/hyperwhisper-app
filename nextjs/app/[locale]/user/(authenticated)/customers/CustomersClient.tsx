@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
@@ -17,6 +10,7 @@ import { ICON_SWAP } from "@/lib/icon-swap";
 import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { AnimatedDialog } from "@/components/AnimatedDialog";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { HeightTween } from "@/components/ui/HeightTween";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   ALERT_ERROR,
@@ -135,7 +129,8 @@ function PopCredits({ text }: { text: string }) {
   );
 }
 
-// #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
+// #1663: account_keys.status is "granted", "revoked", or "deleted" (the owner
+// deleted it from the dashboard); show a word, not the enum.
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
   if (status === "revoked") return "Revoked";
@@ -150,175 +145,6 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function formatCurrency(cents: number) {
   return currencyFormatter.format(cents / 100);
-}
-
-// The height tween: 300 ms on --motion-ease-smooth-out, the `01-card-resize`
-// timing #916 asked for.
-const HEIGHT_TWEEN_MS = 300;
-const HEIGHT_TRANSITION = `height ${HEIGHT_TWEEN_MS}ms var(--motion-ease-smooth-out)`;
-
-/**
- * #916: a box whose content changes height in one commit (a search narrows
- * 100 rows to 2, or clearing it brings them back) tweens to the new height
- * instead of stepping. A ResizeObserver keeps the box's last settled height;
- * when `trigger` changes, the layout effect pins the box at that height, then
- * sets the new one, and the height transition tweens between the two. The pin
- * comes off when the tween ends, so at rest the box is `height: auto` and an
- * inline editor or an error reveal inside it sizes it at once, as before. The
- * same pin-then-release as SignInClient (#752) and the /download panel (#767).
- * Under reduced motion nothing is pinned: the box takes its new height in the
- * same frame as the new content, as before.
- *
- * Only a change from one value of `trigger` to another tweens: the first
- * value after `undefined` (the first load's rows replacing the skeleton)
- * lands at once, as before.
- *
- * `transition` is any other transition the box keeps (the table's in-flight
- * dim); it is listed beside height, never as `all` (#668).
- */
-function HeightTween({
-  trigger,
-  className,
-  transition,
-  children,
-}: {
-  trigger: unknown;
-  className?: string;
-  transition?: string;
-  children: ReactNode;
-}) {
-  const box = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const settledHeight = useRef<number | null>(null);
-  const previousTrigger = useRef(trigger);
-  // The tween in flight: `stop` ends it (a second change mid-tween starts
-  // from where the box is now), `retarget` moves its end height.
-  const tween = useRef<{ stop: () => void; retarget: () => void } | null>(null);
-
-  useEffect(() => {
-    const element = box.current;
-    const inner = content.current;
-
-    if (!element || !inner) return;
-
-    // Reports after layout and before paint, so it always holds the height
-    // the last painted frame showed. Mid-tween the box is pinned, so a change
-    // of the content's own size (an editor opening) moves the pin instead:
-    // nothing is clipped, and nothing jumps when the pin comes off.
-    const observer = new ResizeObserver(() => {
-      if (tween.current) tween.current.retarget();
-      else settledHeight.current = element.offsetHeight;
-    });
-
-    observer.observe(element);
-    observer.observe(inner);
-
-    return () => {
-      observer.disconnect();
-      tween.current?.stop();
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const element = box.current;
-    const inner = content.current;
-    const previous = previousTrigger.current;
-
-    previousTrigger.current = trigger;
-    if (!element || !inner || previous === undefined) return;
-
-    let from = settledHeight.current;
-
-    if (tween.current) {
-      // The computed height mid-transition is where the box is drawn now
-      // (offsetHeight would read the pinned target).
-      from = parseFloat(getComputedStyle(element).height);
-      tween.current.stop();
-    }
-
-    // The two-frame start below would hold the old height for those frames,
-    // and the global guard would then end the transition at once: a late step
-    // instead of an on-time one.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const to = element.offsetHeight;
-
-    if (from === null || Math.abs(from - to) < 1) return;
-
-    // Pin the box where it was drawn; the new content must not spill out of
-    // it while it is still shorter.
-    element.style.height = `${from}px`;
-    element.style.overflow = "clip";
-
-    const target = () =>
-      inner.offsetHeight + element.offsetHeight - element.clientHeight;
-    let started = false;
-    let timer = 0;
-    let frame = 0;
-
-    const unpin = () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-      element.removeEventListener("transitionend", onEnd);
-      element.style.height = "";
-      element.style.overflow = "";
-      tween.current = null;
-      settledHeight.current = element.offsetHeight;
-    };
-    // Children's transitions bubble here too; only the box's own counts.
-    const onEnd = (event: TransitionEvent) => {
-      if (event.target === element && event.propertyName === "height") unpin();
-    };
-    // A transition that never runs fires no transitionend.
-    const bound = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(unpin, HEIGHT_TWEEN_MS + 400);
-    };
-
-    // The tween starts two frames later, after the frame that draws the new
-    // content: a 100-row page takes one frame of ~250 ms to lay out and
-    // paint, and a transition started inside it is ~99% done by the first
-    // frame anyone sees (verify on #916). The first callback runs before that
-    // frame is drawn, the second in the frame after it.
-    frame = window.requestAnimationFrame(() => {
-      frame = window.requestAnimationFrame(() => {
-        started = true;
-        element.style.height = `${target()}px`;
-        bound();
-      });
-    });
-
-    element.addEventListener("transitionend", onEnd);
-    tween.current = {
-      stop: unpin,
-      retarget: () => {
-        // Before the start the box stays pinned: the content is still being
-        // drawn, and the start reads its height then.
-        if (!started) return;
-        const height = target();
-
-        // Its own frames report too; a pixel of rounding is not a change.
-        if (Math.abs(parseFloat(element.style.height) - height) < 2) return;
-        element.style.height = `${height}px`;
-        bound();
-      },
-    };
-  }, [trigger]);
-
-  const style: CSSProperties = {
-    transition: transition
-      ? `${transition}, ${HEIGHT_TRANSITION}`
-      : HEIGHT_TRANSITION,
-  };
-
-  // flow-root: the content's own margins count in its measured height.
-  return (
-    <div ref={box} className={className} style={style}>
-      <div ref={content} className="flow-root">
-        {children}
-      </div>
-    </div>
-  );
 }
 
 export default function CustomersClient() {
@@ -664,7 +490,18 @@ export default function CustomersClient() {
         transition="opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         trigger={data}
       >
-        <div className="overflow-x-auto">
+        {/* The table scrolls sideways on a phone, so its box is a named
+            region with a tab stop (#1148, as #1145 did on /download): a
+            keyboard user can scroll it.
+            The ring is inset (-outline-offset-2), and rounded like the card:
+            the card clips its overflow, so an outset ring would be hidden. */}
+        <div
+          aria-label="Customers table"
+          className="overflow-x-auto rounded-[20px] focus-visible:outline-2 focus-visible:outline-[var(--dusk-lav)] focus-visible:-outline-offset-2"
+          role="region"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+          tabIndex={0}
+        >
           {/* min-w (#1330): the email wraps anywhere, so without a floor a
               phone-width column squeezes it to a letter or two per line. This
               keeps the columns readable and lets the wrapper scroll instead. */}
@@ -912,7 +749,9 @@ export default function CustomersClient() {
                                 className={`${CHIP} justify-self-start ${
                                   license.status === "revoked"
                                     ? CHIP_ROSE
-                                    : CHIP_LAV
+                                    : license.status === "granted"
+                                      ? CHIP_LAV
+                                      : CHIP_MUTE
                                 }`}
                               >
                                 {licenseStatusLabel(license.status)}
@@ -978,14 +817,15 @@ export default function CustomersClient() {
                           silently mistaken for "$0 spent":
                           - No Stripe customer ID on any license at all -> dash,
                             no Stripe call was ever made for this customer.
+                            Read from the server's uncapped hasStripeCustomer,
+                            not the listed licenses: those are the newest 100
+                            only, and an older paid key may be the only one.
                           - Has Stripe customer ID(s) but totalSpentCents is null ->
                             a fetch failed server-side (logged there); show a
                             distinct "error" indicator rather than a dash or $0.00.
                           - Otherwise -> the real formatted currency amount. */}
                       <td className="px-6 py-4">
-                        {!customer.licenses.some(
-                          (license) => license.stripeCustomerId
-                        ) ? (
+                        {!customer.hasStripeCustomer ? (
                           <span
                             className="text-[var(--dusk-dim)] text-sm font-medium"
                             title="No Stripe purchase on file (may have paid via another method)"
