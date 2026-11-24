@@ -103,9 +103,14 @@ final class SilentMicWarningWindowManager {
     }
 
     /// Centred under `anchor`, or above it when there is no room below inside
-    /// `visibleFrame`.
+    /// `visibleFrame`, and never past `visibleFrame`'s left or right edge (the
+    /// warning is wider than the pill, so a pill parked at a side edge would
+    /// otherwise push it off screen).
     nonisolated static func frame(size: CGSize, below anchor: NSRect, gap: CGFloat, within visibleFrame: NSRect?) -> NSRect {
-        let x = anchor.midX - size.width / 2
+        var x = anchor.midX - size.width / 2
+        if let visibleFrame {
+            x = max(visibleFrame.minX, min(x, visibleFrame.maxX - size.width))
+        }
         let belowY = anchor.minY - gap - size.height
         let fitsBelow = visibleFrame.map { belowY >= $0.minY } ?? true
         let y = fitsBelow ? belowY : anchor.maxY + gap

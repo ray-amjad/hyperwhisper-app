@@ -2,22 +2,23 @@
 // POST /post-process - standalone text correction via LLM
 
 import type { Context } from 'hono';
-import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
+import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../providers/llm-provider';
 import { readClientInfo } from '../lib/client-info';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { generateRequestId } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
-import { creditsForCost, formatUsd } from '../lib/cost-calculator';
-import { isIPBlocked } from '../lib/redis';
+import { formatUsd } from '../lib/cost-calculator';
 import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
 import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
-import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog } from '../middleware/auth';
+import { openRequestGate } from '../middleware/request-gate';
 import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { withCreditHoldScope } from '../middleware/credit-holds';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
 import { isRecord } from '../lib/utils';
+import { readAccountKey } from '../lib/account-key';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
+import { machineLabels } from '../lib/fly-machine';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -29,10 +30,6 @@ const LLM_FAILURE_MESSAGE = 'The language model request failed. Please try again
 interface PostProcessBody {
   text?: string;
   prompt?: string;
-  // `account_key` is the canonical field; `license_key` is the legacy alias that
-  // installed native apps still send. Either is accepted.
-  account_key?: string;
-  license_key?: string;
 }
 
 function rawResponseLength(raw: unknown): number | undefined {
@@ -56,17 +53,24 @@ export async function postProcessRoute(c: Context) {
 async function handlePostProcess(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
-
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'ip_blocked' });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // IP block now; auth + the per-key rate limit once the body is read.
+  const gate = await openRequestGate(c, { endpoint: '/post-process' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: gate.reason });
+    return gate.response;
   }
   logEvent(requestId, startTime, 'post_process.ip_check_done');
 
-  const contentType = c.req.header('Content-Type') || '';
-  if (!contentType.includes('application/json')) {
-    return invalidContentTypeResponse('application/json', contentType);
+  // Media types are case-insensitive (RFC 9110 §8.3.1), so `Application/JSON`
+  // is a JSON body too (#2326). The 400 still echoes the header as sent.
+  const rawContentType = c.req.header('Content-Type') || '';
+  if (!rawContentType.toLowerCase().includes('application/json')) {
+    // The header is caller-supplied, so cap what reaches the log.
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'invalid_content_type',
+      contentType: rawContentType.slice(0, 100),
+    });
+    return invalidContentTypeResponse('application/json', rawContentType);
   }
 
   // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
@@ -87,20 +91,29 @@ async function handlePostProcess(c: Context) {
   try {
     parsed = await c.req.json();
   } catch {
+    // Never log the parse error: its message can quote the body.
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'invalid_json' });
     return errorResponse(400, 'Invalid JSON', 'Request body must be valid JSON');
   }
   // `null`, a number, a string or an array is valid JSON but not a body: reading
   // `body.text` off `null` would throw and surface as a 500.
   if (!isRecord(parsed) || Array.isArray(parsed)) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'body_not_object' });
     return errorResponse(400, 'Invalid JSON', 'Request body must be a JSON object');
   }
   const body: PostProcessBody = parsed;
 
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!text) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'missing_text' });
     return errorResponse(400, 'Missing field', 'Request body must include "text" field');
   }
   if (text.length > MAX_TEXT_LENGTH) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'text_too_long',
+      textLength: text.length,
+      maxLength: MAX_TEXT_LENGTH,
+    });
     return errorResponse(400, 'Text too long', `Text must be ${MAX_TEXT_LENGTH} characters or less`, {
       max_length: MAX_TEXT_LENGTH,
       actual_length: text.length,
@@ -109,6 +122,7 @@ async function handlePostProcess(c: Context) {
 
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'missing_prompt' });
     return errorResponse(400, 'Missing field', 'Request body must include "prompt" field');
   }
 
@@ -117,7 +131,7 @@ async function handlePostProcess(c: Context) {
 
   const { clientPlatform, clientVersion } = readClientInfo(c);
   logEvent(requestId, startTime, 'post_process.request_start', {
-    flyRegion: process.env.FLY_REGION || 'local',
+    flyRegion: machineLabels().region,
     clientPlatform,
     clientVersion,
     provider,
@@ -126,26 +140,17 @@ async function handlePostProcess(c: Context) {
     promptChars: prompt.length,
   });
 
-  const authResult = await validateAuth({
-    licenseKey: body.account_key || body.license_key,
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', {
-      reason: 'auth_failed',
-      ...authDiagnosticsForLog(authResult.diagnostics),
-    });
-    return authResult.response;
+  // Auth, then the per-key rate limit before the credit hold (#2010).
+  const admission = await gate.admitKey(readAccountKey((field) => parsed[field]));
+  if (!admission.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', admission.reason === 'auth_failed'
+      ? { reason: 'auth_failed', ...authDiagnosticsForLog(admission.authDiagnostics) }
+      : { reason: admission.reason, status: admission.response.status });
+    return admission.response;
   }
-  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
+  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(admission.authDiagnostics));
 
-  // Per-key rate limit, after auth and before the credit hold (#2010).
-  const rateLimited = await keyRateLimitResponse('/post-process', authResult.value.licenseKey);
-  if (rateLimited) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
-    return rateLimited;
-  }
-
-  const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
+  const creditCheck = await validateCredits(admission.auth, ESTIMATED_POST_PROCESS_CREDITS);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'insufficient_credits' });
     return creditCheck.response;
@@ -209,6 +214,7 @@ async function handlePostProcess(c: Context) {
 
   let correctedText: string;
   let costUsd = llmResponse.costUsd;
+  let hadLeakage = false;
 
   try {
     const evaluation = evaluateCompletionResponse(llmResponse.raw, text);
@@ -216,6 +222,7 @@ async function handlePostProcess(c: Context) {
     if (evaluation.accepted) {
       correctedText = evaluation.text;
     } else if (evaluation.failure === 'prompt_leakage') {
+      hadLeakage = true;
       // Recomputed only for the outputChars metric below — evaluateCompletionResponse
       // already extracted this successfully, so this call cannot throw.
       const leakedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
@@ -282,7 +289,7 @@ async function handlePostProcess(c: Context) {
     // The LLM call already succeeded (and cost us money) — bill the user
     // even though we can't return usable text.
     deductCredits(
-      authResult.value,
+      admission.auth,
       costUsd,
       {
         post_processing_cost_usd: costUsd,
@@ -291,9 +298,8 @@ async function handlePostProcess(c: Context) {
         endpoint: '/post-process',
         llm_provider: providerUsed,
       },
-      clientIP,
       { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
-    ).catch(console.error);
+    ).recorded.catch(console.error);
 
     logEvent(requestId, startTime, 'post_process.request_fail', {
       reason: 'extract_failed',
@@ -304,10 +310,8 @@ async function handlePostProcess(c: Context) {
     return errorResponse(500, 'Post-processing failed', LLM_FAILURE_MESSAGE, { requestId });
   }
 
-  const creditsUsed = creditsForCost(costUsd);
-
-  deductCredits(
-    authResult.value,
+  const deduction = deductCredits(
+    admission.auth,
     costUsd,
     {
       post_processing_cost_usd: costUsd,
@@ -316,9 +320,11 @@ async function handlePostProcess(c: Context) {
       endpoint: '/post-process',
       llm_provider: providerUsed,
     },
-    clientIP,
     { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
-  ).catch(console.error);
+  );
+  deduction.recorded.catch(console.error);
+  // What was charged, capped at the hold, never this route's own pricing.
+  const creditsUsed = await deduction.credits;
 
   logEvent(requestId, startTime, 'post_process.request_done', {
     finalProvider: servedLLMName(providerUsed, modelUsed),
@@ -326,7 +332,7 @@ async function handlePostProcess(c: Context) {
     outputChars: correctedText.length,
     costUsd,
     creditsUsed,
-    hadLeakage: correctedText === text && text.length > 0,
+    hadLeakage,
   });
 
   const response = {

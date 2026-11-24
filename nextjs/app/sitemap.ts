@@ -1,10 +1,20 @@
 import { MetadataRoute } from "next";
+
 import { SITE_URL } from "@/lib/site-metadata";
 import { getAllBlogPosts } from "@/src/content/blog";
 import {
   buildAlternateLanguageMap,
+  defaultLocale,
   locales,
 } from "@/src/i18n/locales";
+
+// Rebuilt hourly from the database, like the pages it lists. Without this the
+// sitemap is rendered once and never again, and the build has
+// no database, so it would hold only the code blog posts until the next
+// revalidatePath from the add-blog-post webhook. scripts/cf-build.mjs also
+// keeps that build-time render out of the deployed cache. A failed
+// revalidation throws (src/content/blog.ts) and keeps the last good copy.
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL;
@@ -34,7 +44,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "weekly",
         priority: page === "" ? 1 : 0.8,
         alternates: {
-          languages: buildAlternateLanguageMap(baseUrl, page),
+          languages: {
+            ...buildAlternateLanguageMap(baseUrl, page),
+            "x-default": `${baseUrl}/${defaultLocale}${page}`,
+          },
         },
       });
     });
@@ -61,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   });
 
-  // A vercel.json rewrite with no locale form, so it is listed once, unprefixed.
+  // A Mintlify rewrite (config/mintlify-rewrites.mjs) with no locale form, so it is listed once, unprefixed.
   sitemap.push({
     url: `${baseUrl}/docs`,
     lastModified: new Date(),
@@ -70,6 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const blogPosts = await getAllBlogPosts();
+
   blogPosts.forEach((post) => {
     if (post.locale !== "en") return;
     const url = `${baseUrl}/en/blog/${post.slug}`;

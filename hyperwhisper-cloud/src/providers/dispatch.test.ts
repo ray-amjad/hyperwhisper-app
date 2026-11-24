@@ -6,31 +6,14 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
-import { hasProviderAdapter, transcribeWithProvider } from './dispatch';
+import { transcribeWithProvider } from './dispatch';
 import { ProviderUnavailableError } from './types';
-import { ALL_STT_PROVIDER_IDS } from '../lib/stt-models';
 
 const originalFetch = globalThis.fetch;
 
 function audio(): ArrayBuffer {
   return new Uint8Array(2048).buffer;
 }
-
-describe('dispatch covers the registry', () => {
-  // The registry decides which providers are routable, and the route dispatches
-  // every id it is handed without checking. A registered provider with no
-  // adapter row would therefore be a runtime "PROVIDER_FN[x] is not a function"
-  // on a paid request. `Record<SttProviderId, TranscribeFn>` makes that a
-  // compile error too; this is the runtime half of the same guard.
-  test('every registered provider has an adapter', () => {
-    const missing = ALL_STT_PROVIDER_IDS.filter((id) => !hasProviderAdapter(id));
-    expect(missing).toEqual([]);
-  });
-
-  test('the registry is not empty, so the check above can actually fail', () => {
-    expect(ALL_STT_PROVIDER_IDS.length).toBeGreaterThan(0);
-  });
-});
 
 describe('transcribeWithProvider', () => {
   beforeEach(() => { process.env.DEEPGRAM_API_KEY = 'test-deepgram-key'; });

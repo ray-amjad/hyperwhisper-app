@@ -364,12 +364,11 @@ internal sealed partial class WindowsLocalApiBackend
         return mode;
     }
 
+    // The same predicate `PostProcessingService.ProcessAsync` routes on, so the
+    // mode int and the run cannot disagree (#2557: `localLLM` set mode 2 here
+    // while `FromString` answered `None` and the run was skipped).
     private static bool IsLocalLlmProvider(string id)
-    {
-        return string.Equals(id, "local_llm", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(id, "localLLM", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(id, "localLlm", StringComparison.OrdinalIgnoreCase);
-    }
+        => PostProcessingProviderExtensions.FromString(id) == PostProcessingProvider.LocalLlm;
 
     /// <summary>
     /// Sensible defaults for a brand-new transient Mode when the request

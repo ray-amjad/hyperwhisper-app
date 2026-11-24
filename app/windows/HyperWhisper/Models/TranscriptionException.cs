@@ -154,6 +154,11 @@ public class TranscriptionException : Exception
         TranscriptionErrorCode.Unauthorized =>
             $"Invalid {ProviderName ?? "API"} key. Please check it in the Model Library API keys manager.",
 
+        // HyperWhisper Cloud's own 402 has no provider billing page: credits are
+        // bought in the app, so point at Settings, as macOS does (#2138).
+        TranscriptionErrorCode.QuotaExceeded when IsInsufficientCredits =>
+            "Insufficient credits. Add more credits in Settings.",
+
         TranscriptionErrorCode.QuotaExceeded =>
             $"{ProviderName ?? "Provider"} quota exceeded. Add credits at the provider's billing page.",
 

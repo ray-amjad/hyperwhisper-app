@@ -27,7 +27,8 @@
 //  - Cloudflare Workers have 128MB memory limit
 //  - Old multipart approach: ~34MB for 17MB file (2x overhead)
 //  - New streaming approach: ~0MB (pipes through without buffering)
-//  - Now supports files up to 2GB (Deepgram's limit)
+//  - The server caps a body at 128 MB (MAX_AUDIO_SIZE_BYTES); the app checks
+//    that before the upload (CloudProvider.maxFileSizeBytes, #2030)
 //
 //  CUSTOM VOCABULARY (KEYTERM):
 //  - Max 100 terms supported by Deepgram

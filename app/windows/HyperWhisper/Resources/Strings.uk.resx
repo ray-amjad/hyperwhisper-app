@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Це режим за замовчуванням, тому його назву не можна змінити. Будь-який інший режим можна перейменувати.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Режим із такою назвою вже існує.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Немає ключа API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Недійсний ключ)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -945,15 +951,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2185,7 +2182,7 @@ You can re-download it later.</value>
     <value>Виберіть щонайменше один розділ для імпорту.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Додати {0} нових слів, {1} конфліктів з наявними словами. Продовжити?</value>
+    <value>Нові слова: {0}. Конфлікти з наявними словами: {1}. Продовжити?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Імпортувати словник?</value>
@@ -2207,6 +2204,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Налаштування відновлено.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-ключі відновлено.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Не вдалося відновити один або кілька API-ключів.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Резервна копія не містить API-ключів.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Не вдалося відновити налаштування.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Резервну копію імпортовано з помилками. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Якщо слово вже існує:</value>

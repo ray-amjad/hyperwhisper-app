@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Tämä on oletustila, joten sen nimeä ei voi muuttaa. Voit nimetä minkä tahansa muun tilan uudelleen.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>Tämän niminen tila on jo olemassa.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@ Tätä toimintoa ei voi perua.</value>
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (Ei API-avainta)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (Virheellinen avain)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -945,15 +951,6 @@ Tätä toimintoa ei voi perua.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2186,7 +2183,7 @@ You can re-download it later.</value>
     <value>Valitse vähintään yksi osa tuotavaksi.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>Lisää {0} uutta sanaa, {1} ristiriitaa nykyisten sanojen kanssa. Jatketaanko?</value>
+    <value>Uudet sanat: {0}. Ristiriidat nykyisten sanojen kanssa: {1}. Jatketaanko?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>Tuodaanko sanasto?</value>
@@ -2208,6 +2205,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>Asetukset palautettu.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>API-avaimet palautettu.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>Yhtä tai useampaa API-avainta ei voitu palauttaa.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>Varmuuskopio ei sisällä API-avaimia.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>Asetuksia ei voitu palauttaa.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>Varmuuskopio tuotiin, mutta ilmeni ongelmia. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>Jos sana on jo olemassa:</value>

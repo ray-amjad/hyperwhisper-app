@@ -375,7 +375,13 @@ fn mode(provider_type: Option<&str>, cloud: Option<&str>, engine: Option<&str>) 
 fn an_absent_mode_is_unknown_not_local() {
     assert_eq!(
         build_fingerprint("transcription-no-speech", "stop", "pipeline", None),
-        vec!["transcription-no-speech", "stop", "pipeline", "unknown", "none"]
+        vec![
+            "transcription-no-speech",
+            "stop",
+            "pipeline",
+            "unknown",
+            "none"
+        ]
     );
 
     let never_written = mode(None, None, Some("parakeet"));
@@ -420,7 +426,12 @@ fn a_cloud_mode_groups_per_vendor() {
     // A cloud mode with no vendor written still has to say something.
     let vendorless = mode(Some("cloud"), None, None);
     assert_eq!(
-        build_fingerprint("transcription-no-speech", "stop", "pipeline", Some(&vendorless))[3..],
+        build_fingerprint(
+            "transcription-no-speech",
+            "stop",
+            "pipeline",
+            Some(&vendorless)
+        )[3..],
         ["cloud", "none"]
     );
 }
@@ -459,5 +470,214 @@ fn the_fingerprint_root_is_never_rewritten() {
     assert_eq!(
         build_fingerprint("macos-transcription-empty-recording", "stop", "flow", None)[0],
         "macos-transcription-empty-recording"
+    );
+}
+
+// ===========================================================================
+// Trailing-silence trim (#1504)
+// ===========================================================================
+
+const RATE: u32 = 16_000;
+
+/// A 220 Hz tone at each `(seconds, level)` part, plus faint deterministic
+/// hiss, the same shape as Windows' SmokeTests fixture for the C# original.
+fn clip(parts: &[(f64, f64)]) -> Vec<f32> {
+    noisy_clip(parts, 0.0002)
+}
+
+/// [`clip`] with uniform hiss of peak-to-peak `hiss` under every part.
+fn noisy_clip(parts: &[(f64, f64)], hiss: f64) -> Vec<f32> {
+    let mut state: u32 = 7;
+    let mut out = Vec::new();
+    for &(seconds, level) in parts {
+        for i in 0..(seconds * f64::from(RATE)) as usize {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let noise = f64::from(state >> 8) / f64::from(1u32 << 24) - 0.5;
+            let tone = (i as f64 * 2.0 * std::f64::consts::PI * 220.0 / f64::from(RATE)).sin();
+            out.push((level * tone + hiss * noise) as f32);
+        }
+    }
+    out
+}
+
+fn seconds(samples: u64) -> f64 {
+    samples as f64 / f64::from(RATE)
+}
+
+/// The Done-when fixture: speech then 2 s of silence ends 0.3 s after speech.
+#[test]
+fn trailing_silence_is_cut_to_a_short_tail() {
+    let audio = clip(&[(4.0, 0.2), (2.0, 0.0)]);
+    let keep = trailing_silence_trim_point(&audio, RATE);
+    assert_eq!(
+        keep,
+        (4.3 * f64::from(RATE)) as u64,
+        "kept {:.2}s",
+        seconds(keep)
+    );
+}
+
+/// Windows' own fixture: 3 s of silence, kept within one window of 4.3 s.
+#[test]
+fn three_seconds_of_trailing_silence_matches_windows() {
+    let audio = clip(&[(4.0, 0.2), (3.0, 0.0)]);
+    let keep = trailing_silence_trim_point(&audio, RATE);
+    assert!(
+        keep.abs_diff((4.3 * f64::from(RATE)) as u64) <= u64::from(RATE / 20),
+        "kept {:.2}s",
+        seconds(keep)
+    );
+}
+
+#[test]
+fn speech_to_the_end_is_untouched() {
+    let audio = clip(&[(5.0, 0.2)]);
+    assert_eq!(
+        trailing_silence_trim_point(&audio, RATE),
+        audio.len() as u64
+    );
+}
+
+/// The 6x floor is capped at a fifth of the speech level, so a soft last word
+/// after a pause still counts as speech.
+#[test]
+fn a_quiet_last_word_is_kept() {
+    let audio = clip(&[(4.0, 0.3), (0.5, 0.0), (0.4, 0.03), (2.0, 0.0)]);
+    let keep = trailing_silence_trim_point(&audio, RATE);
+    assert!(
+        keep >= (4.9 * f64::from(RATE)) as u64,
+        "kept {:.2}s",
+        seconds(keep)
+    );
+    assert!(keep < audio.len() as u64, "the silence after it still goes");
+}
+
+/// On a noisy line 6x the floor is louder than a soft last word; the cap at a
+/// fifth of the speech level is what keeps it.
+#[test]
+fn a_quiet_last_word_on_a_noisy_line_is_kept() {
+    let audio = noisy_clip(&[(4.0, 0.1), (0.5, 0.0), (0.4, 0.03), (2.0, 0.0)], 0.014);
+    let keep = trailing_silence_trim_point(&audio, RATE);
+    assert!(
+        keep >= (4.9 * f64::from(RATE)) as u64,
+        "kept {:.2}s",
+        seconds(keep)
+    );
+    assert!(keep < audio.len() as u64, "the noise after it still goes");
+}
+
+/// A window exactly at the threshold is silence, as on Windows (`<=`).
+#[test]
+fn a_window_at_the_threshold_is_silence() {
+    let mut rms = vec![0.0; 50];
+    rms.extend([0.5; 30]);
+    rms.extend([TRIM_MINIMUM_THRESHOLD; 20]);
+    let window = u64::from(RATE / 20);
+    assert_eq!(
+        trailing_silence_trim_point_from_windows(&rms, 100 * window, RATE),
+        80 * window + (0.3 * f64::from(RATE)) as u64
+    );
+}
+
+#[test]
+fn an_all_silent_clip_is_untouched() {
+    let audio = clip(&[(3.0, 0.0)]);
+    assert_eq!(
+        trailing_silence_trim_point(&audio, RATE),
+        audio.len() as u64
+    );
+    let zeros = vec![0.0f32; 3 * RATE as usize];
+    assert_eq!(
+        trailing_silence_trim_point(&zeros, RATE),
+        zeros.len() as u64
+    );
+}
+
+/// whisper.cpp skips input under one second, so the cut stops at 1.1 s.
+#[test]
+fn never_cuts_below_the_minimum() {
+    let audio = clip(&[(0.3, 0.2), (2.0, 0.0)]);
+    assert_eq!(
+        trailing_silence_trim_point(&audio, RATE),
+        (1.1 * f64::from(RATE)) as u64
+    );
+}
+
+#[test]
+fn a_clip_under_the_minimum_is_untouched() {
+    let audio = clip(&[(0.3, 0.2), (0.6, 0.0)]);
+    assert_eq!(
+        trailing_silence_trim_point(&audio, RATE),
+        audio.len() as u64
+    );
+    assert_eq!(trailing_silence_trim_point(&[], RATE), 0);
+}
+
+/// The streaming form gives the same answer as the slice form, and a partial
+/// last window still counts toward `sample_count`.
+#[test]
+fn the_window_form_matches_the_sample_form() {
+    let audio = clip(&[(4.0, 0.2), (2.0, 0.0), (0.01, 0.0)]);
+    let window = (RATE / 20) as usize;
+    let rms: Vec<f64> = audio
+        .chunks_exact(window)
+        .map(|c| {
+            (c.iter().map(|&s| f64::from(s) * f64::from(s)).sum::<f64>() / window as f64).sqrt()
+        })
+        .collect();
+    assert_eq!(
+        trailing_silence_trim_point_from_windows(&rms, audio.len() as u64, RATE),
+        trailing_silence_trim_point(&audio, RATE)
+    );
+}
+
+/// Other rates scale: 48 kHz keeps the same 4.3 s.
+#[test]
+fn the_trim_scales_with_the_sample_rate() {
+    let rate = 48_000u32;
+    let mut audio: Vec<f32> = (0..4 * rate as usize)
+        .map(|i| {
+            (0.2 * (i as f64 * 2.0 * std::f64::consts::PI * 220.0 / f64::from(rate)).sin()) as f32
+        })
+        .collect();
+    audio.resize(6 * rate as usize, 0.0);
+    assert_eq!(
+        trailing_silence_trim_point(&audio, rate),
+        (4.3 * f64::from(rate)) as u64
+    );
+}
+
+/// The workspace builds with `panic = "abort"`, so input a head should never
+/// send must return the full length, not panic or cut.
+#[test]
+fn unmeasurable_input_is_never_cut() {
+    let audio = clip(&[(4.0, 0.2), (2.0, 0.0)]);
+    assert_eq!(trailing_silence_trim_point(&audio, 0), audio.len() as u64);
+    assert_eq!(trailing_silence_trim_point(&audio, 19), audio.len() as u64);
+    let mut nan = audio.clone();
+    nan[10] = f32::NAN;
+    assert_eq!(trailing_silence_trim_point(&nan, RATE), audio.len() as u64);
+    assert_eq!(
+        trailing_silence_trim_point_from_windows(&[f64::INFINITY, 0.0], 1600, RATE),
+        1600
+    );
+    assert_eq!(
+        trailing_silence_trim_point_from_windows(&[], 1234, RATE),
+        1234
+    );
+}
+
+/// The threshold is 6x the 10th-percentile window: windows at 5.5x the floor
+/// are silence, a window at 10x it is speech.
+#[test]
+fn the_threshold_is_six_times_the_tenth_percentile() {
+    let mut rms = vec![2.0; 69];
+    rms.push(0.1);
+    rms.extend([0.055; 10]);
+    rms.extend([0.01; 20]);
+    let window = u64::from(RATE / 20);
+    assert_eq!(
+        trailing_silence_trim_point_from_windows(&rms, 100 * window, RATE),
+        70 * window + (0.3 * f64::from(RATE)) as u64
     );
 }

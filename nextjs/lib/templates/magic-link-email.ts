@@ -16,9 +16,10 @@ import {
  * its 300-second default (`node_modules/better-auth/dist/plugins/magic-link/
  * index.mjs`: `opts.expiresIn || 300`), while the email said "10 minutes". A
  * user who waited 6 minutes got a dead link and a correct-looking email.
- * Raising the limit is a one-line change here; the copy follows.
+ * Raising the limit is a one-line change here; the copy follows. The sign-in
+ * page (`SignInClient.tsx`) states it too, as "10 minutes": change both.
  */
-export const MAGIC_LINK_EXPIRY_SECONDS = 300;
+export const MAGIC_LINK_EXPIRY_SECONDS = 600;
 
 const LINK_LIFETIME = `${MAGIC_LINK_EXPIRY_SECONDS / 60} minutes`;
 

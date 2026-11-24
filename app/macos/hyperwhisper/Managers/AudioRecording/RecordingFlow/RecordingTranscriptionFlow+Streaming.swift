@@ -899,7 +899,11 @@ extension RecordingTranscriptionFlow {
 
             // `startSession` returns only once the capture engine is running, so
             // the silent-mic clock starts at real capture, never while connecting.
-            recordingLifecycle.beginSilentMicrophoneWatch()
+            // A stop that landed during the awaits above already ended the watch;
+            // only a session that is still live re-arms it.
+            if isStreamingActive {
+                recordingLifecycle.beginSilentMicrophoneWatch()
+            }
 
             // Start max duration safety timer (user setting: 0 = no limit).
             streamingStartTime = Date()

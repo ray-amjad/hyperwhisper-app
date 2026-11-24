@@ -21,6 +21,7 @@
  */
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 export interface SessionRow {
@@ -47,6 +48,8 @@ export interface SetSessionCookieCall {
 /** Everything the endpoint asked its collaborators to do, in call order. */
 export const calls = {
   findAccountByKey: [] as string[],
+  /** Whether each `findAccountByKey` call asked for a locking read. */
+  findAccountByKeyLocked: [] as boolean[],
   selectUserById: [] as string[],
   createSession: [] as string[],
   deleteSession: [] as string[],
@@ -69,23 +72,9 @@ export const behaviour = {
   createSessionResult: "ok" as "ok" | "null",
 };
 
-export function accountKeyRow(
-  overrides: Partial<AccountKeyRow> = {},
-): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-AAAA-BBBB-CCCC-DDDD",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  key: "HW-AAAA-BBBB-CCCC-DDDD",
+});
 
 export function userRow(overrides: Partial<UserRow> = {}): UserRow {
   return {
@@ -115,6 +104,7 @@ export function storeUser(row: UserRow): UserRow {
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
+  calls.findAccountByKeyLocked.length = 0;
   calls.selectUserById.length = 0;
   calls.createSession.length = 0;
   calls.deleteSession.length = 0;
@@ -142,8 +132,13 @@ export const restoreEndpointLogging = endpointLogging.restore;
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
-    findAccountByKey: async (key: string): Promise<AccountKeyRow | null> => {
+    findAccountByKey: async (
+      key: string,
+      _executor?: unknown,
+      options?: { lockForShare?: boolean },
+    ): Promise<AccountKeyRow | null> => {
       calls.findAccountByKey.push(key);
+      calls.findAccountByKeyLocked.push(options?.lockForShare === true);
       behaviour.beforeLookup?.(calls.findAccountByKey.length);
       return behaviour.rows.get(key) ?? null;
     },

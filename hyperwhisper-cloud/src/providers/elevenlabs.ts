@@ -1,8 +1,9 @@
 // ELEVENLABS SCRIBE PROVIDER
-// High accuracy STT - $0.00983/min using Scribe v2
+// High accuracy STT using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -11,6 +12,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  estimateAudioSeconds,
   readJson200,
   splitVocabularyTerms,
 } from './utils';
@@ -25,6 +27,60 @@ const ELEVENLABS_AUDIO_EXTENSIONS = ['wav', 'm4a', 'webm', 'ogg', 'flac'] as con
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
 const MAX_KEYTERM_WORDS = 5;
+
+/**
+ * A RIFF/WAVE file's length in seconds from its `fmt ` byte rate and `data`
+ * size, for ANY WAV encoding (PCM at any depth, float, EXTENSIBLE), or null
+ * when the bytes are not a readable WAV. Deliberately more tolerant than
+ * `parsePcm16Wav`, which validates what an upstream accepts: billing only
+ * needs the length. A `data` size past the end of the buffer (a streaming
+ * writer's 0xFFFFFFFF, a truncated file) is cut to the bytes actually sent.
+ */
+function wavDurationSeconds(audio: ArrayBuffer): number | null {
+  if (audio.byteLength < 12) return null;
+  const view = new DataView(audio);
+  const tag = (offset: number) => String.fromCharCode(
+    view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3),
+  );
+  if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+  let byteRate = 0;
+  let offset = 12;
+  while (offset + 8 <= audio.byteLength) {
+    const id = tag(offset);
+    const size = view.getUint32(offset + 4, true);
+    const body = offset + 8;
+    if (id === 'fmt ' && size >= 16 && body + 16 <= audio.byteLength) {
+      byteRate = view.getUint32(body + 8, true);
+    } else if (id === 'data') {
+      if (byteRate <= 0) return null;
+      const dataBytes = Math.min(size, audio.byteLength - body);
+      return dataBytes / byteRate;
+    }
+    offset = body + size + (size % 2);
+  }
+  return null;
+}
+
+/**
+ * The seconds a successful ElevenLabs request is billed for: the audio's
+ * length, never less than the last word's end time. A WAV (every desktop
+ * recording, and imported WAVs of any rate, depth or channel count) is read
+ * from its header; anything else falls back to `estimateAudioSeconds`, a
+ * per-container byte-rate guess (the route's credit hold uses a different,
+ * flat estimate). ElevenLabs sends no audio duration of its own.
+ */
+function elevenLabsBilledSeconds(
+  lastWordEndSeconds: number,
+  audio: ArrayBuffer,
+  contentType: string,
+): { seconds: number; source: 'wav_header' | 'estimate' } {
+  const wavSeconds = wavDurationSeconds(audio);
+  const audioSeconds = wavSeconds ?? estimateAudioSeconds(audio.byteLength, contentType);
+  return {
+    seconds: Math.max(audioSeconds, lastWordEndSeconds),
+    source: wavSeconds !== null ? 'wav_header' : 'estimate',
+  };
+}
 
 /**
  * Split an initial prompt into ElevenLabs Scribe `keyterms` (scribe_v2 only).
@@ -58,7 +114,7 @@ export async function transcribeWithElevenLabs(
 
   const ext = audioExtensionFromContentType(contentType, ELEVENLABS_AUDIO_EXTENSIONS) ?? 'mp3';
 
-  const modelId = context.model || 'scribe_v2';
+  const modelId = context.model || getProviderDef('elevenlabs').defaultModel;
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model_id', modelId);
@@ -81,13 +137,11 @@ export async function transcribeWithElevenLabs(
     formData.append('language_code', langCode);
   }
 
-  // Keyterm biasing is a scribe_v2-only feature. `keyterms` is an ARRAY field:
-  // over multipart it must be sent as ONE repeated field per term (the official
-  // SDKs append one `keyterms` per item), NOT a JSON-array string — the API
-  // forbids literal `[`/`]`, so a JSON blob would be a single invalid term.
-  // scribe_v1 has no biasing (registry marks supportsVocabulary:false), so terms
-  // are dropped there rather than sent and ignored.
-  const keyterms = initialPrompt && modelId === 'scribe_v2' ? toKeyterms(initialPrompt) : [];
+  // `keyterms` is an ARRAY field: over multipart it must be sent as ONE repeated
+  // field per term (the official SDKs append one `keyterms` per item), NOT a
+  // JSON-array string — the API forbids literal `[`/`]`, so a JSON blob would be
+  // a single invalid term.
+  const keyterms = initialPrompt ? toKeyterms(initialPrompt) : [];
   for (const term of keyterms) {
     formData.append('keyterms', term);
   }
@@ -205,18 +259,27 @@ export async function transcribeWithElevenLabs(
     });
   }
 
+  // Bill the audio ElevenLabs processed (and bills us for), not the speech in
+  // it: the last word's end time leaves out trailing silence, and a reply with
+  // no `words` would bill 0 s. The last word's end is only a lower bound.
+  // (issue ray-amjad/hyperwhisper-app#2601)
+  const billed = elevenLabsBilledSeconds(duration, audio, contentType);
+  const billedSeconds = billed.seconds;
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startTime),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
+    durationSource: billed.source,
+    lastWordEndSeconds: duration,
     language: data.language_code,
   }, context);
 
   return {
     text: transcript,
     language: data.language_code,
-    durationSeconds: duration,
-    costUsd: computeElevenLabsTranscriptionCost(duration, keyterms.length > 0),
+    durationSeconds: billedSeconds,
+    costUsd: computeElevenLabsTranscriptionCost(billedSeconds, keyterms.length > 0),
     source: 'elevenlabs',
   };
 }

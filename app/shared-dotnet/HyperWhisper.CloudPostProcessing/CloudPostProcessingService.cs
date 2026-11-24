@@ -171,6 +171,7 @@ public sealed class CloudPostProcessingService : IDisposable
             LlmPostProcessing.WireProtocolFor(provider.Value),
             transcript,
             $"{DisplayName(request.Provider)} · {model}",
+            CloudPostProcessingResult.IdFor(request.Provider),
             // The POST-fallback id, not `request.Model`. `ResolveModel` silently
             // substitutes a retired or unknown model id for the provider default,
             // and reporting the requested id would name a model that never saw
@@ -201,7 +202,7 @@ public sealed class CloudPostProcessingService : IDisposable
 
         var responseJson = await SendAsync(message, cancellationToken);
         return Evaluate(responseJson, PortableLlmWireProtocol.OpenAiChat, transcript,
-            $"Custom endpoint · {model}", model);
+            $"Custom endpoint · {model}", CloudPostProcessingResult.IdFor(CloudPostProcessingProvider.Custom, custom.Id), model);
     }
 
     private async Task<CloudPostProcessingResult> ProcessHyperWhisperCloudAsync(
@@ -275,19 +276,22 @@ public sealed class CloudPostProcessingService : IDisposable
         // write an id no catalog can resolve. Until the backend exposes the served
         // MODEL ID separately, a backend-side reroute stays invisible in this
         // field; `openapi.yaml` says so.
-        return CloudPostProcessingResult.Applied(corrected, route.Value.Label, route.Value.ModelHeader);
+        return CloudPostProcessingResult.Applied(
+            corrected, route.Value.Label, route.Value.ModelHeader,
+            CloudPostProcessingResult.IdFor(CloudPostProcessingProvider.HyperWhisperCloud));
     }
 
     private static CloudPostProcessingResult Evaluate(
         string responseJson,
         PortableLlmWireProtocol protocol,
         string transcript,
-        string provider,
+        string providerLabel,
+        string? providerId,
         string model)
     {
         var evaluation = SharedCoreBridge.EvaluateLlmResponseJson(protocol, responseJson, transcript);
         return evaluation.Accepted
-            ? CloudPostProcessingResult.Applied(evaluation.Text, provider, model)
+            ? CloudPostProcessingResult.Applied(evaluation.Text, providerLabel, model, providerId)
             : CloudPostProcessingResult.Failed(
                 evaluation.Text,
                 CloudPostProcessingFailureCode.RejectedResponse,
@@ -363,6 +367,18 @@ public sealed class CloudPostProcessingService : IDisposable
         }
         return null;
     }
+
+    /// <summary>
+    /// The provider half of a run's display label, for a UI that holds only the
+    /// stored provider id (issue #1158: the Linux History badge). The BYOK names
+    /// are the ones the run label itself starts with.
+    /// </summary>
+    public static string ProviderDisplayName(CloudPostProcessingProvider provider) => provider switch
+    {
+        CloudPostProcessingProvider.HyperWhisperCloud => "HyperWhisper Cloud",
+        CloudPostProcessingProvider.Custom => "Custom endpoint",
+        _ => DisplayName(provider),
+    };
 
     private static string DisplayName(CloudPostProcessingProvider provider) => provider switch
     {

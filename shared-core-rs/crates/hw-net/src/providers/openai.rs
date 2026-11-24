@@ -91,6 +91,7 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::test_support::{field, fields};
     use crate::contract::{Body, Header, HttpMethod, Part};
     use crate::helpers::MULTIPART_BOUNDARY;
 
@@ -101,23 +102,6 @@ mod tests {
             audio_path: "/tmp/rec.m4a".to_string(),
             ..Default::default()
         }
-    }
-
-    fn field<'a>(parts: &'a [Part], name: &str) -> Option<&'a str> {
-        parts.iter().find_map(|p| match p {
-            Part::Field { name: n, value } if n == name => Some(value.as_str()),
-            _ => None,
-        })
-    }
-
-    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
-        parts
-            .iter()
-            .filter_map(|p| match p {
-                Part::Field { name: n, value } if n == name => Some(value.as_str()),
-                _ => None,
-            })
-            .collect()
     }
 
     #[test]

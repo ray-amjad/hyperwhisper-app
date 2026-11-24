@@ -213,6 +213,26 @@ describe("POST /api/webhooks/stripe — the payment gate", () => {
     assert.equal(response.status, 200);
     assertNoHandlerRan();
   });
+  test("dispatches a 100%-off credits session (no_payment_required) now (#2055)", async () => {
+    // A promotion code that covers the whole order completes the session with
+    // no_payment_required. Stripe sends no later async_payment_succeeded for
+    // it, so waiting here would drop the purchase for good.
+    behaviour.verifiedEvent = checkoutEvent({
+      id: "evt_free",
+      purchaseType: "credits",
+      paymentStatus: "no_payment_required",
+      sessionId: "cs_free",
+    });
+
+    const response = await signedPost(behaviour.verifiedEvent);
+
+    assert.equal(response.status, 200);
+    assert.equal(calls.creditPurchase.length, 1);
+    assert.equal(
+      (calls.creditPurchase[0].session as { id: string }).id,
+      "cs_free",
+    );
+  });
 });
 
 describe("POST /api/webhooks/stripe — dispatch", () => {

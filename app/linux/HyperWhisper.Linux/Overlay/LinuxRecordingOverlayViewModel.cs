@@ -24,7 +24,7 @@ public sealed class LinuxRecordingOverlayViewModel : INotifyPropertyChanged
     };
     /// <summary>The live face's status line is the "No sound from {mic}" warning (#2411).</summary>
     public bool IsMicSilent => _snapshot.MicSilent;
-    public string StatusForeground => _snapshot.MicSilent ? MicSilentForeground : "#F2FFFFFF";
+    public string StatusForeground => _snapshot.MicSilent ? MicSilentForeground : "#E6FFFFFF";
     internal const string MicSilentForeground = "#FFFFC107";
     public bool IsRecording => State == LinuxRecordingOverlayState.Recording;
     public bool IsStreaming => State == LinuxRecordingOverlayState.Streaming;

@@ -140,41 +140,13 @@ struct DefaultModeInvariantTests {
         let localId = local.id!
         try? persistence.container.viewContext.save()
 
-        let backup = Self.backupMode(id: localId, name: "Renamed On The Other Machine", isDefault: true)
+        let backup = BackupTestFixtures.backupMode(id: localId, name: "Renamed On The Other Machine", isDefault: true)
         let result = persistence.importModes([backup], resolution: .keepBoth)
 
         #expect(result.imported == 1)
         let restored = persistence.fetchAllModes().first { $0.id == localId }
         #expect(restored?.name == "Renamed On The Other Machine")
         #expect(persistence.fetchAllModes().filter(\.isDefault).count == 1)
-    }
-
-    private static func backupMode(id: UUID, name: String, isDefault: Bool) -> BackupMode {
-        BackupMode(
-            id: id,
-            name: name,
-            preset: "hyper",
-            language: "en",
-            model: "base",
-            punctuation: true,
-            capitalization: true,
-            profanityFilter: false,
-            customInstructions: nil,
-            languageModel: nil,
-            cloudProvider: nil,
-            cloudTranscriptionModel: nil,
-            postProcessingMode: 0,
-            postProcessingProvider: nil,
-            englishSpelling: nil,
-            userSystemPrompt: nil,
-            isDefault: isDefault,
-            sortOrder: 0,
-            cloudAccuracyTier: nil,
-            removeTrailingPeriod: nil,
-            geminiCustomPrompt: nil,
-            cloudPostProcessingModel: nil,
-            cloudTranscriptionDomain: nil
-        )
     }
 
     @MainActor

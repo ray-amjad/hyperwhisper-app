@@ -171,4 +171,11 @@ struct SilentMicWarningPlacementTests {
         let frame = SilentMicWarningWindowManager.frame(size: size, below: pill, gap: 6, within: screen)
         #expect(frame.minY == pill.maxY + 6)
     }
+
+    @Test func staysOnScreenWhenThePillIsAtASideEdge() {
+        let left = NSRect(x: 0, y: 400, width: 200, height: 40)
+        #expect(SilentMicWarningWindowManager.frame(size: size, below: left, gap: 6, within: screen).minX == 0)
+        let right = NSRect(x: 1240, y: 400, width: 200, height: 40)
+        #expect(SilentMicWarningWindowManager.frame(size: size, below: right, gap: 6, within: screen).maxX == 1440)
+    }
 }

@@ -10,11 +10,13 @@ import test from "node:test";
 
 import { redactAccountKeyFromEvent } from "../src/lib/account-key-redaction";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const env: Record<string, string | undefined> = {};
 
-moduleMock.module("../src/env/client.mjs", { namedExports: { env } });
+moduleMock.module(moduleUrl("../src/env/client.mjs"), {
+  namedExports: { env },
+});
 
 const inits: Array<{ key: string; options: unknown; href: string }> = [];
 const fakePostHog = {
@@ -141,6 +143,9 @@ test("no globally-mounted or caller file imports PostHog statically", () => {
     "app/[locale]/purchase-success/page.tsx",
     "components/customer/dashboard/CloudCreditsCard.tsx",
     "src/lib/posthog-client.ts",
+    "src/lib/capture-seo-event.ts",
+    "components/landing/DownloadCta.tsx",
+    "components/landing/BlogDownloadCta.tsx",
   ]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 

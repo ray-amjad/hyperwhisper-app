@@ -17,13 +17,32 @@
   "appearance": {
     "default": "dark"
   },
+  "seo": {
+    "metatags": {
+      "canonical": "https://www.hyperwhisper.com"
+    },
+    "organization": {
+      "id": "https://www.hyperwhisper.com/#organization",
+      "name": "HyperWhisper",
+      "url": "https://www.hyperwhisper.com",
+      "logo": "https://www.hyperwhisper.com/icon/512.png",
+      "sameAs": [
+        "https://github.com/ray-amjad/hyperwhisper-app",
+        "https://www.linkedin.com/company/hyperwhisper/",
+        "https://x.com/HyperWhisperApp"
+      ]
+    }
+  },
   "favicon": "/assets/favicon.png",
-  "logo": "/assets/logo.png",
+  "logo": {
+    "light": "/assets/logo.png",
+    "dark": "/assets/logo-dark.png"
+  },
   "navbar": {
     "primary": {
       "type": "button",
       "label": "Get HyperWhisper",
-      "href": "https://www.hyperwhisper.com"
+      "href": "https://www.hyperwhisper.com/en/download"
     }
   },
   "navigation": {
@@ -189,11 +208,11 @@
         "items": [
           {
             "label": "Website",
-            "href": "https://www.hyperwhisper.com"
+            "href": "https://www.hyperwhisper.com/en"
           },
           {
             "label": "Download",
-            "href": "https://www.hyperwhisper.com"
+            "href": "https://www.hyperwhisper.com/en/download"
           }
         ]
       },
@@ -202,11 +221,11 @@
         "items": [
           {
             "label": "Email Support",
-            "href": "https://hyperwhisper.com/support"
+            "href": "https://www.hyperwhisper.com/en/support"
           },
           {
             "label": "Documentation",
-            "href": "https://hyperwhisper.com/docs"
+            "href": "https://www.hyperwhisper.com/docs"
           }
         ]
       }

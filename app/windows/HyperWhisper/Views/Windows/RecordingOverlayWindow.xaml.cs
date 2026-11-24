@@ -350,7 +350,8 @@ public partial class RecordingOverlayWindow : Window
     public void ShowRecording()
     {
         _deferredHide.Supersede();
-        _micSilenceText = null;
+        // _micSilenceText is left alone: the watcher owns it (#2411). Hide() clears it when a
+        // recording ends, and a re-show mid-recording keeps a warning that is still true.
         MainBorder.BorderBrush = new SolidColorBrush(WpfColor.FromArgb(26, 255, 255, 255));
         StreamingDot.Visibility = Visibility.Collapsed;
         _smoothedLevel = 0;

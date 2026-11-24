@@ -168,9 +168,18 @@ static void AllCatalogsLoad()
     // "should start with" rule refused them), so no invalid-key dialog is left.
     // 860 -> 861 (#1415): `settings.backup.import.summary.settings` is new (the Windows
     // backup import says "Settings restored." instead of zero mode/vocabulary counts).
-    // 861 -> 862 (#2411): `recording.warning.micSilent` is new (the Windows and Linux recording
+    // 861 -> 862 (#2547): `status.model.keyInvalid` is new (the Windows status bar when the
+    // provider rejected the saved BYOK key, instead of Ready).
+    // 862 -> 863 (#2478): `mode.editor.field.name.taken` is new (the Windows mode editor
+    // refuses a name another mode already uses, as macOS and the Local API do).
+    // 863 -> 868 (#2377): `settings.backup.import.summary.apiKeys`, `.apiKeysFailed`,
+    // `.apiKeysNone`, `.settingsFailed` and `settings.backup.import.partial` are new (the Windows backup
+    // import says whether the API keys landed, and a failed section is not a plain success).
+    // 868 -> 865 (#2001): `mode.editor.warning.vocabularyUnsupported.elevenlabs`, `.deepgramBase`
+    // and `.deepgramWhisper` are gone, read by nothing since #1998 moved the warning to the models catalog.
+    // 865 -> 866 (#2411): `recording.warning.micSilent` is new (the Windows and Linux recording
     // overlays warn "No sound from {mic}" while the microphone hears nothing).
-    Equal(862,PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(866,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

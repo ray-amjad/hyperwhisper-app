@@ -63,7 +63,23 @@ public partial class MicSilenceWarningWindow : Window
         if (!IsVisible) return;
         MonitorWorkArea.Place(this,
             () => MonitorWorkArea.OfWindow(overlay) ?? MonitorWorkArea.Primary(),
-            _ => TopLeftAbove(ToastWindowBehavior.WindowBounds(overlay), Width, Height));
+            workArea => Placement(ToastWindowBehavior.WindowBounds(overlay), workArea, Width, Height));
+    }
+
+    /// <summary>
+    /// <see cref="TopLeftAbove"/>, kept on the overlay's monitor: with no room above a
+    /// pill inside the work area (dragged to the top edge) it flips just below it, and
+    /// it never hangs past the work area's left or right edge. A pill dragged partly
+    /// above the work area keeps its warning with it, as <c>ErrorToastWindow</c> does.
+    /// Pure, so the smoke suite can pin it.
+    /// </summary>
+    internal static System.Windows.Point Placement(Rect overlay, Rect workArea, double width, double height)
+    {
+        var point = TopLeftAbove(overlay, width, height);
+        if (point.Y < workArea.Top && overlay.Top >= workArea.Top)
+            point.Y = overlay.Bottom + GapAboveOverlay;
+        point.X = Math.Max(workArea.Left, Math.Min(point.X, workArea.Right - width));
+        return point;
     }
 
     /// <summary>

@@ -16,11 +16,20 @@ import XCTest
 final class FileTranscriptionProgressIndeterminateTests: XCTestCase {
 
     /// Spin the main run loop until `condition` holds, so the 60 fps timer and its
-    /// MainActor hop can fire.
-    private func waitUntil(timeout: TimeInterval = 2.0, _ condition: () -> Bool) {
-        let deadline = Date().addingTimeInterval(timeout)
+    /// MainActor hop can fire. The 120 s bound is a hang guard, not a deadline:
+    /// a loaded CI runner can stall the test process for 20-90 s, far past the
+    /// old 2 s (#2455, #2505). A healthy run returns within a few frames.
+    private func waitUntil(
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: () -> Bool
+    ) {
+        let deadline = Date().addingTimeInterval(120)
         while !condition() && Date() < deadline {
             RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        }
+        if !condition() {
+            XCTFail("Timed out while waiting for the progress ramp", file: file, line: line)
         }
     }
 

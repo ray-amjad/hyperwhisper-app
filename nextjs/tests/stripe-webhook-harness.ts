@@ -13,6 +13,7 @@
  * is the only way the tests reach the source. A test file that imports the
  * webhook path itself would bind to the real collaborators, so do not.
  */
+import { accountKeyRowWithDefaults } from "./account-key-fixture";
 import { consoleSilencer, moduleMock, moduleUrl } from "./module-mock";
 
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
@@ -41,6 +42,8 @@ export interface RefundArgs {
 /** Everything the webhook module did, in call order. */
 export const calls = {
   findAccountByKey: [] as string[],
+  findAccountById: [] as string[],
+  findAccountsByStripeCustomer: [] as string[],
   findAccountByStripeSession: [] as string[],
   getAccountKeysByEmail: [] as string[],
   insertAccountKey: [] as AccountKeyInsert[],
@@ -85,24 +88,14 @@ export const behaviour = {
   emailSuccess: true,
 };
 
-export function accountKeyRow(overrides: Partial<AccountKeyRow> = {}): AccountKeyRow {
-  return {
-    id: "key_row_1",
-    key: "HW-AAAA-BBBB-CCCC",
-    email: "buyer@example.com",
-    userId: "user_1",
-    status: "granted",
-    polarLicenseKeyId: null,
-    polarCustomerId: null,
-    stripeCustomerId: "cus_1",
-    stripeSessionId: "cs_1",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    ...overrides,
-  };
-}
+export const accountKeyRow = accountKeyRowWithDefaults({
+  key: "HW-AAAA-BBBB-CCCC",
+});
 
 export function resetHarness(): void {
   calls.findAccountByKey.length = 0;
+  calls.findAccountById.length = 0;
+  calls.findAccountsByStripeCustomer.length = 0;
   calls.findAccountByStripeSession.length = 0;
   calls.getAccountKeysByEmail.length = 0;
   calls.insertAccountKey.length = 0;
@@ -148,7 +141,7 @@ export const restoreWebhookLogging = webhookLogging.restore;
 const emailOutcome = () =>
   behaviour.emailSuccess
     ? { success: true }
-    : { success: false, error: "resend refused the message" };
+    : { success: false, error: "provider refused the message" };
 
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
@@ -160,6 +153,18 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       const hit = pooled.find((row) => row.key === key);
       if (hit) return hit;
       return null;
+    },
+    findAccountById: async (id: string): Promise<AccountKeyRow | null> => {
+      calls.findAccountById.push(id);
+      const pooled: AccountKeyRow[] = [];
+      behaviour.byEmail.forEach((rows) => pooled.push(...rows));
+      return pooled.find((row) => row.id === id) ?? null;
+    },
+    findAccountsByStripeCustomer: async (customerId: string): Promise<AccountKeyRow[]> => {
+      calls.findAccountsByStripeCustomer.push(customerId);
+      const pooled: AccountKeyRow[] = [];
+      behaviour.byEmail.forEach((rows) => pooled.push(...rows));
+      return pooled.filter((row) => row.stripeCustomerId === customerId);
     },
     findAccountByStripeSession: async (sessionId: string): Promise<AccountKeyRow | null> => {
       calls.findAccountByStripeSession.push(sessionId);

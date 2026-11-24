@@ -123,8 +123,11 @@ public partial class MainWindow : Window
         // "No sound from {mic}" (#2411). BeginInvoke, never Invoke: the watcher raises
         // this on a capture or timer thread while holding its publish order, and the
         // UI thread itself starts and stops the watcher, so a blocking hop could deadlock.
-        _viewModel.MicSilenceWarningChanged += (s, text) => Dispatcher.BeginInvoke(() =>
-            _recordingOverlay?.SetMicSilenceWarning(text));
+        _viewModel.MicSilenceWarningChanged += (s, text) =>
+        {
+            if (Dispatcher.HasShutdownStarted) return;
+            Dispatcher.BeginInvoke(() => _recordingOverlay?.SetMicSilenceWarning(text));
+        };
 
         // CANCEL CONFIRMATION EVENTS
         // Wire up ViewModel cancel confirmation requests to overlay UI
