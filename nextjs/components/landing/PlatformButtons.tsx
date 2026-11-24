@@ -1,15 +1,15 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import type { DownloadCtaLocation } from "@/src/lib/capture-seo-event";
 
 import { useTranslations } from "next-intl";
 
+import { DownloadCta, downloadPath } from "./DownloadCta";
 import { BTN_GLASS, BTN_LG, BTN_WHITE } from "./dusk";
 
-import {
-  useDownloadModal,
-  type DownloadPlatform,
-} from "@/contexts/DownloadModalContext";
+import { useDownloadModal } from "@/contexts/DownloadModalContext";
+import { useSiteHref } from "@/src/i18n/use-site-href";
 
 function AppleIcon() {
   return (
@@ -36,57 +36,67 @@ function LinuxIcon() {
 }
 
 /**
- * "Download for Mac", "Windows", "Linux". Each opens the download modal (the
- * optional email capture) for its platform; the modal then goes to
- * /download?platform=…, which takes the file URL from the appcast.
+ * "Download for Mac", "Windows", "Linux". Each is a real link to
+ * /{locale}/download?platform=… so crawlers can reach the download landing
+ * page. A left-click still opens the download modal (the optional email
+ * capture); the modal then goes to the same path, which takes the file URL
+ * from the appcast.
  */
 export default function PlatformButtons({
   className,
   style,
+  cta,
 }: {
   className?: string;
   style?: CSSProperties;
+  cta: Extract<DownloadCtaLocation, "home_hero" | "home_closing">;
 }) {
   const t = useTranslations("hero");
   const tNav = useTranslations("navbar");
   const { openModalFor } = useDownloadModal();
-  const open = (platform: DownloadPlatform) => () => openModalFor(platform);
+  const { siteHref } = useSiteHref();
 
   return (
     <div
       className={`flex flex-wrap items-center justify-center gap-3 ${className ?? ""}`}
       style={style}
     >
-      <button
+      <DownloadCta
         className={`${BTN_WHITE} ${BTN_LG}`}
-        type="button"
-        onClick={open("mac")}
+        cta={cta}
+        href={siteHref(downloadPath("mac"))}
+        platform="mac"
+        onOpen={() => openModalFor("mac")}
       >
         <AppleIcon />
         {t("downloadMac")}
-      </button>
+      </DownloadCta>
       {/* OS names are never translated (see tests/locale-linux-platform-copy).
           The hidden, translated "Download" makes each accessible name say
           what the button does ("Download Windows"). The visible OS name stays
           inside that accessible name (WCAG 2.5.3, label in name). */}
-      <button
+      <DownloadCta
         className={`${BTN_GLASS} ${BTN_LG}`}
-        type="button"
-        onClick={open("windows")}
+        cta={cta}
+        href={siteHref(downloadPath("windows"))}
+        platform="windows"
+        onOpen={() => openModalFor("windows")}
       >
         <WindowsIcon />
         <span className="sr-only">{tNav("download")} </span>
         Windows
-      </button>
-      <button
+      </DownloadCta>
+      <DownloadCta
         className={`${BTN_GLASS} ${BTN_LG}`}
-        type="button"
-        onClick={open("linux")}
+        cta={cta}
+        href={siteHref(downloadPath("linux"))}
+        platform="linux"
+        onOpen={() => openModalFor("linux")}
       >
         <LinuxIcon />
         <span className="sr-only">{tNav("download")} </span>
         Linux
-      </button>
+      </DownloadCta>
     </div>
   );
 }

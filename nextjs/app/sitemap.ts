@@ -1,8 +1,10 @@
 import { MetadataRoute } from "next";
+
 import { SITE_URL } from "@/lib/site-metadata";
 import { getAllBlogPosts } from "@/src/content/blog";
 import {
   buildAlternateLanguageMap,
+  defaultLocale,
   locales,
 } from "@/src/i18n/locales";
 
@@ -42,7 +44,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "weekly",
         priority: page === "" ? 1 : 0.8,
         alternates: {
-          languages: buildAlternateLanguageMap(baseUrl, page),
+          languages: {
+            ...buildAlternateLanguageMap(baseUrl, page),
+            "x-default": `${baseUrl}/${defaultLocale}${page}`,
+          },
         },
       });
     });
@@ -78,6 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const blogPosts = await getAllBlogPosts();
+
   blogPosts.forEach((post) => {
     if (post.locale !== "en") return;
     const url = `${baseUrl}/en/blog/${post.slug}`;

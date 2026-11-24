@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { BTN_GLASS, BTN_LG, BTN_WHITE } from "@/components/landing/dusk";
 import { DuskPage, PageHero } from "@/components/landing/DuskPage";
+import { captureDownloadClicked } from "@/src/lib/capture-seo-event";
 import { isSupportedLocale } from "@/src/i18n/locales";
 
 export type NotFoundCopy = {
@@ -48,6 +49,9 @@ export default function NotFoundContent({
           <NextLink
             className={`${BTN_GLASS} ${BTN_LG}`}
             href={`/${locale}/download`}
+            onClick={() => {
+              void captureDownloadClicked({ cta: "not_found" });
+            }}
           >
             {t.download}
           </NextLink>
