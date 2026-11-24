@@ -20,6 +20,7 @@ static class VocabularyTransferTests
         await MergeRulesAsync(Path.Combine(root, "merge"));
         await UnreadableFilesWriteNothingAsync(Path.Combine(root, "unreadable"));
         await FailedSaveIsNotABadFileAsync(Path.Combine(root, "save-failed"));
+        await CancelledImportEndsQuietlyAsync(Path.Combine(root, "cancelled"));
         Console.WriteLine("Vocabulary transfer tests passed.");
     }
 
@@ -118,6 +119,13 @@ static class VocabularyTransferTests
         try { _ = VocabularyTransfer.Decode([0x63, 0x61, 0x66, 0xE9, 0x0A]); }
         catch (VocabularyTransferException) { refused = true; }
         Check(refused, "Latin-1 bytes were decoded instead of refused");
+
+        // A row saved before #1777 with a multi-line word exports one row per line, each with the
+        // replacement, so the file reads back the same in both formats.
+        var legacy = VocabularyTransfer.ToEntries([new HyperWhisper.Data.Entities.VocabularyItem { Word = "alpha\nbeta", Replacement = "R" }]);
+        CheckEntries(legacy, [new("alpha", "R"), new("beta", "R")], "a legacy multi-line word's export rows");
+        CheckEntries(VocabularyTransfer.ReadTxt(VocabularyTransfer.WriteTxt(legacy)).Entries, legacy, "a legacy multi-line word through TXT");
+        CheckEntries(VocabularyTransfer.ReadCsv(VocabularyTransfer.WriteCsv(legacy)).Entries, legacy, "a legacy multi-line word through CSV");
     }
 
     private static async Task<(ApplicationDb Database, VocabularyRepository Repository, VocabularyViewModel Page)> NewPageAsync(string root)
@@ -262,6 +270,26 @@ static class VocabularyTransferTests
         page.Localize = key => key == "vocabulary.transfer.saveFailed" ? "localized save failure" : null;
         await page.ImportAsync(file);
         Check(page.InputError == "localized save failure", $"the head's saveFailed text was not used: '{page.InputError}'");
+    }
+
+    // Quitting mid-import cancels the window's token during the file read. The Linux click handler
+    // is async void, so the import must end quietly: no exception, no error line, nothing written.
+    private static async Task CancelledImportEndsQuietlyAsync(string root)
+    {
+        var (_, repository, page) = await NewPageAsync(root);
+        await SeedAsync(repository, [new("keep", "me")]);
+        await page.RefreshAsync();
+        var before = await SnapshotAsync(repository);
+        var file = Path.Combine(root, "good.csv");
+        await File.WriteAllTextAsync(file, "word,replacement\nnew word,\n");
+
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        try { await page.ImportAsync(file, cancelled.Token); }
+        catch (OperationCanceledException) { Check(false, "a cancelled import threw OperationCanceledException"); }
+        Check(!page.HasInputError && !page.Status.HasError && !page.HasTransferMessage,
+            $"a cancelled import showed a message: {page.Status.ErrorCode} '{page.InputError}' '{page.TransferMessage}'");
+        Check(await SnapshotAsync(repository) == before, "a cancelled import wrote rows");
     }
 
     private static void CheckEntries(IReadOnlyList<VocabularyTransferEntry> actual, IReadOnlyList<VocabularyTransferEntry> expected, string what) =>

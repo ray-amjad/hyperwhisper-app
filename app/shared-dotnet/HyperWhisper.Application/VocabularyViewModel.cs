@@ -162,7 +162,8 @@ public sealed class VocabularyViewModel : ViewModelBase
     /// Imports a CSV or TXT file (#2409; the extension picks the format) and merges it into the
     /// list: new words are appended in file order, a listed word keeps its spelling and position
     /// and takes the file's replacement only when the file gives one. A file that is unreadable or
-    /// not UTF-8 shows the error line and writes nothing.
+    /// not UTF-8 shows the error line and writes nothing. A cancelled import returns quietly, with
+    /// no error line.
     /// </summary>
     public async Task ImportAsync(string? path = null, CancellationToken cancellationToken = default)
     {
@@ -175,6 +176,9 @@ public sealed class VocabularyViewModel : ViewModelBase
             var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
             parsed = VocabularyTransfer.Read(VocabularyTransfer.FormatForPath(path), VocabularyTransfer.Decode(bytes));
         }
+        // The caller gave up (the window is closing): end quietly. The Linux click handler is
+        // async void, so a cancellation thrown from here would be unhandled.
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or VocabularyTransferException)
         {
             Status.Failure("vocabulary.import_unreadable", Text("vocabulary.transfer.importFailed", "Could not read this file. Choose a UTF-8 CSV or TXT file."));
@@ -191,6 +195,7 @@ public sealed class VocabularyViewModel : ViewModelBase
                 "Vocabulary imported. Added: {0}, updated: {1}, skipped (over 1000 characters): {2}.",
                 result.Added, result.Updated, result.Skipped);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
         // The file parsed; a failure here is the database, not the file.
         catch (Exception) { Status.Failure("vocabulary.import_save_failed", Text("vocabulary.transfer.saveFailed", "The vocabulary could not be saved. Nothing was imported.")); }
         NotifyDerived();
