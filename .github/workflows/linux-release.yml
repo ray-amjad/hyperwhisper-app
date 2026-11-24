@@ -211,7 +211,16 @@ jobs:
 
           ssh_dir="${RUNNER_TEMP}/apt-ssh-preflight"
           key_file="${RUNNER_TEMP}/apt-signing-key-preflight.asc"
-          cleanup() { rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"; }
+          # The import check below runs in a private, throwaway GnuPG home, so
+          # the signing key never lands in the runner's default ~/.gnupg.
+          gnupg_home="$(mktemp -d "${RUNNER_TEMP}/apt-gnupg-preflight.XXXXXXXX")"
+          chmod 0700 "$gnupg_home"
+          export GNUPGHOME="$gnupg_home"
+          cleanup() {
+            rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"
+            gpgconf --homedir "$gnupg_home" --kill all >/dev/null 2>&1 || true
+            rm -rf -- "$gnupg_home"
+          }
           trap cleanup EXIT
           install -d -m 0700 "$ssh_dir"
           umask 077
@@ -236,7 +245,7 @@ jobs:
 
           # Prove the signing key actually imports. A truncated or wrong-armour
           # key passes the non-empty check above and then fails at signing time.
-          if ! gpg --batch --import "$key_file" >/dev/null 2>&1; then
+          if ! gpg --batch --homedir "$gnupg_home" --import "$key_file" >/dev/null 2>&1; then
             echo "::error::LINUX_APT_SIGNING_KEY is not an importable GPG key. Re-author it in Infisical (--env=prod)."
             exit 1
           fi
@@ -726,8 +735,13 @@ jobs:
             "$origin/dists/stable/InRelease" --output "${RUNNER_TEMP}/InRelease"
           curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
             "$origin/dists/stable/main/binary-amd64/Packages.gz" --output "${RUNNER_TEMP}/Packages.gz"
-          gpg --batch --yes --dearmor \
+          # Dearmoring needs no keyring, but gpg still creates its home on
+          # first use: point it at a throwaway one, not ~/.gnupg.
+          verify_gnupg_home="$(mktemp -d "${RUNNER_TEMP}/apt-gnupg-verify.XXXXXXXX")"
+          chmod 0700 "$verify_gnupg_home"
+          GNUPGHOME="$verify_gnupg_home" gpg --batch --yes --dearmor \
             --output "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/apt-key.asc"
+          rm -rf -- "$verify_gnupg_home"
           gpgv --keyring "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/InRelease"
           gzip -dc "${RUNNER_TEMP}/Packages.gz" > "${RUNNER_TEMP}/Packages"
           for package_name in hyperwhisper hyperwhisper-cuda; do

@@ -197,6 +197,7 @@ jobs:
             dpkg-dev \
             ffmpeg \
             file \
+            gnupg \
             lintian \
             patchelf \
             libfontconfig1 \
