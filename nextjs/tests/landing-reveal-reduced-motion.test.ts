@@ -27,6 +27,18 @@ import { NextIntlClientProvider } from "next-intl";
 
 import { moduleMock } from "./module-mock";
 
+moduleMock.module("next/navigation", {
+  namedExports: {
+    usePathname: () => "/en",
+    useRouter: () => ({ push() {}, replace() {}, prefetch() {} }),
+    useSearchParams: () => new URLSearchParams(),
+    useParams: () => ({ locale: "en" }),
+    redirect() {},
+    permanentRedirect() {},
+    notFound() {},
+  },
+});
+
 // VARIABLE specifiers: a literal `.tsx` specifier is a TS5097 error under this
 // tsconfig. Same rule the other tests in this folder document.
 const CONTEXT_PATH = "../contexts/DownloadModalContext.tsx";

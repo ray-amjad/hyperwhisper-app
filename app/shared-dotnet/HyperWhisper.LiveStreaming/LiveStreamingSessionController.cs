@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.LiveStreaming;
@@ -52,7 +53,7 @@ public sealed class SharedCoreLiveCloudTranscriber(LiveCloudTranscriptionService
 /// Owns one live capture session. A normal Stop completes the PCM stream so the
 /// provider receives its commit/final frame; Cancel aborts the provider session.
 /// </summary>
-public sealed class LiveStreamingSessionController : IAsyncDisposable
+public sealed class LiveStreamingSessionController : IAsyncDisposable, IAudioBlockPeakSource
 {
     private const int ChannelCapacity = 128;
     private readonly object _gate = new();
@@ -77,10 +78,14 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         _capture = capture ?? throw new ArgumentNullException(nameof(capture));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
         _capture.AudioLevelChanged += OnAudioLevelChanged;
+        if (_capture is IAudioBlockPeakSource peaks) peaks.BlockPeakDbfs += OnBlockPeakDbfs;
     }
 
     public event EventHandler<float>? AudioLevelChanged;
     public event EventHandler<LiveStreamingConnectionState>? ConnectionStateChanged;
+
+    /// <summary>Each captured chunk's peak in dBFS, relayed from a capture that reports it (#2411).</summary>
+    public event EventHandler<double>? BlockPeakDbfs;
 
     public bool IsRunning
     {
@@ -419,6 +424,14 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             try { handler(this, normalized); } catch { }
     }
 
+    private void OnBlockPeakDbfs(object? sender, double peakDbfs)
+    {
+        var handlers = BlockPeakDbfs;
+        if (handlers is null) return;
+        foreach (EventHandler<double> handler in handlers.GetInvocationList())
+            try { handler(this, peakDbfs); } catch { }
+    }
+
     private void CompleteAudio()
     {
         Channel<ReadOnlyMemory<byte>>? audio;
@@ -468,7 +481,9 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         }
         Unsubscribe();
         _capture.AudioLevelChanged -= OnAudioLevelChanged;
+        if (_capture is IAudioBlockPeakSource peaks) peaks.BlockPeakDbfs -= OnBlockPeakDbfs;
         AudioLevelChanged = null;
+        BlockPeakDbfs = null;
         ConnectionStateChanged = null;
         lock (_gate)
         {

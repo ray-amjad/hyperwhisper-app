@@ -442,4 +442,61 @@ struct LocalAPIContractTests {
             to: mode, engine: "microsoftazurespeech", model: "mai-transcribe-2")
         #expect(mode.cloudTranscriptionModel == "mai-transcribe-2")
     }
+
+    // MARK: - No mode_id and no engine (issue #1100)
+
+    /// `{"audio_base64": <wav>, "mime_type": "audio/wav"}` — audio, but no
+    /// `mode_id` and no `engine` — used to answer a bare "Invalid request."
+    /// that named no field. It now answers INVALID_REQUEST with the Windows
+    /// head's message, which names both fields, and the hint the not-JSON
+    /// 400 already sends. A blank or whitespace-only `engine` is the same
+    /// request and gets the same answer.
+    @Test func noModeIdAndNoEngineNamesBothFields() {
+        for raw in [nil, "", "   ", "\t\n"] as [String?] {
+            do {
+                _ = try TranscribeEndpoint.requiredEngine(raw)
+                Issue.record("engine \(String(describing: raw)) was accepted")
+            } catch let error as TranscribeEndpoint.APIInputError {
+                #expect(error.code == .invalidRequest)
+                #expect(error.message == "Provide 'mode_id' or 'engine'")
+                #expect(error.hint == "Required: file (absolute path) plus either mode_id, or engine + model.")
+            } catch {
+                Issue.record("unexpected error \(error)")
+            }
+        }
+
+        // A real engine passes through, trimmed, to the engine-only path.
+        #expect((try? TranscribeEndpoint.requiredEngine(" whisper ")) == "whisper")
+    }
+
+    /// The error reaches the wire as written: `handle` maps whatever
+    /// `resolve` throws through `mapTranscriptionError`, which passes an
+    /// `APIInputError` through verbatim instead of the shared table's bare
+    /// "Invalid request.". INVALID_REQUEST stays a HTTP 200 business failure.
+    @Test func theNoModeIdOrEngineErrorReachesTheEnvelopeVerbatim() throws {
+        let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(
+            TranscribeEndpoint.APIInputError.modeIdOrEngineRequired)
+        #expect(code == .invalidRequest)
+        #expect(message.contains("mode_id"))
+        #expect(message.contains("engine"))
+        #expect(message != "Invalid request.")
+        #expect(hint == TranscribeEndpoint.APIInputError.requestShapeHint)
+
+        let shared = localApiAllErrorCodes().first { LocalAPIErrorCode(shared: $0) == code }
+        let failure = localApiBusinessFailure(code: try #require(shared), message: message, hint: hint)
+        #expect(failure.httpStatus == 200)
+    }
+
+    /// `resolve`'s engine-only form gets its engine from `requiredEngine`,
+    /// and no longer throws the bare `TranscriptionError.invalidRequest`
+    /// (the dictation pipeline still uses that case; only this throw moved).
+    @Test func resolveAsksRequiredEngineForTheEngineOnlyForm() throws {
+        let resolveBody = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeEndpoint.swift",
+            from: "private static func resolve(",
+            to: "static func requiredEngine("
+        )
+        #expect(resolveBody.contains("let engine = try requiredEngine(req.engine)"))
+        #expect(!resolveBody.contains("throw TranscriptionError.invalidRequest"))
+    }
 }

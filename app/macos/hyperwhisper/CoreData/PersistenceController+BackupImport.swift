@@ -276,6 +276,30 @@ extension PersistenceController {
 
         for backupMode in backupModes {
             let normalizedBackupName = ModeNamePolicy.storageName(backupMode.name, replacing: nil)
+            // Issue #1546: a backup exported on a build before #1509 can carry
+            // leaked Local API rows. `createOrUpdateMode` would give such a row
+            // an ordinary sort order, and the launch purge would never match it
+            // again. So the backup row's OWN values go through the same test
+            // the purge uses (`isLeakedRow`, default flag included), and a
+            // match is not restored: the restore drops exactly the rows the
+            // purge would delete on the machine that made the backup, never
+            // more. A match is counted as skipped, so the result still reports
+            // it. This check runs before the conflict handling, so under
+            // `.replace` it cannot delete a local mode with the same name. A
+            // backup row carries no seeded flag, and neither endpoint ever
+            // built a seeded Mode, so `false` is what the purge would read.
+            // The name is the RAW backup name, as stored on that machine: the
+            // trimmed one could match a row the purge there would keep.
+            if LocalAPITransientModeMarker.isLeakedRow(
+                name: backupMode.name,
+                sortOrder: backupMode.sortOrder,
+                isDefault: backupMode.isDefault,
+                isSystemProvided: false
+            ) {
+                AppLogger.coreData.info("Backup import: skipped a leaked Local API transient mode")
+                skipped += 1
+                continue
+            }
             let normalizedKey = ModeNamePolicy.comparisonKey(normalizedBackupName)!
             let conflicts = fetchAllModes().filter {
                 guard let name = $0.name else { return false }
@@ -381,7 +405,7 @@ extension PersistenceController {
             let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(backupMode.cloudProvider)
 
             // Create the mode using existing method
-            createOrUpdateMode(
+            let restoredMode = createOrUpdateMode(
                 id: finalId,
                 name: finalName,
                 preset: backupMode.preset,
@@ -425,6 +449,21 @@ extension PersistenceController {
                 restoringFromBackup: true,
                 updating: inPlaceTarget
             )
+
+            // Issue #1546: a row restored into a store that already holds
+            // `Int16.max` is capped there by `createOrUpdateMode`, and its
+            // name is trimmed. With an endpoint name, the next launch purge
+            // would then delete a mode the check above kept. One below the
+            // marker keeps it out of the purge and still last in the list.
+            // The default flag is left out: the pass below can still clear it.
+            if LocalAPITransientModeMarker.isLeakedRow(
+                name: restoredMode.name,
+                sortOrder: restoredMode.sortOrder,
+                isDefault: false,
+                isSystemProvided: restoredMode.isSystemProvided
+            ) {
+                restoredMode.sortOrder = LocalAPITransientModeMarker.sortOrder - 1
+            }
 
             // Update isDefault flag if this mode should be default
             // Only set as default if the original was default AND we're not in keepBoth mode

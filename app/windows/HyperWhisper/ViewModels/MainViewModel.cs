@@ -322,6 +322,7 @@ public partial class MainViewModel : ViewModelBase
         };
 
         _recorderService.AudioLevelChanged += _audioLevelHandler;
+        AttachMicSilenceWatcher();
         _transcriptionOrchestrator.PostProcessingWarning += _orchestratorWarningHandler;
 
         _pushToTalkMonitor.Pressed += OnPushToTalkPressed;
@@ -808,6 +809,16 @@ public partial class MainViewModel : ViewModelBase
             settingsSection: isCloudAccountError ? "Cloud" : null,
             openApiKeysManager: isCredentialError);
     }
+
+    /// <summary>
+    /// The status-bar line for a failed transcription (issue #2830). It carries the same
+    /// text as <see cref="TranscriptionFailureToast"/>: a TranscriptionException shows its
+    /// GetUserMessage() (e.g. "Insufficient credits. Add more credits in Settings."), never
+    /// the raw diagnostic Message that History stores as FailedReason. Any other exception
+    /// keeps its Message.
+    /// </summary>
+    internal static string TranscriptionFailureStatusText(Exception ex) =>
+        Loc.S("status.failed", ex is TranscriptionException txEx ? txEx.GetUserMessage() : ex.Message);
 
     /// <summary>
     /// The status line a job leaves when it ends (issue #1519). While a job runs the
@@ -1307,6 +1318,8 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIsRecordingChanged(bool value)
     {
+        UpdateMicSilenceWatcher(value);
+
         // Keep-warm for local Whisper (issue #1194): the worker process starts and
         // loads the model while the user speaks, and cannot idle out mid-recording.
         if (value)
@@ -2835,7 +2848,7 @@ public partial class MainViewModel : ViewModelBase
                 if (failureWrittenForTxEx)
                 {
                     ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
-                    StatusText = Loc.S("status.failed", ex.Message);
+                    StatusText = TranscriptionFailureStatusText(txEx);
                 }
             }
             else
@@ -2844,7 +2857,7 @@ public partial class MainViewModel : ViewModelBase
                 if (failureWritten)
                 {
                     ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
-                    StatusText = Loc.S("status.failed", ex.Message);
+                    StatusText = TranscriptionFailureStatusText(ex);
                 }
             }
         }
@@ -3439,6 +3452,7 @@ public partial class MainViewModel : ViewModelBase
         _activeTranscriptionCts = null;
 
         _recorderService.AudioLevelChanged -= _audioLevelHandler;
+        DetachMicSilenceWatcher();
         _pushToTalkMonitor.Pressed -= OnPushToTalkPressed;
         _pushToTalkMonitor.Released -= OnPushToTalkReleased;
         _pushToTalkMonitor.Interfered -= OnPushToTalkInterfered;

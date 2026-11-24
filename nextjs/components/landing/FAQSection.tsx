@@ -1,16 +1,18 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, type ReactElement } from "react";
 
 import { EYEBROW, H2, WRAP } from "./dusk";
+import { FAQ_KEYS } from "./faq-keys";
 import Reveal from "./Reveal";
 
 import { TEXT_LINK } from "@/components/text-link";
+import { isOffSiteHref, rewritePublicHref } from "@/lib/public-href";
 
 // Parse markdown links [text](url) and convert to JSX
-function parseMarkdownLinks(text: string) {
+function parseMarkdownLinks(text: string, locale: string) {
   const parts: (string | ReactElement)[] = [];
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let lastIndex = 0;
@@ -23,15 +25,16 @@ function parseMarkdownLinks(text: string) {
     }
 
     // Add the link
-    const [, linkText, url] = match;
+    const [, linkText, rawUrl] = match;
+    const url = rewritePublicHref(rawUrl, locale);
+    const offSite = isOffSiteHref(url);
 
     parts.push(
       <a
         key={`link-${match.index}`}
         className={TEXT_LINK}
         href={url}
-        rel="noopener noreferrer"
-        target="_blank"
+        {...(offSite ? { rel: "noopener noreferrer", target: "_blank" } : {})}
       >
         {linkText}
       </a>,
@@ -52,31 +55,13 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const t = useTranslations("faq");
   const tNav = useTranslations("navbar");
+  const locale = useLocale();
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  const faqKeys = [
-    "offline",
-    "compatibility",
-    "accuracy",
-    "privacy",
-    "dataTraining",
-    "dataStorage",
-    "lifetime",
-    "refund",
-    "requirements",
-    "languages",
-    "apiKey",
-    "cloud",
-    "creditExpiry",
-    "deviceLimit",
-    "offlineModels",
-    "madeBy",
-    "funding",
-    "selfHost",
-  ];
+  const faqKeys = FAQ_KEYS;
 
   return (
     <section className="pb-24 pt-10 md:pb-[140px]" id="faq">
@@ -124,7 +109,7 @@ export default function FAQSection() {
                     resolve to 0. Without it every closed panel keeps its full height. */}
                 <div className="overflow-hidden">
                   <p className="max-w-[700px] whitespace-pre-line px-1 pb-[22px] text-[15.5px] leading-[1.6] text-[var(--dusk-mute)]">
-                    {parseMarkdownLinks(t(`questions.${key}.answer`))}
+                    {parseMarkdownLinks(t(`questions.${key}.answer`), locale)}
                   </p>
                 </div>
               </div>

@@ -177,7 +177,9 @@ static void AllCatalogsLoad()
     // import says whether the API keys landed, and a failed section is not a plain success).
     // 868 -> 865 (#2001): `mode.editor.warning.vocabularyUnsupported.elevenlabs`, `.deepgramBase`
     // and `.deepgramWhisper` are gone, read by nothing since #1998 moved the warning to the models catalog.
-    Equal(865,PortableLocalizer.BaseKeyCount, "base key count");
+    // 865 -> 866 (#2411): `recording.warning.micSilent` is new (the Windows and Linux recording
+    // overlays warn "No sound from {mic}" while the microphone hears nothing).
+    Equal(866,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

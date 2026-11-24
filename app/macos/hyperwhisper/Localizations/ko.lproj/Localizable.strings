@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "음성 대기 중...";
 "streaming.state.reconnecting" = "재연결 중...";
 "recording.stop.help" = "녹음 중지 (%@)";
+"recording.warning.micSilent" = "%@에서 소리가 들리지 않습니다";
 "recording.retry" = "재시도";
 "recording.retry.inProgress" = "재시도 중…";
 "recording.retry.count" = "재시도 (%d)";

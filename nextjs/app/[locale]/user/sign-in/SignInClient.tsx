@@ -25,6 +25,18 @@ type Tab = "license-key" | "email";
  */
 const DEAD_MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN"]);
 
+/**
+ * Better Auth's rate limiter sends the wait as whole seconds in `X-Retry-After`.
+ * Anything that is not a positive number gets the message without a count.
+ */
+function parseRetryAfterHeader(header: string | null): number | null {
+  const seconds = Math.ceil(Number(header));
+
+  return header !== null && Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : null;
+}
+
 // Shared by every submit button: the Dusk white pill, full width.
 const PRIMARY_CTA_CLASS_NAME = `${BTN_WHITE} ${BTN_LG} w-full disabled:cursor-not-allowed disabled:opacity-50`;
 
@@ -195,6 +207,27 @@ export default function SignInClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: key.trim(), callbackURL }),
       });
+
+      // Better Auth's rate limiter (5 tries per 60 s per IP, set in
+      // `auth-license-key-plugin.ts`) answers `{ message }`, not `{ error }`,
+      // so this used to fall through to "Sign-in failed. Please try again."
+      // and the user kept retrying a form that could not succeed yet (#2387).
+      // Checked before the body is parsed, so a 429 whose body is not JSON
+      // still lands here. Only this status is special-cased: other statuses
+      // still never show a raw server `message`.
+      if (res.status === 429) {
+        const seconds = parseRetryAfterHeader(res.headers.get("X-Retry-After"));
+
+        setLicenseError(
+          seconds === null
+            ? t("tooManyAttemptsLater")
+            : t("tooManyAttempts", { seconds }),
+        );
+        setAutoSigningIn(false);
+
+        return;
+      }
+
       const data: unknown = await res.json();
       const error =
         isRecord(data) && typeof data.error === "string" ? data.error : null;

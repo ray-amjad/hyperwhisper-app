@@ -841,6 +841,21 @@ struct OnboardingTryItTests {
         #expect(h.flow.transcriptBody == "Hello there")
     }
 
+    @Test func aFailedRecordingNeverShowsTheRecordedPill() {
+        let h = Harness()
+        #expect(h.flow.tryItPill == .none)
+
+        h.audio.transcriptSubject.send("Error: No speech detected in the recording.")
+        #expect(h.flow.tryItPill != .recorded)
+        #expect(h.flow.tryItPill == .failed)
+
+        h.audio.transcriptSubject.send("Hello there")
+        #expect(h.flow.tryItPill == .recorded)
+
+        h.audio.transcriptSubject.send("")
+        #expect(h.flow.tryItPill == .none)
+    }
+
     @Test func leavingTheTryItStepStopsRecordingAndClearsTheTranscript() {
         let h = Harness()
         h.flow.beginTryItStep()

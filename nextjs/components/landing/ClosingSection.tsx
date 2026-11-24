@@ -41,7 +41,7 @@ export default function ClosingSection() {
           </h2>
         </Reveal>
         <Reveal className="mt-8" delay={120}>
-          <PlatformButtons />
+          <PlatformButtons cta="home_closing" />
         </Reveal>
         <Reveal
           as="p"

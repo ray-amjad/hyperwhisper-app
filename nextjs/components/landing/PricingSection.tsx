@@ -4,12 +4,14 @@ import { Check, Minus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { DownloadCta, downloadPath } from "./DownloadCta";
 import { BTN_GLASS, BTN_WHITE, EYEBROW, H2, LEAD, WRAP } from "./dusk";
 import EnterpriseContactModal from "./EnterpriseContactModal";
 import Reveal from "./Reveal";
 
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { Link } from "@/src/i18n/navigation";
+import { useSiteHref } from "@/src/i18n/use-site-href";
 
 const PLAN =
   "relative flex h-full flex-col rounded-[26px] border p-7 text-start md:p-[34px]";
@@ -22,6 +24,7 @@ const PLAN_BTN = "mt-auto w-full px-[22px] py-[13px] text-[15px]";
  */
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
+  const { siteHref } = useSiteHref();
   const t = useTranslations("cloudSection");
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
 
@@ -88,13 +91,14 @@ export default function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button
+            <DownloadCta
               className={`${BTN_GLASS} ${PLAN_BTN}`}
-              type="button"
-              onClick={openModal}
+              cta="home_pricing"
+              href={siteHref(downloadPath())}
+              onOpen={openModal}
             >
               {t("byo.cta")}
-            </button>
+            </DownloadCta>
           </Reveal>
 
           <Reveal

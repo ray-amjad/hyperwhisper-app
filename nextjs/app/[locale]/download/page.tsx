@@ -27,6 +27,7 @@ import { Link } from "@/src/i18n/navigation";
 import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
 import { reportClientError } from "@/lib/shared/report-client-error";
+import { captureDownloadClicked } from "@/src/lib/capture-seo-event";
 
 type Platform = "mac" | "windows" | "linux";
 
@@ -394,6 +395,7 @@ export default function DownloadPage() {
 
   // No `started` guard here: the countdown effect already stops once `started`
   // is set, so it fires this once, and a click on "Download again" must re-run it.
+  // Auto-download from the countdown is not a click, so it does not capture.
   const triggerDownload = (platform: Platform) => {
     setDownloadState((prev) => ({
       ...prev,
@@ -404,6 +406,10 @@ export default function DownloadPage() {
   };
 
   const handleManualDownload = () => {
+    void captureDownloadClicked({
+      cta: "download_page",
+      platform: selectedPlatform,
+    });
     triggerDownload(selectedPlatform);
   };
 
@@ -510,6 +516,12 @@ export default function DownloadPage() {
                       <a
                         className={CTA}
                         href="/api/download?platform=windows&arch=x64"
+                        onClick={() => {
+                          void captureDownloadClicked({
+                            cta: "download_page",
+                            platform: "windows",
+                          });
+                        }}
                       >
                         <Download aria-hidden="true" />
                         {t("downloadX64")}
@@ -518,6 +530,12 @@ export default function DownloadPage() {
                       <a
                         className={CTA}
                         href="/api/download?platform=windows&arch=arm64"
+                        onClick={() => {
+                          void captureDownloadClicked({
+                            cta: "download_page",
+                            platform: "windows",
+                          });
+                        }}
                       >
                         <Download aria-hidden="true" />
                         {t("downloadArm64")}
@@ -530,6 +548,12 @@ export default function DownloadPage() {
                         href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
                         rel="noreferrer"
                         target="_blank"
+                        onClick={() => {
+                          void captureDownloadClicked({
+                            cta: "download_page",
+                            platform: "linux",
+                          });
+                        }}
                       >
                         <Download aria-hidden="true" />
                         {linuxLatest

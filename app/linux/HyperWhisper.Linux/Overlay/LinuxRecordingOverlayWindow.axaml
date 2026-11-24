@@ -29,10 +29,18 @@
           <Border Width="8" Height="8" CornerRadius="1.5" Background="White"
                   HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>
-        <Border Grid.Column="1" Background="#26FFFFFF" CornerRadius="8" Padding="6,3"
+        <!-- #2411: while the recording hears nothing, the badge turns into an amber "No sound from {mic}"
+             (wrapping to two lines); the stop button, waveform and timer stay. -->
+        <Border Grid.Column="1" Background="#26FFFFFF" CornerRadius="8" Padding="6,2"
                 VerticalAlignment="Center">
-          <TextBlock Text="{Binding ModeText}" Foreground="#E6FFFFFF" FontSize="9" FontWeight="Medium"
-                     TextTrimming="CharacterEllipsis" MaxWidth="64" />
+          <Panel>
+            <TextBlock Text="{Binding ModeText}" Foreground="#E6FFFFFF" FontSize="9" FontWeight="Medium"
+                       IsVisible="{Binding !IsMicSilent}"
+                       TextTrimming="CharacterEllipsis" MaxWidth="64" />
+            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusForeground}" FontSize="9"
+                       FontWeight="Medium" IsVisible="{Binding IsMicSilent}" LineHeight="11"
+                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" MaxWidth="96" />
+          </Panel>
         </Border>
         <overlay:LinuxOverlayWaveform Grid.Column="2" Level="{Binding AudioLevel}" Height="24"
                                       ClipToBounds="True" VerticalAlignment="Center" />
@@ -48,7 +56,7 @@
         <Border Grid.Column="1" Background="#26FFFFFF" CornerRadius="8" Padding="6,2"
                 VerticalAlignment="Center">
           <!-- The connection captions run to "Live transcription connection lost", so the badge wraps to two lines. -->
-          <TextBlock Text="{Binding StatusText}" Foreground="#E6FFFFFF" FontSize="9" FontWeight="Medium"
+          <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusForeground}" FontSize="9" FontWeight="Medium"
                      LineHeight="11" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" MaxWidth="80" />
         </Border>
         <overlay:LinuxOverlayWaveform Grid.Column="2" Level="{Binding AudioLevel}" Height="24"

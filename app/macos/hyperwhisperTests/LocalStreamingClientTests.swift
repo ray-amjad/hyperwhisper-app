@@ -79,6 +79,7 @@ private actor FakeLocalStreamingSession: LocalStreamingSession {
 private final class FakeAudioCapture: StreamingAudioCapturing {
     var onFloat32Samples: (([Float]) -> Void)?
     var onAudioLevel: ((Float) -> Void)?
+    var onInputPeakDbfs: ((Float) -> Void)?
     var startCount = 0
     var stopCount = 0
     func start() async throws { startCount += 1 }
