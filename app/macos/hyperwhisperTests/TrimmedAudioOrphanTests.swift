@@ -17,6 +17,7 @@
 //  store, and checks the folder holds no file that no row records.
 //
 
+import AVFoundation
 import CoreData
 import Foundation
 import Testing
@@ -64,6 +65,36 @@ struct TrimmedAudioOrphanTests {
     private func makeFile(_ name: String, in folder: URL, bytes: Int = 64, modified: Date? = nil) throws -> URL {
         let url = folder.appendingPathComponent(name)
         try Data(repeating: 0x41, count: bytes).write(to: url)
+        if let modified {
+            try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+        }
+        return url
+    }
+
+    /// A real AAC `.m4a` of `seconds` of silence, the shape of a VAD upload
+    /// copy by default (16 kHz mono), for the sweep's format check.
+    @discardableResult
+    private func makeAudioFile(
+        _ name: String,
+        in folder: URL,
+        sampleRate: Double = 16_000,
+        channels: AVAudioChannelCount = 1,
+        modified: Date? = nil
+    ) throws -> URL {
+        let url = folder.appendingPathComponent(name)
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: sampleRate,
+            AVNumberOfChannelsKey: channels,
+        ]
+        do {
+            let file = try AVAudioFile(forWriting: url, settings: settings)
+            let format = try #require(AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: channels))
+            let frames = AVAudioFrameCount(sampleRate / 2)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames))
+            buffer.frameLength = frames
+            try file.write(from: buffer)
+        }
         if let modified {
             try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
         }
@@ -507,20 +538,20 @@ struct TrimmedAudioOrphanTests {
         defer { suite.defaults.removePersistentDomain(forName: suite.name) }
         let persistence = PersistenceController(inMemory: true)
 
-        let orphan = try makeFile("a_wav_trimmed.m4a", in: folder, modified: Self.old)
-        let secondOrphan = try makeFile("b_m4a_trimmed.m4a", in: folder, modified: Self.old)
-        let young = try makeFile("c_wav_trimmed.m4a", in: folder, modified: Self.young)
+        let orphan = try makeAudioFile("a_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let secondOrphan = try makeAudioFile("b_m4a_trimmed.m4a", in: folder, modified: Self.old)
+        let young = try makeAudioFile("c_wav_trimmed.m4a", in: folder, modified: Self.young)
         // Derived from a row's trimmed WAV (the #1513 upload copy).
         let derivedTrimmed = folder.appendingPathComponent("d_wav_trimmed.wav")
-        let derived = try makeFile("d_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let derived = try makeAudioFile("d_wav_trimmed.m4a", in: folder, modified: Self.old)
         try insertTranscript(in: persistence, audioFilePath: folder.appendingPathComponent("d.wav").path, trimmedAudioFilePath: derivedTrimmed.path)
         // Recorded directly as a row's original and as a row's trimmed file.
-        let recordedOriginal = try makeFile("e_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let recordedOriginal = try makeAudioFile("e_wav_trimmed.m4a", in: folder, modified: Self.old)
         try insertTranscript(in: persistence, audioFilePath: recordedOriginal.path)
-        let recordedTrimmed = try makeFile("f_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let recordedTrimmed = try makeAudioFile("f_wav_trimmed.m4a", in: folder, modified: Self.old)
         try insertTranscript(in: persistence, audioFilePath: nil, trimmedAudioFilePath: recordedTrimmed.path)
         // A row records the same name through another folder path.
-        let sameName = try makeFile("g_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let sameName = try makeAudioFile("g_wav_trimmed.m4a", in: folder, modified: Self.old)
         try insertTranscript(in: persistence, audioFilePath: "/Volumes/Elsewhere/G_WAV_TRIMMED.m4a")
         // Not upload copies.
         let plainM4A = try makeFile("h.m4a", in: folder, modified: Self.old)
@@ -542,6 +573,33 @@ struct TrimmedAudioOrphanTests {
         #expect(suite.defaults.bool(forKey: PersistenceController.orphanedTrimmedUploadCopySweepDefaultsKey))
     }
 
+    /// A `*_trimmed.m4a` that is not in the VAD output's format (16 kHz mono)
+    /// is the user's own file in a folder they picked: it stays, and it does
+    /// not hold the one-time flag back.
+    @Test func theSweepKeepsFilesNotInTheVADFormat() async throws {
+        let folder = try makeRecordingsFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let suite = try makeDefaults()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        let persistence = PersistenceController(inMemory: true)
+
+        let orphan = try makeAudioFile("a_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let stereo = try makeAudioFile("interview_trimmed.m4a", in: folder, sampleRate: 44_100, channels: 2, modified: Self.old)
+        let wideband = try makeAudioFile("memo_trimmed.m4a", in: folder, sampleRate: 48_000, modified: Self.old)
+        let notAudio = try makeFile("notes_trimmed.m4a", in: folder, modified: Self.old)
+
+        let run = await persistence.sweepOrphanedTrimmedUploadCopiesIfNeeded(
+            recordingsFolder: folder, now: Self.now, defaults: suite.defaults
+        )
+        let deleted = try #require(run)
+
+        #expect(deleted.map(\.lastPathComponent) == [orphan.lastPathComponent])
+        for kept in [stereo, wideband, notAudio] {
+            #expect(exists(kept), "\(kept.lastPathComponent) must stay")
+        }
+        #expect(suite.defaults.bool(forKey: PersistenceController.orphanedTrimmedUploadCopySweepDefaultsKey))
+    }
+
     /// One time only: a second launch deletes nothing, even a new orphan.
     @Test func theSweepRunsOnlyOnce() async throws {
         let folder = try makeRecordingsFolder()
@@ -549,7 +607,7 @@ struct TrimmedAudioOrphanTests {
         let suite = try makeDefaults()
         defer { suite.defaults.removePersistentDomain(forName: suite.name) }
         let persistence = PersistenceController(inMemory: true)
-        let first = try makeFile("a_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let first = try makeAudioFile("a_wav_trimmed.m4a", in: folder, modified: Self.old)
 
         let firstRun = await persistence.sweepOrphanedTrimmedUploadCopiesIfNeeded(
             recordingsFolder: folder, now: Self.now, defaults: suite.defaults
@@ -557,7 +615,7 @@ struct TrimmedAudioOrphanTests {
         #expect(firstRun?.count == 1)
         #expect(!exists(first))
 
-        let second = try makeFile("b_wav_trimmed.m4a", in: folder, modified: Self.old)
+        let second = try makeAudioFile("b_wav_trimmed.m4a", in: folder, modified: Self.old)
         let secondRun = await persistence.sweepOrphanedTrimmedUploadCopiesIfNeeded(
             recordingsFolder: folder, now: Self.now, defaults: suite.defaults
         )

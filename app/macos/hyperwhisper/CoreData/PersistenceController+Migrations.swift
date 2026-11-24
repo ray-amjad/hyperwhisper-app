@@ -6,6 +6,7 @@
 //  Split out of PersistenceController.swift (#697); every body moved unchanged.
 //
 
+import AVFoundation
 import CoreData
 import Foundation
 import SQLite3
@@ -406,8 +407,22 @@ extension PersistenceController {
         }.value
     }
 
-    /// Removes `orphans`, each only if it sits directly in `folder` and its
-    /// modification date, read again now, is still before `cutoff`.
+    /// True when `url` reads as audio in the VAD output's format: 16 kHz
+    /// mono. `SilenceTrimmer` writes every trimmed WAV that way, and the
+    /// upload copy keeps the source's rate and channel count, in every build
+    /// since the first release. The recordings folder can be any folder the
+    /// user picked, so a file of their own that happens to end in
+    /// `_trimmed.m4a` (almost never 16 kHz mono) must not be swept; a file
+    /// that cannot be read as audio is kept too.
+    nonisolated static func isVADUploadCopyFormat(_ url: URL) -> Bool {
+        guard let file = try? AVAudioFile(forReading: url) else { return false }
+        let format = file.fileFormat
+        return format.sampleRate == 16_000 && format.channelCount == 1
+    }
+
+    /// Removes `orphans`, each only if it sits directly in `folder`, its
+    /// modification date, read again now, is still before `cutoff`, and it
+    /// reads as a VAD upload copy (`isVADUploadCopyFormat`).
     private static func removeOrphanedUploadCopies(
         _ orphans: [URL],
         in folder: URL,
@@ -421,7 +436,8 @@ extension PersistenceController {
             for url in orphans {
                 guard url.deletingLastPathComponent().resolvingSymlinksInPath().path == folderPath,
                       let modified = (try? fileManager.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date,
-                      modified <= cutoff else {
+                      modified <= cutoff,
+                      isVADUploadCopyFormat(url) else {
                     continue
                 }
                 do {
