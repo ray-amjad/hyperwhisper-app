@@ -256,6 +256,60 @@ describe('transcribeRoute request gates', () => {
     expect(providerCalls).toEqual([]);
   });
 
+  // CTF #1a: `mode` and `language` ride along to the charge, and a long one
+  // made the charge too big to land. Refused before auth, hold or vendor.
+  test('an oversized mode is refused with 400 before auth or any provider call', async () => {
+    const { status, body } = await send(gateRequest({
+      query: `${LICENSED_QUERY}&mode=${'m'.repeat(17_000)}`,
+    }));
+
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid mode');
+    expect(providerCalls).toEqual([]);
+    expect(cacheReads).toEqual([]);
+  });
+
+  test('an oversized language is refused with 400 before auth or any provider call', async () => {
+    const { status, body } = await send(gateRequest({
+      query: `?account_key=test-account-key&language=${'e'.repeat(17_000)}`,
+    }));
+
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid language');
+    expect(providerCalls).toEqual([]);
+    expect(cacheReads).toEqual([]);
+  });
+
+  test('a multi-byte language is refused with 400 before any provider call', async () => {
+    const { status, body } = await send(gateRequest({
+      query: `?account_key=test-account-key&language=${encodeURIComponent('語'.repeat(30))}`,
+    }));
+
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid language');
+    expect(providerCalls).toEqual([]);
+  });
+
+  test('a mode that is not a mode id is refused with 400', async () => {
+    const { status, body } = await send(gateRequest({ query: `${LICENSED_QUERY}&mode=Email` }));
+
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid mode');
+    expect(providerCalls).toEqual([]);
+  });
+
+  test.each([
+    ['a macOS mode id and a region tag', '?account_key=test-account-key&language=en-US&mode=00000000-0000-0000-0000-000000000001'],
+    ['a lower-case mode id and a bare language', '?account_key=test-account-key&language=de&mode=c2f1a0b4-5d6e-4f70-8a9b-0c1d2e3f4a5b'],
+    ['auto and no mode', '?account_key=test-account-key&language=auto'],
+    ['an empty language and an empty mode', '?account_key=test-account-key&language=&mode='],
+  ])('%s still reach the provider', async (_label, query) => {
+    const { status } = await send(gateRequest({ query }));
+
+    expect(status).toBe(200);
+    expect(providerCalls.some((url) => url.includes('api.deepgram.com'))).toBe(true);
+  });
+
   test('the legacy license_key alias still authenticates', async () => {
     const { status } = await send(gateRequest({ query: '?license_key=test-account-key&language=en-US' }));
 

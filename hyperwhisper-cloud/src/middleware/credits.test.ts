@@ -6,6 +6,7 @@ import {
 import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
 import { stubEnv } from '../test-support/env';
+import { CHARGE_BODY_MAX_BYTES } from '../lib/charge-body';
 
 const originalFetch = globalThis.fetch;
 const originalConsoleWarn = console.warn;
@@ -181,6 +182,40 @@ describe('deductCredits / drainPendingDeductions', () => {
     );
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 12.3 });
+    await expectNoPendingDeductions();
+  });
+
+  // CTF #1b: a 17,016-byte body was refused at the licence API's 16 KB limit and
+  // the charge never landed. Whatever the metadata holds, the body stays bounded
+  // and the amount is the one priced for the request.
+  test('a charge with a huge mode and language sends a bounded body for the same amount', async () => {
+    const requests = captureFetch(() => (
+      Response.json({ credits_remaining: 12.3, credits_deducted: 1.2 })
+    ));
+    const warnings = captureWarnings();
+
+    const costUsd = 0.05;
+    const huge = '語'.repeat(6_000);
+    const creditsUsed = await deductCredits(auth(20), costUsd, {
+      audio_duration_seconds: 30,
+      transcription_cost_usd: costUsd,
+      language: huge,
+      mode: huge,
+      endpoint: '/transcribe',
+      stt_provider: 'Deepgram',
+    }).recorded;
+
+    expect(creditsUsed).toBe(creditsForCost(costUsd));
+    expect(requests).toHaveLength(1);
+    const body = String(requests[0]?.init?.body);
+    expect(new TextEncoder().encode(body).length).toBeLessThanOrEqual(CHARGE_BODY_MAX_BYTES);
+    const sent = JSON.parse(body) as { license_key: string; amount: number; metadata: Record<string, unknown> };
+    expect(sent.license_key).toBe('lic_test');
+    expect(sent.amount).toBe(creditsForCost(costUsd));
+    expect(sent.metadata).toMatchObject({ endpoint: '/transcribe', stt_provider: 'Deepgram', metadata_truncated: true });
+    const truncationLine = warnings.find(([line]) => String(line).includes('credits.charge_metadata_truncated'));
+    expect(truncationLine).toBeDefined();
+    expect(String(truncationLine?.[0])).not.toContain('語');
     await expectNoPendingDeductions();
   });
 
