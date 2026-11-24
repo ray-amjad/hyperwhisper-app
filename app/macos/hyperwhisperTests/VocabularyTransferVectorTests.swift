@@ -169,6 +169,31 @@ struct VocabularyTransferVectorTests {
         }
     }
 
+    @Test("a legacy multi-line word exports one row per line, each with the replacement")
+    func legacyMultilineWordExportsPerLine() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let legacy = Vocabulary(context: context)
+        legacy.id = UUID()
+        legacy.word = "alpha\nbeta"
+        legacy.replacement = "R"
+        legacy.createdDate = Date()
+        legacy.sortOrder = 0
+        try context.save()
+
+        let expected = [
+            VocabularyTransferEntry(word: "alpha", replacement: "R"),
+            VocabularyTransferEntry(word: "beta", replacement: "R"),
+        ]
+        #expect(persistence.vocabularyEntriesForExport() == expected)
+
+        for format in [VocabularyTransferFormat.csv, .txt] {
+            let file = VocabularyTransfer.write(persistence.vocabularyEntriesForExport(), as: format)
+            let parsed = try VocabularyTransfer.read(Data(file.utf8), as: format)
+            #expect(parsed.entries == expected, "\(format)")
+        }
+    }
+
     @Test("a words-only TXT import keeps an existing replacement")
     func wordsOnlyTXTKeepsReplacement() throws {
         let persistence = PersistenceController(inMemory: true)

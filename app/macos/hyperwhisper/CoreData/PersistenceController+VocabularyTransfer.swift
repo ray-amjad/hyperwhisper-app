@@ -106,13 +106,18 @@ extension PersistenceController {
     }
 
     /// The vocabulary in the Vocabulary page's display order (sorted by word,
-    /// the page's `@FetchRequest` sort), as rows an export writes.
+    /// the page's `@FetchRequest` sort), as rows an export writes. A row saved
+    /// before #1475 may still hold a multi-line word; it is written one word
+    /// per line, each with the row's replacement — what reading it back makes
+    /// of it anyway (as .NET's `VocabularyTransfer.ToEntries`).
     @MainActor
     func vocabularyEntriesForExport() -> [VocabularyTransferEntry] {
-        fetchAllVocabularyItems().compactMap { item in
-            guard let word = item.word, !word.isEmpty else { return nil }
+        fetchAllVocabularyItems().flatMap { item -> [VocabularyTransferEntry] in
+            guard let word = item.word, !word.isEmpty else { return [] }
             let replacement = (item.replacement?.isEmpty ?? true) ? nil : item.replacement
-            return VocabularyTransferEntry(word: word, replacement: replacement)
+            return Self.vocabularyWordLines(from: word).map {
+                VocabularyTransferEntry(word: $0, replacement: replacement)
+            }
         }
     }
 
