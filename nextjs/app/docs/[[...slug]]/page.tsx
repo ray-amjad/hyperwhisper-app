@@ -123,7 +123,10 @@ export default async function DocsPage({ params }: Props) {
             </ol>
           </nav>
           <h1>{doc.title}</h1>
-          <p className="docs-lead">{doc.description}</p>
+          {/* An endpoint's description is its body's first paragraph. */}
+          {entry.kind === "page" ? (
+            <p className="docs-lead">{doc.description}</p>
+          ) : null}
         </header>
         <div className="docs-body">{content}</div>
       </article>

@@ -6,7 +6,7 @@ import YAML from "yaml";
 
 import { splitFrontmatter, type DocFrontmatter } from "./frontmatter";
 import { DOCS_ENTRIES, type DocLocated, type DocPage } from "./nav";
-import { type OpenApiSpec, listOperations, plainSummary } from "./openapi";
+import { type OpenApiSpec, listOperations, plainText } from "./openapi";
 
 import { SITE_URL } from "@/lib/site-metadata";
 
@@ -113,7 +113,7 @@ export function endpointDescription(
   description?: string,
 ): string {
   return (
-    plainSummary(description) ??
+    plainText(description) ??
     `${method} ${path} on the HyperWhisper Local API, the HTTP server the app runs on 127.0.0.1.`
   );
 }

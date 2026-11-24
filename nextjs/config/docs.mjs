@@ -1,6 +1,4 @@
 // @ts-check
-import { fileURLToPath } from "node:url";
-
 /**
  * Build and routing config for the docs at /docs (app/docs). They used to be
  * Mintlify, proxied through an external rewrite; they are now pages of this
@@ -26,9 +24,7 @@ export const mdxRules = {
       condition: { not: { query: "?raw" } },
       loaders: [
         {
-          loader: fileURLToPath(
-            new URL("../node_modules/@next/mdx/mdx-js-loader.js", import.meta.url),
-          ),
+          loader: "@next/mdx/mdx-js-loader",
           options: {
             remarkPlugins: ["remark-frontmatter", "remark-gfm"],
             rehypePlugins: [

@@ -174,3 +174,13 @@ test("every internal link and image resolves", () => {
   }
   assert.ok(checked > 50, `only ${checked} links found`);
 });
+
+test("an endpoint's meta description is its whole description, as Mintlify's was", async () => {
+  const { plainText } = await import("../lib/docs/openapi");
+  const op = listOperations(spec).find((o) => o.path === "/transcribe");
+
+  assert.equal(
+    plainText(op?.description),
+    "Accepts either an absolute file path OR an audio_base64 + mime_type pair. The engine + model can come from a saved mode_id, from explicit engine/model/language fields, or a mix (mode supplies defaults and per-call fields override).",
+  );
+});

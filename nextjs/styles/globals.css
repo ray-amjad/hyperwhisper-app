@@ -1106,6 +1106,9 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
 
 .docs-table table {
   width: 100%;
+  /* Scroll sideways on a phone rather than break header words letter by
+     letter. */
+  min-width: 34rem;
   border-collapse: collapse;
   font-size: 14px;
   line-height: 1.55;
@@ -1117,6 +1120,7 @@ html[data-os-banner="dismissed"] [data-os-banner-root] {
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--dusk-line);
+  overflow-wrap: break-word;
 }
 
 .docs-table th {

@@ -126,11 +126,13 @@ export function needsAuth(spec: OpenApiSpec, operation: Operation): boolean {
   return security.length > 0;
 }
 
-/** Plain text of the first paragraph of a Markdown description. */
-export function plainSummary(markdown: string | undefined): string | undefined {
+/**
+ * A Markdown description as one line of plain text: the meta description
+ * Mintlify gave an endpoint page (the whole description, marks removed).
+ */
+export function plainText(markdown: string | undefined): string | undefined {
   if (!markdown) return undefined;
-  const first = markdown.trim().split(/\n\s*\n/)[0] ?? "";
-  const text = first
+  const text = markdown
     .replace(/`([^`]*)`/g, "$1")
     .replace(/\*\*([^*]*)\*\*/g, "$1")
     .replace(/\s+/g, " ")
