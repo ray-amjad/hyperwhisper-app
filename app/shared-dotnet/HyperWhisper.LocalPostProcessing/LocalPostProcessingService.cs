@@ -54,12 +54,13 @@ public sealed class LocalPostProcessingService(ILocalLlmEngine engine) : IAsyncD
         }
 
         if (!LocalPostProcessingProtocol.TryEvaluateCompletion(
-                generation.Completion!, out var cleaned))
+                generation.Completion!, out var cleaned)
+            || LocalPostProcessingProtocol.IsDegenerateCompletion(request.Transcript, cleaned))
         {
             return LocalPostProcessingResult.Failed(
                 request.Transcript,
                 LocalPostProcessingErrorCode.RejectedResponse,
-                "The local LLM response was empty or leaked prompt scaffolding.",
+                "The local LLM response was empty, marker debris, or leaked prompt scaffolding.",
                 generation.Runtime);
         }
 

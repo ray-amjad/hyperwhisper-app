@@ -185,6 +185,35 @@ public sealed class AvaloniaLocalizationBridge : INotifyPropertyChanged, IDispos
         PublishCultureChanged();
     }
 
+    /// <summary>
+    /// The property name <see cref="CompactSubscriptions"/> raises. No binding reads it, so no
+    /// live binding re-reads its string.
+    /// </summary>
+    internal const string CompactPropertyName = "__compact";
+
+    /// <summary>
+    /// Raises <see cref="PropertyChanged"/> once with a name no binding reads. Avalonia purges
+    /// dead weak subscribers only when the source raises the event, and this bridge otherwise
+    /// raises it only on a language change, so every page rebuilt from its DataTemplate left its
+    /// localized bindings' dead entries in the bridge's weak-event table for the life of the
+    /// process (#2100). Call it on the UI thread after a navigation has detached the old page.
+    /// </summary>
+    public void CompactSubscriptions()
+    {
+        PropertyChangedEventHandler? propertyChanged;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            propertyChanged = PropertyChanged;
+        }
+
+        propertyChanged?.Invoke(this, new PropertyChangedEventArgs(CompactPropertyName));
+    }
+
     public static string ProviderIdentifier(string identifier) =>
         PortableLocalizer.PreserveIdentifier(LocalizationIdentifierKind.Provider, identifier);
 

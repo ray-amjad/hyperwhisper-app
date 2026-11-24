@@ -61,6 +61,8 @@
   <SolidColorBrush x:Key="HwInfoBorderBrush" Color="{DynamicResource HwInfoBorder}"/>
   <SolidColorBrush x:Key="HwErrorBorderBrush" Color="{DynamicResource HwErrorBorder}"/>
   <SolidColorBrush x:Key="HwDeleteHoverBackgroundBrush" Color="{DynamicResource HwDeleteHoverBackground}"/>
+  <SolidColorBrush x:Key="HwRadioDiscBrush" Color="{DynamicResource HwRadioDisc}"/>
+  <SolidColorBrush x:Key="HwRadioCentreBrush" Color="{DynamicResource HwRadioCentre}"/>
 
   <!-- Getting started icon circles. Windows draws the row colour at 10% opacity behind the
        glyph, so the circle reads as a tint rather than a filled tile. The four colours are

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
-import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
+import type { ProviderUnavailableKind } from '../lib/errors';
+import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason, type UpstreamErrorRead } from './upstream-error';
 
@@ -11,7 +12,7 @@ const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
 // whole recording (AssemblyAI /v2/upload, Soniox /v1/files, Azure MAI multipart)
 // can far exceed 15s for the large files these async/large-cap providers accept —
 // aborting mid-upload would surface as a spurious 502. Floor 30s + 1s per 100 KB.
-// Mirrors gcs-storage's GCS upload budget.
+// gcs-storage's GCS upload (Chirp's large-file path) uses this same budget.
 const UPLOAD_TIMEOUT_FLOOR_MS = 30_000;
 const UPLOAD_TIMEOUT_PER_100KB_MS = 1_000;
 export function computeUploadTimeoutMs(byteLength: number): number {
@@ -215,7 +216,7 @@ export function splitVocabularyTerms(
   return terms;
 }
 
-/** Filename extensions the multipart adapters use for the audio part. */
+/** Filename extensions the multipart adapters (and the GCS scratch object) use for the audio. */
 export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
 
 /**
@@ -232,9 +233,14 @@ const AUDIO_EXTENSION_HINTS: ReadonlyArray<{ ext: AudioExtension; hints: readonl
   { ext: 'm4a', hints: ['m4a', 'mp4'] },
   { ext: 'aac', hints: ['aac'] },
   { ext: 'webm', hints: ['webm'] },
-  { ext: 'ogg', hints: ['ogg'] },
+  // A bare `audio/opus` is an Ogg Opus file (webm/mp4 Opus carry their own
+  // container hint, matched earlier), so it is named .ogg for every caller.
+  { ext: 'ogg', hints: ['ogg', 'opus'] },
   { ext: 'flac', hints: ['flac'] },
 ];
+
+/** Every extension the map knows — for a caller with no container restriction (the GCS scratch object). */
+export const ALL_AUDIO_EXTENSIONS: readonly AudioExtension[] = AUDIO_EXTENSION_HINTS.map(({ ext }) => ext);
 
 /** The container set the Whisper-style multipart adapters recognise. */
 export const DEFAULT_AUDIO_EXTENSIONS = ['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac'] as const;
@@ -718,6 +724,16 @@ export function classifyProviderHttpError(
  */
 export function upstreamDurationOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * The seconds a successful transcript is billed on: the upstream's own reported
+ * length when it gave one we can use, else the conservative byte estimate. One
+ * rule for every duration-billed adapter, so a 200 that omits its duration is
+ * billed fail-closed, never $0.
+ */
+export function billableSeconds(upstreamDuration: unknown, audioByteLength: number): number {
+  return upstreamDurationOrNull(upstreamDuration) ?? estimateSecondsFromBytes(audioByteLength);
 }
 
 /**

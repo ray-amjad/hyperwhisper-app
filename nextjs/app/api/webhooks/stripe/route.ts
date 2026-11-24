@@ -3,9 +3,11 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
 import { env } from "@/src/env/server.mjs";
 import { describeDbError } from "@/lib/shared/db-error";
+import { readBoundedText } from "@/src/lib/bounded-body";
 import {
   handleCreditPurchase,
   handleChargeRefunded,
+  handleDisputeClosed,
 } from "@/lib/services/stripe-webhook";
 
 /**
@@ -13,6 +15,8 @@ import {
  *
  * Handles Stripe webhook events for HyperWhisper purchases.
  * Primary event: checkout.session.completed
+ * Reversals: charge.refunded, and charge.dispute.closed when the dispute is
+ * lost (#2482). The Stripe endpoint must be subscribed to both.
  *
  * SUPPORTED PURCHASE TYPES:
  * - "credits": Credit pack purchase (adds to Stripe Billing Meter)
@@ -23,9 +27,15 @@ import {
  * SECURITY:
  * - Verifies webhook signature using STRIPE_WEBHOOK_SECRET
  * - Uses raw body for signature verification (required by Stripe)
+ * - Checks the signature header BEFORE reading the body, and reads at most
+ *   MAX_BODY_BYTES of it, so an unsigned or oversized POST is never buffered
+ *   (#2904)
  */
+
+/** Stripe events are a few KB; 1 MB leaves room for any real one. */
+const MAX_BODY_BYTES = 1024 * 1024;
+
 export async function POST(req: NextRequest) {
-  const body = await req.text();
   const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
@@ -42,11 +52,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const body = await readBoundedText(req, MAX_BODY_BYTES);
+
+  if (body instanceof NextResponse) {
+    console.error("Stripe webhook: body over the size cap");
+
+    return body;
+  }
+
   let event: Stripe.Event;
 
-  // Verify webhook signature
+  // Verify webhook signature. The async form: on Cloudflare Workers Stripe may
+  // resolve its Web Crypto provider, which cannot verify synchronously.
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      webhookSecret,
+    );
   } catch (err) {
     console.error(
       "Stripe webhook signature verification failed:",
@@ -68,7 +91,10 @@ export async function POST(req: NextRequest) {
     const session = event.data.object;
     const purchaseType = session.metadata?.purchase_type;
 
-    if (session.payment_status !== "paid") {
+    // A session fully covered by a 100%-off promotion code completes as
+    // no_payment_required and gets no later async_payment_succeeded, so it is
+    // settled now (#2055). Only "unpaid" waits for the money.
+    if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
       console.log(
         `Stripe webhook: ${event.type} for ${purchaseType} session ${session.id} is ${session.payment_status}, waiting for payment success`,
       );
@@ -128,6 +154,25 @@ export async function POST(req: NextRequest) {
       // left in this log.
       return NextResponse.json(
         { error: "Failed to process refund" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // A lost chargeback takes the pack back like a refund (#2482). An open
+  // dispute is not acted on: the merchant may still win it.
+  if (event.type === "charge.dispute.closed") {
+    const dispute = event.data.object;
+    try {
+      await handleDisputeClosed(dispute);
+    } catch (error) {
+      console.error(
+        "Stripe webhook: Error processing dispute:",
+        describeDbError(error),
+      );
+      // 500 so Stripe retries, as for a refund: the reversal is idempotent.
+      return NextResponse.json(
+        { error: "Failed to process dispute" },
         { status: 500 }
       );
     }

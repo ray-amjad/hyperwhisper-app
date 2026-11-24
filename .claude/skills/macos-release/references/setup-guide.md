@@ -3,7 +3,7 @@
 The `macos-release.yml` Action reads its credentials from **GitHub Actions
 Production-environment secrets**. This repo is public, so **no secret values live
 here** — they are managed in **Infisical**, which syncs them out to the GitHub
-`Production` environment (and Vercel / Fly for other services). Rotate or add a
+`Production` environment (and the Cloudflare Worker / Fly for other services). Rotate or add a
 secret **in Infisical only**; editing GitHub directly gets overwritten on the next
 sync. The `macos-release` job declares `environment: Production` so it can read them.
 

@@ -1,23 +1,23 @@
 // MISTRAL VOXTRAL PROVIDER
-// Synchronous multipart transcription ($0.003/audio-min). Vocabulary biasing
+// Synchronous multipart transcription. Vocabulary biasing
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderUnavailableError } from './types';
+import { getProviderDef } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
-  estimateSecondsFromBytes,
+  billableSeconds,
   explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
-const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
 const MAX_CONTEXT_BIAS_TERM_CHARS = 80;
 
@@ -35,13 +35,47 @@ const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
  * Underscores are the documented way to bias a phrase (docs.mistral.ai
  * audio/speech_to_text → `["affordable_health_care", "American_people"]`), so
  * joining beats dropping the term.
+ *
+ * Returns the phrases as the user wrote them (whitespace collapsed to one space)
+ * and as sent, index for index, so `restoreSpacedTerms` can map one to the other.
  */
-function toContextBias(initialPrompt: string): string[] {
-  return splitVocabularyTerms(initialPrompt, {
+function toContextBias(initialPrompt: string): { spaced: string[]; sent: string[] } {
+  const spaced = splitVocabularyTerms(initialPrompt, {
     maxTerms: MAX_CONTEXT_BIAS_TERMS,
     maxTermChars: MAX_CONTEXT_BIAS_TERM_CHARS,
-    joinWordsWith: '_',
+    joinWordsWith: ' ',
   });
+  return { spaced, sent: spaced.map((term) => term.replace(/\s+/g, '_')) };
+}
+
+/**
+ * Voxtral writes a biased phrase back the way it was sent: "HyperWhisper_Cloud"
+ * for the term "HyperWhisper Cloud" (seen live on `voxtral-mini-latest` on
+ * 2026-10-25, after Mistral's 2026-10-20 Voxtral 3 release, #2544). Put the
+ * user's spaces back, and nothing else:
+ * - only a term that HAD whitespace is rewritten, so `__init__` passes through,
+ *   and a joined form the user also listed as written (`snake_case` beside
+ *   "Snake Case") is left alone;
+ * - only a whole token, exact case, so `user_id_field` keeps its underscores
+ *   when "user id" is in the list;
+ * - one pass, longest first, so restored text is never matched again.
+ */
+function restoreSpacedTerms(text: string, bias: { spaced: string[]; sent: string[] }): string {
+  const writtenWithUnderscore = new Set(bias.spaced.filter((term, i) => term === bias.sent[i]));
+  const spacedBySent = new Map<string, string>();
+  bias.spaced.forEach((spaced, i) => {
+    const sent = bias.sent[i];
+    if (spaced !== sent && !writtenWithUnderscore.has(sent) && !spacedBySent.has(sent)) {
+      spacedBySent.set(sent, spaced);
+    }
+  });
+  if (spacedBySent.size === 0) return text;
+
+  const alternatives = [...spacedBySent.keys()]
+    .sort((x, y) => y.length - x.length)
+    .map((sent) => sent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alternatives.join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
+  return text.replace(pattern, (sent) => spacedBySent.get(sent) ?? sent);
 }
 
 export async function transcribeWithMistral(
@@ -53,7 +87,7 @@ export async function transcribeWithMistral(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'mistral';
-  const model = context.model || DEFAULT_MODEL;
+  const model = context.model || getProviderDef('mistral').defaultModel;
 
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
@@ -72,8 +106,8 @@ export async function transcribeWithMistral(
     formData.append('language', langCode);
   }
 
-  const contextBias = initialPrompt ? toContextBias(initialPrompt) : [];
-  if (contextBias.length) {
+  const contextBias = initialPrompt ? toContextBias(initialPrompt) : { spaced: [], sent: [] };
+  if (contextBias.sent.length) {
     // `context_bias` is typed as an ARRAY (List[str]) in Mistral's API schema and
     // SDKs, so over multipart/form-data it must be sent as one REPEATED form field
     // per term — `context_bias=a` `context_bias=b` — which the server collects into
@@ -84,7 +118,7 @@ export async function transcribeWithMistral(
     // Refs: github.com/mistralai/client-python issue #338 (curl shows repeated
     // `-F context_bias=...`); docs.mistral.ai/api (audio/transcriptions →
     // context_bias: array). Each term appended individually below.
-    for (const term of contextBias) {
+    for (const term of contextBias.sent) {
       formData.append('context_bias', term);
     }
   }
@@ -94,7 +128,7 @@ export async function transcribeWithMistral(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
-    contextBiasCount: contextBias.length,
+    contextBiasCount: contextBias.sent.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, MISTRAL_URL, {
@@ -113,18 +147,13 @@ export async function transcribeWithMistral(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     text?: string;
     language?: string;
     usage?: { prompt_audio_seconds?: number };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Mistral', 'malformed 200 response body');
-  }
+  }>(provider, 'Mistral', response, startedAt, context);
 
-  const transcript = data.text || '';
+  const transcript = restoreSpacedTerms(data.text || '', contextBias);
   const rawDurationSeconds = data.usage?.prompt_audio_seconds || 0;
 
   if (!transcript || transcript.trim().length === 0) {
@@ -137,9 +166,7 @@ export async function transcribeWithMistral(
 
   // Fail-closed: a successful transcript with a missing/non-positive duration
   // falls back to a byte-size estimate so we never bill $0.
-  const durationSeconds = (rawDurationSeconds > 0 && Number.isFinite(rawDurationSeconds))
-    ? rawDurationSeconds
-    : estimateSecondsFromBytes(audio.byteLength);
+  const durationSeconds = billableSeconds(rawDurationSeconds, audio.byteLength);
 
   logProviderEvent(provider, 'success', {
     model,

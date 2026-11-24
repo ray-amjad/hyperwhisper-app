@@ -49,7 +49,7 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::resolve_mime;
-use crate::providers::common::retry_after;
+use crate::providers::common::{is_out_of_credits_body, retry_after};
 use crate::providers::hyperwhisper_cloud::encode_query;
 
 /// Deepgram transcription endpoint.
@@ -57,6 +57,13 @@ pub const ENDPOINT: &str = "https://api.deepgram.com/v1/listen";
 
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "deepgramNova3";
+
+/// At most this many `keyterm` / `keywords` values per request. Deepgram holds
+/// all keyterms to a 500-token total and answers 400 past it, a non-retryable
+/// failure. 100 is the cap the live path (`live/deepgram.rs`), the Cloud
+/// adapter (`hyperwhisper-cloud` `providers/deepgram.ts`) and the macOS
+/// vocabulary copy ("only the first 100 are used") already apply.
+pub const MAX_KEYTERMS: usize = 100;
 
 /// Default model when the caller leaves `params.model` empty (and the resolved
 /// model is empty). Read from the shared catalog, which macOS and Windows read
@@ -181,7 +188,7 @@ pub fn build_transcribe_request(
     // Model-dependent vocabulary. Terms are routed through the shared sanitizer
     // so provider egress applies identical filtering/dedup/length caps.
     if let Some(param) = vocab_param_name(&model, monolingual) {
-        for t in crate::helpers::keyword_boost_terms(&params.vocabulary, None) {
+        for t in crate::helpers::keyword_boost_terms(&params.vocabulary, Some(MAX_KEYTERMS)) {
             let value = if param == "keyterm" {
                 // Nova-3 monolingual: bare term, no intensifier.
                 t.to_string()
@@ -300,7 +307,8 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 /// Map a non-2xx Deepgram response to a [`TranscriptionError`].
 ///
 /// PARITY (macOS `DeepgramProvider.swift` switch + Windows `HandleErrorResponseAsync`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`common::is_out_of_credits_body`), else `Unauthorized`
 /// - 402 → `QuotaExceeded` (`ASR_PAYMENT_REQUIRED`: the project is out of
 ///   credits; same as `common::classify_http` and `retry::classify_error`)
 /// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
@@ -313,6 +321,7 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
         408 => TranscriptionError::ProviderUnavailable { status },
@@ -802,5 +811,27 @@ mod tests {
             "deepgram 408 classified as {err:?}"
         );
         assert_eq!(err, crate::retry::classify_error(408, ""));
+    }
+
+    // Issue #2144: the out-of-credits body check `classify_http` applies to
+    // 401/403 (issue #2073) applies here too, so this parser and
+    // `retry::classify_error` agree.
+    #[test]
+    fn deepgram_401_403_out_of_credits_body_is_quota_exceeded() {
+        let body = r#"{"err_code":"FORBIDDEN","err_msg":"Your project doesn't have any credits."}"#;
+        for status in [401, 403] {
+            let err = parse_transcribe_response(&err_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(err, crate::retry::classify_error(status, body));
+        }
+    }
+
+    #[test]
+    fn deepgram_401_bad_key_stays_unauthorized() {
+        let body = r#"{"err_code":"INVALID_AUTH","err_msg":"Invalid credentials."}"#;
+        assert_eq!(
+            parse_transcribe_response(&err_resp(401, body)).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
     }
 }

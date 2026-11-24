@@ -186,10 +186,8 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// <remarks>
     /// Read <see cref="UnrestoredProviderKeys"/> afterwards. A reversible write
     /// that could not be put back has to be REPORTED: silently closing over a lost
-    /// credential is what that list exists to prevent. The method stays void
-    /// because [RelayCommand] only generates for void and Task.
+    /// credential is what that list exists to prevent.
     /// </remarks>
-    [RelayCommand]
     public void DeferSetup()
     {
         if (!_isLive)
@@ -219,21 +217,6 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
         Rollback();
         Finish(markCompleted: false);
-    }
-
-    /// <summary>
-    /// The footer primary: Continue everywhere, "Done Onboarding" on the last step.
-    /// </summary>
-    [RelayCommand]
-    public void Continue()
-    {
-        if (Step == OnboardingSteps.Last)
-        {
-            Complete();
-            return;
-        }
-
-        Advance();
     }
 
     [RelayCommand]

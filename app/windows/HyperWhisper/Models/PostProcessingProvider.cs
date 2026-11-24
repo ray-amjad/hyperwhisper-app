@@ -103,6 +103,9 @@ public static class PostProcessingProviderExtensions
         "cerebras" => PostProcessingProvider.Cerebras,
         "mistral" => PostProcessingProvider.Mistral,
         "local_llm" => PostProcessingProvider.LocalLlm,
+        // `localLLM` is the shared catalog's provider id
+        // (`SharedModelsCatalog.LocalLlmKey`); Local API callers send it.
+        "localllm" => PostProcessingProvider.LocalLlm,
         "local" => PostProcessingProvider.LocalLlm,
         _ => PostProcessingProvider.None
     };

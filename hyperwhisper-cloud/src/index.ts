@@ -8,20 +8,21 @@ import { websocket } from 'hono/bun';
 import { transcribeRoute } from './routes/transcribe';
 import { postProcessRoute } from './routes/post-process';
 import { usageRoute } from './routes/usage';
+import { licenseCacheInvalidateRoute } from './routes/internal-license-cache';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
 import {
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
-import { endActiveStreamingSessions } from './routes/ws-streaming-shared';
-import { drainPendingDeductions } from './middleware/credits';
-import { drainPendingHoldReleases } from './middleware/credit-holds';
-import { drainPendingLatencyReports } from './lib/latency-report';
+import { TRANSCRIBE_REQUEST_HEADERS } from './routes/transcribe-request';
 import { ipRateLimit } from './middleware/rate-limit';
-import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
+import { trackInFlightRequests } from './lib/in-flight-requests';
+import { runGracefulShutdown, SHUTDOWN_DRAIN_MS } from './lib/graceful-shutdown';
+import { MAX_AUDIO_SIZE_BYTES, licenseApiBaseUrl } from './lib/constants';
 import { toRedactedLogLine } from './lib/log-redaction';
-import { captureServerError, flushErrorTracking, initErrorTracking } from './lib/error-tracking';
+import { captureServerError, initErrorTracking } from './lib/error-tracking';
+import { machineLabels } from './lib/fly-machine';
 
 // Server error tracking (#2013): a no-op unless SENTRY_DSN is set.
 initErrorTracking();
@@ -36,23 +37,20 @@ app.use('*', cors({
   origin: '*',
   allowHeaders: [
     'Content-Type',
-    'X-STT-Provider',
-    'X-STT-Model',
-    'X-STT-Domain',
-    'X-Latency-Opt-Out',
+    ...TRANSCRIBE_REQUEST_HEADERS,
     CLIENT_PLATFORM_HEADER,
     CLIENT_VERSION_HEADER,
   ],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }));
-
-app.options('*', (c) => c.body(null, 204));
+// `cors()` answers every OPTIONS itself (204, without calling `next`), so no
+// route-level OPTIONS handler is needed.
 
 // Health check endpoint - Fly.io uses this for health monitoring
 app.get('/health', (c) => {
   return c.json({
     status: 'ok',
-    region: process.env.FLY_REGION || 'local',
+    region: machineLabels().region,
     timestamp: new Date().toISOString(),
   });
 });
@@ -65,14 +63,18 @@ app.get('/warmup', (c) => {
 });
 
 // Every key-accepting route runs the per-IP rate limit (`ipRateLimit`, 120/min)
-// first, before it parses a body or looks up a key. The per-key limits run
-// inside each route, after auth (middleware/rate-limit.ts, #2010).
+// before it parses a body or looks up a key. The per-key limits run inside each
+// route, after auth (middleware/rate-limit.ts, #2010).
+//
+// Only `trackInFlightRequests` runs before it, on `/transcribe` and
+// `/post-process`: it counts them so a deploy's SIGTERM waits for them (and
+// refuses new ones) instead of exiting under them (#2031). It reads no body.
 
 // Main transcription endpoint
-app.post('/transcribe', ipRateLimit, transcribeRoute);
+app.post('/transcribe', trackInFlightRequests, ipRateLimit, transcribeRoute);
 
 // Standalone post-processing endpoint
-app.post('/post-process', ipRateLimit, postProcessRoute);
+app.post('/post-process', trackInFlightRequests, ipRateLimit, postProcessRoute);
 
 // Usage endpoint
 app.get('/usage', ipRateLimit, usageRoute);
@@ -87,6 +89,11 @@ app.get(
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,
 );
+
+// Site -> cloud: the site rotated an Account Key, so drop the old key's cached
+// "valid" verdict now instead of when its hour runs out. Gated by the shared
+// internal secret inside the route; the per-IP limit still runs first.
+app.post('/internal/license-cache/invalidate', ipRateLimit, licenseCacheInvalidateRoute);
 
 // Fallback - match Cloudflare (405, plain text)
 app.notFound((c) => {
@@ -123,60 +130,21 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// Graceful shutdown: Fly sends SIGINT/SIGTERM on deploy/scale-down with a grace
-// period before SIGKILL (`kill_timeout = '120s'` in fly.prod.toml and
-// fly.staging.toml, #2011). Credit deductions are fired without awaiting after
-// the response is flushed, so drain any that are still in flight before
-// exiting — otherwise the user keeps the transcript but the charge is silently
-// dropped. The drain budget sits just under kill_timeout; each drain returns as
-// soon as its writes settle, so a quiet machine still exits at once.
-export const SHUTDOWN_DRAIN_MS = 115_000;
+// Graceful shutdown on deploy/scale-down (#2031): the steps and their 100 s /
+// 115 s deadlines live in `lib/graceful-shutdown.ts`. The one-shot latch stays
+// here, in the signal handler: Fly can send SIGINT after SIGTERM, and a second
+// run would exit mid-drain.
+export { SHUTDOWN_DRAIN_MS };
 let shuttingDown = false;
 
-async function gracefulShutdown(signal: string): Promise<void> {
+function onShutdownSignal(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
-
-  console.log('machine.shutdown', {
-    signal,
-    machineId: process.env.FLY_MACHINE_ID || 'local',
-    shutdownAt: new Date().toISOString(),
-  });
-
-  // A live streaming session is billed only when it ends, and Bun runs no
-  // socket close handler on process.exit. End them first, so their charges
-  // are already in flight when the deduction drain below awaits them.
-  const endedSessions = await endActiveStreamingSessions();
-  if (endedSessions > 0) {
-    console.log('machine.shutdown_ended_streaming_sessions', { count: endedSessions });
-  }
-
-  // Both drains are fire-and-forget writes made after the response is flushed,
-  // so they race the same SIGKILL. Run them together rather than in series —
-  // the grace period is one budget, not two.
-  // Credit-hold releases too: one left behind narrows the user's balance until
-  // its TTL frees it (#2008).
-  const [drained, drainedReports, drainedHoldReleases] = await Promise.all([
-    drainPendingDeductions(SHUTDOWN_DRAIN_MS),
-    drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
-    drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
-    // Error events still queued for Sentry; a no-op with no DSN.
-    flushErrorTracking(2_000),
-  ]);
-  if (drained > 0) {
-    console.log('machine.shutdown_drained_deductions', { count: drained });
-  }
-  if (drainedReports > 0) {
-    console.log('machine.shutdown_drained_latency_reports', { count: drainedReports });
-  }
-  if (drainedHoldReleases > 0) {
-    console.log('machine.shutdown_drained_hold_releases', { count: drainedHoldReleases });
-  }
-  process.exit(0);
+  void runGracefulShutdown(signal);
 }
 
-process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
-process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
+process.on('SIGTERM', () => { onShutdownSignal('SIGTERM'); });
+process.on('SIGINT', () => { onShutdownSignal('SIGINT'); });
 
 // Bun.serve's own idle limit, in SECONDS (#1252). Bun's default is 10 s, which
 // cut every request silent for longer than that with an empty reply, before
@@ -200,14 +168,13 @@ export default {
 };
 
 console.log('machine.boot', {
-  region: process.env.FLY_REGION || 'local',
-  machineId: process.env.FLY_MACHINE_ID || 'local',
+  ...machineLabels(),
   allocId: process.env.FLY_ALLOC_ID || undefined,
   imageRef: process.env.FLY_IMAGE_REF || undefined,
   port: Number(process.env.PORT) || 8080,
   bootAt: new Date().toISOString(),
 });
 console.log(`HyperWhisper Fly.io service starting on port ${process.env.PORT || 8080}`);
-console.log(`Region: ${process.env.FLY_REGION || 'local'}`);
-console.log(`License API: ${process.env.NEXTJS_LICENSE_API_URL || 'https://www.hyperwhisper.com (default)'}`);
+console.log(`Region: ${machineLabels().region}`);
+console.log(`License API: ${licenseApiBaseUrl()}${process.env.NEXTJS_LICENSE_API_URL ? '' : ' (default)'}`);
 console.log('Started server: http://localhost:' + (process.env.PORT || 8080));

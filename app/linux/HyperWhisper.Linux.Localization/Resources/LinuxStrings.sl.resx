@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>Mikrofona ni bilo mogoče odpreti.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>Ni nastavljeno</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Shranjeno</value>
+  </data>
 </root>

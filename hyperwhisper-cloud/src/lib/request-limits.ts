@@ -6,6 +6,17 @@
 
 import { errorResponse } from './responses';
 
+/**
+ * A byte cap in the largest binary unit it is a whole number of. The internal
+ * licence-cache route caps its body at 1024 bytes, and dividing that by MiB
+ * and rounding said "must be 0 MB or smaller" (#2704).
+ */
+export function capWords(maxBytes: number): string {
+  if (maxBytes % (1024 * 1024) === 0) return `${maxBytes / (1024 * 1024)} MB`;
+  if (maxBytes % 1024 === 0) return `${maxBytes / 1024} KB`;
+  return `${maxBytes} bytes`;
+}
+
 export type ContentLengthCheck =
   | { ok: true }
   | { ok: false; response: Response; contentLength: number | null };
@@ -36,7 +47,7 @@ export function validateContentLength(
       ok: false,
       contentLength,
       response: errorResponse(413, 'Request too large',
-        `Request body must be ${Math.round(maxBytes / (1024 * 1024))} MB or smaller`,
+        `Request body must be ${capWords(maxBytes)} or smaller`,
         { max_size_bytes: maxBytes, content_length: contentLength }),
     };
   }

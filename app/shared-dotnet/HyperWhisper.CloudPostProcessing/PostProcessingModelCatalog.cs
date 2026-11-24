@@ -33,8 +33,7 @@ public static class PostProcessingModelCatalog
             [
                 // 3.8 Flash first: ResolveModel falls back to the first row (matches macOS's default).
                 new("gemini-3.8-flash", "Gemini 3.8 Flash"), new("gemini-3.6-flash", "Gemini 3.6 Flash"),
-                new("gemini-2.5-flash", "Gemini 2.5 Flash"), new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"),
-                new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"), new("gemini-2.5-pro", "Gemini 2.5 Pro"),
+                new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"), new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"),
                 new("gemini-3.1-pro-preview", "Gemini 3.1 Pro"),
             ],
             [CloudPostProcessingProvider.Cerebras] =
@@ -70,6 +69,10 @@ public static class PostProcessingModelCatalog
         // Google deprecated both 2026-10-08 and routes them to these successors.
         "gemini-3.5-flash" => "gemini-3.6-flash",
         "gemini-3.7-flash" => "gemini-3.8-flash",
+        // Google deprecated both 2026-11-02 and auto-routes their API requests to these
+        // successors from 2026-12-01 (Gemini API deprecations page). Matches Windows and macOS.
+        "gemini-2.5-pro" => "gemini-3.8-flash",
+        "gemini-2.5-flash" => "gemini-3.5-flash-lite",
         // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; every old id maps straight to
         // its 5.5 successor (matches Windows and macOS).
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or

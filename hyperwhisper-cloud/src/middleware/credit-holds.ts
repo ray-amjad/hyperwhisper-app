@@ -32,8 +32,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AuthContext } from './auth';
 import { CREDIT_POOL_ACCOUNT_PREFIX, createUpstashCreditHoldStore, fromMilliCredits, toMilliCredits, type CreditHoldStore } from '../lib/credit-hold-store';
-import { createRedisGetter } from '../lib/redis-client';
+import { createRedisGetter, RedisNotConfiguredError } from '../lib/redis-client';
 import { toRedactedLogLine } from '../lib/log-redaction';
+import { backgroundWork } from '../lib/background-work';
 import { roundToTenth } from '../lib/utils';
 
 /** Backstop for a one-shot request's hold: past the slowest request (Chirp batch, ~5 min). */
@@ -60,8 +61,7 @@ function currentStore(): CreditHoldStore {
 let notConfiguredLogged = false;
 
 function logHoldUnavailable(operation: string, error: unknown, licenseKey: string): void {
-  const message = error instanceof Error ? error.message : String(error);
-  const notConfigured = message.includes('UPSTASH_REDIS_CLOUD_URL');
+  const notConfigured = error instanceof RedisNotConfiguredError;
   if (notConfigured) {
     if (notConfiguredLogged) return;
     notConfiguredLogged = true;
@@ -108,16 +108,10 @@ export type HoldOutcome =
 
 // Every release in flight, so the shutdown drain can wait for them as it does
 // for deductions.
-const inFlightReleases = new Set<Promise<void>>();
+const inFlightReleases = backgroundWork('hold_releases');
 
-export async function drainPendingHoldReleases(timeoutMs: number): Promise<number> {
-  const pending = inFlightReleases.size;
-  if (pending === 0) return 0;
-  await Promise.race([
-    Promise.allSettled([...inFlightReleases]),
-    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
-  ]);
-  return pending;
+export function drainPendingHoldReleases(timeoutMs: number): Promise<number> {
+  return inFlightReleases.drain(timeoutMs);
 }
 
 /** The pool a hold on `auth` is counted against (see the file header). */
@@ -147,7 +141,14 @@ export class CreditHold {
    */
   provisional = false;
   private state: 'active' | 'settling' | 'released' = 'active';
-  private everGranted = false;
+  /**
+   * Redis may have an entry under this id: a reservation was granted, or one
+   * was sent and its reply never came back (the script may have run before
+   * the connection failed). Only a refusal with a known answer writes
+   * nothing. `release` calls the store whenever this is set; releasing an
+   * absent id is a harmless HDEL/ZREM (#2921).
+   */
+  private mayBeInStore = false;
   // Store calls on one hold run in order, so a release can never overtake the
   // reservation it undoes and leave the hold behind until its TTL.
   private queue: Promise<unknown> = Promise.resolve();
@@ -211,12 +212,15 @@ export class CreditHold {
         });
         this.heldCredits = fromMilliCredits(result.holdMilli);
         if (result.granted) {
-          this.everGranted = true;
+          this.mayBeInStore = true;
           this.provisional = provisional;
           return { kind: 'granted' };
         }
         return { kind: 'refused', availableCredits: fromMilliCredits(result.availableMilli) };
       } catch (error) {
+        // A lost reply is not a lost write: the script may have run. An
+        // unconfigured store never sent the script.
+        if (!(error instanceof RedisNotConfiguredError)) this.mayBeInStore = true;
         this.degraded = true;
         logHoldUnavailable('reserve', error, this.auth.identifier);
         return { kind: 'unavailable' };
@@ -258,7 +262,7 @@ export class CreditHold {
     this.state = 'released';
     if (holdsByAuth.get(this.auth) === this) holdsByAuth.delete(this.auth);
     const releasing = this.enqueue(async () => {
-      if (!this.everGranted) return;
+      if (!this.mayBeInStore) return;
       try {
         await currentStore().release(this.account, this.id);
         this.heldCredits = 0;
@@ -267,9 +271,7 @@ export class CreditHold {
         logHoldUnavailable('release', error, this.auth.identifier);
       }
     });
-    inFlightReleases.add(releasing);
-    void releasing.finally(() => inFlightReleases.delete(releasing));
-    return releasing;
+    return inFlightReleases.track(releasing);
   }
 }
 

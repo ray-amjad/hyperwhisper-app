@@ -111,7 +111,10 @@ bug-hunt/
 .vercel
 
 # Verification screenshots must not land in the repo root. #659 committed 26
-# of them by accident. Keep the two real brand icons that live here.
+# of them by accident. Keep the one icon that is read here
+# (packaging/linux/scripts/build-deb.sh).
 /*.png
-!/icon.png
 !/icon-200px-round.png
+
+# LLVM coverage output (#785).
+*.profraw

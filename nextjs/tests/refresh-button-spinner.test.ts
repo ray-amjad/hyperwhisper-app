@@ -15,7 +15,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Flipped per test; read by both mocked list queries. */
 let fetching = false;
@@ -43,7 +43,7 @@ function idleMutation() {
   };
 }
 
-moduleMock.module(new URL("../lib/trpc/client.ts", import.meta.url).href, {
+moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
   namedExports: {
     api: {
       customer: {

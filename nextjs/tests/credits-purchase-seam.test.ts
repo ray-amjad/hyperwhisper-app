@@ -40,7 +40,7 @@ import type {
   BuyCreditsTier,
 } from "../src/lib/buy-credits";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** The address the buyer types, with the stray spaces a real paste carries. */
 const TYPED_EMAIL = "  buyer-949@example.com ";
@@ -134,7 +134,7 @@ const clientReports: Array<{
   context: Record<string, string | number> | undefined;
 }> = [];
 
-moduleMock.module("../lib/shared/report-client-error", {
+moduleMock.module(moduleUrl("../lib/shared/report-client-error.ts"), {
   namedExports: {
     reportClientError: (
       operation: string,
@@ -151,7 +151,7 @@ moduleMock.module("../lib/shared/report-client-error", {
 /** Every abandoned-redirect watch the form armed. */
 const watches: Array<{ host: unknown; release: () => void }> = [];
 
-moduleMock.module("../src/lib/abandoned-redirect", {
+moduleMock.module(moduleUrl("../src/lib/abandoned-redirect.ts"), {
   namedExports: {
     watchForAbandonedRedirect: (host: unknown, release: () => void) => {
       watches.push({ host, release });
@@ -171,7 +171,7 @@ let armed: ((request: BuyCreditsHandlerRequest) => void) | null = null;
  * The REAL factory, with the form's own `setBusy` / `setError` wrapped so the
  * seam's calls into them are recorded and still delivered.
  */
-moduleMock.module("../src/lib/buy-credits", {
+moduleMock.module(moduleUrl("../src/lib/buy-credits.ts"), {
   namedExports: {
     ...realSeam,
     createBuyCreditsHandler: (request: BuyCreditsHandlerRequest) => {

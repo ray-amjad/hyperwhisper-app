@@ -1,8 +1,8 @@
-import { parseDictationWav } from './assemblyai-dictation';
 import { estimateAudioSecondsFromSize, reservationAudioSeconds } from '../lib/audio-duration';
 import { MAX_UPLOAD_BYTES_PER_SECOND } from '../lib/constants';
 import type { SttProviderId } from '../lib/stt-models';
 import { parseMetaWav } from './meta';
+import { modelVariant } from './model-variants';
 import { ProviderInputError, UnsupportedAudioFormatError } from './types';
 
 export type BufferedAudioReservationResult =
@@ -55,20 +55,8 @@ export function providerAudioReservation(
   sizeBytes: number,
   model?: string,
 ): ProviderAudioReservation {
-  if (provider === 'assemblyai' && model === 'dictation') {
-    return {
-      requiresBufferedBody: true,
-      estimatedAudioSeconds: 120,
-      // WAV permits metadata chunks, so size alone has no safe duration floor.
-      preBufferAudioSeconds: 0,
-      resolveBufferedAudio(audio, contentType) {
-        try { return durationResult(parseDictationWav(audio, contentType).durationSeconds); } catch (error) {
-          if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) return { kind: 'local-input-error' };
-          throw error;
-        }
-      },
-    };
-  }
+  const variant = modelVariant(provider, model);
+  if (variant) return variant.audioReservation(sizeBytes);
   const providerReservation = PROVIDER_RESERVATIONS[provider];
   if (providerReservation) return providerReservation(sizeBytes);
 

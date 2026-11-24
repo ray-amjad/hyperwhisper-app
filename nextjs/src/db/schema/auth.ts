@@ -21,6 +21,12 @@ export const session = pgTable("session", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  // How this session was proven: "email" (magic link) or "account_key"
+  // (license-key sign-in). Set once at creation by the session hook in
+  // src/lib/auth.ts; null for sessions created before the column existed.
+  // Rotating an Account Key needs an "email" session: the key is what a
+  // rotation revokes, so a session proven only by the key cannot rotate it.
+  signInMethod: text("sign_in_method"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

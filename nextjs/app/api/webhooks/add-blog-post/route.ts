@@ -7,6 +7,11 @@ import { env } from "@/src/env/server.mjs";
 import { db } from "@/src/db";
 import { blogPosts } from "@/src/db/schema/blog-posts";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import {
+  declaresLengthOver,
+  payloadTooLarge,
+  readBoundedText,
+} from "@/src/lib/bounded-body";
 
 /**
  * Outrank "publish_articles" webhook.
@@ -322,10 +327,61 @@ function normalizeTags(tags: unknown): string[] {
     .slice(0, 12);
 }
 
-export async function POST(req: NextRequest) {
-  const contentLength = Number(req.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+/** Why a delivery was refused before any article was read (#3003). */
+type RejectionReason =
+  | "declared_too_large"
+  | "bearer_refused"
+  | "streamed_too_large"
+  | "signature_refused"
+  | "unsupported_event_type"
+  | "no_articles"
+  | "too_many_articles";
+
+/** The longest event_type a rejection line repeats. */
+const MAX_LOGGED_EVENT_TYPE = 40;
+
+/**
+ * Log ONE line for a refused delivery, then return its reply untouched.
+ *
+ * The website's only server log is its console (Workers Logs), so without this
+ * line a token that drifted between Infisical and Outrank refuses every post
+ * and leaves no trace (#3003). Only safe fields are logged: header PRESENCE as
+ * booleans, never the authorization header, the signature, the token, the body
+ * or any article text.
+ */
+function rejected(
+  req: NextRequest,
+  reason: RejectionReason,
+  response: NextResponse,
+  extra: { articleCount?: number | null; eventType?: string } = {},
+): NextResponse {
+  console.warn("[add-blog-post] delivery rejected", {
+    reason,
+    status: response.status,
+    contentType: req.headers.get("content-type"),
+    contentLength: req.headers.get("content-length"),
+    signingEnabled: Boolean(env.OUTRANK_WEBHOOK_SIGNING_SECRET),
+    hasAuthorizationHeader: req.headers.has("authorization"),
+    hasSignatureHeader:
+      req.headers.has("x-outrank-signature") ||
+      req.headers.has("outrank-signature"),
+    ...extra,
+  });
+
+  return response;
+}
+
+/**
+ * Size-check, authenticate and buffer the delivery. Returns the raw body, or
+ * the 413 / 401 / 400 reply to send instead.
+ */
+async function readAuthorizedBody(
+  req: NextRequest,
+): Promise<{ rawBody: string } | NextResponse> {
+  // A declared oversize body is refused before auth, as it always was.
+  // readBoundedText below caps a body that declares no length (#2904).
+  if (declaresLengthOver(req, MAX_BODY_BYTES)) {
+    return rejected(req, "declared_too_large", payloadTooLarge());
   }
 
   // Signature verification needs the raw bytes, so we can only HMAC-check after
@@ -338,17 +394,24 @@ export async function POST(req: NextRequest) {
     req.headers.get("outrank-signature");
   const signingEnabled = Boolean(env.OUTRANK_WEBHOOK_SIGNING_SECRET);
   if (!signingEnabled && !isBearerAuthorized(req)) {
-    return NextResponse.json(
-      { error: "Invalid access token" },
-      { status: 401 },
+    return rejected(
+      req,
+      "bearer_refused",
+      NextResponse.json({ error: "Invalid access token" }, { status: 401 }),
     );
   }
 
-  // Read the raw body once so we can both size-check it and verify an HMAC
-  // signature over the exact bytes.
+  // Read the raw body once, capped at MAX_BODY_BYTES as it streams (#2904),
+  // so we can verify an HMAC signature over the exact bytes.
   let rawBody: string;
   try {
-    rawBody = await req.text();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+    // The declared length was checked above, so a reply here is the
+    // streaming cap.
+    if (text instanceof NextResponse) {
+      return rejected(req, "streamed_too_large", text);
+    }
+    rawBody = text;
   } catch (err) {
     // Log only the content type, never a header that carries the token or a
     // signature: this line is the one trace a rejected delivery leaves.
@@ -359,10 +422,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
-  }
-
   // When signing is enabled, prefer HMAC signature verification but still fall
   // back to the static bearer token for callers that have not migrated to
   // signing. (When signing is disabled the bearer token was already verified
@@ -371,13 +430,25 @@ export async function POST(req: NextRequest) {
     const authorized =
       isSignatureValid(rawBody, signature) || isBearerAuthorized(req);
     if (!authorized) {
-      return NextResponse.json(
-        { error: "Invalid access token" },
-        { status: 401 },
+      return rejected(
+        req,
+        "signature_refused",
+        NextResponse.json({ error: "Invalid access token" }, { status: 401 }),
       );
     }
   }
 
+  return { rawBody };
+}
+
+/**
+ * Parse the body and read the `publish_articles` envelope. Returns the raw
+ * article array, or the 400 / 413 reply to send instead.
+ */
+function readArticlesEnvelope(
+  req: NextRequest,
+  rawBody: string,
+): { rawArticles: unknown[] } | NextResponse {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawBody);
@@ -398,9 +469,16 @@ export async function POST(req: NextRequest) {
   const eventType = isRecord(parsed) ? parsed.event_type : undefined;
 
   if (eventType !== "publish_articles") {
-    return NextResponse.json(
-      { error: `Unsupported event_type: ${String(eventType)}` },
-      { status: 400 },
+    const shown = String(eventType);
+
+    return rejected(
+      req,
+      "unsupported_event_type",
+      NextResponse.json(
+        { error: `Unsupported event_type: ${shown}` },
+        { status: 400 },
+      ),
+      { eventType: shown.slice(0, MAX_LOGGED_EVENT_TYPE) },
     );
   }
 
@@ -408,24 +486,154 @@ export async function POST(req: NextRequest) {
   const rawArticles = isRecord(data) ? data.articles : undefined;
 
   if (!Array.isArray(rawArticles) || rawArticles.length === 0) {
-    return NextResponse.json(
-      { error: "No articles in payload" },
-      { status: 400 },
+    return rejected(
+      req,
+      "no_articles",
+      NextResponse.json({ error: "No articles in payload" }, { status: 400 }),
+      // null: the payload carried no articles array at all.
+      { articleCount: Array.isArray(rawArticles) ? rawArticles.length : null },
     );
   }
 
   // Only the array itself is proven above. Each element is read through
-  // readArticle inside the loop, so a malformed article becomes a permanent
+  // prepareArticle in POST's loop, so a malformed article becomes a permanent
   // skip for that index and later articles in the delivery still run.
   if (rawArticles.length > MAX_ARTICLES) {
-    return NextResponse.json(
-      {
-        error: `Too many articles: ${rawArticles.length} (max ${MAX_ARTICLES})`,
-      },
-      { status: 413 },
+    return rejected(
+      req,
+      "too_many_articles",
+      NextResponse.json(
+        {
+          error: `Too many articles: ${rawArticles.length} (max ${MAX_ARTICLES})`,
+        },
+        { status: 413 },
+      ),
+      { articleCount: rawArticles.length },
     );
   }
 
+  return { rawArticles };
+}
+
+/** One validated article, ready for upsertArticle. */
+type PreparedArticle = {
+  externalId: string;
+  baseSlug: string;
+  title: string;
+  description: string | null;
+  markdown: string;
+  html: string;
+  imageUrl: string | null;
+  imageAlt: string;
+  tags: string[];
+  publishedAt?: Date;
+};
+
+/**
+ * Read and validate one untrusted array element. Returns the prepared row, or
+ * the permanent skip reason for that index.
+ */
+function prepareArticle(
+  raw: unknown,
+): { row: PreparedArticle; reason?: undefined } | { reason: string } {
+  const read = readArticle(raw);
+
+  if (read.reason !== undefined) return { reason: read.reason };
+
+  const { article } = read;
+  const markdown = article.content_markdown?.trim() ?? "";
+  // Outrank's HTML is third-party content rendered raw on the main origin,
+  // so only the allow-listed article markup is stored (#2009). HTML that
+  // sanitises to nothing falls back to the markdown, as empty HTML did.
+  const html =
+    sanitizeBlogHtml(article.content_html?.trim() ?? "").trim() ||
+    sanitizeBlogHtml(markdownToHtml(markdown));
+  const description = article.meta_description ?? article.description;
+
+  if (!article.id || !article.title?.trim() || (!markdown && !html)) {
+    return { reason: "missing id/title/content" };
+  }
+
+  const title = article.title.trim();
+  const slugSource = article.slug?.trim() || title;
+  const baseSlug = slugify(slugSource);
+
+  if (!baseSlug) return { reason: "slug resolved to empty string" };
+
+  // Validate published_at/created_at before either reaches the driver: an Invalid Date
+  // makes node-postgres throw RangeError on serialization, which would
+  // otherwise be swallowed as a silent skip.
+  const { publishedAt, error: publishedAtError } = parsePublishedAt(article);
+
+  if (publishedAtError) return { reason: publishedAtError };
+
+  return {
+    row: {
+      externalId: article.id,
+      baseSlug,
+      title,
+      description: description?.trim() || null,
+      markdown,
+      html,
+      imageUrl: article.image_url ?? null,
+      imageAlt: article.image_alt ?? title,
+      tags: article.tags,
+      publishedAt,
+    },
+  };
+}
+
+/** Insert the article, or update the row that already holds its external id. */
+async function upsertArticle(
+  row: PreparedArticle,
+): Promise<{ id: string; slug: string }> {
+  // Avoid a (locale, slug) unique violation when a different article has
+  // already claimed this slug.
+  const slug = await resolveUniqueSlug(row.baseSlug, row.externalId);
+  // The columns the insert and the update both write.
+  const columns = {
+    slug,
+    title: row.title,
+    description: row.description,
+    contentMarkdown: row.markdown,
+    contentHtml: row.html,
+    imageUrl: row.imageUrl,
+    imageAlt: row.imageAlt,
+    tags: row.tags,
+    // On first insert an absent date falls back to the column default
+    // (now()). On update, publishedAt is only overwritten when the payload
+    // supplied a date, so a re-publish without created_at does not reset
+    // ordering state.
+    ...(row.publishedAt ? { publishedAt: row.publishedAt } : {}),
+  };
+
+  const [inserted] = await db
+    .insert(blogPosts)
+    .values({
+      externalId: row.externalId,
+      source: "outrank",
+      locale: LOCALE,
+      ...columns,
+    })
+    .onConflictDoUpdate({
+      target: blogPosts.externalId,
+      set: { ...columns, updatedAt: new Date() },
+    })
+    .returning({ id: blogPosts.id, slug: blogPosts.slug });
+
+  return inserted;
+}
+
+export async function POST(req: NextRequest) {
+  const body = await readAuthorizedBody(req);
+
+  if (body instanceof NextResponse) return body;
+
+  const envelope = readArticlesEnvelope(req, body.rawBody);
+
+  if (envelope instanceof NextResponse) return envelope;
+
+  const { rawArticles } = envelope;
   const processed: Array<{ id: string; slug: string }> = [];
   const skipped: Array<{ index: number; reason: string }> = [];
   // Track whether any skip was a TRANSIENT failure (e.g. a DB upsert error)
@@ -435,100 +643,24 @@ export async function POST(req: NextRequest) {
   let hadTransientFailure = false;
 
   for (let i = 0; i < rawArticles.length; i++) {
-    const read = readArticle(rawArticles[i]);
+    const prepared = prepareArticle(rawArticles[i]);
 
-    if (read.reason !== undefined) {
-      skipped.push({ index: i, reason: read.reason });
+    if (prepared.reason !== undefined) {
+      skipped.push({ index: i, reason: prepared.reason });
       continue;
     }
 
-    const { article } = read;
-    const markdown = article.content_markdown?.trim() ?? "";
-    // Outrank's HTML is third-party content rendered raw on the main origin,
-    // so only the allow-listed article markup is stored (#2009). HTML that
-    // sanitises to nothing falls back to the markdown, as empty HTML did.
-    const html =
-      sanitizeBlogHtml(article.content_html?.trim() ?? "").trim() ||
-      sanitizeBlogHtml(markdownToHtml(markdown));
-    const description = article.meta_description ?? article.description;
-
-    if (!article.id || !article.title?.trim() || (!markdown && !html)) {
-      skipped.push({
-        index: i,
-        reason: "missing id/title/content",
-      });
-      continue;
-    }
-
-    const title = article.title.trim();
-    const slugSource = article.slug?.trim() || title;
-    const baseSlug = slugify(slugSource);
-    if (!baseSlug) {
-      skipped.push({ index: i, reason: "slug resolved to empty string" });
-      continue;
-    }
-
-    // Validate published_at/created_at before either reaches the driver: an Invalid Date
-    // makes node-postgres throw RangeError on serialization, which would
-    // otherwise be swallowed as a silent skip.
-    const { publishedAt, error: publishedAtError } = parsePublishedAt(article);
-    if (publishedAtError) {
-      skipped.push({
-        index: i,
-        reason: publishedAtError,
-      });
-      continue;
-    }
-
-    const { tags } = article;
+    const { row } = prepared;
 
     try {
-      // Avoid a (locale, slug) unique violation when a different article has
-      // already claimed this slug.
-      const slug = await resolveUniqueSlug(baseSlug, article.id);
+      const saved = await upsertArticle(row);
 
-      const [row] = await db
-        .insert(blogPosts)
-        .values({
-          externalId: article.id,
-          source: "outrank",
-          locale: LOCALE,
-          slug,
-          title,
-          description: description?.trim() || null,
-          contentMarkdown: markdown,
-          contentHtml: html,
-          imageUrl: article.image_url ?? null,
-          imageAlt: article.image_alt ?? title,
-          tags,
-          // Falls back to the column default (now()) on first insert.
-          ...(publishedAt ? { publishedAt } : {}),
-        })
-        .onConflictDoUpdate({
-          target: blogPosts.externalId,
-          set: {
-            slug,
-            title,
-            description: description?.trim() || null,
-            contentMarkdown: markdown,
-            contentHtml: html,
-            imageUrl: article.image_url ?? null,
-            imageAlt: article.image_alt ?? title,
-            tags,
-            // Only overwrite publishedAt when the payload supplied a date, so
-            // a re-publish without created_at does not reset ordering state.
-            ...(publishedAt ? { publishedAt } : {}),
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: blogPosts.id, slug: blogPosts.slug });
+      processed.push({ id: saved.id, slug: saved.slug });
 
-      processed.push({ id: row.id, slug: row.slug });
-
-      revalidatePath(`/en/blog/${row.slug}`);
+      revalidatePath(`/en/blog/${saved.slug}`);
     } catch (err) {
       console.error("[add-blog-post] upsert failed", {
-        externalId: article.id,
+        externalId: row.externalId,
         err,
       });
       // A thrown upsert is treated as transient (DB outage, constraint, etc.)

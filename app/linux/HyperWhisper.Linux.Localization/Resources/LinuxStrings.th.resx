@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>ไม่สามารถเปิดไมโครโฟนได้</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>ยังไม่ได้ตั้งค่า</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>บันทึกแล้ว</value>
+  </data>
 </root>

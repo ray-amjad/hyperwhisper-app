@@ -3,7 +3,7 @@ import { providerAudioReservation } from './audio-reservation';
 import { pcm16Wav } from '../test-support/wav';
 import { opusOgg } from '../test-support/ogg';
 import { CREDITS_PER_MINUTE, MAX_UPLOAD_BYTES_PER_SECOND, RESERVATION_FALLBACK_BYTES_PER_SECOND } from '../lib/constants';
-import { estimateCreditsFromSize } from '../middleware/credits';
+import { estimateCreditsForProviderFallbacks } from '../routes/transcribe-audio';
 
 describe('providerAudioReservation', () => {
   test('a normal provider buffers the body and reserves its container duration (#2483)', () => {
@@ -45,7 +45,7 @@ describe('providerAudioReservation', () => {
     const hourCost = 60 * CREDITS_PER_MINUTE;
 
     expect(providerAudioReservation('grok', oneHourAt8kbps).estimatedAudioSeconds).toBeGreaterThanOrEqual(3600);
-    expect(estimateCreditsFromSize(oneHourAt8kbps)).toBeGreaterThanOrEqual(hourCost);
+    expect(estimateCreditsForProviderFallbacks({ sizeBytes: oneHourAt8kbps, provider: 'grok' })).toBeGreaterThanOrEqual(hourCost);
   });
 
   test.each([16_000, 24_000] as const)(
