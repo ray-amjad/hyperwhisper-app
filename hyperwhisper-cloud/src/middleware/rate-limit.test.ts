@@ -22,6 +22,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { Redis } from '@upstash/redis';
 import * as realRedis from '../lib/redis';
+import { RedisNotConfiguredError } from '../lib/redis-client';
 
 let cachedCredits = 0;
 
@@ -381,9 +382,10 @@ describe('fail open', () => {
 describe('the production store (real @upstash/ratelimit)', () => {
   test('no Upstash env: the getter throws and the request is not limited', async () => {
     setRateLimitStoreForTests(createUpstashRateLimitStore(() => {
-      throw new Error('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
+      throw new RedisNotConfiguredError();
     }));
     expect(await checkRateLimit('ip', '203.0.113.9')).toEqual({ limited: false });
+    expect(warnings.every((line) => !line.includes('"reason":"store_error"'))).toBe(true);
   });
 
   test('Upstash erroring: the limiter rejects and the check fails open', async () => {

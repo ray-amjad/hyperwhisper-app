@@ -50,7 +50,7 @@ export function getLLMCompletionStatus(raw: unknown): LLMCompletionStatus {
   return { state: 'unspecified', reason: 'missing_finish_reason' };
 }
 
-export type CompletionFailure = 'none' | 'output_limit' | 'incomplete_response' | 'prompt_leakage' | 'empty_cleaned_text';
+type CompletionFailure = 'none' | 'output_limit' | 'incomplete_response' | 'prompt_leakage' | 'empty_cleaned_text';
 
 /**
  * Composed completion policy — the TS analog of the Rust core's

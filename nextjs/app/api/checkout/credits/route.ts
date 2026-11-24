@@ -5,6 +5,7 @@ import { stripeCustomerBelongsTo } from "@/lib/services/stripe-customer";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isLookupableLicenseKey } from "@/src/lib/license-key-input";
 import { isRecord } from "@/src/lib/type-guards";
+import { readBoundedText } from "@/src/lib/bounded-body";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError } from "@/lib/shared/db-error";
 import { checkoutRateLimiter } from "@/lib/rate-limit";
@@ -14,6 +15,9 @@ import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
 } from "./validation";
+
+/** A licence key, a pack amount and an email; 16 KB is far above any real request (#3039). */
+const MAX_BODY_BYTES = 16 * 1024;
 
 /**
  * Stripe Checkout API Route for Credit Purchases
@@ -58,7 +62,10 @@ export async function POST(req: NextRequest) {
   let body: unknown;
 
   try {
-    body = await req.json();
+    const text = await readBoundedText(req, MAX_BODY_BYTES);
+
+    if (text instanceof NextResponse) return text;
+    body = JSON.parse(text);
   } catch (err) {
     console.error(
       "Credit checkout: request JSON did not parse",
