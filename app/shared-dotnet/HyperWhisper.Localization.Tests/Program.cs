@@ -179,7 +179,13 @@ static void AllCatalogsLoad()
     // and `.deepgramWhisper` are gone, read by nothing since #1998 moved the warning to the models catalog.
     // 865 -> 866 (#2411): `recording.warning.micSilent` is new (the Windows and Linux recording
     // overlays warn "No sound from {mic}" while the microphone hears nothing).
-    Equal(866,PortableLocalizer.BaseKeyCount, "base key count");
+    // 866 -> 877 (#2409): the Vocabulary page's Import/Export buttons add
+    // `vocabulary.transfer.import`, `.export`, `.import.dialogTitle`, `.export.dialogTitle`,
+    // `.fileType.any`, `.fileType.csv`, `.fileType.txt`, `.imported`, `.exported`,
+    // `.importFailed` and `.exportFailed` (Windows and Linux).
+    // 877 -> 878 (#2409 review): `vocabulary.transfer.saveFailed` tells a database failure
+    // apart from an unreadable file.
+    Equal(878,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

@@ -16,6 +16,8 @@
 
 import SwiftUI
 import CoreData
+import AppKit
+import UniformTypeIdentifiers
 
 // MARK: - Vocabulary View
 
@@ -54,6 +56,12 @@ struct VocabularyView: View {
     /// Edit mode: tracks item being edited via safety-net pattern
     @State private var pendingDeleteId: UUID?
     @State private var editingId: UUID?
+
+    /// Import/export (#2409): the last result line, and the error alert.
+    @State private var transferResultMessage: String?
+    @State private var showTransferErrorAlert = false
+    @State private var transferErrorTitle = ""
+    @State private var transferErrorMessage = ""
 
     /// One-shot guard for the CloudKit merge-duplicate dedup pass.
     /// Runs once per app launch on the first `.onAppear`.
@@ -94,6 +102,11 @@ struct VocabularyView: View {
             // Input section
             inputSection
 
+            // Import/export result line (#2409)
+            if let transferResultMessage {
+                transferResultLine(transferResultMessage)
+            }
+
             Divider()
 
             // Vocabulary list
@@ -127,11 +140,17 @@ struct VocabularyView: View {
         } message: {
 Text("vocabulary.duplicate.message".localized(arguments: duplicateWord))
         }
+        .alert(transferErrorTitle, isPresented: $showTransferErrorAlert) {
+            Button("vocabulary.ok.button".localized) {}
+        } message: {
+            Text(transferErrorMessage)
+        }
         // Issue #1672: close the alert before a page change removes this view.
         .closesPresentationsOnPageChange(
-            isPresenting: showDuplicateAlert
+            isPresenting: showDuplicateAlert || showTransferErrorAlert
         ) {
             showDuplicateAlert = false
+            showTransferErrorAlert = false
         }
     }
 
@@ -141,7 +160,130 @@ Text("vocabulary.duplicate.message".localized(arguments: duplicateWord))
         PageHeader(
             title: "vocabulary.title".localized,
             subtitle: "vocabulary.description".localized
-        )
+        ) {
+            HStack(spacing: 8) {
+                Button {
+                    importVocabulary()
+                } label: {
+                    Label("vocabulary.import.button".localized, systemImage: "square.and.arrow.down")
+                }
+
+                Button {
+                    exportVocabulary()
+                } label: {
+                    Label("vocabulary.export.button".localized, systemImage: "square.and.arrow.up")
+                }
+                .disabled(vocabularyItems.isEmpty)
+            }
+            .controlSize(.large)
+        }
+    }
+
+    // MARK: - Import / Export (#2409)
+
+    /// The outcome of the last import or export, under the input field.
+    private func transferResultLine(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            Button {
+                transferResultMessage = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("vocabulary.transfer.dismiss".localized)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+    }
+
+    /// Picks a `.csv` or `.txt` file and merges it into the list. The format
+    /// follows the extension; any other plain-text file reads as TXT.
+    private func importVocabulary() {
+        let panel = NSOpenPanel()
+        panel.title = "vocabulary.import.panel.title".localized
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let format = VocabularyTransferFormat(fileExtension: url.pathExtension) ?? .txt
+        let parsed: VocabularyTransferParseResult
+        do {
+            let data = try Data(contentsOf: url)
+            parsed = try VocabularyTransfer.read(data, as: format)
+        } catch VocabularyTransferError.notUTF8 {
+            showTransferError(
+                title: "vocabulary.import.error.title".localized,
+                message: "vocabulary.import.error.notUTF8".localized
+            )
+            return
+        } catch {
+            AppLogger.coreData.error("Vocabulary import read failed: \(error, privacy: .public)")
+            showTransferError(
+                title: "vocabulary.import.error.title".localized,
+                message: "vocabulary.import.error.unreadable".localized
+            )
+            return
+        }
+
+        do {
+            let summary = try PersistenceController.shared.importVocabularyEntries(parsed)
+            transferResultMessage = "vocabulary.import.result".localized(
+                arguments: summary.added,
+                summary.updated,
+                summary.skipped,
+                PersistenceController.vocabularyMaxWordChars
+            )
+        } catch {
+            showTransferError(
+                title: "vocabulary.import.error.title".localized,
+                message: "vocabulary.import.error.save".localized
+            )
+        }
+    }
+
+    /// Writes the list, in the page's order, to a `.csv` (default) or `.txt`.
+    private func exportVocabulary() {
+        let panel = NSSavePanel()
+        panel.title = "vocabulary.export.panel.title".localized
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = VocabularyTransfer.defaultExportFileName
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let format = VocabularyTransferFormat(fileExtension: url.pathExtension) ?? .csv
+        let entries = PersistenceController.shared.vocabularyEntriesForExport()
+        let text = VocabularyTransfer.write(entries, as: format)
+        do {
+            try Data(text.utf8).write(to: url, options: .atomic)
+            transferResultMessage = "vocabulary.export.result".localized(
+                arguments: entries.count,
+                url.lastPathComponent
+            )
+        } catch {
+            AppLogger.coreData.error("Vocabulary export write failed: \(error, privacy: .public)")
+            showTransferError(
+                title: "vocabulary.export.error.title".localized,
+                message: "vocabulary.export.error.write".localized
+            )
+        }
+    }
+
+    private func showTransferError(title: String, message: String) {
+        transferResultMessage = nil
+        transferErrorTitle = title
+        transferErrorMessage = message
+        showTransferErrorAlert = true
     }
 
     // MARK: - Keywords Limit Warning

@@ -53,15 +53,18 @@ public sealed class VocabularyRepository(ApplicationDb database)
         return existing;
     }
 
-    public async Task<int> MergeAsync(IEnumerable<VocabularyItem> items, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Merges a parsed CSV/TXT file into the list in one save (#2409). Unlike
+    /// <see cref="UpsertAsync"/>, a word already listed keeps its spelling and position, and a row
+    /// without a replacement never wipes one; <see cref="VocabularyTransfer.MergeInto"/> holds the rules.
+    /// </summary>
+    public async Task<VocabularyImportResult> ImportAsync(VocabularyTransferParse parsed, CancellationToken cancellationToken = default)
     {
-        var count = 0;
-        foreach (var item in items.Where(item => !string.IsNullOrWhiteSpace(item.Word)))
-        {
-            _ = await UpsertAsync(item, cancellationToken);
-            count++;
-        }
-        return count;
+        ArgumentNullException.ThrowIfNull(parsed);
+        await using var context = _database.CreateContext();
+        // MergeInto saves once, so the whole file lands or none of it does.
+        cancellationToken.ThrowIfCancellationRequested();
+        return VocabularyTransfer.MergeInto(context, parsed.Entries, parsed.Skipped);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)

@@ -46,6 +46,19 @@
 "vocabulary.icloudSync.restart.message" = "iCloud vocabulary sync changes take effect the next time you open HyperWhisper.";
 "vocabulary.icloudSync.restart.quit" = "Quit HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Later";
+"vocabulary.import.button" = "Import…";
+"vocabulary.export.button" = "Export…";
+"vocabulary.import.panel.title" = "Import Vocabulary";
+"vocabulary.export.panel.title" = "Export Vocabulary";
+"vocabulary.import.result" = "Import finished: %1$d added, %2$d updated, %3$d skipped (longer than %4$d characters).";
+"vocabulary.export.result" = "Exported %1$d terms to %2$@.";
+"vocabulary.transfer.dismiss" = "Dismiss";
+"vocabulary.import.error.title" = "Couldn't Import Vocabulary";
+"vocabulary.import.error.unreadable" = "The file could not be read. Nothing was imported.";
+"vocabulary.import.error.notUTF8" = "The file is not UTF-8 text. Save it as UTF-8 and try again. Nothing was imported.";
+"vocabulary.import.error.save" = "The vocabulary could not be saved. Nothing was imported.";
+"vocabulary.export.error.title" = "Couldn't Export Vocabulary";
+"vocabulary.export.error.write" = "The file could not be written.";
 
 // MARK: - Streaming View
 "streaming.title" = "Streaming (Beta)";

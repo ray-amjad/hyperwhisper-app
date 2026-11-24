@@ -57,7 +57,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         var historyRepository = new HistoryRepository(database, paths);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
-        Vocabulary = new VocabularyViewModel(vocabularyRepository);
+        Vocabulary = new VocabularyViewModel(vocabularyRepository) { Localize = localize is null ? null : key => localize(key) };
         Modes = new ModesViewModel(modeRepository, settings, credentials);
         Settings = new SettingsViewModel(settings, localLlmRuntimeStatus, localWhisperRuntimeStatus);
         Streaming = new StreamingSettingsViewModel(Settings);
