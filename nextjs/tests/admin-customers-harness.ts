@@ -97,6 +97,11 @@ export const behaviour = {
   /** Charges per Stripe customer id. An Error value makes the list throw. */
   charges: new Map<string, ChargeFixture[] | Error>(),
   disputeStatus: new Map<string, string>(),
+  /**
+   * Stripe customer ids on keys OUTSIDE \`licenses\` (older than the capped
+   * list), per user: what only the uncapped id query sees (#3056).
+   */
+  unlistedStripeIds: new Map<string, string[]>(),
   /** What `checkout.sessions.retrieve` reports as `payment_intent`. */
   paymentIntent: "pi_1" as string | { id: string } | null,
 };
@@ -147,6 +152,7 @@ export function resetHarness(): void {
   behaviour.revokeRevoked = true;
   behaviour.charges = new Map();
   behaviour.disputeStatus = new Map();
+  behaviour.unlistedStripeIds = new Map();
   behaviour.paymentIntent = "pi_1";
 }
 
@@ -171,6 +177,28 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
     getAccountKeysWithCreditsForUserIds: async (userIds: string[]) => {
       calls.licensesForUserIds.push([...userIds]);
       return behaviour.licenses;
+    },
+    // Derived from the same fixture licenses, so the page's spend sees the
+    // Stripe ids it always saw from the license rows.
+    getStripeCustomerIdsForUserIds: async (userIds: string[]) => {
+      const byUser = new Map<string, Set<string>>();
+
+      for (const l of behaviour.licenses as Array<{ userId: string; stripeCustomerId: string | null }>) {
+        if (!l.stripeCustomerId || !userIds.includes(l.userId)) continue;
+        const ids = byUser.get(l.userId) ?? new Set<string>();
+
+        ids.add(l.stripeCustomerId);
+        byUser.set(l.userId, ids);
+      }
+      for (const [userId, extra] of Array.from(behaviour.unlistedStripeIds)) {
+        if (!userIds.includes(userId)) continue;
+        const ids = byUser.get(userId) ?? new Set<string>();
+
+        for (const id of extra) ids.add(id);
+        byUser.set(userId, ids);
+      }
+
+      return byUser;
     },
     getUsersByIds: async (ids: string[]) => {
       calls.usersByIds.push([...ids]);
