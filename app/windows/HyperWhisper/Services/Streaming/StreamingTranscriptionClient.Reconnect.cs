@@ -22,6 +22,14 @@ public sealed partial class StreamingTranscriptionClient
         // get a fresh MaxReconnectAttempts loop after each reconnect, forever.
         if (_reconnectsWithoutTranscript >= MaxReconnectsWithoutTranscript)
         {
+            // Same rule as the attempt loop below: a session StopAsync is already ending
+            // gets no "connection was lost" error.
+            if (cancellationToken.IsCancellationRequested ||
+                State is StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle)
+            {
+                return false;
+            }
+
             LoggingService.Warn(
                 $"StreamingTranscriptionClient: not reconnecting - {_reconnectsWithoutTranscript} reconnects with no transcript frame " +
                 $"(budget MaxReconnectsWithoutTranscript = {MaxReconnectsWithoutTranscript}) for {_strategy.TranscriptionProviderLabel}");
