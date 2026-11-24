@@ -279,7 +279,9 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// ElevenLabs transcription models.
-    /// - scribe_v2: Latest model with keyterm prompting support (default)
+    /// - scribe_v2: Model with keyterm prompting support (default)
+    /// - scribe_v2_medical: Scribe v2 tuned for clinical audio, keyterms too
+    /// - scribe_v3: Newest batch model, keyterms too (BYOK only)
     /// - scribe_v1: Original flagship model (no vocabulary support)
     /// </summary>
     public static readonly CloudTranscriptionModel[] ElevenLabs = new[]
@@ -302,6 +304,15 @@ public static class CloudTranscriptionModels
         {
             Id = "scribe_v2_medical",
             Description = "Scribe v2 tuned for clinical audio. Keyterm prompting (up to 100 terms) highlights drug names and medical phrases. Same rate as Scribe v2.",
+            Provider = CloudTranscriptionProvider.ElevenLabs
+        },
+        // Scribe v3 (2026-11-09, #3049): ElevenLabs' successor batch model on the same
+        // endpoint and request shape. BYOK only (no HyperWhisper Cloud row), and not the
+        // default: scribe_v2 stays IsPopular.
+        new CloudTranscriptionModel
+        {
+            Id = "scribe_v3",
+            Description = "Newest Scribe model with keyterm prompting (up to 100 terms)",
             Provider = CloudTranscriptionProvider.ElevenLabs
         }
     };

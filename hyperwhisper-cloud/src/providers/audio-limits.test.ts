@@ -1,11 +1,13 @@
 import { describe, expect, test, afterEach } from 'bun:test';
-import { preBufferMaxBytes } from './audio-limits';
+import { PROVIDER_AUDIO_CAPS, preBufferMaxBytes } from './audio-limits';
 import {
+  AZURE_MAI_MAX_BYTES,
   GEMINI_INLINE_MAX_BYTES,
   GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
   META_MUSE_SOURCE_MAX_BYTES,
+  SONIOX_MAX_BYTES,
 } from '../lib/constants';
 import { ALL_STT_PROVIDER_IDS, type SttProviderId } from '../lib/stt-models';
 import { saveEnv, stubEnv } from '../test-support/env';
@@ -27,11 +29,16 @@ describe('preBufferMaxBytes', () => {
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('google-chirp')).toBe(GOOGLE_CHIRP_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('meta')).toBe(META_MUSE_SOURCE_MAX_BYTES);
+    // Soniox's cap used to be missing here, so its uploads buffered up to the
+    // 128 MB global cap before the adapter's own 413.
+    expect(preBufferMaxBytes('soniox')).toBe(SONIOX_MAX_BYTES);
+    // Above the 128 MB global cap, so the route's global gate fires first.
+    expect(preBufferMaxBytes('azure-mai')).toBe(AZURE_MAI_MAX_BYTES);
   });
 
   test('returns null for every provider without a cap of its own', () => {
     setBucket(undefined);
-    const capped = new Set<SttProviderId>(['gemini', 'gemini-transcribe', 'openai', 'google-chirp', 'meta']);
+    const capped = new Set<SttProviderId>(['gemini', 'gemini-transcribe', 'openai', 'google-chirp', 'meta', 'soniox', 'azure-mai']);
 
     // Drives off the registry, so a provider added there is covered here
     // without anyone remembering to extend this list.
@@ -75,6 +82,21 @@ describe('preBufferMaxBytes', () => {
     expect(preBufferMaxBytes('gemini-transcribe')).toBe(GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('meta')).toBe(META_MUSE_SOURCE_MAX_BYTES);
+    expect(preBufferMaxBytes('soniox')).toBe(SONIOX_MAX_BYTES);
+  });
+
+  test('no gate is tighter than its adapter: it never 413s a payload the adapter would take', () => {
+    setBucket(undefined);
+    for (const provider of ALL_STT_PROVIDER_IDS) {
+      const cap = PROVIDER_AUDIO_CAPS[provider];
+      const gate = preBufferMaxBytes(provider);
+      if (cap === null) {
+        expect(gate).toBeNull();
+        continue;
+      }
+      expect(gate).not.toBeNull();
+      expect(gate!).toBeGreaterThanOrEqual(cap.adapterMaxBytes);
+    }
   });
 
   test('admits the exact Meta recovery boundary and rejects one byte over', () => {

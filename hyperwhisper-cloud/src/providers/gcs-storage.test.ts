@@ -1,6 +1,6 @@
 // GCS SCRATCH-STORAGE PATH (Chirp's large-file route to Speech V2)
 //
-// lib/gcs-storage.ts is the only thing between a >9.5 MB recording and a
+// providers/gcs-storage.ts is the only thing between a >9.5 MB recording and a
 // `gs://` URI, and every one of its failure branches is load-bearing for the
 // transcribe route: which errors become a 502 fallback, which fail fast, how
 // long an upload is allowed to take, and whether a dead upload still counts as
@@ -8,16 +8,16 @@
 //
 // Two mechanics make this testable without touching the network:
 //
-// 1. `./google-auth` is replaced with mock.module. The factory spreads the real
+// 1. `../lib/google-auth` is replaced with mock.module. The factory spreads the real
 //    module and overrides only `getGoogleAccessToken` — bun's module registry
 //    is process-wide, so a factory that LISTS exports deletes the rest for
 //    every file that loads after this one. providers/google-chirp.test.ts
 //    installs the same override for the same reason.
 //
-// 2. lib/gcs-storage is imported through a query-suffixed specifier. That is
+// 2. providers/gcs-storage is imported through a query-suffixed specifier. That is
 //    NOT a cache-busting trick for this file's own benefit — it is how this
 //    suite gets the REAL module. providers/google-chirp.test.ts replaces
-//    `../lib/gcs-storage` process-wide with a stub, and if it loads first a
+//    `./gcs-storage` process-wide with a stub, and if it loads first a
 //    plain import here would resolve to that stub and assert nothing about the
 //    code under test. A distinct specifier is a distinct registry key, so this
 //    file exercises the real module whatever order bun walks the tree in.
@@ -25,7 +25,7 @@
 //    would prove nothing. lib/google-auth.test.ts uses the same escape hatch.
 //
 // One consequence to expect in `bun test src --coverage`: the query-suffixed
-// instance is a separate module, so lib/gcs-storage.ts still reports 0% funcs.
+// instance is a separate module, so providers/gcs-storage.ts still reports 0% funcs.
 // The coverage number is the artefact; the code under test really does run.
 //
 // Global `fetch` is mocked (the azure-mai.test.ts pattern) rather than the
@@ -33,9 +33,9 @@
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mock } from 'bun:test';
-import * as realGoogleAuth from './google-auth';
-import { ProviderUnavailableError } from '../providers/types';
-import { runProviderAttempt } from '../providers/utils';
+import * as realGoogleAuth from '../lib/google-auth';
+import { ProviderUnavailableError } from './types';
+import { runProviderAttempt } from './utils';
 import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ let accessToken = 'test-access-token';
 let tokenError: Error | null = null;
 let tokenMints = 0;
 
-mock.module('./google-auth', () => ({
+mock.module('../lib/google-auth', () => ({
   ...realGoogleAuth,
   getGoogleAccessToken: async () => {
     tokenMints += 1;
@@ -107,7 +107,7 @@ afterEach(() => {
 
 /**
  * The abort deadline is the only part of the timeout budget that is externally
- * observable: `fetchWithTimeoutMs` arms it with `setTimeout(abort, timeoutMs)`
+ * observable: `fetchWithTimeout` arms it with `setTimeout(abort, timeoutMs)`
  * and the mocked fetch resolves before it ever fires. Record the delays that
  * the module asks for, then put the real timer back.
  */
@@ -330,7 +330,7 @@ describe('uploadTranscriptionAudio — failure classification', () => {
       .then(() => null, (e: unknown) => e);
 
     expect(error).toBeInstanceOf(ProviderUnavailableError);
-    expect((error as Error).message).toContain('upload timeout after 30000ms');
+    expect((error as Error).message).toBe('GCS upload unavailable: timeout after 30000ms');
   });
 
   test('turns a connection failure into ProviderUnavailableError, not a 500', async () => {

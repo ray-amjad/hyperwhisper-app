@@ -81,11 +81,11 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
     expect(gpt4o.form?.get('response_format')).toBe('json');
   });
 
-  test('defaults to gpt-4o-transcribe when the context names no model', async () => {
+  test('defaults to the registry default (gpt-transcribe) when the context names no model', async () => {
     const captured = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 10 } });
 
     await transcribeWithOpenAI(audio(), 'audio/wav');
-    expect(captured.form?.get('model')).toBe('gpt-4o-transcribe');
+    expect(captured.form?.get('model')).toBe('gpt-transcribe');
     expect(captured.form?.get('response_format')).toBe('json');
   });
 
@@ -108,11 +108,11 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
 
   test('forwards an initial prompt as `prompt`, and omits the field without one', async () => {
     const withPrompt = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
-    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper, Drizzle');
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper, Drizzle', { model: 'gpt-4o-transcribe' });
     expect(withPrompt.form?.get('prompt')).toBe('HyperWhisper, Drizzle');
 
     const without = captureMultipartRequest({ text: 'hi', usage: { input_tokens: 1 } });
-    await transcribeWithOpenAI(audio(), 'audio/wav');
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
     expect(without.form?.has('prompt')).toBe(false);
   });
 
@@ -309,7 +309,7 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
   test('gpt-4o ignores any echoed duration and estimates seconds from the payload size', async () => {
     captureMultipartRequest({ text: 'hello', duration: 999, usage: { input_tokens: 100, output_tokens: 20 } });
 
-    const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav');
+    const result = await transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' });
     expect(result.durationSeconds).toBeCloseTo(120, 6);
   });
 
