@@ -129,8 +129,13 @@ extension SentryService {
             options.enableAutoSessionTracking = true
             options.sessionTrackingIntervalMillis = 30000  // 30 seconds
 
-            // Follow docs: include IP (PII); gated by enableErrorLogging
-            options.sendDefaultPii = true
+            // DEFAULT PII OFF
+            // With this on the SDK attaches the user's IP address and keeps
+            // more of each failed request (cookies, headers it would
+            // otherwise filter). Neither helps a triage, and the request can
+            // carry the Account Key or the user's own provider key. The
+            // scrubbing in `sanitize` runs either way; this is the first line.
+            options.sendDefaultPii = false
 
             // STRUCTURED LOGS
             // The store behind `captureMessage` for a non-error level. A log is
@@ -181,6 +186,16 @@ extension SentryService {
 
             // Scrub potentially sensitive data from error events
             options.beforeSend = Self.sanitize
+
+            // Tracing samples every transaction, and the SDK's `http.client`
+            // span keeps each request's URL, query and fragment. Scrub keys
+            // out of span data and descriptions (SentryRedaction.swift).
+            options.beforeSendSpan = Self.sanitize
+
+            // Breadcrumbs are dropped from every event in `sanitize`, but they
+            // are stored on disk first, and an http breadcrumb holds the
+            // request URL and query. Scrub them on the way in as well.
+            options.beforeBreadcrumb = Self.sanitize
 
             // The Logs pipeline does not use `beforeSend`. Check the same
             // privacy preference in its own last hook so work that started
