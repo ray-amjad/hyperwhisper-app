@@ -116,6 +116,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingAudioCapture = StreamingAudioSourceFactoryOverride?.Invoke() ?? new StreamingAudioCapture();
         _streamingAudioCapture.AudioChunkAvailable += OnStreamingAudioChunkAvailable;
         _streamingAudioCapture.AudioLevelChanged += _audioLevelHandler;
+        _streamingAudioCapture.BlockPeakDbfs += OnCaptureBlockPeak;
 
         AudioEnvironmentService.AudioEnvironmentRestoreClaim? audioRestoreClaim = null;
 
@@ -397,7 +398,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
 
-                StatusText = Loc.S("status.failed", ex.Message);
+                StatusText = TranscriptionFailureStatusText(ex);
             }
         }
         finally
@@ -743,6 +744,7 @@ public partial class MainViewModel : ViewModelBase
         {
             _streamingAudioCapture.AudioChunkAvailable -= OnStreamingAudioChunkAvailable;
             _streamingAudioCapture.AudioLevelChanged -= _audioLevelHandler;
+            _streamingAudioCapture.BlockPeakDbfs -= OnCaptureBlockPeak;
             _streamingAudioCapture.Dispose();
             _streamingAudioCapture = null;
         }

@@ -9,7 +9,7 @@ interface DownloadModalContextType {
   isOpen: boolean;
   /**
    * The platform the visitor picked (a homepage "Download for Mac / Windows /
-   * Linux" button), or null for a plain Download button, where /download
+   * Linux" link), or null for a plain Download link, where /download
    * detects the OS itself.
    */
   platform: DownloadPlatform | null;

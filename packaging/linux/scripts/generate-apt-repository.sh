@@ -137,10 +137,17 @@ GNUPG_TEMP=""
 cleanup() {
     rm -rf -- "$STAGING_ROOT"
     if [[ -n "$GNUPG_TEMP" ]]; then
+        # Stop the agent the import started for this home, so no process keeps
+        # the private key in memory after the run, then drop the keyring.
+        gpgconf --homedir "$GNUPG_TEMP" --kill all >/dev/null 2>&1 || true
         rm -rf -- "$GNUPG_TEMP"
     fi
 }
+# EXIT runs on success and on any failure under `set -e`; INT/TERM turn a
+# cancelled job into an exit so the trap still fires.
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 POOL_DIR="$STAGING_ROOT/pool/main/h/hyperwhisper"
 BINARY_DIR="$STAGING_ROOT/dists/$SUITE/main/binary-amd64"
@@ -193,8 +200,12 @@ if [[ -n "$SIGNING_KEY_FILE" ]]; then
         echo "gpg is required when --signing-key-file is supplied." >&2
         exit 2
     fi
+    # Import and sign only in a private, throwaway GnuPG home. Exporting
+    # GNUPGHOME as well as passing --homedir keeps every gpg child (agent,
+    # dirmngr) out of the runner's default ~/.gnupg.
     GNUPG_TEMP="$(mktemp -d -t hyperwhisper-gnupg.XXXXXXXX)"
     chmod 0700 "$GNUPG_TEMP"
+    export GNUPGHOME="$GNUPG_TEMP"
     gpg --batch --quiet --homedir "$GNUPG_TEMP" --import "$SIGNING_KEY_FILE"
     KEY_FINGERPRINT="$(
         gpg --batch --homedir "$GNUPG_TEMP" --with-colons --list-secret-keys \

@@ -195,6 +195,16 @@ actor ModelResidencyRegistry {
 
     private let log = Logger(subsystem: "com.hyperwhisper.app", category: "memory")
 
+    /// The clock every idle-time stamp and comparison reads. Injectable so the
+    /// idle rules of a pressure sweep (`minIdle`, and which events refresh the
+    /// idle clock) can be tested without sleeping; production uses the
+    /// wall-clock default.
+    private let now: @Sendable () -> Date
+
+    init(now: @escaping @Sendable () -> Date = { Date() }) {
+        self.now = now
+    }
+
     // MARK: - Registration
 
     /// Record that a heavy model is now resident. Re-registering the same `id`
@@ -211,7 +221,7 @@ actor ModelResidencyRegistry {
     /// by serial, so no release — early, late or duplicated — can be mistaken
     /// for another's.
     func register(id: String, tier: Tier, evict: @escaping @Sendable () async -> Void) {
-        let now = Date()
+        let now = self.now()
         let generation = nextGeneration
         nextGeneration &+= 1
         entries[id] = Entry(id: id, tier: tier, generation: generation, phase: .none, loadedAt: now, lastUsedAt: now, evict: evict)
@@ -273,8 +283,8 @@ actor ModelResidencyRegistry {
             log.notice("model.use.rejected id=\(id, privacy: .public) reason=freeing")
             return ClaimReceipt(result: .evicting, token: nil)
         }
-        let gap = Date().timeIntervalSince(e.lastUsedAt)
-        e.lastUsedAt = Date()
+        let gap = now().timeIntervalSince(e.lastUsedAt)
+        e.lastUsedAt = now()
         entries[id] = e
         // Mint an identity for THIS claim and record it. What goes in the ledger
         // is the serial, not the generation: two passes against one registration
@@ -328,7 +338,7 @@ actor ModelResidencyRegistry {
         // entry currently holds the slot. An unmatched one must not push out the
         // eviction of a model it has no live interest in.
         if var e = entries[token.id] {
-            e.lastUsedAt = Date()
+            e.lastUsedAt = now()
             entries[token.id] = e
         }
     }
@@ -363,7 +373,7 @@ actor ModelResidencyRegistry {
     /// `.stt` models that have been idle at least `minIdle` seconds.
     func evict(aggressive: Bool, reason: String, minIdle: TimeInterval) async {
         let before = MemoryFootprint.currentMB()
-        let now = Date()
+        let now = self.now()
 
         // Phase 1 — selection (fully synchronous, so no markBusy/register can
         // interleave): pick idle victims and move them to `.selected` IN PLACE.

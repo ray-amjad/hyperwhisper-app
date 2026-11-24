@@ -410,6 +410,12 @@ class TranscriptionRetryController {
         }
     }
 
+    /// How many in-flight retries hold `path` (#1524: VAD keeps a rejected
+    /// trim another retry may still record).
+    static func vadOutputClaimCount(_ path: String) -> Int {
+        vadOutputsInFlight[path] ?? 0
+    }
+
     /// Of `paths`, the ones no in-flight retry holds.
     static func vadOutputsNoRunUses(_ paths: [String]) -> [String] {
         paths.filter { vadOutputsInFlight[$0] == nil }

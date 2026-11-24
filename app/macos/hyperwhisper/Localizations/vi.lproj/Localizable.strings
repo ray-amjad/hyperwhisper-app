@@ -885,6 +885,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "streaming.loading.streaming" = "Chờ đợi lời nói...";
 "streaming.state.reconnecting" = "Đang kết nối lại...";
 "recording.stop.help" = "Dừng Ghi âm (%@)";
+"recording.warning.micSilent" = "Không có âm thanh từ %@";
 "recording.retry" = "Thử lại";
 "recording.retry.inProgress" = "Đang thử lại…";
 "recording.retry.count" = "Thử lại (%d)";

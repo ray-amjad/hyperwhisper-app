@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
-import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { RESERVATION_FALLBACK_BYTES_PER_SECOND } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
@@ -21,7 +21,9 @@ describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
     // The default route's minute: 1.67 credits/min rounded up to a tenth.
     const defaultRouteEstimate = 1.7;
-    const grokFallbackEstimate = estimateCreditsForProviderFallbacks({ sizeBytes: BYTES_PER_MINUTE_ESTIMATE, provider: 'grok' });
+    // One minute at the size-only reservation rate.
+    const oneMinuteBytes = 60 * RESERVATION_FALLBACK_BYTES_PER_SECOND;
+    const grokFallbackEstimate = estimateCreditsForProviderFallbacks({ sizeBytes: oneMinuteBytes, provider: 'grok' });
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
     expect(grokFallbackEstimate).toBe(elevenLabsEstimate);

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import {
-  BYTES_PER_MINUTE_ESTIMATE,
   DEFAULT_API_BASE_URL,
+  RESERVATION_FALLBACK_BYTES_PER_SECOND,
 } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
@@ -122,15 +122,25 @@ afterEach(async () => {
   restoreLicenseApiUrl();
 });
 
+// One minute at the size-only reservation rate (8 kbps).
+const ONE_MINUTE_BYTES = 60 * RESERVATION_FALLBACK_BYTES_PER_SECOND;
+
 describe('estimateAudioSecondsFromSize', () => {
-  test('converts bytes to seconds using the encoded-bitrate estimate', () => {
-    expect(estimateAudioSecondsFromSize(BYTES_PER_MINUTE_ESTIMATE)).toBe(60);
-    expect(estimateAudioSecondsFromSize(BYTES_PER_MINUTE_ESTIMATE / 2)).toBe(30);
+  test('converts bytes to seconds at the 8 kbps reservation rate', () => {
+    expect(estimateAudioSecondsFromSize(ONE_MINUTE_BYTES)).toBe(60);
+    expect(estimateAudioSecondsFromSize(ONE_MINUTE_BYTES / 2)).toBe(30);
   });
 
   test('floors at the 10-second minimum for tiny or zero uploads', () => {
     expect(estimateAudioSecondsFromSize(0)).toBe(10);
     expect(estimateAudioSecondsFromSize(1_000)).toBe(10);
+  });
+
+  // #2483: at the old 64 kbps an hour of 8 kbps Opus (3.6 MB) reserved 450 s,
+  // so a 30-credit balance passed the preflight for ~100 credits of audio.
+  test('an hour of 8 kbps audio is estimated as at least an hour', () => {
+    const oneHourAt8kbps = (8_000 / 8) * 3600;
+    expect(estimateAudioSecondsFromSize(oneHourAt8kbps)).toBeGreaterThanOrEqual(3600);
   });
 });
 

@@ -972,6 +972,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>キャンセル?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>{0} から音が入力されていません</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2625,7 +2628,7 @@
     <value>まだ何もありません。録音を開始すると、ここにテキストが表示されます。</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0}語 · {1}</value>
+    <value>単語数：{0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>ここにのみ表示されます — 他のアプリには貼り付けられません</value>

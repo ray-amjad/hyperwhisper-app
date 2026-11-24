@@ -7,6 +7,7 @@ import { BTN_GLASS, BTN_WHITE, WRAP } from "@/components/landing/dusk";
 import { GLASS, LABEL, SECTION } from "@/components/landing/dusk-pages";
 import { DuskPage, PageHero, delay } from "@/components/landing/DuskPage";
 import { GmailIcon, OutlookIcon } from "@/components/landing/MailClientIcons";
+import { SITE_URL } from "@/lib/site-metadata";
 import { Link } from "@/src/i18n/navigation";
 
 const BTN_SIZE = "px-5 py-3 text-[15px]";
@@ -110,7 +111,7 @@ export default function SupportPage() {
 
           <ul className="grid content-start gap-3">
             <li className="dusk-enter" style={delay(420)}>
-              <a className={SIDE_ITEM} href="https://hyperwhisper.com/docs">
+              <a className={SIDE_ITEM} href={`${SITE_URL}/docs`}>
                 <SideItemBody
                   hint={t("helpCenterHint")}
                   title={tFooter("links.helpCenter")}

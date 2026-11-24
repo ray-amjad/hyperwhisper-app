@@ -80,21 +80,6 @@ enum AudioConstants {
 
     // MARK: - Supported Formats
 
-    /// Cloud-compatible compressed audio formats that don't need re-encoding.
-    ///
-    /// These formats are already compressed and widely supported by transcription APIs:
-    /// - Most cloud providers accept m4a, mp3, mp4, webm, ogg
-    /// - Re-encoding these formats can introduce quality loss or failures
-    /// - Better to send the original file when possible
-    ///
-    /// WHY THIS MATTERS:
-    /// - Re-encoding already-compressed audio (e.g., M4A→WAV→M4A) is lossy and error-prone
-    /// - The AVAssetReader/Writer pipeline can fail on certain AAC configurations
-    /// - Skipping re-encoding avoids these issues and preserves quality
-    static let cloudCompatibleCompressedFormats: Set<String> = [
-        "m4a", "mp3", "mp4", "aac", "webm", "ogg", "opus"
-    ]
-
     /// Fixed vocabulary for selectable import formats in diagnostic metadata.
     ///
     /// Keep this independent from conversion policy. A format can be safe to
@@ -104,14 +89,6 @@ enum AudioConstants {
         "mov", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "opus",
         "wav", "webm"
     ]
-
-    /// Check if a file extension represents a cloud-compatible compressed format.
-    ///
-    /// - Parameter pathExtension: The file extension to check (e.g., "m4a", "mp3")
-    /// - Returns: true if the format is already compressed and cloud-compatible
-    static func isCloudCompatibleCompressedFormat(_ pathExtension: String) -> Bool {
-        cloudCompatibleCompressedFormats.contains(pathExtension.lowercased())
-    }
 
     /// Return a fixed audio-format label that is safe to include in logs.
     static func diagnosticAudioFormat(_ pathExtension: String) -> String {

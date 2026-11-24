@@ -15,14 +15,15 @@ enum ToneWAVFixture {
 
     struct BufferUnavailable: Error {}
 
-    /// Writes a mono 16-bit PCM WAV of a 440 Hz tone at amplitude 0.25 to
-    /// `url`, with its RIFF header finalised on return.
+    /// Writes a 16-bit PCM WAV of a 440 Hz tone at amplitude 0.25 on every
+    /// channel (mono unless `channels` says otherwise) to `url`, with its RIFF
+    /// header finalised on return.
     @discardableResult
-    static func write(to url: URL, sampleRate: Double = 16_000, frames: AVAudioFrameCount) throws -> URL {
+    static func write(to url: URL, sampleRate: Double = 16_000, channels: AVAudioChannelCount = 1, frames: AVAudioFrameCount) throws -> URL {
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
+            AVNumberOfChannelsKey: Int(channels),
             AVLinearPCMBitDepthKey: 16,
             AVLinearPCMIsFloatKey: false,
             AVLinearPCMIsBigEndianKey: false,
@@ -32,12 +33,14 @@ enum ToneWAVFixture {
         try autoreleasepool {
             let file = try AVAudioFile(forWriting: url, settings: settings)
             guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames),
-                  let channel = buffer.floatChannelData?[0] else {
+                  let channelData = buffer.floatChannelData else {
                 throw BufferUnavailable()
             }
             buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
+            for channel in 0..<Int(channels) {
+                for index in 0..<Int(frames) {
+                    channelData[channel][index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
+                }
             }
             try file.write(from: buffer)
         }

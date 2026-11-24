@@ -63,6 +63,7 @@ moduleMock.module("react", {
 /** `t` reads the real English `faq` messages, so the answers carry real links. */
 moduleMock.module("next-intl", {
   namedExports: {
+    useLocale: () => "en",
     useTranslations: () => (key: string) =>
       key.split(".").reduce<unknown>(
         (node, part) => (node as Record<string, unknown>)[part],
@@ -142,4 +143,14 @@ test("opening an FAQ item makes its panel non-inert and keeps the rest inert", a
     );
     assert.match(open[0].body, /<a\b[^>]*href=/, `${key}'s link is in its panel`);
   }
+});
+
+test("FAQ legal and docs hrefs are locale-prefixed www URLs, not the apex", async () => {
+  const html = await render(null);
+
+  assert.match(html, /href="\/en\/legal\/refund-policy"/);
+  assert.match(html, /href="\/en\/legal\/terms-of-service"/);
+  assert.match(html, /href="https:\/\/www\.hyperwhisper\.com\/docs\/data-privacy"/);
+  assert.doesNotMatch(html, /href="https:\/\/hyperwhisper\.com\//);
+  assert.doesNotMatch(html, /href="\/legal\//);
 });

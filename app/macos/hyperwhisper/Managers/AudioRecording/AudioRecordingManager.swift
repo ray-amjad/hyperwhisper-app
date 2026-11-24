@@ -768,6 +768,12 @@ class AudioRecordingManager: NSObject, ObservableObject {
             .assign(to: \.recordingDuration, on: liveMetrics)
             .store(in: &cancellables)
 
+        // #2411: live "mic hears nothing" warning, batch and streaming.
+        lifecycleManager.$isMicrophoneSilent
+            .removeDuplicates()
+            .assign(to: \.isMicrophoneSilent, on: liveMetrics)
+            .store(in: &cancellables)
+
         // Mirror last recording URL
         lifecycleManager.$lastRecordingURL
             .assign(to: &$lastRecordingURL)

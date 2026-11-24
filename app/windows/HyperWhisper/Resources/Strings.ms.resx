@@ -881,6 +881,9 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancel?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Tiada bunyi daripada {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2621,7 +2624,7 @@ You can re-download it later.</value>
     <value>Belum ada apa-apa. Mulakan rakaman untuk melihat teks muncul di sini.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} perkataan · {1}</value>
+    <value>Perkataan: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Hanya dipaparkan di sini — tidak ditampal ke aplikasi lain.</value>

@@ -885,6 +885,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "streaming.loading.streaming" = "Menunggu ucapan...";
 "streaming.state.reconnecting" = "Menghubungkan kembali...";
 "recording.stop.help" = "Hentikan Perekaman (%@)";
+"recording.warning.micSilent" = "Tidak ada suara dari %@";
 "recording.retry" = "Coba Lagi";
 "recording.retry.inProgress" = "Mencoba lagi…";
 "recording.retry.count" = "Coba Lagi (%d)";

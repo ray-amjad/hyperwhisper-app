@@ -524,26 +524,20 @@ class FileTranscriptionFlow {
                 // it from the copied video's path through the same rule (#1513).
                 let extractedAudioURL = TranscriptAudioFiles.extractedAudioURL(forVideo: copiedURL)
 
-                do {
-                    // Extract audio from video using AudioFileConverter
-                    // This reuses the existing AVAssetReader/Writer pipeline
-                    let audioConverter = AudioFileConverter()
-                    let extractionResult = try await audioConverter.extractAudioFromVideo(
-                        from: copiedURL,
-                        to: extractedAudioURL
-                    )
+                // Extract audio from video using AudioFileConverter
+                // This reuses the existing AVAssetReader/Writer pipeline
+                let extractionResult = try await extractAudioFromVideo(
+                    copiedURL,
+                    to: extractedAudioURL,
+                    fileName: fileURL.lastPathComponent
+                )
 
-                    AppLogger.transcription.info("🎬 [FileImport] Audio extracted: \(String(format: "%.1f", extractionResult.duration))s, \(Int(extractionResult.sampleRate))Hz, \(extractionResult.channels)ch")
+                AppLogger.transcription.info("🎬 [FileImport] Audio extracted: \(String(format: "%.1f", extractionResult.duration))s, \(Int(extractionResult.sampleRate))Hz, \(extractionResult.channels)ch")
 
-                    // Use extracted audio for transcription
-                    audioURL = extractedAudioURL
-                    currentDerivedArtifactPaths.append(extractedAudioURL.path)
-                    progressState.animateProgress(to: 0.12, duration: 0.2)
-                } catch AudioError.noAudioTrack {
-                    // Video has no audio track - show user-friendly error
-                    throw FileTranscriptionError.videoHasNoAudio
-                }
-                // Other errors (e.g., exportFailed) will bubble up naturally
+                // Use extracted audio for transcription
+                audioURL = extractedAudioURL
+                currentDerivedArtifactPaths.append(extractedAudioURL.path)
+                progressState.animateProgress(to: 0.12, duration: 0.2)
             }
 
             // Check for cancellation
@@ -1009,6 +1003,52 @@ class FileTranscriptionFlow {
             AppLogger.transcription.debug("🗑️ Cleaned up derived import file after \(reason): \(path)")
         }
         currentDerivedArtifactPaths.removeAll()
+    }
+
+    /// Extracts the audio track of a video import (.mp4, .mov) into `outputURL`.
+    ///
+    /// `AudioFileConverter` reports "no audio track" both for a real video with no
+    /// sound and for a file AVFoundation cannot open at all (its track check
+    /// swallows the open error). A text file named `notes.mp4` showed "No Audio
+    /// in Video" (#1849). So on that answer this asks whether the file opens as
+    /// media with any track: only then is it a silent video; otherwise it is not
+    /// valid audio, named as the user picked it (#1428). The header sniffer is no
+    /// judge of this: legacy QuickTime .mov files need not start with `ftyp`.
+    ///
+    /// - Parameters:
+    ///   - videoURL: The copied video in the recordings folder
+    ///   - outputURL: Where the extracted audio is written
+    ///   - fileName: The name the user picked, for the alert
+    /// - Throws: `videoHasNoAudio`, `unreadableAudio`, `CancellationError`, or the
+    ///   converter's own error
+    func extractAudioFromVideo(
+        _ videoURL: URL,
+        to outputURL: URL,
+        fileName: String
+    ) async throws -> (sampleRate: Double, channels: Int, duration: TimeInterval) {
+        do {
+            return try await AudioFileConverter().extractAudioFromVideo(from: videoURL, to: outputURL)
+        } catch AudioError.noAudioTrack {
+            let tracks: [AVAssetTrack]
+            do {
+                tracks = try await AVURLAsset(url: videoURL).load(.tracks)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                let nsError = error as NSError
+                AppLogger.transcription.error("❌ Cannot open video: errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+                throw FileTranscriptionError.unreadableAudio(fileName: fileName)
+            }
+            // A cancel while the tracks loaded must stay a cancel, not an alert.
+            try Task.checkCancellation()
+            guard !tracks.isEmpty else {
+                AppLogger.transcription.error("❌ Video opened with no tracks: \(videoURL.lastPathComponent)")
+                throw FileTranscriptionError.unreadableAudio(fileName: fileName)
+            }
+            // Video has no audio track - show user-friendly error
+            throw FileTranscriptionError.videoHasNoAudio
+        }
+        // Other errors (e.g., exportFailed) bubble up naturally
     }
 
     /// Gets the duration of an audio file

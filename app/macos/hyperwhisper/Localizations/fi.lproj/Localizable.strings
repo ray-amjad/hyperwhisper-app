@@ -885,6 +885,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "streaming.loading.streaming" = "Odotetaan puhetta...";
 "streaming.state.reconnecting" = "Yhdistetään uudelleen...";
 "recording.stop.help" = "Lopeta nauhoitus (%@)";
+"recording.warning.micSilent" = "Ei ääntä laitteesta %@";
 "recording.retry" = "Yritä uudelleen";
 "recording.retry.inProgress" = "Yritetään uudelleen…";
 "recording.retry.count" = "Yritä uudelleen (%d)";

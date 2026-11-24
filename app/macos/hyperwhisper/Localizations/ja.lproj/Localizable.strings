@@ -886,6 +886,7 @@
 "streaming.loading.streaming" = "音声を待機中...";
 "streaming.state.reconnecting" = "再接続中...";
 "recording.stop.help" = "録音を停止 (%@)";
+"recording.warning.micSilent" = "%@ から音が届いていません";
 "recording.retry" = "再試行";
 "recording.retry.inProgress" = "再試行中…";
 "recording.retry.count" = "再試行 (%d)";

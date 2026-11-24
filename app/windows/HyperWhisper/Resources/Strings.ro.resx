@@ -881,6 +881,9 @@ Această acțiune nu poate fi anulată.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancel?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Niciun sunet de la {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2621,7 +2624,7 @@ You can re-download it later.</value>
     <value>Nimic încă. Pornește o înregistrare ca să vezi textul apărând aici.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} cuvinte · {1}</value>
+    <value>Cuvinte: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Afișat doar aici — nu este lipit în alte aplicații.</value>

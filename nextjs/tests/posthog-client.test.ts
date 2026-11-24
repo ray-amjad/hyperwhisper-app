@@ -143,6 +143,9 @@ test("no globally-mounted or caller file imports PostHog statically", () => {
     "app/[locale]/purchase-success/page.tsx",
     "components/customer/dashboard/CloudCreditsCard.tsx",
     "src/lib/posthog-client.ts",
+    "src/lib/capture-seo-event.ts",
+    "components/landing/DownloadCta.tsx",
+    "components/landing/BlogDownloadCta.tsx",
   ]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
