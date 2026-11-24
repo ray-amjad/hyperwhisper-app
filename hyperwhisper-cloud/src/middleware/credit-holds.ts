@@ -135,7 +135,14 @@ export class CreditHold {
    */
   degraded = false;
   private state: 'active' | 'settling' | 'released' = 'active';
-  private everGranted = false;
+  /**
+   * Redis may have an entry under this id: a reservation was granted, or one
+   * was sent and its reply never came back (the script may have run before
+   * the connection failed). Only a refusal with a known answer writes
+   * nothing. `release` calls the store whenever this is set; releasing an
+   * absent id is a harmless HDEL/ZREM (#2921).
+   */
+  private mayBeInStore = false;
   // Store calls on one hold run in order, so a release can never overtake the
   // reservation it undoes and leave the hold behind until its TTL.
   private queue: Promise<unknown> = Promise.resolve();
@@ -196,11 +203,14 @@ export class CreditHold {
         });
         this.heldCredits = fromMilliCredits(result.holdMilli);
         if (result.granted) {
-          this.everGranted = true;
+          this.mayBeInStore = true;
           return { kind: 'granted' };
         }
         return { kind: 'refused', availableCredits: fromMilliCredits(result.availableMilli) };
       } catch (error) {
+        // A lost reply is not a lost write: the script may have run. An
+        // unconfigured store never sent the script.
+        if (!(error instanceof RedisNotConfiguredError)) this.mayBeInStore = true;
         this.degraded = true;
         logHoldUnavailable('reserve', error, this.auth.identifier);
         return { kind: 'unavailable' };
@@ -239,7 +249,7 @@ export class CreditHold {
     this.state = 'released';
     if (holdsByAuth.get(this.auth) === this) holdsByAuth.delete(this.auth);
     const releasing = this.enqueue(async () => {
-      if (!this.everGranted) return;
+      if (!this.mayBeInStore) return;
       try {
         await currentStore().release(this.account, this.id);
         this.heldCredits = 0;

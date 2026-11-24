@@ -4,14 +4,13 @@
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
 import { authDiagnosticsForLog, readCreditPoolId, validateAuth, type AuthDiagnostics } from '../middleware/auth';
-import { generateRequestId, getClientIP } from '../lib/request-id';
+import { generateRequestId } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense, redis } from '../lib/redis';
 import { creditPoolBalanceKey } from '../lib/credit-hold-store';
 import { toRedactedLogLine } from '../lib/log-redaction';
 import { errorResponse, jsonResponse } from '../lib/responses';
-import { isIPBlocked } from '../lib/redis';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { openRequestGate } from '../middleware/request-gate';
 import { roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
 import { ACCOUNT_KEY_FIELDS, readAccountKey } from '../lib/account-key';
@@ -117,11 +116,12 @@ async function getCreditsBalance(
 export async function usageRoute(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
-
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'ip_blocked' });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // `auth: 'route'`: the per-key rate limit runs BEFORE this route's own key
+  // lookup (#2010; the gate says why), and the lookup below is /usage's own.
+  const gate = await openRequestGate(c, { endpoint: '/usage', auth: 'route' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'usage.request_rejected', { reason: gate.reason });
+    return gate.response;
   }
 
   // `/usage` alone also takes `identifier`: the macOS and Windows clients
@@ -132,14 +132,11 @@ export async function usageRoute(c: Context) {
   const forceRefresh = rawQuery(c.req.url, 'force_refresh') === 'true';
 
   if (licenseKey) {
-    // Per-key rate limit (#2010), BEFORE any lookup: a force refresh calls the
-    // site's credits and validate routes, whose per-IP budgets every machine in
-    // a Fly region shares, so one key must not be able to spend them. The key
-    // is hashed, so an unknown key getting a bucket costs nothing.
-    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
-    if (rateLimited) {
-      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
-      return rateLimited;
+    // Per-key rate limit, BEFORE any lookup (see `auth` in RequestGateOptions).
+    const admission = await gate.admitKey(licenseKey);
+    if (!admission.ok) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: admission.reason, status: admission.response.status });
+      return admission.response;
     }
 
     let isValid = false;

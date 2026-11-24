@@ -37,6 +37,8 @@ const {
   validateCredits,
   deductCredits,
   drainPendingDeductions,
+  logDeductionFailure,
+  networkErrorCode,
 } = await import('./credits');
 const { getCachedLicense } = await import('../lib/redis');
 const { validateAuth } = await import('./auth');
@@ -168,7 +170,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
     const costUsd = 0.05;
     const metadata = { provider: 'test-provider' };
-    const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+    const creditsUsed = await deductCredits(auth(20), costUsd, metadata).recorded;
 
     expect(creditsUsed).toBe(creditsForCost(costUsd));
     expectBillingPost(
@@ -192,7 +194,7 @@ describe('deductCredits / drainPendingDeductions', () => {
         return Response.json({ credits_remaining: 8, credit_pool_id: pool });
       });
 
-      await deductCredits(auth(20), 0.05, { provider: 'test-provider' }, '1.2.3.4');
+      await deductCredits(auth(20), 0.05, { provider: 'test-provider' }).recorded;
 
       expect(cacheWrites).toHaveLength(1);
       expect(cacheWrites[0]?.license).toMatchObject({ credits: 8, creditPoolId: pool, issuedAtMs: 1_000 });
@@ -207,7 +209,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: pool }));
 
     // A key whose cache predates the pool: the charge's reply supplies it.
-    await deductCredits(auth(20), 0.05, { provider: 'test-provider' }, '1.2.3.4');
+    await deductCredits(auth(20), 0.05, { provider: 'test-provider' }).recorded;
 
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 8, creditPoolId: pool });
@@ -219,7 +221,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: rotated }));
     const stale: AuthContext = { ...auth(20), creditPoolId: 'f'.repeat(64) };
 
-    await deductCredits(stale, 0.05, { provider: 'test-provider' }, '1.2.3.4');
+    await deductCredits(stale, 0.05, { provider: 'test-provider' }).recorded;
 
     expect(cacheWrites[0]?.license).toMatchObject({ creditPoolId: rotated });
     await expectNoPendingDeductions();
@@ -231,7 +233,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       captureFetch(() => Response.json({ credits_remaining: 8, credit_pool_id: creditPoolId }));
       const stale: AuthContext = { ...auth(20), creditPoolId: 'f'.repeat(64) };
 
-      await deductCredits(stale, 0.05, { provider: 'test-provider' }, '1.2.3.4');
+      await deductCredits(stale, 0.05, { provider: 'test-provider' }).recorded;
 
       expect(cacheWrites).toHaveLength(1);
       expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 8 });
@@ -246,7 +248,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
     expect(creditsForCost(0)).toBe(0.1);
 
-    const creditsUsed = await deductCredits(auth(20), 0, metadata, '1.2.3.4');
+    const creditsUsed = await deductCredits(auth(20), 0, metadata).recorded;
 
     expect(creditsUsed).toBe(0.1);
     expectBillingPost(requests, 0.1, { provider: 'zero-cost-provider' });
@@ -288,7 +290,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       const costUsd = 0.05;
       const metadata = { provider };
 
-      const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+      const creditsUsed = await deductCredits(auth(20), costUsd, metadata).recorded;
 
       expect(creditsUsed).toBe(creditsForCost(costUsd));
       expectBillingPost(requests, creditsForCost(costUsd), { provider });
@@ -309,7 +311,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
       const costUsd = 0.05;
       const metadata = { provider: 'http-failure-provider' };
-      await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+      await deductCredits(auth(20), costUsd, metadata).recorded;
 
       expectBillingPost(requests, creditsForCost(costUsd), { provider: 'http-failure-provider' });
       expect(cacheWrites).toHaveLength(0);
@@ -333,7 +335,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
     const costUsd = 0.05;
     const metadata = { provider: 'network-failure-provider' };
-    await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+    await deductCredits(auth(20), costUsd, metadata).recorded;
 
     expectBillingPost(requests, creditsForCost(costUsd), { provider: 'network-failure-provider' });
     expect(cacheWrites).toHaveLength(0);
@@ -353,9 +355,9 @@ describe('deductCredits / drainPendingDeductions', () => {
       captureWarnings();
       const failures: unknown[] = [];
 
-      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, {
         onFailure: (failure) => failures.push(failure),
-      });
+      }).recorded;
 
       expect(creditsUsed).toBe(creditsForCost(0.05));
       expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
@@ -392,7 +394,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       });
       captureWarnings();
 
-      await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+      await deductCredits(auth(20), 0.05, { provider: 'p' }).recorded;
 
       expect(cacheWrites).toHaveLength(1);
       const issuedAtMs = cacheWrites[0]?.license.issuedAtMs;
@@ -407,7 +409,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     cachedLicenses.set('lic_test', { isValid: false, credits: 0, cachedAt: new Date().toISOString(), issuedAtMs: Date.now() - 60_000 });
     captureFetch(() => Response.json({ credits_remaining: 12 }));
 
-    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+    await deductCredits(auth(20), 0.05, { provider: 'p' }).recorded;
 
     expect(await getCachedLicense('lic_test')).toMatchObject({ isValid: true, credits: 12 });
     await expectNoPendingDeductions();
@@ -428,7 +430,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       captureFetch(respond);
       captureWarnings();
 
-      await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+      await deductCredits(auth(20), 0.05, { provider: 'p' }).recorded;
 
       expect(cacheWrites).toHaveLength(0);
       expect(await getCachedLicense('lic_test')).toEqual(cached);
@@ -448,7 +450,13 @@ describe('deductCredits / drainPendingDeductions', () => {
     {
       label: 'a network rejection',
       respond: () => { throw new Error('synthetic connection reset'); },
-      expected: [[{ kind: 'network', error: 'synthetic connection reset' }, creditsForCost(0.05)]],
+      expected: [[{
+        kind: 'network',
+        error: 'synthetic connection reset',
+        chargeElapsedMs: expect.any(Number),
+        errorCode: 'Error',
+        region: expect.any(String),
+      }, creditsForCost(0.05)]],
     },
     { label: 'an accepted write', respond: () => Response.json({ credits_remaining: 3 }), expected: [] },
     {
@@ -465,10 +473,10 @@ describe('deductCredits / drainPendingDeductions', () => {
       captureWarnings();
       const failures: unknown[] = [];
 
-      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, {
         // The second argument is the charge that was not recorded (#820).
         onFailure: (failure, creditsNotRecorded) => failures.push([failure, creditsNotRecorded]),
-      });
+      }).recorded;
 
       expect(creditsUsed).toBe(creditsForCost(0.05));
       expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
@@ -481,9 +489,9 @@ describe('deductCredits / drainPendingDeductions', () => {
     captureFetch(() => Response.json({ error: 'synthetic outage' }, { status: 503 }));
     captureWarnings();
 
-    const creditsUsed = await deductCredits(auth(20), 0.05, {}, '1.2.3.4', {
+    const creditsUsed = await deductCredits(auth(20), 0.05, {}, {
       onFailure: () => { throw new Error('reporter broke'); },
-    });
+    }).recorded;
 
     expect(creditsUsed).toBe(creditsForCost(0.05));
     await expectNoPendingDeductions();
@@ -500,7 +508,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
       const costUsd = 0.05;
       const metadata = { provider: `${label}-balance-provider` };
-      const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+      const creditsUsed = await deductCredits(auth(20), costUsd, metadata).recorded;
 
       expect(creditsUsed).toBe(creditsForCost(costUsd));
       expectBillingPost(requests, creditsForCost(costUsd), { provider: `${label}-balance-provider` });
@@ -523,7 +531,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     };
 
     // Fire-and-forget, like real call sites do (they don't await deductCredits on the response path).
-    const deduction = deductCredits(auth(20), 0.05, {}, '1.2.3.4');
+    const deduction = deductCredits(auth(20), 0.05, {});
 
     try {
       await waitFor(() => cacheWriteStarted);
@@ -540,7 +548,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       expect(cacheWrites).toHaveLength(1);
     } finally {
       resolveCacheWrite();
-      await Promise.allSettled([deduction]);
+      await Promise.allSettled([deduction.recorded]);
     }
   });
 
@@ -553,7 +561,7 @@ describe('deductCredits / drainPendingDeductions', () => {
 
     const costUsd = 0.05;
     const metadata = { provider: 'pending-provider' };
-    const deduction = deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+    const deduction = deductCredits(auth(20), costUsd, metadata);
 
     try {
       await waitFor(() => requests.length === 1);
@@ -568,10 +576,150 @@ describe('deductCredits / drainPendingDeductions', () => {
       expect(cacheWrites).toHaveLength(0);
     } finally {
       resolveFetch(Response.json({ credits_remaining: 7.5 }));
-      await Promise.allSettled([deduction]);
+      await Promise.allSettled([deduction.recorded]);
     }
 
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license.credits).toBe(7.5);
+  });
+});
+
+// #3015: a dropped charge's network line says when (ms after the fetch went
+// out), how (a short error code) and where (the Fly region) the request died,
+// so a stale pooled socket can be told from the far end giving up mid-request.
+describe('credits.deduction_failed carries the network failure\'s timing, code and region (#3015)', () => {
+  const originalConsoleLog = console.log;
+  let restoreRegion: () => void = () => {};
+
+  beforeEach(() => {
+    restoreRegion = stubEnv('FLY_REGION', 'lhr');
+  });
+
+  afterEach(() => {
+    console.log = originalConsoleLog;
+    restoreRegion();
+  });
+
+  /** A Bun-style fetch error: the code on the error itself. */
+  function bunReset(): Error {
+    return Object.assign(new Error('The socket connection was closed unexpectedly'), { code: 'ECONNRESET' });
+  }
+
+  /** A Node/undici-style fetch error: a bare TypeError, the code on its cause. */
+  function undiciTimeout(): Error {
+    const cause = Object.assign(new Error('connect ETIMEDOUT 203.0.113.1:443'), { code: 'ETIMEDOUT' });
+    return new TypeError('fetch failed', { cause });
+  }
+
+  function abortError(name: 'AbortError' | 'TimeoutError'): Error {
+    return new DOMException('The operation timed out.', name);
+  }
+
+  /** Run one charge whose fetch answers `respond`, returning its parsed `credits.deduction_failed` lines. */
+  async function deductionFailedLines(respond: () => Response | Promise<Response>): Promise<{
+    lines: Array<Record<string, unknown>>;
+    raw: string[];
+  }> {
+    captureFetch(respond);
+    captureWarnings();
+    const raw: string[] = [];
+    console.log = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('"credits.deduction_failed"')) raw.push(args[0]);
+    };
+    await deductCredits(auth(20), 0.05, { provider: 'p', content: 'request text' }, {
+      onFailure: logDeductionFailure('req-3015', performance.now(), '/transcribe'),
+    }).recorded;
+    console.log = originalConsoleLog;
+    return { lines: raw.map((line) => JSON.parse(line) as Record<string, unknown>), raw };
+  }
+
+  const networkCases: Array<{ label: string; error: () => unknown; errorCode: string }> = [
+    { label: 'a Bun ECONNRESET (code on the error)', error: bunReset, errorCode: 'ECONNRESET' },
+    { label: 'an undici ETIMEDOUT (code on the cause)', error: undiciTimeout, errorCode: 'ETIMEDOUT' },
+    { label: 'an AbortError', error: () => abortError('AbortError'), errorCode: 'AbortError' },
+    { label: 'a TimeoutError from AbortSignal.timeout', error: () => abortError('TimeoutError'), errorCode: 'TimeoutError' },
+  ];
+
+  for (const { label, error, errorCode } of networkCases) {
+    test(`${label} logs chargeElapsedMs, errorCode and region beside the existing fields`, async () => {
+      const thrown = error();
+      const { lines, raw } = await deductionFailedLines(() => { throw thrown; });
+
+      expect(lines).toHaveLength(1);
+      const line = lines[0]!;
+      expect(line).toEqual({
+        event: 'credits.deduction_failed',
+        requestId: 'req-3015',
+        elapsedMs: expect.any(Number),
+        endpoint: '/transcribe',
+        reason: 'network_error',
+        error: (thrown as Error).message,
+        chargeElapsedMs: expect.any(Number),
+        errorCode,
+        region: 'lhr',
+        creditsUsed: creditsForCost(0.05),
+      });
+      expect(line.chargeElapsedMs as number).toBeGreaterThanOrEqual(0);
+      expect(line.elapsedMs as number).toBeGreaterThanOrEqual(0);
+      expect(line).not.toHaveProperty('status');
+      for (const secret of ['lic_test', 'request text']) expect(raw[0]).not.toContain(secret);
+    });
+  }
+
+  test('chargeElapsedMs counts from the fetch going out to the throw', async () => {
+    const { lines } = await deductionFailedLines(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 40));
+      throw bunReset();
+    });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.chargeElapsedMs as number).toBeGreaterThanOrEqual(35);
+  });
+
+  test('off Fly the region is local, as on every other cloud log line', async () => {
+    restoreRegion();
+    restoreRegion = stubEnv('FLY_REGION', undefined);
+    const { lines } = await deductionFailedLines(() => { throw bunReset(); });
+
+    expect(lines[0]).toMatchObject({ reason: 'network_error', errorCode: 'ECONNRESET', region: 'local' });
+  });
+
+  test('an http failure line is unchanged: no timing, code or region', async () => {
+    const { lines } = await deductionFailedLines(() => Response.json({ error: 'boom' }, { status: 503 }));
+
+    expect(lines).toEqual([{
+      event: 'credits.deduction_failed',
+      requestId: 'req-3015',
+      elapsedMs: expect.any(Number),
+      endpoint: '/transcribe',
+      reason: 'http_error',
+      status: 503,
+      creditsUsed: creditsForCost(0.05),
+    }]);
+  });
+});
+
+describe('networkErrorCode', () => {
+  test('prefers a code on the error, then on its cause chain, then the error name', () => {
+    const withCode = Object.assign(new Error('x'), { code: 'ECONNRESET' });
+    expect(networkErrorCode(withCode)).toBe('ECONNRESET');
+    expect(networkErrorCode(new TypeError('fetch failed', { cause: withCode }))).toBe('ECONNRESET');
+    const deep = new Error('a', { cause: new Error('b', { cause: Object.assign(new Error('c'), { code: 'UND_ERR_SOCKET' }) }) });
+    expect(networkErrorCode(deep)).toBe('UND_ERR_SOCKET');
+    expect(networkErrorCode(new TypeError('fetch failed'))).toBe('TypeError');
+  });
+
+  test('a thrown non-Error, or a code that is not a short token, falls back', () => {
+    expect(networkErrorCode('boom')).toBe('unknown');
+    expect(networkErrorCode(undefined)).toBe('unknown');
+    expect(networkErrorCode({ code: 42 })).toBe('unknown');
+    expect(networkErrorCode(Object.assign(new Error('x'), { code: 'has spaces and a key lic_x' }))).toBe('Error');
+  });
+
+  test('a cause loop stops at the depth cap', () => {
+    const a = new Error('a');
+    const b = new Error('b', { cause: a });
+    (a as Error & { cause?: unknown }).cause = b;
+    expect(networkErrorCode(a)).toBe('Error');
   });
 });

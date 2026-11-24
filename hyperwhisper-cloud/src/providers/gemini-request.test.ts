@@ -173,12 +173,14 @@ describe('transcribeWithGemini — request shape', () => {
       ['gemini-2.5-flash-lite', { thinkingBudget: 0 }],
       // 0 is rejected by 2.5 Pro, so the floor there is 128.
       ['gemini-2.5-pro', { thinkingBudget: 128 }],
-      ['gemini-3-flash-preview', { thinkingLevel: 'minimal' }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
       // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
       ['gemini-3.8-flash', { thinkingLevel: 'low' }],
-      // An unrecognised model falls back to the 2.5-flash config.
-      ['some-future-model', { thinkingBudget: 0 }],
+      // An id with no registry row (the route canonicalizes aliases and rejects
+      // unknown ids first) gets the default model's config — no longer a
+      // thinkingBudget 0 guess, which Pro models reject.
+      ['gemini-3-flash-preview', { thinkingLevel: 'low' }],
+      ['some-future-model', { thinkingLevel: 'low' }],
     ];
 
     for (const [model, expected] of cases) {

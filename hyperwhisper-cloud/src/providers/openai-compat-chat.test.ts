@@ -29,7 +29,7 @@ import {
 } from '../lib/cost-calculator';
 import { computeLLMChatCost } from '../lib/llm-models';
 import { llmModelRow } from '../lib/llm-models';
-import { shouldFallback } from '../lib/llm-provider';
+import { shouldFallback } from './llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';

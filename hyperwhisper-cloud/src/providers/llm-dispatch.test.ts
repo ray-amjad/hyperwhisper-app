@@ -8,7 +8,7 @@ import {
   servedLLMName,
   shouldFallback,
   type LLMProvider,
-} from '../lib/llm-provider';
+} from './llm-provider';
 import { type GroqUsage } from '../lib/cost-calculator';
 import { computeLLMChatCost, LLM_MODELS, LLM_PROVIDERS, llmModelsFor } from '../lib/llm-models';
 import { LLMRequestError } from './llm-errors';

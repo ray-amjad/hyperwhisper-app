@@ -15,7 +15,6 @@ import {
 } from './responses';
 import {
   AZURE_MAI_MAX_BYTES,
-  BYTES_PER_MINUTE_ESTIMATE,
   CREDITS_PER_MINUTE,
   GEMINI_INLINE_MAX_BYTES,
   GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
@@ -23,6 +22,7 @@ import {
   MAX_AUDIO_SIZE_BYTES,
   META_MUSE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
+  SONIOX_MAX_BYTES,
 } from './constants';
 
 // These are the entitlement and size refusals the native clients branch on.
@@ -204,9 +204,7 @@ describe('size refusals', () => {
 
 // #2704: the provider adapters throw AudioTooLargeError with their own cap, and
 // routes/transcribe.ts sends `sizeLimitFields` of it. Every cap an adapter
-// throws with, in bytes. Soniox's is private to providers/soniox.ts
-// (`SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE`), so it is restated.
-const SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE;
+// throws with, in bytes.
 const ADAPTER_CAPS: Record<string, number> = {
   'Azure MAI': AZURE_MAI_MAX_BYTES,
   Gemini: GEMINI_INLINE_MAX_BYTES,

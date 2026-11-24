@@ -16,15 +16,15 @@
 // the operation poll loop, saving ~3–5 s on the hot path.
 
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
-import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import {
   deleteTranscriptionAudio,
   isGcsTranscriptionBucketConfigured,
   uploadTranscriptionAudio,
   type TranscriptionAudioRef,
-} from '../lib/gcs-storage';
+} from './gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -36,8 +36,12 @@ import {
   readJson200,
   splitVocabularyTerms,
   type ProviderHttpErrorPolicy,
+  sleep,
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
+
+// The sync `recognize` inline cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['google-chirp'].adapterMaxBytes;
 
 // Sync `recognize` enforces a ~60 s audio-duration cap independent of the
 // 10 MB byte cap. Use 55 s as the gate to leave headroom for the byte-rate
@@ -143,7 +147,7 @@ export function planChirpDelivery(
   gcsConfigured: boolean,
 ): ChirpDeliveryPlan {
   const estimatedSeconds = estimateAudioSeconds(byteLength, contentType);
-  const fitsInlineBytes = byteLength <= GOOGLE_CHIRP_INLINE_MAX_BYTES;
+  const fitsInlineBytes = byteLength <= INLINE_MAX_BYTES;
   const fitsInlineSeconds = estimatedSeconds <= INLINE_AUDIO_MAX_SECONDS;
   const useInlineAudio = fitsInlineBytes && fitsInlineSeconds;
   return {
@@ -226,10 +230,10 @@ export async function transcribeWithGoogleChirp(
   if (plan.tooLarge) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      inlineMaxBytes: GOOGLE_CHIRP_INLINE_MAX_BYTES,
+      inlineMaxBytes: INLINE_MAX_BYTES,
       gcsConfigured: false,
     }, context);
-    throw new AudioTooLargeError('Google Chirp', audio.byteLength, GOOGLE_CHIRP_INLINE_MAX_BYTES);
+    throw new AudioTooLargeError('Google Chirp', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const region = getRegion();
@@ -281,7 +285,7 @@ export async function transcribeWithGoogleChirp(
       // Upload to GCS, submit a batchRecognize operation, then poll until done.
       // batchRecognize lifts both the 10 MB and ~60 s caps that sync recognize
       // enforces — necessary for long recordings.
-      const upload = await uploadTranscriptionAudio(audio, contentType);
+      const upload = await uploadTranscriptionAudio(audio, contentType, context);
       gcsRef = { bucket: upload.bucket, objectName: upload.objectName };
 
       normalized = await runBatchRecognize({
@@ -309,7 +313,7 @@ export async function transcribeWithGoogleChirp(
     // Always delete the scratch object — even on throw. `deleteTranscriptionAudio`
     // swallows its own errors so we never mask the original failure.
     if (gcsRef) {
-      await deleteTranscriptionAudio(gcsRef);
+      await deleteTranscriptionAudio(gcsRef, context);
     }
     // If a batch operation was submitted but we're unwinding (timeout or
     // throw), cancel it — otherwise Google keeps running and bills us for
@@ -812,10 +816,6 @@ async function pollOperation(
   }
 
   return readSpeech200<BatchOperationResponse>(response, provider, 'batch_poll', startedAt, context);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**

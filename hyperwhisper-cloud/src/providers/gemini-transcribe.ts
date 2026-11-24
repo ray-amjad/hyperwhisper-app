@@ -37,13 +37,14 @@ import {
   computeGeminiTranscribeCost,
   estimateGeminiTranscribeOutputTokens,
 } from '../lib/cost-calculator';
-import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { getProviderDef } from '../lib/stt-models';
 // A pure Content-Type → Google audio MIME mapper. Importing it is NOT the
 // generateContent path (TRAP 1): the two endpoints accept the same MIME
 // vocabulary, and a second copy of the table would drift.
 import { geminiMimeType } from './gemini';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { GEMINI_API_KEY_ENV, readApiKey } from './vendor-api-keys';
+import { AudioTooLargeError, ProviderInputError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   estimateAudioSeconds,
@@ -51,9 +52,13 @@ import {
   isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
+
+// The inline base64 cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['gemini-transcribe'].adapterMaxBytes;
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // Google versions this endpoint by date. Omitting the header selects whatever
@@ -129,7 +134,7 @@ export function toVocabularyTerms(initialPrompt: string): string[] {
 interface InteractionsUsage {
   input_tokens_by_modality?: Array<{ modality?: string; tokens?: number }>;
   total_input_tokens?: number;
-  /** Always 0 on this endpoint — see cost-calculator's GEMINI_TRANSCRIBE_RATES. */
+  /** Always 0 on this endpoint — see the Gemini 3.5 Transcribe block in cost-calculator.ts. */
   total_output_tokens?: number;
 }
 
@@ -207,18 +212,18 @@ export async function transcribeWithGeminiTranscribe(
   }
 
   // Same key as the Gemini LLM adapter — same Google project, no new secret.
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  const apiKey = readApiKey(GEMINI_API_KEY_ENV);
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
 
   // No Files-API overflow path exists on this endpoint, so an oversized payload
   // is a hard 413 (defense in depth behind the route's pre-buffer gate).
-  if (audio.byteLength > GEMINI_TRANSCRIBE_INLINE_MAX_BYTES) {
+  if (audio.byteLength > INLINE_MAX_BYTES) {
     logProviderEvent(provider, 'audio_too_large', {
-      model, audioBytes: audio.byteLength, maxBytes: GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
+      model, audioBytes: audio.byteLength, maxBytes: INLINE_MAX_BYTES,
     }, context);
-    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
+    throw new AudioTooLargeError('Gemini 3.5 Transcribe', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const terms = initialPrompt ? toVocabularyTerms(initialPrompt) : [];
@@ -275,14 +280,7 @@ export async function transcribeWithGeminiTranscribe(
     });
   }
 
-  let data: InteractionsResponse;
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Gemini 3.5 Transcribe', 'malformed 200 response body', {
-      kind: 'bad_response',
-    });
-  }
+  const data = await readJson200<InteractionsResponse>(provider, 'Gemini 3.5 Transcribe', response, startedAt, context);
 
   const transcript = collectTranscript(data);
   const { audioTokens, textTokens } = readInputTokens(data.usage);
@@ -330,7 +328,7 @@ export async function transcribeWithGeminiTranscribe(
 
   // `usage.total_output_tokens` is 0 on every response from this endpoint, so
   // the output half of the bill is estimated from the transcript we just
-  // received. See GEMINI_TRANSCRIBE_RATES in lib/cost-calculator.ts.
+  // received. See the Gemini 3.5 Transcribe block in lib/cost-calculator.ts.
   const outputTokens = estimateGeminiTranscribeOutputTokens(transcript);
   const costUsd = computeGeminiTranscribeCost(model, {
     audioInputTokens: audioTokens,

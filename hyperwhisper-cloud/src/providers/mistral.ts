@@ -4,16 +4,16 @@
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
-import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
-  estimateSecondsFromBytes,
+  billableSeconds,
   explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
 } from './utils';
 
@@ -147,16 +147,11 @@ export async function transcribeWithMistral(
     });
   }
 
-  let data: {
+  const data = await readJson200<{
     text?: string;
     language?: string;
     usage?: { prompt_audio_seconds?: number };
-  };
-  try {
-    data = await response.json();
-  } catch {
-    throw new ProviderUnavailableError('Mistral', 'malformed 200 response body');
-  }
+  }>(provider, 'Mistral', response, startedAt, context);
 
   const transcript = restoreSpacedTerms(data.text || '', contextBias);
   const rawDurationSeconds = data.usage?.prompt_audio_seconds || 0;
@@ -171,9 +166,7 @@ export async function transcribeWithMistral(
 
   // Fail-closed: a successful transcript with a missing/non-positive duration
   // falls back to a byte-size estimate so we never bill $0.
-  const durationSeconds = (rawDurationSeconds > 0 && Number.isFinite(rawDurationSeconds))
-    ? rawDurationSeconds
-    : estimateSecondsFromBytes(audio.byteLength);
+  const durationSeconds = billableSeconds(rawDurationSeconds, audio.byteLength);
 
   logProviderEvent(provider, 'success', {
     model,

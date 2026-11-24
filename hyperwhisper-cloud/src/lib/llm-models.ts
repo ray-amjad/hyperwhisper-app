@@ -10,6 +10,12 @@
 // parity block in src/lib/cost-calculator.test.ts check it.
 
 import { roundUsd, type GroqUsage } from './cost-calculator';
+import {
+  GEMINI_2_5_FLASH_LITE_PRICE,
+  GEMINI_2_5_FLASH_PRICE,
+  GEMINI_3_8_FLASH_PRICE,
+  type GeminiTokenPrice,
+} from './gemini-prices';
 
 export type LLMProvider = 'cerebras' | 'groq' | 'anthropic' | 'grok' | 'openai' | 'gemini' | 'mistral';
 
@@ -45,6 +51,11 @@ export interface LLMModelRow {
 }
 
 const M = 1_000_000;
+
+/** A Gemini price as a chat rate: the prompt is text, so it bills the text-input rate. */
+function geminiChatRate(price: GeminiTokenPrice): LLMChatRate {
+  return { promptPerToken: price.textInputPerToken, completionPerToken: price.outputPerToken };
+}
 
 // Rates are USD per-1M ÷ 1e6, the ACTUAL billing constants (cloud-pp-catalog.json
 // is the display source of truth). Re-confirmed against live provider pricing 2026-06-19.
@@ -95,18 +106,16 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
   // Google limits gemini-2.5-* to past users, so a request with no (or an
   // unknown) X-LLM-Model resolves to 3.8 Flash, the catalog isDefault row; the
   // 2.5 ids stay for clients that ask for them. 3.8 Flash is INTRODUCTORY
-  // pricing — $0.75/$3.75 per 1M runs to 2026-12-31. Re-confirm on the first
-  // model watch of 2027 and update this rate AND the pricePerMInput /
-  // pricePerMOutput + priceNote on the gemini-3.8-flash row in
-  // cloud-pp-catalog.json together (and the GEMINI_RATES transcription row in
-  // cost-calculator.ts for the same id). An unknown id bills at 3.8 Flash, the
-  // dearest row here, so drift never under-bills.
+  // pricing — $0.75/$3.75 per 1M runs to 2026-12-31. The prices are shared
+  // with the STT rows for the same ids (gemini-prices.ts, which says what else
+  // changes with them). An unknown id bills at 3.8 Flash, the dearest row here,
+  // so drift never under-bills.
   { provider: 'gemini', model: 'gemini-3.8-flash', servedName: 'gemini-3.8-flash', isDefault: true,
-    rate: { promptPerToken: 0.75 / M, completionPerToken: 3.75 / M } },
+    rate: geminiChatRate(GEMINI_3_8_FLASH_PRICE) },
   { provider: 'gemini', model: 'gemini-2.5-flash', servedName: 'gemini-2.5-flash',
-    rate: { promptPerToken: 0.30 / M, completionPerToken: 2.50 / M } },
+    rate: geminiChatRate(GEMINI_2_5_FLASH_PRICE) },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite', servedName: 'gemini-2.5-flash-lite',
-    rate: { promptPerToken: 0.10 / M, completionPerToken: 0.40 / M } },
+    rate: geminiChatRate(GEMINI_2_5_FLASH_LITE_PRICE) },
 
   // Mistral (chat/completions). https://mistral.ai/pricing + docs.mistral.ai
   // `mistral-small-latest` resolves to Mistral Small 4: the model-specific docs

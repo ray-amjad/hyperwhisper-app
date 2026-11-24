@@ -19,6 +19,7 @@
 
 import type { SttProviderId } from '../lib/stt-models';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import { modelVariant } from './model-variants';
 
 import { transcribeWithDeepgram } from './deepgram';
 import { transcribeWithGroq } from './groq';
@@ -77,5 +78,6 @@ export function transcribeWithProvider(
   initialPrompt?: string,
   context?: ProviderRequestContext,
 ): Promise<TranscriptionResult> {
-  return PROVIDER_FN[provider](audio, contentType, language, initialPrompt, context);
+  const transcribe = modelVariant(provider, context?.model)?.transcribe ?? PROVIDER_FN[provider];
+  return transcribe(audio, contentType, language, initialPrompt, context);
 }
