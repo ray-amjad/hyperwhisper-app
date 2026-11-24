@@ -232,6 +232,15 @@ extension CloudTranscriptionModels {
             provider: .elevenLabs,
             pricePerSecond: nil
         ),
+        // Scribe v3 (2026-11-09, #3049): BYOK only (no HyperWhisper Cloud row), and
+        // not the default — scribe_v2 stays isPopular.
+        CloudTranscriptionModel(
+            id: "scribe_v3",
+            isAvailable: true,
+            description: "ElevenLabs' newest Scribe model. Supports custom vocabulary with keyterm prompting.",
+            provider: .elevenLabs,
+            pricePerSecond: nil
+        ),
         ]
     }
 

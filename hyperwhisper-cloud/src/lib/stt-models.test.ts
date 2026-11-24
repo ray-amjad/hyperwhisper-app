@@ -280,6 +280,19 @@ describe('estimatedUsdPerMinute', () => {
     // the provider's dearest — that path is `resolveModel`, not the fallback.
     expect(estimatedUsdPerMinute('azure-mai')).toBeCloseTo(0.10 / 60, 8);
   });
+
+  test('a flat-rate row never reserves below the rate it bills', () => {
+    // The reservation is derived from the row's `billing`; a row may author a
+    // rounded `reserveUsdPerMinute`, but only ever upward.
+    for (const provider of ALL_STT_PROVIDER_IDS) {
+      for (const model of getProviderDef(provider).models) {
+        const { billing } = model;
+        if (billing.kind === 'tokens') continue;
+        const billed = billing.kind === 'perMinute' ? billing.usdPerMinute : billing.usdPerHour / 60;
+        expect(model.estimatedUsdPerMinute).toBeGreaterThanOrEqual(billed);
+      }
+    }
+  });
 });
 
 describe('getProviderDef', () => {
@@ -428,37 +441,141 @@ describe('formatProviderName', () => {
   });
 });
 
-describe('gemini tier ↔ cloud-stt-catalog.json (#1019)', () => {
-  // Every client resolves a blank HyperWhisper Cloud gemini-tier model to the
-  // catalog's isDefault row and sends it as X-STT-Model, and the Model picker
-  // offers every catalog row. A row the backend does not list 400s that mode.
-  const catalog = require('../../../shared-app-classification/cloud-stt-catalog.json') as {
-    providers: Array<{ id: string; models: Array<{ id: string; isDefault: boolean }> }>;
-  };
-  const gemini = catalog.providers.find((p) => p.id === 'gemini')!;
+// ONE parity block for every provider the cloud routes ↔
+// shared-app-classification/cloud-stt-catalog.json. The two are hand-synced (the
+// catalog is not in the Docker image, so the registry cannot import it):
+//
+//   * ids — a client sends a catalog `models[].id` as X-STT-Model; an id the
+//     registry lacks is a fail-closed 400 (#1019 broke exactly this for gemini).
+//   * default — a client with no model chosen sends the catalog `isDefault` row,
+//     a client that sends none gets the registry `defaultModel`; they must agree.
+//   * price — clients caption `creditsPerMinute` (credits = USD/min × 1000) and
+//     the nextjs site publishes it; the cloud bills `billing`. A flat-rate row
+//     must match within the catalog's rounding.
+describe('cloud STT registry ↔ cloud-stt-catalog.json parity', () => {
+  interface CatalogModel { id: string; isDefault: boolean; creditsPerMinute: number }
+  interface CatalogProvider {
+    id: string;
+    sttProvider: string;
+    cloudTier?: { creditsPerMinute: number } | null;
+    models: CatalogModel[];
+  }
+  const STT_CATALOG_PATH = `${import.meta.dir}/../../../shared-app-classification/cloud-stt-catalog.json`;
+  const loadCatalog = async () =>
+    ((await Bun.file(STT_CATALOG_PATH).json()) as { providers: CatalogProvider[] }).providers;
 
-  test('every catalog gemini model resolves on the backend', () => {
-    for (const m of gemini.models) {
-      const r = resolveModel('gemini', m.id);
-      expect(r.ok).toBe(true);
+  // The catalog writes credits to at most 2 decimals (0.667, 1.67, 9.83) or
+  // unrounded (10.3333333333); half of the last 2-dp step covers both.
+  const CREDIT_TOLERANCE = 0.005;
+
+  // Token-billed rows have no flat per-minute USD to compare: billing comes from
+  // the upstream `usage` object (rates in cost-calculator.ts) and the row only
+  // authors a preflight reservation. Each one is listed by name so a NEW token
+  // row (or a flat row turning into one) must be classified here on purpose.
+  const TOKEN_BILLED_SKIPS: Record<string, string> = {
+    'openai/gpt-4o-transcribe': 'token-billed; reservation adds an output-token allowance on top of the catalog input rate',
+    'openai/gpt-4o-mini-transcribe': 'token-billed; reservation adds an output-token allowance on top of the catalog input rate',
+    'openai/gpt-4o-mini-transcribe-2025-12-15': 'token-billed at the gpt-4o-mini-transcribe rates (same reservation)',
+    'gemini/gemini-3.8-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
+    'gemini/gemini-2.5-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
+    'gemini/gemini-2.5-flash-lite': 'token-billed (input + output tokens); priced per usage, not per minute',
+    'gemini/gemini-2.5-pro': 'token-billed (input + output tokens); priced per usage, not per minute',
+    'gemini/gemini-3.1-pro-preview': 'token-billed (input + output tokens); priced per usage, not per minute',
+    'gemini-transcribe/gemini-3.5-transcribe': 'token-billed; 5.5 credits/min is pinned in cost-calculator.test.ts',
+    'gemini-transcribe/gemini-3.5-transcribe-live': 'token-billed and live-only (WebSocket route); estimate tracks words, not seconds',
+  };
+
+  function flatUsdPerMinute(provider: SttProviderId, modelId: string): number | undefined {
+    const row = getProviderDef(provider).models.find((m) => m.id === modelId);
+    if (!row) throw new Error(`registry ${provider} has no model ${modelId}`);
+    const { billing } = row;
+    if (billing.kind === 'perMinute') return billing.usdPerMinute;
+    if (billing.kind === 'perHour') return billing.usdPerHour / 60;
+    return undefined;
+  }
+
+  test('every catalog provider is a routable registry provider', async () => {
+    for (const p of await loadCatalog()) {
+      expect(isValidProviderId(p.sttProvider), `${p.id} → sttProvider ${p.sttProvider}`).toBe(true);
     }
   });
 
-  test('the catalog default is gemini-3.8-flash and the backend serves it', () => {
-    const def = gemini.models.find((m) => m.isDefault)!;
-    expect(def.id).toBe('gemini-3.8-flash');
-    const r = resolveModel('gemini', def.id);
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.model.id).toBe('gemini-3.8-flash');
+  test('every catalog model id is a registry row and resolves (through its alias, if retired)', async () => {
+    for (const p of await loadCatalog()) {
+      const provider = p.sttProvider as SttProviderId;
+      const def = getProviderDef(provider);
+      for (const m of p.models) {
+        expect(def.models.map((row) => row.id), `${provider}/${m.id}`).toContain(m.id);
+        const r = resolveModel(provider, m.id);
+        expect(r.ok, `${provider}/${m.id}`).toBe(true);
+        // A retiring id (openai whisper-1 / gpt-4o-*) is served by its named
+        // replacement; every other id is served as itself.
+        if (r.ok) expect(r.model.id, `${provider}/${m.id}`).toBe(def.aliases?.[m.id] ?? m.id);
+      }
+    }
   });
 
-  test('a request with no X-STT-Model resolves to the catalog default', () => {
-    // The registry default is what a client that sends no model gets; it must be
-    // the same row the catalog marks isDefault, so the two cannot drift.
-    const def = gemini.models.find((m) => m.isDefault)!;
-    expect(getProviderDef('gemini').defaultModel).toBe(def.id);
-    const r = resolveModel('gemini', undefined);
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.model.id).toBe(def.id);
+  test('the registry defaultModel is the catalog isDefault row, and a blank model resolves to it', async () => {
+    for (const p of await loadCatalog()) {
+      const provider = p.sttProvider as SttProviderId;
+      const defaults = p.models.filter((m) => m.isDefault);
+      expect(defaults.map((m) => m.id), `${provider} has exactly one isDefault`).toHaveLength(1);
+      expect(getProviderDef(provider).defaultModel, provider).toBe(defaults[0].id);
+      const r = resolveModel(provider, undefined);
+      expect(r.ok, provider).toBe(true);
+      if (r.ok) expect(r.model.id, provider).toBe(defaults[0].id);
+    }
+  });
+
+  test('#1019: the gemini catalog default is gemini-3.8-flash', async () => {
+    const gemini = (await loadCatalog()).find((p) => p.sttProvider === 'gemini')!;
+    expect(gemini.models.find((m) => m.isDefault)!.id).toBe('gemini-3.8-flash');
+  });
+
+  test('every flat-rate row bills the catalog creditsPerMinute (USD/min × 1000)', async () => {
+    let checked = 0;
+    for (const p of await loadCatalog()) {
+      const provider = p.sttProvider as SttProviderId;
+      for (const m of p.models) {
+        const key = `${provider}/${m.id}`;
+        const usd = flatUsdPerMinute(provider, m.id);
+        if (usd === undefined) {
+          expect(TOKEN_BILLED_SKIPS[key], `${key} is token-billed: add it to TOKEN_BILLED_SKIPS with a reason`).toBeDefined();
+          continue;
+        }
+        expect(TOKEN_BILLED_SKIPS[key], `${key} is flat-rate now: drop its TOKEN_BILLED_SKIPS entry`).toBeUndefined();
+        expect(Math.abs(usd * 1000 - m.creditsPerMinute), `${key}: ${usd * 1000} vs ${m.creditsPerMinute}`)
+          .toBeLessThanOrEqual(CREDIT_TOLERANCE);
+        checked++;
+      }
+    }
+    // 19 flat rows today; a catalog that silently lost its rows must not pass.
+    expect(checked).toBeGreaterThanOrEqual(19);
+  });
+
+  test('cloudTier.creditsPerMinute is the flat rate of the registry default', async () => {
+    for (const p of await loadCatalog()) {
+      if (!p.cloudTier) continue; // provider has no cloud-tier caption to pin
+      const provider = p.sttProvider as SttProviderId;
+      const def = getProviderDef(provider).defaultModel;
+      const usd = flatUsdPerMinute(provider, def);
+      if (usd === undefined) {
+        // Token-billed default: no flat rate (see TOKEN_BILLED_SKIPS).
+        expect(TOKEN_BILLED_SKIPS[`${provider}/${def}`]).toBeDefined();
+        continue;
+      }
+      expect(Math.abs(usd * 1000 - p.cloudTier.creditsPerMinute), provider).toBeLessThanOrEqual(CREDIT_TOLERANCE);
+    }
+  });
+
+  test('every TOKEN_BILLED_SKIPS entry is a real token-billed catalog row (no stale skips)', async () => {
+    const catalogKeys = new Set(
+      (await loadCatalog()).flatMap((p) => p.models.map((m) => `${p.sttProvider}/${m.id}`)),
+    );
+    for (const key of Object.keys(TOKEN_BILLED_SKIPS)) {
+      expect(catalogKeys.has(key), key).toBe(true);
+      const [provider, ...rest] = key.split('/');
+      expect(flatUsdPerMinute(provider as SttProviderId, rest.join('/')), key).toBeUndefined();
+    }
   });
 });

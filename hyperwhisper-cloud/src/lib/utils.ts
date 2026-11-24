@@ -9,17 +9,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Safely read the body text from a Response without throwing
- */
-export async function safeReadText(response: Response): Promise<string | undefined> {
-  try {
-    return await response.text();
-  } catch {
-    return undefined;
-  }
-}
-
-/**
  * Round a numeric value to the nearest tenth, guarding against NaN/Infinity.
  */
 export function roundToTenth(value: number): number {
