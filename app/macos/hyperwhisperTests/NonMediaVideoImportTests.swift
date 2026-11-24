@@ -115,7 +115,15 @@ struct NonMediaVideoImportTests {
         writer.startSession(atSourceTime: .zero)
 
         for frame in 0..<10 {
+            // A writer that fails mid-encode never becomes ready again, so stop
+            // on a failed status and after ~10 s rather than hang the suite.
+            var waits = 0
             while !input.isReadyForMoreMediaData {
+                guard writer.status == .writing, waits < 1_000 else {
+                    if writer.status == .writing { writer.cancelWriting() }
+                    throw writer.error ?? FixtureError()
+                }
+                waits += 1
                 try await Task.sleep(nanoseconds: 10_000_000)
             }
             guard let pool = adaptor.pixelBufferPool else { throw FixtureError() }
