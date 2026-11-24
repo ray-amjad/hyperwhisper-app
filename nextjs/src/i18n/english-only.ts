@@ -15,12 +15,18 @@ export function isEnglishOnlyPath(pathname: string): boolean {
 // send a German visitor to /de/latency, a 404.
 const BARE_ENGLISH_ONLY_REGEX = /^\/(latency|choosing-a-model|blog)(\/|$)/;
 
+// The docs (app/docs) are English only and have no locale form at all, so a
+// language switch from one goes to the new locale's homepage too. Not part of
+// BARE_ENGLISH_ONLY_REGEX: /docs is never redirected to /en/docs.
+const DOCS_REGEX = /^\/docs(\/|$)/;
+
 /**
  * True for an English-only page's path as next-intl's usePathname() gives it,
- * with the locale prefix already stripped (`/latency`, `/blog/<slug>`).
+ * with the locale prefix already stripped (`/latency`, `/blog/<slug>`), and
+ * for the docs (`/docs/models`).
  */
 export function isEnglishOnlyRoute(pathname: string): boolean {
-  return BARE_ENGLISH_ONLY_REGEX.test(pathname);
+  return BARE_ENGLISH_ONLY_REGEX.test(pathname) || DOCS_REGEX.test(pathname);
 }
 
 /**

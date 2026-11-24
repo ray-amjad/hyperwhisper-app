@@ -60,7 +60,7 @@ in this repo.
 | `app/ios` | iOS app *(work in progress; not built here)* |
 | `hyperwhisper-cloud` | Fly.io edge transcription service |
 | `nextjs` | Marketing & account website (Next.js) |
-| `mintlify-help` | Documentation site (Mintlify) |
+| `nextjs/src/content/docs` | Documentation (MDX, served by the Next.js site at /docs) |
 | `shared-core-rs` | Rust shared core (UniFFI) used by the native apps |
 | `shared-models` | Per-model metadata catalog |
 | `shared-prompts` | Post-processing prompt templates |

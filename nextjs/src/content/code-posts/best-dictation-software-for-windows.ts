@@ -1,7 +1,7 @@
 import type { BlogPost } from "@/src/content/blog";
 
 // HyperWhisper facts come from this site's own copy (messages/en.json:
-// hero.*, features.*, faq.questions.*) and in-repo docs (mintlify-help/models.mdx,
+// hero.*, features.*, faq.questions.*) and in-repo docs (src/content/docs/models.mdx,
 // system-requirements.mdx, windows-getting-started.mdx, transcription-modes.mdx).
 // Built-in Windows dictation is the public Win+H / Voice typing feature; this
 // page does not invent competitor prices, star ratings, or accuracy percentages.

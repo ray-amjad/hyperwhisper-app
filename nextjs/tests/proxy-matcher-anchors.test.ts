@@ -18,13 +18,13 @@ const matches = routeMatcher(getMiddlewareMatchers(config.matcher, {}));
 const runsProxy = (path: string) => matches(path, {} as never, {});
 
 const SKIPPED =
-  "/docs /docs/ /docs/a /docs/a/b /api /api/x /api/request /models /models/x /_mintlify/x /mintlify-assets/a/b";
+  "/docs /docs/ /docs/a /docs/a/b /docs/models.md /api /api/x /models /models/x";
 const INTERNAL = "/_next/static/x /favicon.ico";
 const PROXIED =
-  "/docsx /docs-foo /apix /api-docs /modelsx /_nextx /_mintlifyx /mintlify-assetsx";
+  "/docsx /docs-foo /docs-md/models /apix /api-docs /modelsx /_nextx /_mintlify/x /mintlify-assets/a/b";
 const CONTROLS = "/ /en /en/docs";
 
-test("/docs, /api, /models, /_next, the Mintlify paths and subpaths skip the proxy", () => {
+test("/docs, /api, /models, /_next and their subpaths skip the proxy", () => {
   for (const path of `${SKIPPED} ${INTERNAL}`.split(" ")) {
     assert.equal(runsProxy(path), false, `${path} should skip the proxy`);
   }

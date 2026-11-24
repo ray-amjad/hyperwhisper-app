@@ -5,7 +5,7 @@
 > - Internal-only material stays **out**: `.claude/`, `.codex/`, `app/ios/`, `tasks/`, `notes/`, `plans/` are gitignored — keep them that way. **Exception:** `.claude/skills/` **is** tracked (repo-shareable skills ship with the project). Since it's public, treat everything under `.claude/skills/` like any other committed file: **no secrets, API keys, tokens, or personal paths** in a skill's `SKILL.md` or scripts. `.env` files inside skills stay gitignored — put secrets there (or in Infisical), never inline.
 > - HyperWhisper Cloud is the paid moat: entitlement is **enforced server-side**. Never add a client-side bypass, fake/test license key, or debug backdoor.
 
-HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcription backend, Next.js marketing site, and Mintlify docs.
+HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcription backend, Next.js marketing site, which also serves the docs at /docs.
 
 ## Project map
 
@@ -14,7 +14,7 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 - `app/ios` — iOS app
 - `hyperwhisper-cloud` — Fly.io edge transcription service
 - `nextjs` — Next.js marketing & license website
-- `mintlify-help` — Mintlify documentation site
+- `nextjs/src/content/docs` — documentation pages (MDX), served by `nextjs` at /docs
 - `shared-types` — TypeScript types shared across projects (Drizzle types)
 - `shared-backup` — Cross-platform backup schema (JSON Schema + CLAUDE.md)
 - `shared-prompts` — Post-processing prompt templates shared across platforms
@@ -71,7 +71,7 @@ BASE_REF=origin/main python3 .github/scripts/validate_drizzle_journal.py
 
 The website (`nextjs/`) runs on **Cloudflare Workers** (Worker `hyperwhisper-web-prod`, built and deployed by `.github/workflows/nextjs-deploy.yml` on push to `main`; runbook `nextjs/DEPLOY-CLOUDFLARE.md`). It is no longer on Vercel, so the `vercel` CLI and Vercel log recipes do not apply to it.
 
-- Only check logs when the change touched `nextjs/` or otherwise affects the website runtime. macOS / Windows / iOS / Fly.io backend / Mintlify docs / integrations / routines / shared schemas / CI-only changes don't hit the Worker — skip log monitoring for those.
+- Only check logs when the change touched `nextjs/` or otherwise affects the website runtime. macOS / Windows / iOS / Fly.io backend / integrations / routines / shared schemas / CI-only changes don't hit the Worker — skip log monitoring for those.
 - Deploy status: `gh run list -w nextjs-deploy.yml -L 5`, then `cd nextjs && npx wrangler deployments list --name hyperwhisper-web-prod 2>&1`.
 - Live errors: `cd nextjs && npx wrangler tail hyperwhisper-web-prod --status error --format pretty 2>&1` (it streams until stopped, so run it under a timeout or Monitor). Past logs are in Workers Logs (observability is on in `wrangler.jsonc`).
 </important>

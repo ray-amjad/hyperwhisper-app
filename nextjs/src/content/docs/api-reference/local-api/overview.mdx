@@ -1,0 +1,220 @@
+---
+title: Local API Overview
+description: HTTP API that HyperWhisper.app serves on 127.0.0.1 after you turn it on. It is off by default.
+---
+
+HyperWhisper contains an HTTP server. You can turn on this server from
+**Settings → API Server** on macOS, from **Settings → Local API** on Windows,
+and from the **Local API** section of **Settings** on Linux.
+The server listens on `127.0.0.1` only. It never
+listens on the LAN. The server writes the bound port and a bearer token to a
+discovery file on disk. MCP wrappers, benchmark scripts, and shell automation
+read this file to find the server, and they need no configuration.
+
+## Discovery file
+
+```
+macOS:   ~/Library/Application Support/HyperWhisper/local-api.json
+Windows: %LOCALAPPDATA%\HyperWhisper\local-api.json
+Linux:   ${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api.json
+```
+
+The file has `chmod 600` permissions on macOS. It has this JSON shape:
+
+```json
+{
+  "port": 39201,
+  "pid": 12345,
+  "started_at": "2026-06-02T13:57:46Z",
+  "api_version": 1,
+  "app_version": "2.36.0",
+  "token": "9YH8r0Z1u3Xl..."
+}
+```
+
+## Authentication
+
+Every endpoint except `/health` needs this header:
+
+```
+Authorization: Bearer <token>
+```
+
+The server makes the token at the first start (32 random bytes,
+base64-url-encoded). On macOS, the server keeps the token in the Keychain. On
+Windows, it keeps the token in a DPAPI-protected blob at
+`%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. On Linux, it keeps the token
+in an owner-only file at
+`${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api-token`. The Linux
+server refuses to start when that file is readable by another user. You can
+make a new token from **Settings → API Server** (macOS), **Settings → Local
+API** (Windows), or the **Regenerate** button in the **Local API** section of
+**Settings** (Linux). The previous token then becomes invalid immediately.
+
+## Response envelope
+
+The server returns both shapes with **HTTP 200**:
+
+```json
+{ "ok": true, "...": "..." }
+```
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "MODEL_NOT_INSTALLED",
+    "message": "Whisper large-v3 is not installed.",
+    "hint": "Use /models to list installed models, or install via the app."
+  }
+}
+```
+
+The server uses HTTP 4xx for protocol failures only:
+
+- 400 for malformed JSON
+- 401 for a missing or invalid bearer token
+- 403 for a rejected Host/Origin header. This is a DNS-rebinding guard on every
+  route, including `/health`.
+- 431 on macOS for a request head that is too large (see
+  [Request limits](#request-limits))
+
+All other errors arrive as `ok:false` with a machine-readable code, and with
+HTTP 200. Examples are a transcription engine error, a missing API key, and a
+file that the server cannot find. Read the `code`, not the status.
+
+## Request limits
+
+The server refuses a request that is too large:
+
+| Limit | Value | What it measures |
+| --- | --- | --- |
+| Request body | 50 MiB (52,428,800 bytes) | The whole body: the JSON envelope or the multipart wrapper, and everything inside it |
+| Audio | 48 MiB (50,331,648 bytes) | One piece of audio: an `audio_base64` payload, a `file` path, or a multipart `audio` part |
+
+A refusal is a business failure, not a protocol failure. The server returns
+**HTTP 200** with this envelope:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request exceeds the configured limit."
+  }
+}
+```
+
+The message is `Audio exceeds the configured upload limit.` when the audio
+limit is the one that the request passed.
+
+**`audio_base64` stops at 37.5 MiB, not at 48 MiB.** Base64 turns 3 bytes of
+audio into 4 characters, and the request limit applies to those characters. So
+the request limit is always the first one that a large `audio_base64` payload
+passes: it stops the audio at 39,321,600 bytes (37.5 MiB), and a little below
+that, because the JSON around the string counts too. Design against 37.5 MiB
+when you put audio in the JSON body. A payload above it gets `Request exceeds
+the configured limit.`, never the audio message.
+
+To send more audio than that, keep it out of the JSON body: use a `file` path,
+or a multipart `audio` part on Windows or Linux. Neither travels as base64, so
+the audio limit of 48 MiB is the one that can apply to them. The list below
+gives the limit that each platform applies to each one.
+
+Each platform applies the limits differently:
+
+- **macOS** applies the request limit to every route that reads a body, and
+  always answers with the HTTP 200 envelope. It applies the audio limit to
+  `audio_base64` and to a `file` path. For `audio_base64` the limit is out of
+  reach, because the request limit refuses the payload first; for a `file` path
+  it is reachable, and a file above 48 MiB gets `Audio exceeds the configured
+  upload limit.` macOS accepts no multipart request. So a `file` path is how you
+  transcribe audio between 37.5 MiB and 48 MiB on macOS.
+- **Windows and Linux** run the same server, apply both limits, and both are
+  reachable. The audio limit applies to the decoded bytes of `audio_base64`, to
+  a `file` path and to a multipart `audio` part, so a `file` path above 48 MiB
+  is refused here but accepted on macOS. Only `/transcribe` answers an
+  over-limit request with the HTTP 200 envelope. On `POST /post-process`,
+  `POST /modes` and `PATCH /modes/{id}`, an over-limit body gets **HTTP 400**
+  with the code `INVALID_REQUEST` and the message `The request body is
+  invalid.` Malformed JSON gets `The request body is invalid JSON.`, so you can
+  tell the two apart. A JSON body whose `Content-Type` is not
+  `application/json` gets **HTTP 400** with `INVALID_REQUEST` and the message
+  `The request body must be application/json.` A JSON body that names a
+  charset the server does not know gets `The request body's charset is not
+  supported.`
+
+  Older Windows builds used neither value. Their web server kept its own
+  default of 30,000,000 bytes (approximately 28.6 MiB), the refusal arrived as
+  HTTP 400 with the message `Invalid JSON body` — which a client could not tell
+  from malformed JSON — and there was no audio limit at all. Read the `code`
+  and the `message`, and keep your client tolerant of both answers if it must
+  support older builds.
+
+On **macOS** the request head (the request line and the headers) has limits
+too. One line can be at most 8 KiB (8,192 bytes, without its line break), and
+the whole head at most 64 KiB (65,536 bytes). A head over either limit gets a
+bare **431** with no envelope, and the server closes the connection. A head
+that is not complete within 10 seconds gets no answer: the server closes the
+connection. On a keep-alive connection that wait starts after the previous
+response, so an idle connection closes after 10 seconds. Open a new connection
+for the next request when that happens.
+
+Do not use **413** to find an oversized request. `PAYLOAD_TOO_LARGE` is not one
+of the codes in the closed set, and a client that shares the macOS decoder
+cannot read an envelope that contains it. Read the `code`, not the status.
+
+## Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Gets the server identity, the provider health, and the local model inventory. **No token necessary.** |
+| GET | `/models` | Gets the flat model catalog. The `kind` and `installed_only` query parameters filter the list on **macOS only**. Windows and Linux ignore them and always return the full catalog. |
+| GET | `/modes` | Lists the saved Modes. |
+| POST | `/modes` | Makes a Mode. |
+| GET | `/modes/{id}` | Gets one Mode. |
+| PATCH | `/modes/{id}` | Updates some fields of a Mode. |
+| DELETE | `/modes/{id}` | Deletes a Mode. The server does not delete the last Mode. |
+| POST | `/transcribe` | Transcribes a file path or `audio_base64`. The file path must resolve inside your recordings folder. Control the work with `mode_id`, with `engine` and `model`, or with both. The optional `timestamp_granularities` parameter returns `segments` and `words` (macOS only). |
+| POST | `/post-process` | Rewrites text with a preset or a free-form prompt. |
+| GET | `/recordings/search?q=&since=&until=&limit=` | Searches past transcripts for a substring. |
+| GET | `/recordings/{id}` | Gets one transcript row. |
+| GET | `/recordings` | The same handler and the same parameters as `/recordings/search`. **Windows and Linux only.** |
+| POST | `/recording/toggle` | Starts the microphone, or stops it and transcribes. **Linux only.** |
+| POST | `/recording/cancel` | Stops the microphone and keeps no transcript. **Linux only.** |
+
+The full schema is in [`openapi.yaml`](/docs/api-reference/local-api/openapi.yaml).
+
+### The recording routes
+
+`POST /recording/toggle` and `POST /recording/cancel` drive the live microphone
+of the app, and `POST /transcribe` reads a file that exists. The Linux build
+serves these two routes. The macOS build does not serve them. Windows answers
+them with `ok: false` and the code `ENGINE_UNAVAILABLE`: recording control is
+not available through the Local API on Windows.
+
+Neither route takes a body. Both answer with the state of the recorder:
+
+```json
+{ "ok": true, "recording": { "is_recording": true, "state": "recording" } }
+```
+
+`state` is one of `idle`, `recording`, `stopping`, `transcribing`, `retrying`,
+`completed`, `cancelled`, or `failed`. `is_recording` is `true` for the
+`recording` state only.
+
+`POST /recording/toggle` starts the recorder when the recorder is idle. It
+stops the recorder and transcribes when the recorder is recording. It waits for
+that transcription, so the call is as slow as a `/transcribe` call. The route
+uses the current Mode, because it accepts no `mode_id`. A toggle during the
+`stopping` or the `transcribing` state is refused, because a transcription is
+already in progress. The refusal is an **HTTP 400** with the code
+`INVALID_REQUEST`.
+
+`POST /recording/cancel` stops the recorder at any point and keeps no
+transcript.
+
+## Next: MCP
+
+An agent can call HyperWhisper as a tool in Cursor, Claude Desktop, or Claude
+Code. To set up this connection, read the [MCP setup guide](/docs/api-reference/local-api/mcp-setup).

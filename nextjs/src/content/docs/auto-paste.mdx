@@ -1,0 +1,70 @@
+---
+title: Auto Paste & Clipboard Behavior
+description: How HyperWhisper copies your transcript, pastes it automatically, and restores the clipboard.
+---
+
+After each recording, HyperWhisper can paste the result into the frontmost app. This page explains how Auto Paste works, how to set it, and what to do when no paste occurs.
+
+<Note>
+  This page describes Auto Paste on **macOS**. On macOS, Auto Paste needs the Accessibility permission described below. Windows has the same Auto Paste feature, but it operates differently. Windows sends a Ctrl+V keystroke and does **not** use UI Automation. Windows does **not** need the Accessibility permission. For the Windows details, see the Windows tab under [Text Output & Formatting → Auto Paste](/docs/output-settings#auto-paste).
+</Note>
+
+![Auto Paste](/docs/images/text-output.jpg)
+
+## How Auto Paste Works
+
+- When a recording stops, HyperWhisper copies the transcript to the clipboard.
+- If "Paste result automatically" is enabled, the app focuses the current application for a moment. Then it sends a standard paste command.
+- After the paste, HyperWhisper restores the previous clipboard contents. The delay before this restore is configurable. You keep the item that you copied before. If you copy something during the delay, the app skips the restore and keeps your new copy.
+
+## Enable Auto Paste
+
+<Steps>
+  <Step title="Open Text Output settings">
+    Open **Settings → Text Output**.
+  </Step>
+  <Step title="Turn on Paste result automatically">
+    Enable **Paste result automatically**.
+  </Step>
+  <Step title="Adjust the restore delay if needed">
+    If an app processes a paste slowly, increase the clipboard restore delay. This delay is a single setting that applies to every app, not a per-app value.
+  </Step>
+</Steps>
+
+<Note>
+  Auto Paste needs the Accessibility permission. With this permission, HyperWhisper can send the paste keystroke for you.
+</Note>
+
+## Required Permission
+
+Grant the Accessibility permission to make Auto Paste operate correctly:
+
+<Steps>
+  <Step title="Open Accessibility settings">
+    Go to **System Settings → Privacy & Security → Accessibility**.
+  </Step>
+  <Step title="Enable HyperWhisper">
+    Unlock the list. Then enable HyperWhisper. A development build from Xcode shows the Xcode DerivedData path, not `/Applications/HyperWhisper.app`. Release builds and development builds use the same bundle ID. The install path, not a different name, separates the two entries in this list. If you switch between the two builds, enable both entries.
+  </Step>
+  <Step title="Restart the app if it was open">
+    If you changed the setting while the app was open, restart the app.
+  </Step>
+</Steps>
+
+If the permission is missing, the app shows a banner on the Home screen. The Accessibility Helper gives a direct link to System Settings.
+
+![Accessibility permissions](/docs/images/accessibility-permissions.jpg)
+
+## Troubleshooting
+
+- Make sure that the Accessibility permission is granted and that the toggle is on.
+- Make sure that the foreground app accepts a paste. Use Notes or TextEdit for a test.
+- If the paste is blocked, read the in-app logs for Accessibility actions.
+- Disable clipboard managers for a test. A clipboard manager can overwrite the restored entry.
+- **macOS only:** HyperWhisper does not paste automatically when the target app quits during the recording. It also does not paste automatically when a new app takes the process ID of the target app before the paste. HyperWhisper also does not paste automatically when it did not capture a target app and a different app is in front. This guard keeps the transcript out of the wrong window. The transcript stays on the clipboard, and the app shows no message. The clipboard restore does not run in this case, so the transcript does not disappear after the restore delay. Paste the transcript manually with **⌘V**.
+
+<Tip>
+  For global hotkeys and permissions, see **Keyboard Shortcuts & Accessibility**.
+</Tip>
+
+For all clipboard and text output settings, see [Text Output & Formatting](/docs/output-settings). These settings include filler-word removal, autocapitalize, and clipboard restore.

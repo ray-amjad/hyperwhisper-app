@@ -38,7 +38,7 @@
 // Data retention: Google paid tier, no training on API traffic, and no
 // per-request opt-out flag on the live socket either — the same posture as
 // `providers/gemini-transcribe.ts`, same key, same project.
-// See `mintlify-help/data-privacy.mdx`.
+// See `nextjs/src/content/docs/data-privacy.mdx`.
 
 import type { Context } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';

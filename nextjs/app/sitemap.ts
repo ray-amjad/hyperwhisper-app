@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 
+import { docsSitemapEntries } from "@/lib/docs/sitemap";
 import { SITE_URL } from "@/lib/site-metadata";
 import { getAllBlogPosts } from "@/src/content/blog";
 import {
@@ -74,13 +75,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   });
 
-  // A Mintlify rewrite (config/mintlify-rewrites.mjs) with no locale form, so it is listed once, unprefixed.
-  sitemap.push({
-    url: `${baseUrl}/docs`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  });
+  // The docs (app/docs): English only with no locale prefix, so no
+  // alternates. One entry per page in lib/docs/nav.ts, the same list
+  // /docs/sitemap.xml serves.
+  sitemap.push(...docsSitemapEntries());
 
   const blogPosts = await getAllBlogPosts();
 

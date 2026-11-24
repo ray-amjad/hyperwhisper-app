@@ -10,9 +10,9 @@ OpenNext build) is the pre-merge gate.
 | --- | --- |
 | `wrangler.jsonc` | Worker config: bindings, cron triggers, observability |
 | `open-next.config.ts` | ISR cache: R2 incremental cache, DO queue, DO tag cache |
-| `worker.ts` | Worker entry: wraps `.open-next/worker.js`, adds `scheduled()` and drops a proxied `Content-Encoding` the client did not accept (`lib/cloudflare/content-encoding.ts`) |
+| `worker.ts` | Worker entry: wraps `.open-next/worker.js`, adds `scheduled()` and a 400 for a malformed path |
 | `config/cron-jobs.mjs` | cron expression -> internal route |
-| `config/mintlify-rewrites.mjs` | `/docs` and friends -> Mintlify (was `vercel.json`) |
+| `config/docs.mjs` | the docs at `/docs` (`app/docs`, content in `src/content/docs`): MDX build rules, old-URL redirects, the `.md` twin rewrite |
 | `scripts/cf-build.mjs` | `pnpm run cf:build`: OpenNext build with build-only secret placeholders; drops the database pages' empty build-time renders from the ISR cache |
 | `public/_headers` | security + CORS headers for static files (appcasts), and the one-year `immutable` cache on hashed `/_next/static/*` files |
 | `src/db/index.ts` | per-request Drizzle client over the `HYPERDRIVE` binding |
@@ -183,8 +183,7 @@ this cutover; the site is served on the custom domains in step 2.
    one `noindex`), `/docs`, `/appcast.xml` (CORS header), `/en/blog`,
    `/en/latency`, sign-in, `/api/geo/nearest-region?regions=iad,fra`, and
    `curl -s .../docs/llms.txt | head -1` with no `--compressed`: it must print
-   `# HyperWhisper`, not binary (a client without `Accept-Encoding` gets the
-   Mintlify response uncompressed).
+   `# HyperWhisper`.
 2. Attach the custom domains: Worker -> Settings -> Domains & Routes -> add
    `www.hyperwhisper.com` and `hyperwhisper.com` (or add the commented
    `routes` block in `wrangler.jsonc`). This replaces the Vercel DNS records.

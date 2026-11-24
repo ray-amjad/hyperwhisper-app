@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 
-import { mintlifyRewrites } from './config/mintlify-rewrites.mjs';
+import { docsMarkdownRewrites, docsRedirects, mdxRules } from './config/docs.mjs';
 import { blogLinkRedirects } from './config/redirects.mjs';
 import { securityHeaderRoutes } from './config/security-headers.mjs';
 
@@ -28,6 +28,9 @@ const nextConfig = {
         // pnpm-lock.yaml; pin the workspace root to this directory so
         // Turbopack doesn't have to guess (and warn) about it.
         root: fileURLToPath(new URL('.', import.meta.url)),
+        // The docs at /docs: .mdx compiles to a component, and `?raw` imports
+        // of .mdx and .yaml are plain strings (config/docs.mjs).
+        rules: mdxRules,
     },
     // #842: anti-framing and the 4 simple security headers on every route.
     async headers() {
@@ -35,11 +38,14 @@ const nextConfig = {
     },
     // #1377: 3 URL families that blog posts link to and that 404 otherwise.
     async redirects() {
-        return blogLinkRedirects;
+        return [...blogLinkRedirects, ...docsRedirects];
     },
-    // The Mintlify docs under /docs (formerly vercel.json rewrites).
+    // The Markdown twin of each docs page (/docs/models.md). Every rewrite
+    // here is to a path on this site: the docs used to be an external rewrite
+    // to Mintlify, which forwarded visitors' cookies to it (#2636), and
+    // tests/docs-routing.test.ts keeps any external rewrite out.
     async rewrites() {
-        return { beforeFiles: mintlifyRewrites, afterFiles: [], fallback: [] };
+        return { beforeFiles: docsMarkdownRewrites, afterFiles: [], fallback: [] };
     },
     // The one next/image (DownloadModal) is a static PNG. Optimisation on
     // Workers needs a billed Cloudflare Images binding, so it is off.

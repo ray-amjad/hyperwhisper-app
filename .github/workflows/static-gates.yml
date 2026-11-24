@@ -1,6 +1,6 @@
 name: static-gates
 
-# Four cheap, deterministic gates that hold a defect class at zero. Each one
+# Three cheap, deterministic gates that hold a defect class at zero. Each one
 # was measured against `main` before it was added here (2026-09-07), and each
 # was green, so a red check on this workflow means the PR introduced something
 # — not that the repo was already dirty.
@@ -13,7 +13,6 @@ name: static-gates
 #     so a closed campaign cannot silently reopen. It did reopen once: the
 #     .then() count reached 0 on 2026-08-27 and a commit put a new chain into
 #     nextjs three days later.
-#   - docs-links runs OFFLINE, so a third-party outage never fails it.
 #   - model-names holds the name of a cloud speech model in the catalog and
 #     nowhere else. 6 places named the same model before #837 and 4 names had
 #     already drifted. The script states what it does NOT hold.
@@ -83,28 +82,7 @@ jobs:
       - name: Check for a duplicated model name
         run: tools/check-model-name-literals.sh
 
-  docs-links:
-    name: Docs links
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Install lychee
-        # The -gnu asset needs GLIBC 2.38 and the runner may be older; -musl is
-        # static and always works.
-        run: |
-          curl -sSfL https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-musl.tar.gz -o /tmp/ly.tgz
-          tar -xzf /tmp/ly.tgz -C /tmp
-          sudo install -m 0755 /tmp/lychee-x86_64-unknown-linux-musl/lychee /usr/local/bin/lychee
-
-      - name: Check links in mintlify-help
-        # --root-dir is mintlify-help, because Mintlify serves that tree at the
-        # site root, so a link to /models is that directory.
-        # --fallback-extensions lets an extensionless Mintlify route resolve to
-        # the .mdx file behind it. Without it every root-relative link reports a
-        # false "File not found".
-        run: |
-          lychee --no-progress --offline \
-            --root-dir "$GITHUB_WORKSPACE/mintlify-help" \
-            --fallback-extensions mdx,md \
-            'mintlify-help/**/*.mdx'
+  # The docs-links job (lychee over mintlify-help) moved into nextjs-ci when
+  # the docs moved into the Next.js site: nextjs/tests/docs-content.test.ts
+  # checks every internal docs link offline, against the page list and
+  # nextjs/public, and every #anchor against the target page's headings.
