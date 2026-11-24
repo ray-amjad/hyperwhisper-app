@@ -1,18 +1,14 @@
 //! Golden parity tests for hw-license M3 — deterministic end-to-end scenarios
 //! driven by an injected `now_unix_secs` and an in-memory `KeyValueStore`.
 //!
-//! These exercise the full lifecycle across the three modules together (the
-//! per-module `#[cfg(test)]` blocks cover the units): validate → cache → usage,
-//! status transitions, limit enforcement, daily reset, and cache/grace expiry.
+//! These exercise the full lifecycle across the modules together (the
+//! per-module `#[cfg(test)]` blocks cover the units): validate → cache,
+//! status transitions, and cache/grace expiry.
 
 use hw_license::cache::{
     self, offline_fallback_outcome, remote_override_if_fresh, should_revalidate,
     store_license_key, store_remote_override, stored_license_key, update_validation_cache,
     TrialLimits,
-};
-use hw_license::usage::{
-    can_download_model, can_start_recording, check_limits, record_model_download, record_usage,
-    Limits,
 };
 use hw_license::validate::{
     build_validate_request, parse_validate_response, VALIDATE_URL,
@@ -109,61 +105,15 @@ fn golden_offline_grace_window() {
     assert!(!past.is_valid);
 }
 
-/// Local usage is unlimited regardless of how much is recorded (open source);
-/// the surfaced daily counter still resets at the day boundary.
+/// The remote-override store/TTL machinery in `cache.rs` still round-trips and
+/// expires. Nothing reads the override through the FFI any more (#829).
 #[test]
-fn golden_local_usage_unlimited_and_daily_reset() {
-    let store = MemoryStore::new();
-    let limits = Limits::defaults(false); // inert; retained for FFI stability
-    let day = 19_675i64; // arbitrary day index
-    let morning = day * DAY + 9 * 3600;
-
-    // Pile on far past any historical trial budget — never gated.
-    record_usage(&store, 180, morning);
-    record_usage(&store, 120, morning + 600);
-    let snap = check_limits(&store, LicenseStatus::Trial, limits, morning + 700);
-    assert_eq!(snap.daily_seconds_used, 300);
-    assert!(!snap.daily_limit_reached);
-    assert_eq!(snap.remaining_daily_seconds, i64::MAX);
-    assert!(can_start_recording(&store, LicenseStatus::Trial, limits, morning + 700));
-
-    // Next day → surfaced counter resets.
-    let next_day = (day + 1) * DAY + 9 * 3600;
-    let snap2 = check_limits(&store, LicenseStatus::Trial, limits, next_day);
-    assert_eq!(snap2.daily_seconds_used, 0);
-    assert!(!snap2.daily_limit_reached);
-    assert!(can_start_recording(&store, LicenseStatus::Trial, limits, next_day));
-}
-
-/// Model downloads are unlimited for every status (open source); the count is
-/// still tracked but never gates.
-#[test]
-fn golden_model_downloads_unlimited() {
-    let store = MemoryStore::new();
-    let limits = Limits::defaults(false);
-    for _ in 0..10 {
-        assert!(can_download_model(&store, LicenseStatus::Trial, limits));
-        record_model_download(&store);
-    }
-    assert!(can_download_model(&store, LicenseStatus::Trial, limits));
-
-    let snap = check_limits(&store, LicenseStatus::Trial, limits, 30_000 * DAY);
-    assert_eq!(snap.models_downloaded, 10);
-    assert!(!snap.model_limit_reached);
-    assert_eq!(snap.remaining_model_downloads, i64::MAX);
-}
-
-/// The remote-override store/TTL machinery in `cache.rs` is retained inert for
-/// FFI stability: it still round-trips with a 24h TTL, but `check_limits` ignores
-/// any override it produces — local usage stays unlimited.
-#[test]
-fn golden_remote_override_inert() {
+fn golden_remote_override_round_trips_then_expires() {
     let store = MemoryStore::new();
     let t0 = 1_700_000_000i64;
     let day = t0.div_euclid(DAY);
     let morning = day * DAY + 3600;
 
-    // Storing an absurdly tight override (1s / 0 models) still round-trips...
     store_remote_override(
         &store,
         TrialLimits {
@@ -173,38 +123,18 @@ fn golden_remote_override_inert() {
         morning,
     );
     let ov = remote_override_if_fresh(&store, morning + 3600).expect("override fresh");
-    let limits = Limits {
-        daily_seconds: ov.daily_seconds,
-        model_downloads: ov.model_downloads,
-    };
-
-    // ...but it never gates: heavy usage is still unlimited.
-    record_usage(&store, 400, morning + 3600);
-    let snap = check_limits(&store, LicenseStatus::Trial, limits, morning + 3700);
-    assert!(!snap.daily_limit_reached);
-    assert_eq!(snap.remaining_daily_seconds, i64::MAX);
-    assert!(can_start_recording(&store, LicenseStatus::Trial, limits, morning + 3700));
+    assert_eq!(ov.daily_seconds, 1);
+    assert_eq!(ov.model_downloads, 0);
 
     // TTL still expires as before.
     assert!(remote_override_if_fresh(&store, morning + DAY + 3600).is_none());
 }
 
-/// Invalid key never activates; Active license is fully unlimited.
+/// An invalid key never activates.
 #[test]
-fn golden_invalid_and_active_extremes() {
-    let store = MemoryStore::new();
-
+fn golden_invalid_key_never_activates() {
     let invalid = parse_validate_response(br#"{"valid":false,"error":"unknown key"}"#);
     assert_eq!(invalid.status, LicenseStatus::Invalid);
+    assert!(!invalid.is_valid);
     assert_eq!(invalid.error_message.as_deref(), Some("unknown key"));
-
-    // Active user records huge usage with no limit.
-    let limits = Limits::defaults(false);
-    record_usage(&store, 100_000, 0);
-    for _ in 0..50 {
-        record_model_download(&store);
-    }
-    let snap = check_limits(&store, LicenseStatus::Active, limits, 0);
-    assert_eq!(snap.remaining_daily_seconds, i64::MAX);
-    assert_eq!(snap.remaining_model_downloads, i64::MAX);
 }

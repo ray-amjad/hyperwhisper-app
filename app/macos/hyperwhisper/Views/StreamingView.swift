@@ -505,7 +505,11 @@ struct StreamingView: View {
                 }
             }
             .labelsHidden()
-            .frame(width: 200, alignment: .trailing)
+            // Sized to the selected name, not pinned at 200 pt: a catalog
+            // name such as "Google Gemini 3.5 Transcribe" is wider than that
+            // and was cut to "Google Gemini 3.5 Transc…" (#2631).
+            .fixedSize()
+            .help(CloudSTTCatalog.shared.entry(byId: normalizedCloudTierBinding.wrappedValue)?.displayName ?? normalizedCloudTierBinding.wrappedValue)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }

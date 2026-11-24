@@ -14,7 +14,8 @@
 //
 //  Issue #1734 moved the other 12 runModal() alerts and panels onto it; confirm
 //  dialogs await `ModelessAlert.response(for:)`, which gives the main actor
-//  back while the alert is open.
+//  back while the alert is open. Issue #2397 added the shortcut-conflict
+//  alert, which ran a sheet under `NSApp.runModal(for:)`.
 //
 
 import AppKit
@@ -82,11 +83,14 @@ struct ModelessAlertTests {
         "app/macos/hyperwhisper/Managers/Settings/StorageSettingsManager.swift",
         "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptActionHandler.swift",
         "app/macos/hyperwhisper/Views/Settings/OutputSettingsSection.swift",
+        "app/macos/hyperwhisper/Views/Settings/ShortcutConflictGuard.swift",
         "app/macos/hyperwhisper/hyperwhisperApp.swift",
     ])
     func theIssue1734SitesDoNotRunModal(path: String) throws {
         let source = try ProductionSource.code(of: path)
-        #expect(!source.contains("runModal()"))
+        // `runModal(` and not `runModal()`: `NSApp.runModal(for:)` behind a
+        // sheet is the same nested loop (issue #2397).
+        #expect(!source.contains("runModal("))
         #expect(source.contains("ModelessAlert.") || source.contains("panel.begin"))
     }
 

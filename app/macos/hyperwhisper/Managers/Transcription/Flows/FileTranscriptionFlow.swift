@@ -34,7 +34,8 @@ import SwiftUI
 /// **File Size Validation:**
 /// Each cloud provider has different file size limits:
 /// - Local providers (LibWhisper, Parakeet): No limit
-/// - HyperWhisper Cloud / Deepgram: 2 GB
+/// - HyperWhisper Cloud: 128 MB, checked on the uploaded file
+/// - Deepgram: 2 GB
 /// - OpenAI / Groq: 25 MB
 /// - AssemblyAI: 2.2 GB
 /// - ElevenLabs: 3 GB
@@ -593,6 +594,8 @@ class FileTranscriptionFlow {
                 )
             }
 
+            try validateUploadSize(finalAudioURL, for: mode)
+
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
@@ -818,7 +821,7 @@ class FileTranscriptionFlow {
             // final canonical artifact immediately before request construction.
             let limit = provider == .meta
                 ? MetaMuseProvider.maxSourceBytes
-                : provider.maxFileSizeBytes
+                : provider.maxSourceFileSizeBytes
             if fileSize > limit {
                 throw FileTranscriptionError.fileTooLarge(
                     fileSize: fileSize,
@@ -831,6 +834,29 @@ class FileTranscriptionFlow {
 
         let fileSizeMB = Double(fileSize) / (1024 * 1024)
         AppLogger.transcription.info("📊 File size: \(String(format: "%.2f", fileSizeMB)) MB - validation passed")
+    }
+
+    /// Checks the cloud provider's size cap on the file that will be uploaded:
+    /// the extracted audio of a video, or VAD's output. `validateFileSize`
+    /// checks the source only against `maxSourceFileSizeBytes`, because the
+    /// upload can be much smaller than the source (#2030). Meta Muse re-stats
+    /// its own normalized WAV in `MetaMuseProvider`.
+    func validateUploadSize(_ uploadURL: URL, for mode: Mode) throws {
+        guard mode.model?.lowercased() == "cloud",
+              let provider = CloudProvider.parse(mode.cloudProvider),
+              provider != .meta else { return }
+        let attributes = try FileManager.default.attributesOfItem(atPath: uploadURL.path)
+        guard let fileSize = attributes[.size] as? Int64 else {
+            throw FileTranscriptionError.cannotReadFile
+        }
+        let limit = provider.maxFileSizeBytes
+        if fileSize > limit {
+            throw FileTranscriptionError.fileTooLarge(
+                fileSize: fileSize,
+                limit: limit,
+                providerName: provider.displayName
+            )
+        }
     }
 
     /// Validates that the file format is supported by the provider

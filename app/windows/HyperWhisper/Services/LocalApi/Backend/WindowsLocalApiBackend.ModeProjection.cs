@@ -247,8 +247,8 @@ internal sealed partial class WindowsLocalApiBackend
     /// has its UNCHANGED name compared against every other stored mode, and
     /// duplicate names are producible on this head:
     /// <c>HyperWhisperDbContext</c> declares a NON-unique index on <c>Name</c>,
-    /// and neither <c>ModeService.SaveMode</c>/<c>UpdateMode</c> nor
-    /// <c>ModeEditorWindow</c> checks for a collision. A mode sharing a name
+    /// and <c>ModeService.SaveMode</c>/<c>UpdateMode</c> do not check for a
+    /// collision (the editor does since #2478). A mode sharing a name
     /// with another became patchable only by omitting <c>name</c> entirely.
     /// macOS never lost its guard.
     /// </para>
@@ -262,9 +262,8 @@ internal sealed partial class WindowsLocalApiBackend
     /// </remarks>
     internal static bool PatchNameCollides(string trimmedName, string storedName, IReadOnlyList<string> otherNames)
     {
-        ArgumentNullException.ThrowIfNull(otherNames);
-        if (HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, [storedName])) return false;
-        return HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, otherNames.ToList());
+        ArgumentNullException.ThrowIfNull(storedName);
+        return ModeNameRules.IsTaken(trimmedName, storedName, otherNames);
     }
 
     private static string? ValidatePostProcessingSelection(Mode mode)

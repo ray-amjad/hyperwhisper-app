@@ -26,7 +26,7 @@
  * which mounts the REAL View for exactly that reason.
  */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
+import test, { beforeEach } from "node:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -35,25 +35,7 @@ import type {
   BuyCreditsHandlerRequest,
   BuyCreditsTier,
 } from "../src/lib/buy-credits";
-
-/**
- * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
- * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the two options used here rather than bumping
- * the types in a test-only change — the same shape
- * `tests/user-header-sign-out.test.ts` uses.
- */
-interface ModuleMocker {
-  module(
-    specifier: string,
-    options: {
-      namedExports?: Record<string, unknown>;
-      defaultExport?: unknown;
-    },
-  ): void;
-}
-
-const moduleMock = mock as unknown as ModuleMocker;
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /** Every `createBuyCreditsHandler` call the card made, in order. */
 const factoryCalls: BuyCreditsHandlerRequest[] = [];
@@ -71,7 +53,7 @@ const handlerRuns: Array<{
  * navigates, what it shows and when it clears the busy flag is
  * `tests/buy-credits-seam.test.ts`.
  */
-moduleMock.module("../src/lib/buy-credits", {
+moduleMock.module(moduleUrl("../src/lib/buy-credits.ts"), {
   namedExports: {
     createBuyCreditsHandler: (request: BuyCreditsHandlerRequest) => {
       factoryCalls.push(request);
@@ -107,7 +89,7 @@ const captured: Array<{ error: unknown; properties: unknown }> = [];
  * configured and it never throws, so it is unobservable — which is why the
  * seam takes an injected `reportError` and why this asserts on the stub.
  */
-moduleMock.module("../src/lib/posthog-client", {
+moduleMock.module(moduleUrl("../src/lib/posthog-client.ts"), {
   namedExports: {
     loadPostHog: async () => ({
       captureException: (error: unknown, properties: unknown) => {
@@ -126,13 +108,16 @@ const viewRenders: CloudCreditsCardViewProps[] = [];
  * all — React never serialises a handler into static markup, which is exactly
  * how the #881 round 1 suite passed with the button's `onClick` deleted.
  */
-moduleMock.module("../components/customer/dashboard/CloudCreditsCardView.tsx", {
-  defaultExport: (props: CloudCreditsCardViewProps) => {
-    viewRenders.push(props);
+moduleMock.module(
+  moduleUrl("../components/customer/dashboard/CloudCreditsCardView.tsx"),
+  {
+    defaultExport: (props: CloudCreditsCardViewProps) => {
+      viewRenders.push(props);
 
-    return null;
+      return null;
+    },
   },
-});
+);
 
 // A VARIABLE specifier, and deferred: a static import would bind before the
 // `mock.module` calls above, and a literal `.tsx` specifier is a TS5097 error

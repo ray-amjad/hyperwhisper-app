@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 // The schema module, not `src/env/server.mjs`: this is a standalone script
 // (`npm run db:migrate`) that needs the database URL alone, and server.mjs
-// would refuse to run it without every Stripe, Resend and Upstash secret too.
+// would refuse to run it without every Stripe and auth secret too.
 import { serverEnv } from "../env/schema.server.mjs";
 
 async function main() {

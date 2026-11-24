@@ -397,7 +397,7 @@ const LIVE_STREAMING_ROW_IDS = new Set([
   // row left with xAI's 2026-10-02 retirement (#1908); that resolver now folds
   // a stored 1.0 id onto 2.0.
   "grokStt:grok-voice-transcribe-2.0",
-  // `LIVE_MODEL` in hw-net `providers/gemini_transcribe.rs`, substituted by
+  // `LIVE_MODEL` in hw-net `providers/gemini_transcribe/mod.rs`, substituted by
   // `live/gemini.rs` and `GeminiStreamingStrategy` and proxied by
   // `ws-streaming-gemini-transcribe.ts`. The pre-recorded row is deliberately
   // absent: it is the Interactions API model, and no caller sends its id live.

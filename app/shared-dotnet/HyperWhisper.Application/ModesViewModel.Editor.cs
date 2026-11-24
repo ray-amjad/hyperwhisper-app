@@ -176,7 +176,6 @@ public sealed partial class ModesViewModel
 
     private bool _loadingEditor;
 
-    public IReadOnlyList<string> ProviderTypes { get; } = ["local", "cloud"];
     public IReadOnlyList<string> LocalEngines { get; } = ["whisper", "parakeet"];
     public string CloudProvider
     {
@@ -246,7 +245,6 @@ public sealed partial class ModesViewModel
     public bool RemoveTrailingPeriod { get => _removeTrailingPeriod; set => Set(ref _removeTrailingPeriod, value); }
     public string EnglishSpelling { get => _englishSpelling; set => Set(ref _englishSpelling, value ?? string.Empty); }
 
-    public IReadOnlyList<string> PostProcessingModes { get; } = ["off", "cloud", "local"];
     public IReadOnlyList<string> PostProcessingProviders { get; } = ["hyperwhispercloud", "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral", "custom"];
     // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
     // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
@@ -287,8 +285,9 @@ public sealed partial class ModesViewModel
     public IReadOnlyList<string> Presets { get; } = ["hyper", "message", "mail", "note", "meeting", "code", "custom"];
     /// <summary>
     /// The four variants Windows offers (ModeEditorWindow.xaml:485-488). There is deliberately no
-    /// empty entry: a mode that has never chosen one keeps EnglishSpelling empty, which the
-    /// shared core reads as "send no spelling instruction", and the combo simply shows nothing.
+    /// empty entry: an existing mode that has never chosen one keeps EnglishSpelling empty, which
+    /// the shared core reads as "send no spelling instruction", and the combo simply shows nothing.
+    /// Create Mode seeds the system region's variant instead (NewCommand), so a new mode is never blank.
     /// </summary>
     public IReadOnlyList<string> EnglishSpellings { get; } = ["american", "british", "australian", "canadian"];
 

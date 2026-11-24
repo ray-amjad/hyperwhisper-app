@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>Không thể mở micrô.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>Chưa đặt</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Đã lưu</value>
+  </data>
 </root>

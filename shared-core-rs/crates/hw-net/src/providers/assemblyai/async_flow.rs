@@ -207,14 +207,16 @@ pub fn build_poll_request(
 ///
 /// PARITY: a transient HTTP status on a poll (429/5xx) means the job is still
 /// running server-side; the macOS/Windows impls keep polling. We surface those as
-/// [`PollOutcome::Pending`] so the platform retries (401/403 still fail).
+/// [`PollOutcome::Pending`] so the platform retries (401/403 still fail, through
+/// `classify_http`: `QuotaExceeded` for an out-of-credits body, else
+/// `Unauthorized`).
 pub fn parse_poll_response(resp: &HttpResponse) -> Result<PollOutcome, TranscriptionError> {
     let raw = resp.text();
 
     if !(200..=299).contains(&resp.status) {
-        // Unauthorized is terminal; transient statuses keep the loop alive.
+        // Transient statuses keep the loop alive; everything else (401/403
+        // included) is terminal and classified like the upload and create steps.
         match resp.status {
-            401 | 403 => return Err(TranscriptionError::Unauthorized),
             429 | 500..=599 => return Ok(PollOutcome::Pending),
             _ => return Err(classify_http(resp, &raw)),
         }
@@ -571,6 +573,36 @@ mod tests {
         assert_eq!(
             build_poll_request(&p, "tid").unwrap().url,
             "https://staging.assemblyai.test/v2/transcript/tid"
+        );
+    }
+
+    // Issue #2144: an out-of-credits 401/403 on the poll reads as quota, the
+    // same as on upload/create (`classify_http`) and `retry::classify_error`.
+    #[test]
+    fn poll_401_403_out_of_credits_body_is_quota_exceeded() {
+        let body = r#"{"error":"Your account doesn't have any credits."}"#;
+        for status in [401, 403] {
+            let resp = HttpResponse {
+                status,
+                headers: vec![],
+                body: body.as_bytes().to_vec(),
+            };
+            let err = parse_poll_response(&resp).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(err, crate::retry::classify_error(status, body));
+        }
+    }
+
+    #[test]
+    fn poll_403_bad_key_is_terminal_unauthorized() {
+        let resp = HttpResponse {
+            status: 403,
+            headers: vec![],
+            body: br#"{"error":"Invalid API key"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_poll_response(&resp).unwrap_err(),
+            TranscriptionError::Unauthorized
         );
     }
 }

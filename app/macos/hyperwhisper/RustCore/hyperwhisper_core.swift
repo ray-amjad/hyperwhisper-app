@@ -6686,75 +6686,6 @@ public func FfiConverterTypeHwVocabularyEntry_lower(_ value: HwVocabularyEntry) 
 
 
 /**
- * Active usage limits. Mirrors `hw_license::usage::Limits`.
- */
-public struct Limits {
-    public var dailySeconds: Int64
-    public var modelDownloads: Int64
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(dailySeconds: Int64, modelDownloads: Int64) {
-        self.dailySeconds = dailySeconds
-        self.modelDownloads = modelDownloads
-    }
-}
-
-
-
-extension Limits: Equatable, Hashable {
-    public static func ==(lhs: Limits, rhs: Limits) -> Bool {
-        if lhs.dailySeconds != rhs.dailySeconds {
-            return false
-        }
-        if lhs.modelDownloads != rhs.modelDownloads {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(dailySeconds)
-        hasher.combine(modelDownloads)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeLimits: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Limits {
-        return
-            try Limits(
-                dailySeconds: FfiConverterInt64.read(from: &buf), 
-                modelDownloads: FfiConverterInt64.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: Limits, into buf: inout [UInt8]) {
-        FfiConverterInt64.write(value.dailySeconds, into: &buf)
-        FfiConverterInt64.write(value.modelDownloads, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLimits_lift(_ buf: RustBuffer) throws -> Limits {
-    return try FfiConverterTypeLimits.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeLimits_lower(_ value: Limits) -> RustBuffer {
-    return FfiConverterTypeLimits.lower(value)
-}
-
-
-/**
  * The one mode a brand-new install creates. Owned mirror of
  * `hw_catalog::ModeSeed`.
  *
@@ -8990,177 +8921,6 @@ public func FfiConverterTypeTranscribeParams_lower(_ value: TranscribeParams) ->
 
 
 /**
- * Remote trial-limit override. Mirrors `hw_license::cache::TrialLimits`.
- */
-public struct TrialLimits {
-    public var dailySeconds: Int64
-    public var modelDownloads: Int64
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(dailySeconds: Int64, modelDownloads: Int64) {
-        self.dailySeconds = dailySeconds
-        self.modelDownloads = modelDownloads
-    }
-}
-
-
-
-extension TrialLimits: Equatable, Hashable {
-    public static func ==(lhs: TrialLimits, rhs: TrialLimits) -> Bool {
-        if lhs.dailySeconds != rhs.dailySeconds {
-            return false
-        }
-        if lhs.modelDownloads != rhs.modelDownloads {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(dailySeconds)
-        hasher.combine(modelDownloads)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTrialLimits: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TrialLimits {
-        return
-            try TrialLimits(
-                dailySeconds: FfiConverterInt64.read(from: &buf), 
-                modelDownloads: FfiConverterInt64.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: TrialLimits, into buf: inout [UInt8]) {
-        FfiConverterInt64.write(value.dailySeconds, into: &buf)
-        FfiConverterInt64.write(value.modelDownloads, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTrialLimits_lift(_ buf: RustBuffer) throws -> TrialLimits {
-    return try FfiConverterTypeTrialLimits.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTrialLimits_lower(_ value: TrialLimits) -> RustBuffer {
-    return FfiConverterTypeTrialLimits.lower(value)
-}
-
-
-/**
- * A snapshot of current usage vs. the active limits. Mirrors
- * `hw_license::usage::UsageSnapshot`.
- */
-public struct UsageSnapshot {
-    public var dailySecondsUsed: Int64
-    public var modelsDownloaded: Int64
-    public var dailyLimitReached: Bool
-    public var modelLimitReached: Bool
-    public var remainingDailySeconds: Int64
-    public var remainingModelDownloads: Int64
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(dailySecondsUsed: Int64, modelsDownloaded: Int64, dailyLimitReached: Bool, modelLimitReached: Bool, remainingDailySeconds: Int64, remainingModelDownloads: Int64) {
-        self.dailySecondsUsed = dailySecondsUsed
-        self.modelsDownloaded = modelsDownloaded
-        self.dailyLimitReached = dailyLimitReached
-        self.modelLimitReached = modelLimitReached
-        self.remainingDailySeconds = remainingDailySeconds
-        self.remainingModelDownloads = remainingModelDownloads
-    }
-}
-
-
-
-extension UsageSnapshot: Equatable, Hashable {
-    public static func ==(lhs: UsageSnapshot, rhs: UsageSnapshot) -> Bool {
-        if lhs.dailySecondsUsed != rhs.dailySecondsUsed {
-            return false
-        }
-        if lhs.modelsDownloaded != rhs.modelsDownloaded {
-            return false
-        }
-        if lhs.dailyLimitReached != rhs.dailyLimitReached {
-            return false
-        }
-        if lhs.modelLimitReached != rhs.modelLimitReached {
-            return false
-        }
-        if lhs.remainingDailySeconds != rhs.remainingDailySeconds {
-            return false
-        }
-        if lhs.remainingModelDownloads != rhs.remainingModelDownloads {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(dailySecondsUsed)
-        hasher.combine(modelsDownloaded)
-        hasher.combine(dailyLimitReached)
-        hasher.combine(modelLimitReached)
-        hasher.combine(remainingDailySeconds)
-        hasher.combine(remainingModelDownloads)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeUsageSnapshot: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UsageSnapshot {
-        return
-            try UsageSnapshot(
-                dailySecondsUsed: FfiConverterInt64.read(from: &buf), 
-                modelsDownloaded: FfiConverterInt64.read(from: &buf), 
-                dailyLimitReached: FfiConverterBool.read(from: &buf), 
-                modelLimitReached: FfiConverterBool.read(from: &buf), 
-                remainingDailySeconds: FfiConverterInt64.read(from: &buf), 
-                remainingModelDownloads: FfiConverterInt64.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: UsageSnapshot, into buf: inout [UInt8]) {
-        FfiConverterInt64.write(value.dailySecondsUsed, into: &buf)
-        FfiConverterInt64.write(value.modelsDownloaded, into: &buf)
-        FfiConverterBool.write(value.dailyLimitReached, into: &buf)
-        FfiConverterBool.write(value.modelLimitReached, into: &buf)
-        FfiConverterInt64.write(value.remainingDailySeconds, into: &buf)
-        FfiConverterInt64.write(value.remainingModelDownloads, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeUsageSnapshot_lift(_ buf: RustBuffer) throws -> UsageSnapshot {
-    return try FfiConverterTypeUsageSnapshot.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeUsageSnapshot_lower(_ value: UsageSnapshot) -> RustBuffer {
-    return FfiConverterTypeUsageSnapshot.lower(value)
-}
-
-
-/**
  * The POST `/api/license/validate` request. Mirrors
  * `hw_license::validate::ValidateRequest`.
  */
@@ -9249,16 +9009,30 @@ public struct ValidationOutcome {
     public var customerEmail: String?
     public var expiresAt: String?
     public var errorMessage: String?
+    /**
+     * Whether the server stated a verdict about the key. `false` for a 200
+     * that is not the validate JSON (#2916), the offline fallback and the
+     * empty-key outcome: a head must not persist such an outcome, and takes
+     * its network-failure path instead.
+     */
+    public var isVerdict: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?) {
+    public init(isValid: Bool, status: HwLicenseStatus, customerId: String?, customerEmail: String?, expiresAt: String?, errorMessage: String?, 
+        /**
+         * Whether the server stated a verdict about the key. `false` for a 200
+         * that is not the validate JSON (#2916), the offline fallback and the
+         * empty-key outcome: a head must not persist such an outcome, and takes
+         * its network-failure path instead.
+         */isVerdict: Bool) {
         self.isValid = isValid
         self.status = status
         self.customerId = customerId
         self.customerEmail = customerEmail
         self.expiresAt = expiresAt
         self.errorMessage = errorMessage
+        self.isVerdict = isVerdict
     }
 }
 
@@ -9284,6 +9058,9 @@ extension ValidationOutcome: Equatable, Hashable {
         if lhs.errorMessage != rhs.errorMessage {
             return false
         }
+        if lhs.isVerdict != rhs.isVerdict {
+            return false
+        }
         return true
     }
 
@@ -9294,6 +9071,7 @@ extension ValidationOutcome: Equatable, Hashable {
         hasher.combine(customerEmail)
         hasher.combine(expiresAt)
         hasher.combine(errorMessage)
+        hasher.combine(isVerdict)
     }
 }
 
@@ -9310,7 +9088,8 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
                 customerId: FfiConverterOptionString.read(from: &buf), 
                 customerEmail: FfiConverterOptionString.read(from: &buf), 
                 expiresAt: FfiConverterOptionString.read(from: &buf), 
-                errorMessage: FfiConverterOptionString.read(from: &buf)
+                errorMessage: FfiConverterOptionString.read(from: &buf), 
+                isVerdict: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -9321,6 +9100,7 @@ public struct FfiConverterTypeValidationOutcome: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.customerEmail, into: &buf)
         FfiConverterOptionString.write(value.expiresAt, into: &buf)
         FfiConverterOptionString.write(value.errorMessage, into: &buf)
+        FfiConverterBool.write(value.isVerdict, into: &buf)
     }
 }
 
@@ -15171,30 +14951,6 @@ fileprivate struct FfiConverterOptionTypeSttVendorGroup: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeTrialLimits: FfiConverterRustBuffer {
-    typealias SwiftType = TrialLimits?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeTrialLimits.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeTrialLimits.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterOptionTypeHwEndpointIssue: FfiConverterRustBuffer {
     typealias SwiftType = HwEndpointIssue?
 
@@ -16350,18 +16106,6 @@ public func buildHealthRequest(provider: HwProvider, apiKey: String) -> HttpRequ
 })
 }
 /**
- * Like `build_health_request` but with an explicit HW Cloud base URL.
- */
-public func buildHealthRequestWithBase(provider: HwProvider, apiKey: String, baseUrl: String?) -> HttpRequest {
-    return try!  FfiConverterTypeHttpRequest.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_build_health_request_with_base(
-        FfiConverterTypeHwProvider.lower(provider),
-        FfiConverterString.lower(apiKey),
-        FfiConverterOptionString.lower(baseUrl),$0
-    )
-})
-}
-/**
  * Build the DYNAMIC system-info block (prepended to the user message).
  */
 public func buildSystemInfo(ctx: PromptContext) -> String {
@@ -16378,27 +16122,6 @@ public func buildSystemPrompt(ctx: PromptContext) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_build_system_prompt(
         FfiConverterTypePromptContext.lower(ctx),$0
-    )
-})
-}
-/**
- * Map an HTTP status + response body to a `HwTranscriptionError`.
- */
-public func classifyError(status: UInt16, body: String) -> HwTranscriptionError {
-    return try!  FfiConverterTypeHwTranscriptionError.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_classify_error(
-        FfiConverterUInt16.lower(status),
-        FfiConverterString.lower(body),$0
-    )
-})
-}
-/**
- * The provider's default post-processing model, if any.
- */
-public func cloudPpDefaultModel(id: String) -> PpModel? {
-    return try!  FfiConverterOptionTypePpModel.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_default_model(
-        FfiConverterString.lower(id),$0
     )
 })
 }
@@ -16424,16 +16147,6 @@ public func cloudPpLlmModelHeader(id: String, modelId: String) -> String? {
 })
 }
 /**
- * The provider's LLM-provider key, if any.
- */
-public func cloudPpLlmProvider(id: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_llm_provider(
-        FfiConverterString.lower(id),$0
-    )
-})
-}
-/**
  * A specific post-processing model, if present.
  */
 public func cloudPpModel(id: String, modelId: String) -> PpModel? {
@@ -16445,29 +16158,8 @@ public func cloudPpModel(id: String, modelId: String) -> PpModel? {
 })
 }
 /**
- * All (visible) models for the post-processing provider.
- */
-public func cloudPpModels(id: String) -> [PpModel] {
-    return try!  FfiConverterSequenceTypePpModel.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_models(
-        FfiConverterString.lower(id),$0
-    )
-})
-}
-/**
- * The Engine dropdown's rows: post-processing engines with `enabled != false`,
- * in catalog order, each carrying only its visible models.
- */
-public func cloudPpPickerProviders() -> [PpProvider] {
-    return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers($0
-    )
-})
-}
-/**
  * Every post-processing engine, in catalog order — INCLUDING the ones the
- * rollout gate hides. Read `enabled` before surfacing a row; use
- * `cloud_pp_picker_providers` for the dropdown.
+ * rollout gate hides. Read `enabled` before surfacing a row.
  */
 public func cloudPpProviders() -> [PpProvider] {
     return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
@@ -16503,16 +16195,6 @@ public func cloudSttCreditsPerMinuteForModel(id: String, modelId: String) -> Dou
     uniffi_hyperwhisper_core_fn_func_cloud_stt_credits_per_minute_for_model(
         FfiConverterString.lower(id),
         FfiConverterString.lower(modelId),$0
-    )
-})
-}
-/**
- * The provider's custom-vocabulary request field name (if any).
- */
-public func cloudSttCustomVocabularyFieldName(id: String) -> String? {
-    return try!  FfiConverterOptionString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_cloud_stt_custom_vocabulary_field_name(
-        FfiConverterString.lower(id),$0
     )
 })
 }
@@ -16952,15 +16634,6 @@ public func groqParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscri
     )
 })
 }
-/**
- * Default HyperWhisper Cloud health URL for routed providers.
- */
-public func hwCloudHealthDefault() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_hw_cloud_health_default($0
-    )
-})
-}
 public func hyperwhisperCloudBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_build_transcribe_request(
@@ -17146,67 +16819,11 @@ public func licenseCachedStatusWithinGrace(store: KeyValueStore, nowUnixSecs: In
     )
 })
 }
-public func licenseCanDownloadModel(store: KeyValueStore, status: HwLicenseStatus, limits: Limits) -> Bool {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_can_download_model(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeHwLicenseStatus.lower(status),
-        FfiConverterTypeLimits.lower(limits),$0
-    )
-})
-}
-public func licenseCanStartRecording(store: KeyValueStore, status: HwLicenseStatus, limits: Limits, nowUnixSecs: Int64) -> Bool {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_can_start_recording(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeHwLicenseStatus.lower(status),
-        FfiConverterTypeLimits.lower(limits),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-})
-}
-public func licenseCheckLimits(store: KeyValueStore, status: HwLicenseStatus, limits: Limits, nowUnixSecs: Int64) -> UsageSnapshot {
-    return try!  FfiConverterTypeUsageSnapshot.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_check_limits(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeHwLicenseStatus.lower(status),
-        FfiConverterTypeLimits.lower(limits),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-})
-}
 public func licenseClearStoredLicense(store: KeyValueStore) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_clear_stored_license(
         FfiConverterTypeKeyValueStore.lower(store),$0
     )
 }
-}
-/**
- * Default daily seconds limit for debug builds.
- */
-public func licenseDefaultDailyLimitDebug() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_debug($0
-    )
-})
-}
-/**
- * Default daily seconds limit for release builds.
- */
-public func licenseDefaultDailyLimitRelease() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_default_daily_limit_release($0
-    )
-})
-}
-/**
- * Default model-download limit.
- */
-public func licenseDefaultModelLimit() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_default_model_limit($0
-    )
-})
 }
 /**
  * The empty/whitespace-only license-key outcome (rejected before any call).
@@ -17225,16 +16842,6 @@ public func licenseHttpErrorOutcome(statusCode: UInt16, body: Data) -> Validatio
     uniffi_hyperwhisper_core_fn_func_license_http_error_outcome(
         FfiConverterUInt16.lower(statusCode),
         FfiConverterData.lower(body),$0
-    )
-})
-}
-/**
- * The hardcoded default limits for the given build flavor.
- */
-public func licenseLimitsDefaults(debugBuild: Bool) -> Limits {
-    return try!  FfiConverterTypeLimits.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_limits_defaults(
-        FfiConverterBool.lower(debugBuild),$0
     )
 })
 }
@@ -17263,6 +16870,10 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
  * only FFI write path for a validate response: it prevents a rejected
  * *replacement* key from clobbering the stored key's cached status (a 24h
  * lockout for a valid user).
+ *
+ * Call it only for an outcome with `is_verdict == true`. A non-verdict (#2916:
+ * a 200 that is not the validate JSON) goes to the offline fallback instead,
+ * so its `Invalid` is never cached.
  */
 public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
@@ -17273,37 +16884,6 @@ public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLice
     )
 }
 }
-public func licenseRecordModelDownload(store: KeyValueStore) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_record_model_download(
-        FfiConverterTypeKeyValueStore.lower(store),$0
-    )
-}
-}
-public func licenseRecordUsage(store: KeyValueStore, seconds: Int64, nowUnixSecs: Int64) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_record_usage(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterInt64.lower(seconds),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-}
-}
-public func licenseRemoteOverrideIfFresh(store: KeyValueStore, nowUnixSecs: Int64) -> TrialLimits? {
-    return try!  FfiConverterOptionTypeTrialLimits.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_remote_override_if_fresh(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-})
-}
-/**
- * 24h remote-override TTL (seconds).
- */
-public func licenseRemoteOverrideTtlSecs() -> Int64 {
-    return try!  FfiConverterInt64.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_remote_override_ttl_secs($0
-    )
-})
-}
 public func licenseShouldRevalidate(store: KeyValueStore, nowUnixSecs: Int64) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_should_revalidate(
@@ -17311,14 +16891,6 @@ public func licenseShouldRevalidate(store: KeyValueStore, nowUnixSecs: Int64) ->
         FfiConverterInt64.lower(nowUnixSecs),$0
     )
 })
-}
-public func licenseStoreRemoteOverride(store: KeyValueStore, limits: TrialLimits, nowUnixSecs: Int64) {try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_license_store_remote_override(
-        FfiConverterTypeKeyValueStore.lower(store),
-        FfiConverterTypeTrialLimits.lower(limits),
-        FfiConverterInt64.lower(nowUnixSecs),$0
-    )
-}
 }
 public func licenseStoredLicenseKey(store: KeyValueStore) -> String? {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
@@ -17506,26 +17078,6 @@ public func llmBuildRequest(params: HwLlmParams)throws  -> HttpRequest {
 })
 }
 /**
- * Port the embedded llama-server listens on.
- */
-public func llmDefaultLocalLlamaPort() -> UInt16 {
-    return try!  FfiConverterUInt16.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port($0
-    )
-})
-}
-/**
- * The URL a request would go to, without building the body. For logging and
- * for the health checker.
- */
-public func llmEndpointFor(params: HwLlmParams)throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
-    uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(
-        FfiConverterTypeHwLlmParams.lower(params),$0
-    )
-})
-}
-/**
  * Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
  * leaf crate for why).
  */
@@ -17563,24 +17115,6 @@ public func llmIsCustomProviderString(providerString: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(
         FfiConverterString.lower(providerString),$0
-    )
-})
-}
-/**
- * Max custom endpoint model-name length, for a UI character counter.
- */
-public func llmMaxCustomEndpointModelChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars($0
-    )
-})
-}
-/**
- * Max custom endpoint URL length, for a UI character counter.
- */
-public func llmMaxCustomEndpointUrlChars() -> UInt32 {
-    return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars($0
     )
 })
 }
@@ -19063,19 +18597,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_build_health_request() != 52092) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_build_health_request_with_base() != 19402) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_info() != 24795) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_build_system_prompt() != 19711) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_classify_error() != 31917) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_default_model() != 1662) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_is_enabled() != 62116) {
@@ -19084,19 +18609,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_model_header() != 64764) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_llm_provider() != 25505) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_model() != 31504) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_models() != 43724) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers() != 53262) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers() != 17064) {
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers() != 60544) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups() != 36207) {
@@ -19106,9 +18622,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute_for_model() != 58252) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_custom_vocabulary_field_name() != 15580) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
@@ -19249,9 +18762,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_groq_parse_transcribe_response() != 63704) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_hw_cloud_health_default() != 4042) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_build_transcribe_request() != 49953) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19306,25 +18816,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_cached_status_within_grace() != 58647) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_can_download_model() != 22424) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_can_start_recording() != 54494) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_check_limits() != 24333) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_clear_stored_license() != 53538) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_debug() != 45490) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_default_daily_limit_release() != 49278) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_default_model_limit() != 22184) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_empty_key_outcome() != 11958) {
@@ -19333,34 +18825,16 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_http_error_outcome() != 53044) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_limits_defaults() != 39316) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_license_offline_fallback_outcome() != 40676) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 1585) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_record_model_download() != 39727) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_record_usage() != 1647) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_remote_override_if_fresh() != 47631) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_remote_override_ttl_secs() != 7637) {
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 36115) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_should_revalidate() != 37174) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_license_store_remote_override() != 47949) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_stored_license_key() != 31347) {
@@ -19405,12 +18879,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_request() != 57763) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port() != 14194) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for() != 36443) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens() != 51471) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19421,12 +18889,6 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string() != 5642) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars() != 49114) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars() != 61579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens() != 41429) {

@@ -34,13 +34,13 @@ const MUTANTS = [
   },
   {
     name: "verify with a different secret",
-    from: "constructEvent(body, signature, webhookSecret)",
-    to: 'constructEvent(body, signature, "other-secret")',
+    from: "constructEventAsync(body, signature, webhookSecret)",
+    to: 'constructEventAsync(body, signature, "other-secret")',
   },
   {
     name: "verify a re-serialized body instead of the raw bytes",
-    from: "constructEvent(body, signature, webhookSecret)",
-    to: "constructEvent(JSON.stringify(JSON.parse(body)), signature, webhookSecret)",
+    from: "constructEventAsync(body, signature, webhookSecret)",
+    to: "constructEventAsync(JSON.stringify(JSON.parse(body)), signature, webhookSecret)",
   },
   {
     name: "accept a body whose signature did not verify",
@@ -49,13 +49,18 @@ const MUTANTS = [
   },
   {
     name: "invert the payment gate",
-    from: 'if (session.payment_status !== "paid") {',
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
     to: 'if (session.payment_status === "paid") {',
   },
   {
     name: "drop the payment gate entirely",
-    from: 'if (session.payment_status !== "paid") {',
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
     to: "if (false) {",
+  },
+  {
+    name: "make a 100%-off (no_payment_required) session wait forever again",
+    from: 'if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {',
+    to: 'if (session.payment_status !== "paid") {',
   },
   {
     name: "route a retired license session to the credit handler",

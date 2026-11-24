@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>Δεν ήταν δυνατό το άνοιγμα του μικροφώνου.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>Δεν έχει οριστεί</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Αποθηκεύτηκε</value>
+  </data>
 </root>

@@ -48,13 +48,23 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime, MULTIPART_BOUNDARY};
-use crate::providers::common::{filename_of, retry_after};
+use crate::providers::common::{filename_of, is_out_of_credits_body, retry_after};
 
 /// Soniox API base URL.
 pub const BASE_URL: &str = "https://api.soniox.com/v1";
 
 /// The `cloud-stt-catalog.json` entry this provider's models live under.
 pub const CATALOG_ENTRY_ID: &str = "soniox";
+
+/// At most this many vocabulary terms in `context`, the Cloud adapter's
+/// `MAX_CONTEXT_TERMS` (`hyperwhisper-cloud` `providers/soniox.ts`).
+pub const MAX_CONTEXT_TERMS: usize = 200;
+
+/// The `context` string stays at or under this many characters. Soniox caps the
+/// whole context at 8,000 tokens (~10,000 characters, `cloud-stt-catalog.json`
+/// `soniox.customVocabulary`) and rejects the create call past it, after the
+/// upload already succeeded.
+pub const MAX_CONTEXT_CHARS: usize = 10_000;
 
 /// Default model when the caller leaves `params.model` empty. Read from the
 /// shared catalog, which macOS and Windows read too — see
@@ -135,6 +145,28 @@ pub fn parse_upload_response(resp: &HttpResponse) -> Result<String, Transcriptio
 // Step 2 — create transcription (JSON)
 // ---------------------------------------------------------------------------
 
+/// The `context` string: the first [`MAX_CONTEXT_TERMS`] sanitized, de-duplicated
+/// terms joined with `", "`, stopping before the term that would take it past
+/// [`MAX_CONTEXT_CHARS`]. Whole terms only, so a term is never cut in half.
+/// Characters are Unicode scalar values (`chars()`), not bytes.
+fn context_from_vocabulary(vocabulary: &[String]) -> String {
+    let mut context = String::new();
+    let mut chars = 0;
+    for term in keyword_boost_terms(vocabulary, Some(MAX_CONTEXT_TERMS)) {
+        let sep = if context.is_empty() { 0 } else { 2 };
+        let len = term.chars().count();
+        if chars + sep + len > MAX_CONTEXT_CHARS {
+            break;
+        }
+        if sep > 0 {
+            context.push_str(", ");
+        }
+        context.push_str(&term);
+        chars += sep + len;
+    }
+    context
+}
+
 /// Build the **create-transcription** request: `POST {base}/transcriptions` with
 /// JSON body `{file_id, model, [language_hints], [context]}`.
 pub fn build_create_request(
@@ -159,12 +191,9 @@ pub fn build_create_request(
     }
 
     // context: comma-space-joined vocabulary after shared sanitizer/dedup.
-    let terms = keyword_boost_terms(&params.vocabulary, None);
-    if !terms.is_empty() {
-        obj.insert(
-            "context".to_string(),
-            serde_json::Value::String(terms.join(", ")),
-        );
+    let context = context_from_vocabulary(&params.vocabulary);
+    if !context.is_empty() {
+        obj.insert("context".to_string(), serde_json::Value::String(context));
     }
 
     let data = serde_json::to_vec(&serde_json::Value::Object(obj)).map_err(|e| {
@@ -397,9 +426,12 @@ fn parse_id(resp: &HttpResponse, op: &str) -> Result<String, TranscriptionError>
 ///
 /// PARITY (`SonioxProvider.swift` `throwForFailure` + `SonioxService.cs`
 /// `HandleErrorResponseAsync`):
-/// - 401 / 403 → `Unauthorized`
+/// - 401 / 403 → `QuotaExceeded` for an out-of-credits body
+///   (`common::is_out_of_credits_body`), else `Unauthorized`
+/// - 402 → `QuotaExceeded`
+/// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
 /// - 413 → `FileTooLarge`
-/// - 429 → `RateLimited { retry_after_secs }`
+/// - 429 → `RateLimited { retry_after_secs }` (always: no quota-body check)
 /// - 5xx → `ProviderUnavailable`
 /// - 400 / 404 / 409 / other 4xx → `BadRequest` (message from `message`/body)
 fn classify_soniox_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
@@ -414,7 +446,10 @@ fn classify_soniox_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
         .map(str::to_string);
 
     match status {
+        401 | 403 if is_out_of_credits_body(raw) => TranscriptionError::QuotaExceeded,
         401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),
@@ -787,5 +822,65 @@ mod tests {
             body: br#"{"text":"x"}"#.to_vec(),
         };
         assert_eq!(parse_transcribe_response(&resp).unwrap().text, "x");
+    }
+
+    // ---- issue #2144: status parity with common::classify_http -------------
+
+    fn status_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: vec![],
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    const OUT_OF_CREDITS_BODY: &str =
+        r#"{"error":"Your team has used all available credits. Add more to continue."}"#;
+
+    #[test]
+    fn soniox_402_is_quota_exceeded() {
+        let err = parse_transcript_response(&status_resp(402, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::QuotaExceeded);
+        assert_eq!(err, crate::retry::classify_error(402, ""));
+    }
+
+    #[test]
+    fn soniox_408_is_provider_unavailable() {
+        let err = parse_status_response(&status_resp(408, "")).unwrap_err();
+        assert_eq!(err, TranscriptionError::ProviderUnavailable { status: 408 });
+        assert_eq!(err, crate::retry::classify_error(408, ""));
+    }
+
+    #[test]
+    fn soniox_401_403_out_of_credits_body_is_quota_exceeded() {
+        for status in [401, 403] {
+            let resp = status_resp(status, OUT_OF_CREDITS_BODY);
+            let err = parse_create_response(&resp).unwrap_err();
+            assert_eq!(err, TranscriptionError::QuotaExceeded, "status {status}");
+            assert_eq!(
+                err,
+                crate::retry::classify_error(status, OUT_OF_CREDITS_BODY)
+            );
+        }
+    }
+
+    #[test]
+    fn soniox_401_403_bad_key_stays_unauthorized() {
+        let body = r#"{"message":"Invalid API key."}"#;
+        for status in [401, 403] {
+            let err = parse_upload_response(&status_resp(status, body)).unwrap_err();
+            assert_eq!(err, TranscriptionError::Unauthorized, "status {status}");
+        }
+    }
+
+    #[test]
+    fn soniox_429_stays_rate_limited_even_with_a_quota_body() {
+        let body = r#"{"error":{"code":"insufficient_quota"}}"#;
+        assert_eq!(
+            parse_transcribe_response(&status_resp(429, body)).unwrap_err(),
+            TranscriptionError::RateLimited {
+                retry_after_secs: None
+            }
+        );
     }
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
+using Whisper.net.Wave;
 
 namespace HyperWhisper.LocalInference;
 
@@ -19,6 +20,13 @@ public sealed class LocalWhisperService : ILocalWhisperService
     private int _requestFactoriesBuilt;
     private bool _verifiedOnLoad;
     private bool _disposed;
+    // One processor kept across calls (issue #1006), rebuilt when its options
+    // change. Whisper.net fixes the params at Build, so the key holds them all.
+    private (WhisperProcessor Processor, ProcessorKey Key)? _processor;
+    // Every kept processor writes its segments here; each call sets its own.
+    private TranscriptSink? _sink;
+    private int _processorsBuilt;
+    private int _fullWindowRetries;
 
     // Set only by a load that succeeded; the factory is then either _factory or
     // the one the ARM64 rule's thread holds, never both.
@@ -152,129 +160,90 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     "No Whisper model is loaded.");
             }
 
-            var text = new StringBuilder();
-            var segments = new List<LocalWhisperSegmentTimestamp>();
-            var words = new List<LocalWhisperWordTimestamp>();
-            var segmentCount = 0;
-            string? detectedLanguage = null;
-            WhisperProcessor Configure(WhisperProcessorBuilder builder)
-            {
-                builder.WithGreedySamplingStrategy();
-                builder.WithThreads(Math.Clamp(request.ThreadCount ?? Math.Max(1, Environment.ProcessorCount - 1), 1, 64));
-                builder.WithTemperature(0);
-                builder.WithNoSpeechThreshold(0.6f);
-                builder.WithEntropyThreshold(2.4f);
-                builder.WithNoContext();
-                if (request.MaxLastTextTokensZero) builder.WithMaxLastTextTokens(0);
-                if (!string.IsNullOrEmpty(request.Prompt)) builder.WithPrompt(request.Prompt);
-                if (request.IncludeWordTimestamps) builder.WithTokenTimestamps();
-                builder.WithSegmentEventHandler(segment =>
-                {
-                    segmentCount++;
-                    detectedLanguage ??= segment.Language;
-                    text.Append(segment.Text);
-                    if (!request.IncludeWordTimestamps) return;
-                    // A segment of only non-speech markers is not speech, so it
-                    // gets no segment or word timestamps (issue #1742).
-                    if (WhisperNonSpeechMarkers.Strip(segment.Text).Length == 0) return;
-                    segments.Add(new(
-                        segments.Count,
-                        segment.Start.TotalSeconds,
-                        segment.End.TotalSeconds,
-                        segment.Text));
-                    foreach (var token in segment.Tokens)
-                    {
-                        var word = token.Text?.Trim() ?? string.Empty;
-                        if (word.Length == 0 || word.StartsWith("<|", StringComparison.Ordinal)
-                            || token.Start < 0 || token.End < token.Start) continue;
-                        words.Add(new(
-                            word,
-                            token.Start / 100d,
-                            token.End / 100d,
-                            float.IsFinite(token.Probability) ? token.Probability : null));
-                    }
-                });
-                if (request.SingleSegment)
-                {
-                    builder.WithTemperatureInc(0).WithSingleSegment();
-                }
-                else
-                {
-                    builder.WithTemperatureInc(0.2f).WithLogProbThreshold(-1.0f);
-                }
-                if (string.IsNullOrWhiteSpace(request.Language))
-                {
-                    builder.WithLanguageDetection();
-                }
-                else
-                {
-                    builder.WithLanguage(request.Language.Trim());
-                }
-                return builder.Build();
-            }
-
-            // Once the ARM64 rule's thread exists it holds the only factory, so
-            // every request goes through it (x64 and Linux never start it).
-            var onFactoryThread = _requestFactoryThread is not null || request.CreateFactoryOnRequestThread;
+            var key = new ProcessorKey(
+                Math.Clamp(request.ThreadCount ?? Math.Max(1, Environment.ProcessorCount - 1), 1, 64),
+                request.SingleSegment,
+                request.IncludeWordTimestamps,
+                request.MaxLastTextTokensZero,
+                string.IsNullOrEmpty(request.Prompt) ? null : request.Prompt,
+                string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
+                AudioContext: 0,
+                // Once the ARM64 rule's thread exists it holds the only factory, so
+                // every request goes through it (x64 and Linux never start it).
+                OnFactoryThread: _requestFactoryThread is not null || request.CreateFactoryOnRequestThread);
+            // Set while a native run on the kept processor is in flight: only a
+            // cancel or failure that may have interrupted one costs it (issue #1006).
+            var keptRunning = false;
             try
             {
-                // The ARM64 thread rule: the factory, its builder and the processor
-                // are all made on the one factory thread, which keeps the factory
-                // across requests (one model read per load, not one per chunk).
-                await using var processor = onFactoryThread
-                    ? await RequestFactoryThread().RunAsync(factory =>
-                        {
-                            WhisperProcessorBuilder builder;
-                            try
-                            {
-                                builder = factory.CreateBuilder();
-                            }
-                            catch (Exception exception)
-                            {
-                                throw new RequestFactoryFault(exception);
-                            }
-                            return Configure(builder);
-                        }).ConfigureAwait(false)
-                    : Configure(_factory!.CreateBuilder());
-                await using var stream = new FileStream(
-                    Path.GetFullPath(request.AudioPath),
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    81920,
-                    FileOptions.Asynchronous | FileOptions.SequentialScan);
-                // Whisper.net reads only a 16 kHz WAV, so a PCM WAV at any other
-                // rate (a 22,050 Hz Local API upload) is resampled here first
-                // (issue #1007). Every other file goes to Whisper.net as before.
-                var resampled = await Task.Run(
-                    () => WaveResampler.TryReadAs16kMono(stream, cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
-                if (resampled is null) stream.Position = 0;
-                await foreach (var _ in (resampled is null
-                        ? processor.ProcessAsync(stream, cancellationToken)
-                        : processor.ProcessAsync(resampled, cancellationToken))
-                    .WithCancellation(cancellationToken)
-                    .ConfigureAwait(false))
+                // The clip's length picks the encoder window, so the audio is read
+                // before the processor is chosen.
+                float[] samples;
+                try
                 {
+                    samples = await ReadSamplesAsync(request.AudioPath, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // The file's fault, so the kept processor stays. With none kept, one
+                    // is still built first, as the old code did, so a broken model
+                    // reports as the model's and not as a bad file. It is not kept:
+                    // its full window would not serve the next short clip.
+                    if (_processor is null)
+                    {
+                        await DisposeQuietlyAsync(await BuildAsync(key).ConfigureAwait(false)).ConfigureAwait(false);
+                    }
+                    return LocalWhisperResult.Failed(
+                        LocalWhisperErrorCode.TranscriptionFailed,
+                        "Local Whisper transcription failed.",
+                        _runtime);
+                }
+                var audioContext = AudioContextFor(samples);
+                var processor = await ProcessorForAsync(key with { AudioContext = audioContext }).ConfigureAwait(false);
+                keptRunning = true;
+                var sink = await RunAsync(processor, samples, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                keptRunning = false;
+                // A shortened window can loop on one phrase (a known whisper.cpp
+                // failure); text far denser than speech is redone on the full
+                // 30 s window, the old behaviour. That run gets its own processor,
+                // so the kept short one serves the next clip (issue #1006).
+                if (audioContext > 0 && IsRunaway(sink.Text.Length, samples.Length))
+                {
+                    Interlocked.Increment(ref _fullWindowRetries);
+                    var fullWindow = await BuildAsync(key).ConfigureAwait(false);
+                    try
+                    {
+                        sink = await RunAsync(fullWindow, samples, request.IncludeWordTimestamps, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await DisposeQuietlyAsync(fullWindow).ConfigureAwait(false);
+                    }
                 }
                 // Whisper writes its own non-speech markers (a blank-audio tag and kin)
                 // as segment text. A silent file or mic must come back empty, so
                 // the workflow reports no speech instead of saving or pasting the
                 // marker as a transcript (issue #1742, the Linux sibling of #1449).
-                var rawText = WhisperNonSpeechMarkers.Strip(text.ToString());
+                var rawText = WhisperNonSpeechMarkers.Strip(sink.Text.ToString());
                 var timestamps = request.IncludeWordTimestamps && rawText.Length > 0
-                    && (segments.Count > 0 || words.Count > 0)
-                    ? new LocalWhisperTimestamps(segments, words, rawText)
+                    && (sink.Segments.Count > 0 || sink.Words.Count > 0)
+                    ? new LocalWhisperTimestamps(sink.Segments, sink.Words, rawText)
                     : null;
                 return LocalWhisperResult.Success(rawText, _runtime, timestamps) with
                 {
-                    UnstrippedText = text.ToString(),
-                    DetectedLanguage = detectedLanguage,
-                    SegmentCount = segmentCount,
+                    UnstrippedText = sink.Text.ToString(),
+                    DetectedLanguage = sink.DetectedLanguage,
+                    SegmentCount = sink.SegmentCount,
                 };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // Not proven safe to reuse after a native abort, so it goes. A cancel
+                // while reading the file, or in a one-off full-window run, leaves it.
+                if (keptRunning)
+                {
+                    await DropProcessorAsync().ConfigureAwait(false);
+                }
                 return LocalWhisperResult.Failed(
                     LocalWhisperErrorCode.Cancelled,
                     "Transcription was cancelled.",
@@ -289,9 +258,10 @@ public sealed class LocalWhisperService : ILocalWhisperService
             }
             catch (Exception)
             {
-                if (onFactoryThread && _requestFactoryThread is { } thread)
+                // The old code never reused a processor (or factory) after a failed file.
+                await DropProcessorAsync().ConfigureAwait(false);
+                if (key.OnFactoryThread && _requestFactoryThread is { } thread)
                 {
-                    // The old code never reused a factory after a failed file.
                     await thread.ResetAsync().ConfigureAwait(false);
                 }
                 return LocalWhisperResult.Failed(
@@ -322,6 +292,268 @@ public sealed class LocalWhisperService : ILocalWhisperService
         {
             _gate.Release();
             _gate.Dispose();
+        }
+    }
+
+    /// <summary>whisper.cpp's full encoder window: 30 s at 50 frames a second.</summary>
+    internal const int FullAudioContext = 1500;
+
+    // Frames added past the clip's end, then rounded up to a bucket. Measured on
+    // base.en (issue #1006): margins up to 150 frames looped on one phrase, 250
+    // still added a made-up sentence to some clips, and 256 rounded up to 128 kept
+    // LibriSpeech WER within the full window's. The buckets let clips of
+    // dictation length share a kept processor.
+    internal const int AudioContextMargin = 256;
+    internal const int AudioContextBucket = 128;
+
+    /// <summary>
+    /// The whisper.cpp <c>audio_ctx</c> for a 16 kHz clip of <paramref name="samples"/>
+    /// samples: only the frames the clip needs plus a margin are encoded, not
+    /// the full 30 s window (issue #1006). 0 keeps the full window: a clip whose
+    /// window would reach 30 s, or one of unknown or zero length.
+    /// </summary>
+    internal static int AudioContextFor(long? samples)
+    {
+        if (samples is not > 0) return 0;
+        const int samplesPerFrame = WaveResampler.TargetRate / (FullAudioContext / 30);
+        var frames = (samples.Value + samplesPerFrame - 1) / samplesPerFrame;
+        var context = (frames + AudioContextMargin + AudioContextBucket - 1) / AudioContextBucket * AudioContextBucket;
+        return context >= FullAudioContext ? 0 : (int)context;
+    }
+
+    /// <summary>
+    /// The window for these decoded samples: digital silence (a muted mic) keeps
+    /// the full window, because a shortened one made tiny.en hear "you" in
+    /// zeros where the full window hears nothing (issue #1006).
+    /// </summary>
+    internal static int AudioContextFor(float[]? samples)
+    {
+        // Length first: a clip that gets the full window anyway is never scanned.
+        var context = AudioContextFor(samples?.LongLength);
+        return context > 0 && IsDigitalSilence(samples!) ? 0 : context;
+    }
+
+    /// <summary>
+    /// -80 dBFS. Zeros and 1-3 LSB of 16-bit dither sit under it; the quietest
+    /// noise fixture (pink noise at -60 dB RMS) peaks at -64 dBFS (issue #1006).
+    /// </summary>
+    internal const float DigitalSilencePeak = 1e-4f;
+
+    /// <summary>Whether no sample reaches <see cref="DigitalSilencePeak"/>.</summary>
+    internal static bool IsDigitalSilence(ReadOnlySpan<float> samples)
+    {
+        foreach (var sample in samples)
+        {
+            if (Math.Abs(sample) >= DigitalSilencePeak) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Whether text from a shortened window is too dense to be speech: a
+    /// repetition loop. The full window never passed 24 characters a second on
+    /// the issue #1006 fixtures; the loops it caught ran from 150 to over 500.
+    /// </summary>
+    internal static bool LooksRunaway(int characters, long samples) =>
+        characters > 50 + 25 * (samples / (double)WaveResampler.TargetRate);
+
+    /// <summary>
+    /// The file's audio at 16 kHz mono. A PCM WAV at another rate is resampled
+    /// here (issue #1007); everything else is read by Whisper.net's own parser,
+    /// exactly as its <c>ProcessAsync(Stream)</c> did, so it fails the same way.
+    /// </summary>
+    private static async Task<float[]> ReadSamplesAsync(string audioPath, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(
+            Path.GetFullPath(audioPath),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var resampled = await Task.Run(
+            () => WaveResampler.TryReadAs16kMono(stream, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        if (resampled is not null) return resampled;
+        stream.Position = 0;
+        return await new WaveParser(stream).GetAvgSamplesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The kept processor when its options match, else a new one that replaces
+    /// it: at most one is held. On the ARM64 rule's path it is built on the
+    /// factory thread, like the factory and its builder.
+    /// </summary>
+    private async Task<WhisperProcessor> ProcessorForAsync(ProcessorKey key)
+    {
+        if (_processor is { } kept && kept.Key == key) return kept.Processor;
+        // Dropped before the ARM64 thread can take over (and dispose) the
+        // load's factory, which this processor was made from.
+        await DropProcessorAsync().ConfigureAwait(false);
+        var processor = await BuildAsync(key).ConfigureAwait(false);
+        _processor = (processor, key);
+        return processor;
+    }
+
+    /// <summary>
+    /// A new processor for <paramref name="key"/>, not kept. On the ARM64 rule's
+    /// path it is built on the factory thread, like the factory and its builder,
+    /// and like a kept one it must be disposed before that thread is.
+    /// </summary>
+    private async Task<WhisperProcessor> BuildAsync(ProcessorKey key)
+    {
+        var processor = key.OnFactoryThread
+            ? await RequestFactoryThread().RunAsync(factory =>
+                {
+                    WhisperProcessorBuilder builder;
+                    try
+                    {
+                        builder = factory.CreateBuilder();
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new RequestFactoryFault(exception);
+                    }
+                    return Configure(builder, key);
+                }).ConfigureAwait(false)
+            : Configure(_factory!.CreateBuilder(), key);
+        Interlocked.Increment(ref _processorsBuilt);
+        return processor;
+    }
+
+    private WhisperProcessor Configure(WhisperProcessorBuilder builder, ProcessorKey key)
+    {
+        builder.WithGreedySamplingStrategy();
+        builder.WithThreads(key.Threads);
+        builder.WithTemperature(0);
+        builder.WithNoSpeechThreshold(0.6f);
+        builder.WithEntropyThreshold(2.4f);
+        builder.WithNoContext();
+        if (key.MaxLastTextTokensZero) builder.WithMaxLastTextTokens(0);
+        if (key.Prompt is not null) builder.WithPrompt(key.Prompt);
+        if (key.IncludeWordTimestamps) builder.WithTokenTimestamps();
+        if (key.AudioContext > 0) builder.WithAudioContextSize(key.AudioContext);
+        // The processor outlives the call, so segments go to the current call's sink.
+        builder.WithSegmentEventHandler(segment => _sink?.Add(segment));
+        if (key.SingleSegment)
+        {
+            builder.WithTemperatureInc(0).WithSingleSegment();
+        }
+        else
+        {
+            builder.WithTemperatureInc(0.2f).WithLogProbThreshold(-1.0f);
+        }
+        if (key.Language is null)
+        {
+            builder.WithLanguageDetection();
+        }
+        else
+        {
+            builder.WithLanguage(key.Language);
+        }
+        return builder.Build();
+    }
+
+    private async Task<TranscriptSink> RunAsync(
+        WhisperProcessor processor,
+        float[] samples,
+        bool includeWordTimestamps,
+        CancellationToken cancellationToken)
+    {
+        var sink = new TranscriptSink(includeWordTimestamps);
+        _sink = sink;
+        try
+        {
+            await foreach (var _ in processor.ProcessAsync(samples, cancellationToken)
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+            {
+            }
+        }
+        finally
+        {
+            _sink = null;
+        }
+        return sink;
+    }
+
+    private async Task DropProcessorAsync()
+    {
+        if (_processor is not { } kept) return;
+        _processor = null;
+        await DisposeQuietlyAsync(kept.Processor).ConfigureAwait(false);
+    }
+
+    private static async Task DisposeQuietlyAsync(WhisperProcessor processor)
+    {
+        try
+        {
+            // Waits for a native run still unwinding from a cancel.
+            await processor.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // A processor that will never run again must not fail a load or a request.
+        }
+    }
+
+    /// <summary>Test seam: how many processors this service has built in its life.</summary>
+    internal int ProcessorsBuilt => Volatile.Read(ref _processorsBuilt);
+
+    /// <summary>Test seam: the kept processor's audio_ctx (0 = full window), or null when none is kept.</summary>
+    internal int? KeptAudioContext => _processor?.Key.AudioContext;
+
+    /// <summary>Test seam: how many shortened-window runs were redone on the full window.</summary>
+    internal int FullWindowRetries => Volatile.Read(ref _fullWindowRetries);
+
+    /// <summary>Test seam: the repetition-loop rule, <see cref="LooksRunaway"/> unless a test forces a retry.</summary>
+    internal Func<int, long, bool> IsRunaway { get; set; } = LooksRunaway;
+
+    /// <summary>Every option a processor fixes at Build; a kept one is reused only on an exact match.</summary>
+    private readonly record struct ProcessorKey(
+        int Threads,
+        bool SingleSegment,
+        bool IncludeWordTimestamps,
+        bool MaxLastTextTokensZero,
+        string? Prompt,
+        string? Language,
+        int AudioContext,
+        bool OnFactoryThread);
+
+    /// <summary>One call's transcript, filled by the kept processor's segment handler.</summary>
+    private sealed class TranscriptSink(bool includeWordTimestamps)
+    {
+        public StringBuilder Text { get; } = new();
+        public List<LocalWhisperSegmentTimestamp> Segments { get; } = [];
+        public List<LocalWhisperWordTimestamp> Words { get; } = [];
+        public int SegmentCount { get; private set; }
+        public string? DetectedLanguage { get; private set; }
+
+        public void Add(SegmentData segment)
+        {
+            SegmentCount++;
+            DetectedLanguage ??= segment.Language;
+            Text.Append(segment.Text);
+            if (!includeWordTimestamps) return;
+            // A segment of only non-speech markers is not speech, so it
+            // gets no segment or word timestamps (issue #1742).
+            if (WhisperNonSpeechMarkers.Strip(segment.Text).Length == 0) return;
+            Segments.Add(new(
+                Segments.Count,
+                segment.Start.TotalSeconds,
+                segment.End.TotalSeconds,
+                segment.Text));
+            foreach (var token in segment.Tokens)
+            {
+                var word = token.Text?.Trim() ?? string.Empty;
+                if (word.Length == 0 || word.StartsWith("<|", StringComparison.Ordinal)
+                    || token.Start < 0 || token.End < token.Start) continue;
+                Words.Add(new(
+                    word,
+                    token.Start / 100d,
+                    token.End / 100d,
+                    float.IsFinite(token.Probability) ? token.Probability : null));
+            }
         }
     }
 
@@ -464,8 +696,10 @@ public sealed class LocalWhisperService : ILocalWhisperService
     /// <summary>A fault in making the ARM64 rule's factory or its builder: a load fault, not a transcription one.</summary>
     private sealed class RequestFactoryFault(Exception inner) : Exception(inner.Message, inner);
 
-    private Task DisposeFactoryAsync()
+    private async Task DisposeFactoryAsync()
     {
+        // The kept processor uses the factory's model, so it goes first.
+        await DropProcessorAsync().ConfigureAwait(false);
         _requestFactoryThread?.Dispose();
         _requestFactoryThread = null;
         _factory?.Dispose();
@@ -474,7 +708,6 @@ public sealed class LocalWhisperService : ILocalWhisperService
         _modelPath = null;
         _factoryOptions = null;
         _verifiedOnLoad = false;
-        return Task.CompletedTask;
     }
 }
 

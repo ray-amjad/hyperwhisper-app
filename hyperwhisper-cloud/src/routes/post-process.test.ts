@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
-import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
+import { creditsForCost } from '../lib/cost-calculator';
+import { computeLLMChatCost } from '../lib/llm-models';
 import { stubEnv } from '../test-support/env';
 
 // A valid, well-funded licensed user so auth + credit checks pass entirely
@@ -115,6 +116,33 @@ describe('postProcessRoute validation', () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  test('accepts an uppercase JSON Content-Type such as Application/JSON (#2326)', async () => {
+    // A body with no "text" gets past the Content-Type gate only if the gate
+    // reads the media type case-insensitively; it then fails on the field.
+    const response = await buildApp().fetch(
+      postProcessRequest({ prompt: 'fix grammar', account_key: 'lk' }, { 'Content-Type': 'Application/JSON' })
+    );
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Missing field');
+  });
+
+  test('echoes the Content-Type as sent when it is not JSON', async () => {
+    const response = await buildApp().fetch(
+      new Request('http://localhost/post-process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'Text/Plain' },
+        body: 'hello',
+      })
+    );
+    const body = await response.json() as { error: string; received: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid Content-Type');
+    expect(body.received).toBe('Text/Plain');
   });
 
   test('rejects a missing "text" field with 400', async () => {
@@ -434,6 +462,33 @@ describe('postProcessRoute completion evaluation', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
+  test('request_done reports hadLeakage only when a leak was detected', async () => {
+    async function hadLeakageFor(cerebrasText: string): Promise<unknown> {
+      withProviders({
+        'api.cerebras.ai': () => Response.json(chatCompletion(cerebrasText)),
+        'api.groq.com': () => Response.json(chatCompletion('Clean corrected text.')),
+      });
+      const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        await buildApp().fetch(
+          postProcessRequest({ text: 'the original transcript', prompt: 'fix grammar', account_key: 'lk' })
+        );
+        const done = logSpy.mock.calls
+          .map((call) => String(call[0]))
+          .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.request_done"'))
+          .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+        expect(done).toHaveLength(1);
+        return done[0].hadLeakage;
+      } finally {
+        logSpy.mockRestore();
+      }
+    }
+
+    expect(await hadLeakageFor('--TRANSCRIPT--\nleaked prompt\n--ENDTRANSCRIPT--')).toBe(true);
+    // An LLM that returns the transcript unchanged did not leak the prompt.
+    expect(await hadLeakageFor('the original transcript')).toBe(false);
+  });
+
   test('falls back to the raw transcript when prompt leakage persists on the alternate provider too', async () => {
     withProviders({
       'api.cerebras.ai': () => Response.json(chatCompletion('--TRANSCRIPT--\nleaked once\n--ENDTRANSCRIPT--')),
@@ -495,7 +550,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
     );
     const body = await response.json() as { corrected: string; cost: { usd: number; credits: number } };
 
-    const expectedUsd = computeCerebrasChatCost(usage(50, 20)) + computeGroqChatCost(usage(400, 300));
+    const expectedUsd = computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(50, 20)) + computeLLMChatCost('groq', 'openai/gpt-oss-120b', usage(400, 300));
 
     expect(response.status).toBe(200);
     expect(body.corrected).toBe(TRANSCRIPT);
@@ -522,7 +577,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
 
     expect(response.status).toBe(200);
     expect(body.corrected).toBe(TRANSCRIPT);
-    expect(body.cost.usd).toBeCloseTo(computeCerebrasChatCost(usage(50, 20)), 9);
+    expect(body.cost.usd).toBeCloseTo(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(50, 20)), 9);
     // groq's retry budget is 3, so a failing retry is 1 attempt + 3 retries.
     expect(groqAttempts).toBe(4);
     // Nothing was served by groq, so the header must still name cerebras.
@@ -559,7 +614,7 @@ describe('postProcessRoute billing when the output is unusable', () => {
     // deductCredits is fired without being awaited, so wait for the write.
     await deducted;
     expect(deduction).not.toBeNull();
-    expect(deduction!.amount).toBe(creditsForCost(computeCerebrasChatCost(usage(120, 90))));
+    expect(deduction!.amount).toBe(creditsForCost(computeLLMChatCost('cerebras', 'gpt-oss-120b', usage(120, 90))));
     expect(deduction!.metadata.endpoint).toBe('/post-process');
     expect(deduction!.metadata.llm_provider).toBe('cerebras');
     expect(deduction!.metadata.input_length).toBe(TRANSCRIPT.length);
@@ -861,7 +916,9 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
   });
 
   test('a missing provider key is not named to the client', async () => {
+    // A missing key fails over (503) without retries, so both keys go.
     delete process.env.CEREBRAS_API_KEY;
+    delete process.env.GROQ_API_KEY;
     withProviders({});
 
     const body = await readFailure(await buildApp().fetch(
@@ -869,6 +926,24 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
     ));
 
     expect(JSON.stringify(body)).not.toContain('CEREBRAS_API_KEY');
+    expect(JSON.stringify(body)).not.toContain('GROQ_API_KEY');
+  });
+
+  test('a missing provider key falls back to the fallback provider', async () => {
+    delete process.env.CEREBRAS_API_KEY;
+    withProviders({
+      'api.groq.com': () => Response.json({
+        choices: [{ message: { content: '<<CLEANED>>hello world<<END>>' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-llm-provider')).toBe('groq-gpt-oss-120b');
   });
 
   test('the fallback provider\'s error body is not echoed when both providers fail', async () => {
@@ -893,4 +968,94 @@ describe('postProcessRoute 500 replies do not echo the failure text', () => {
       postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
     ));
   });
+});
+
+// #1095: every malformed-request 400 writes exactly one rejection event with a
+// reason, and the event never carries the request's text, prompt or key.
+describe('postProcessRoute malformed-request rejections are logged', () => {
+  let providerCalled: boolean;
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    ipBlocked = false;
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  async function rejectionsFor(request: Request): Promise<{ status: number; lines: string[]; rejections: Record<string, unknown>[] }> {
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const response = await buildApp().fetch(request);
+      const lines = logSpy.mock.calls.map((call) => String(call[0]));
+      const rejections = lines
+        .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.request_rejected"'))
+        .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+      return { status: response.status, lines, rejections };
+    } finally {
+      logSpy.mockRestore();
+    }
+  }
+
+  const longText = 'secret dictation '.repeat(6000);
+  const cases: { name: string; request: () => Request; reason: string; fields?: Record<string, unknown> }[] = [
+    {
+      name: 'a wrong Content-Type',
+      request: () => jsonRequest(JSON.stringify({ text: 'hi', prompt: 'fix', account_key: 'lk' }), { 'Content-Type': 'text/plain' }),
+      reason: 'invalid_content_type',
+      fields: { contentType: 'text/plain' },
+    },
+    {
+      name: 'a malformed JSON body',
+      request: () => jsonRequest('{"text": "private words", "prompt":'),
+      reason: 'invalid_json',
+    },
+    {
+      name: 'a JSON body that is not an object',
+      request: () => jsonRequest('null'),
+      reason: 'body_not_object',
+    },
+    {
+      name: 'a body with no text',
+      request: () => postProcessRequest({ prompt: 'fix grammar', account_key: 'lk' }),
+      reason: 'missing_text',
+    },
+    {
+      name: 'a text over the length cap',
+      request: () => postProcessRequest({ text: longText, prompt: 'fix grammar', account_key: 'lk' }),
+      reason: 'text_too_long',
+      fields: { textLength: longText.trim().length, maxLength: 100000 },
+    },
+    {
+      name: 'a body with no prompt',
+      request: () => postProcessRequest({ text: 'private words', account_key: 'lk' }),
+      reason: 'missing_prompt',
+    },
+  ];
+
+  for (const { name, request, reason, fields } of cases) {
+    test(`${name} answers 400 and logs one ${reason} rejection`, async () => {
+      const { status, lines, rejections } = await rejectionsFor(request());
+
+      expect(status).toBe(400);
+      expect(providerCalled).toBe(false);
+      expect(rejections).toHaveLength(1);
+      expect(rejections[0]).toMatchObject({ reason, ...fields });
+      for (const line of lines) {
+        expect(line).not.toContain('private words');
+        expect(line).not.toContain('secret dictation');
+        expect(line).not.toContain('fix grammar');
+        expect(line).not.toContain('"lk"');
+      }
+    });
+  }
 });

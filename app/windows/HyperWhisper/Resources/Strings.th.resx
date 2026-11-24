@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>นี่คือโหมดเริ่มต้น จึงไม่สามารถเปลี่ยนชื่อได้ คุณสามารถเปลี่ยนชื่อโหมดอื่นได้</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>มีโหมดที่ใช้ชื่อนี้อยู่แล้ว</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (ไม่มีคีย์ API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (คีย์ไม่ถูกต้อง)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -942,15 +948,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2183,7 +2180,7 @@ You can re-download it later.</value>
     <value>เลือกอย่างน้อยหนึ่งส่วนที่ต้องการนำเข้า</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>เพิ่ม {0} คำใหม่, {1} รายการขัดแย้งกับคำที่มีอยู่ ดำเนินการต่อ?</value>
+    <value>คำใหม่: {0} รายการ คำที่ขัดแย้งกับคำที่มีอยู่: {1} รายการ ดำเนินการต่อหรือไม่?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>นำเข้าคำศัพท์?</value>
@@ -2205,6 +2202,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>กู้คืนการตั้งค่าแล้ว</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>กู้คืนคีย์ API แล้ว</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>ไม่สามารถกู้คืนคีย์ API อย่างน้อยหนึ่งรายการได้</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>ข้อมูลสำรองไม่มีคีย์ API</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>ไม่สามารถกู้คืนการตั้งค่าได้</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>นำเข้าข้อมูลสำรองแล้วแต่มีปัญหา {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>หากคำนั้นมีอยู่แล้ว:</value>

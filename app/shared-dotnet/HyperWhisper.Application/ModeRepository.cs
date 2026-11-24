@@ -41,10 +41,19 @@ public sealed class ModeRepository(ApplicationDb database)
     public async Task<bool> DeleteSafelyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var context = _database.CreateContext();
-        var modes = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
+        // The count check and the delete are one unit (issue #2663). Without the transaction two
+        // overlapping deletes of different modes each read two rows, both pass the check, and the
+        // table ends with none. A non-deferred SQLite transaction is BEGIN IMMEDIATE, which takes
+        // the write lock before the read, so a second delete waits here and then sees one row.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        // Same order as ListAsync, so the mode the default flag moves to is the one the Local API's
+        // delete moved it to before that path was routed through here.
+        var modes = await context.Modes
+            .OrderBy(item => item.SortOrder).ThenBy(item => item.Name)
+            .ToListAsync(cancellationToken);
         var target = modes.SingleOrDefault(item => item.Id == id);
         if (target is null) return false;
-        if (modes.Count == 1) throw new InvalidOperationException("Cannot delete the last remaining mode.");
+        if (modes.Count == 1) throw new ModeRuleViolationException("modes.last_mode", "Cannot delete the last remaining mode.");
         context.Modes.Remove(target);
         // Deleting the default moves the flag rather than leaving none. Which
         // mode it moves to is the shared core's decision (issue #536), so a
@@ -54,6 +63,7 @@ public sealed class ModeRepository(ApplicationDb database)
         foreach (var row in remaining.Where(row => moved.Contains(row.Id)))
             row.ModifiedDate = DateTime.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -65,16 +75,16 @@ public sealed class ModeRepository(ApplicationDb database)
         await using var context = _database.CreateContext();
         var all = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
         if (all.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException("A mode with that name already exists.");
+            throw new ModeRuleViolationException("modes.name_taken", "A mode with that name already exists.");
         var existing = all.SingleOrDefault(item => item.Id == mode.Id);
         // Both checks read the row as it stands BEFORE the write (issue #536).
         if (existing is not null
             && DefaultModePolicy.CheckRename(existing, mode.Name)
                 == PortableModeNameChange.RejectedDefaultIsFixed)
-            throw new InvalidOperationException("The default mode's name cannot be changed.");
+            throw new ModeRuleViolationException("modes.default_name_fixed", "The default mode's name cannot be changed.");
         if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)
             == PortableDefaultFlagChange.RejectedLastDefault)
-            throw new InvalidOperationException("At least one mode must remain the default.");
+            throw new ModeRuleViolationException("modes.last_default", "At least one mode must remain the default.");
         if (existing is null)
         {
             context.Modes.Add(mode);
@@ -87,4 +97,14 @@ public sealed class ModeRepository(ApplicationDb database)
         DefaultModePolicy.Apply(all, mode.IsDefault ? mode.Id : null);
         await context.SaveChangesAsync(cancellationToken);
     }
+}
+
+/// <summary>
+/// A save <see cref="ModeRepository.UpsertSafelyAsync"/> or a delete
+/// <see cref="ModeRepository.DeleteSafelyAsync"/> refused on a mode rule, not on a storage fault.
+/// <see cref="Code"/> is the status code the editor shows it under (issues #2551, #2561).
+/// </summary>
+public sealed class ModeRuleViolationException(string code, string message) : InvalidOperationException(message)
+{
+    public string Code { get; } = code;
 }

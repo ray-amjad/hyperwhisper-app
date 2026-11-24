@@ -335,6 +335,31 @@ public sealed partial class ApplicationBackupService
         return PlatformResult<MergeCalculation>.Success(new MergeCalculation(preview, modes, vocabulary));
     }
 
+    // #2115: schemaVersion is read by value, so `2.0` is 2 the way the shared core reads it.
+    // A missing key reads as 0; `2.5`, `"2"` or any non-number is not an integer.
+    private static bool TryReadSchemaVersion(JsonNode? node, out int schemaVersion)
+    {
+        schemaVersion = 0;
+        return node is null || TryReadIntegralInt32(node, out schemaVersion);
+    }
+
+    /// <summary>
+    /// Reads a JSON number whose value is a whole number (<c>2</c>, <c>2.0</c>, <c>2e0</c>) as an
+    /// <see cref="int"/>, the way the shared core's <c>integral_i64</c> and the schema's
+    /// <c>"type": "integer"</c> do (#2115). A fraction, a string or any other node is false.
+    /// </summary>
+    internal static bool TryReadIntegralInt32(JsonNode node, out int result)
+    {
+        result = 0;
+        if (node is not JsonValue value || value.GetValueKind() != JsonValueKind.Number) return false;
+        if (value.TryGetValue(out result)) return true;
+        if (!value.TryGetValue(out double number)
+            || Math.Floor(number) != number
+            || number < int.MinValue || number > int.MaxValue) return false;
+        result = (int)number;
+        return true;
+    }
+
     private static PlatformResult<ParsedBackup> ParseAndValidate(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -344,10 +369,8 @@ public sealed partial class ApplicationBackupService
         catch (JsonException) { return PlatformResult<ParsedBackup>.Failure("backup.invalid_json", "The application backup is not valid JSON."); }
         if (root is null) return PlatformResult<ParsedBackup>.Failure("backup.invalid_json", "The application backup must be a JSON object.");
 
-        int schemaVersion;
-        try { schemaVersion = root["schemaVersion"]?.GetValue<int>() ?? 0; }
-        catch (Exception exception) when (exception is InvalidOperationException or FormatException)
-        { return PlatformResult<ParsedBackup>.Failure("backup.unsupported_version", "The application backup version must be an integer."); }
+        if (!TryReadSchemaVersion(root["schemaVersion"], out var schemaVersion))
+            return PlatformResult<ParsedBackup>.Failure("backup.unsupported_version", "The application backup version must be an integer.");
         if (schemaVersion != 2)
             return PlatformResult<ParsedBackup>.Failure("backup.unsupported_version", "The application backup version is not supported.");
         var validation = SharedCoreBridge.ValidateBackup(json);

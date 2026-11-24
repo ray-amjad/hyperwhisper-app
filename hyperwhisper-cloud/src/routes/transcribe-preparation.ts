@@ -1,11 +1,11 @@
-import { validateDictationOptions } from '../providers/assemblyai-dictation';
 import type { Context } from 'hono';
 import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
+import { rejectRequestOptions } from '../providers/request-options';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
-import { isIPBlocked } from '../lib/redis';
-import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import { readAccountKey } from '../lib/account-key';
+import { generateRequestId, getFlyRequestId } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
 import {
   MEDICAL_DOMAIN,
@@ -15,9 +15,8 @@ import {
 import {
   authDiagnosticsForLog,
   type AuthContext,
-  validateAuth,
 } from '../middleware/auth';
-import { keyRateLimitResponse } from '../middleware/rate-limit';
+import { openRequestGate } from '../middleware/request-gate';
 import { prepareTranscriptionAudio } from './transcribe-audio';
 import {
   extractDomain,
@@ -27,6 +26,7 @@ import {
   validateStreamingHeaders,
 } from './transcribe-request';
 import { clientOffersLatencyOptOut } from '../lib/latency-eligibility';
+import { flyMachineId, machineLabels } from '../lib/fly-machine';
 
 export interface PreparedTranscriptionRequest {
   requestId: string;
@@ -57,17 +57,15 @@ export async function prepareTranscriptionRequest(
 ): Promise<PreparedTranscriptionRequest | Response> {
   const requestId = generateRequestId();
   const startTime = performance.now();
-  const clientIP = getClientIP(c);
   const flyRequestId = getFlyRequestId(c);
 
-  // IP block check
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'ip_blocked',
-      flyRequestId,
-    });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  // IP block now; auth + the per-key rate limit after the header checks.
+  const gate = await openRequestGate(c, { endpoint: '/transcribe' });
+  if (!gate.ok) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', { reason: gate.reason, flyRequestId });
+    return gate.response;
   }
+  const clientIP = gate.clientIP;
   logEvent(requestId, startTime, 'transcribe.ip_check_done', { flyRequestId });
 
   const providerSelection = extractProvider(c);
@@ -126,10 +124,18 @@ export async function prepareTranscriptionRequest(
   const language = rawQuery(c.req.url, 'language');
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
-  if (provider === 'assemblyai' && model === 'dictation') {
-    try { validateDictationOptions(language, domain); } catch (error) {
-      return errorResponse(400, 'Invalid Dictation options', (error as Error).message, { requestId });
-    }
+  // Per-model option rules (language, domain) live in the providers layer; the
+  // route only turns a rejection into the 400. See providers/request-options.ts.
+  const optionsRejection = rejectRequestOptions(provider, model, { language, domain });
+  if (optionsRejection !== null) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', {
+      reason: 'invalid_dictation_options',
+      flyRequestId,
+      // Caller-supplied query value, so cap what reaches the log.
+      language: language?.slice(0, 35),
+      hasDomain: Boolean(domain),
+    });
+    return errorResponse(400, 'Invalid Dictation options', optionsRejection, { requestId });
   }
 
   // Some providers are unreachable from the region this machine runs in. The
@@ -167,8 +173,8 @@ export async function prepareTranscriptionRequest(
     flyRequestId,
     clientPlatform,
     clientVersion,
-    flyRegion: process.env.FLY_REGION || 'local',
-    flyMachineId: process.env.FLY_MACHINE_ID,
+    flyRegion: machineLabels().region,
+    flyMachineId: flyMachineId(),
     proxyOverheadMs,
     provider,
     model: model || 'default',
@@ -181,34 +187,19 @@ export async function prepareTranscriptionRequest(
   });
 
   // Auth (query params only) — Cloud is licensed-only; a valid account key is required.
-  // `account_key` is the canonical param name; `license_key` is the legacy alias
-  // that installed native apps still send, so we accept either.
-  const authResult = await validateAuth({
-    licenseKey:
-      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'auth_failed',
-      flyRequestId,
-      status: authResult.response.status,
-      ...authDiagnosticsForLog(authResult.diagnostics),
-    });
-    return authResult.response;
-  }
-  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(authResult.diagnostics));
-
-  // Per-key rate limit, after auth and before the audio is buffered or any
+  // Per-key rate limit after auth, before the audio is buffered or any
   // credits are held (middleware/rate-limit.ts, #2010).
-  const rateLimited = await keyRateLimitResponse('/transcribe', authResult.value.licenseKey);
-  if (rateLimited) {
+  const admission = await gate.admitKey(readAccountKey((field) => rawQuery(c.req.url, field)));
+  if (!admission.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'rate_limited',
+      reason: admission.reason,
       flyRequestId,
-      status: rateLimited.status,
+      status: admission.response.status,
+      ...(admission.reason === 'auth_failed' ? authDiagnosticsForLog(admission.authDiagnostics) : {}),
     });
-    return rateLimited;
+    return admission.response;
   }
+  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(admission.authDiagnostics));
 
   const audioPreparation = await prepareTranscriptionAudio({
     c,
@@ -222,7 +213,7 @@ export async function prepareTranscriptionRequest(
     medical,
     initialPrompt,
     language,
-    auth: authResult.value,
+    auth: admission.auth,
     clientIP,
   });
   if (!audioPreparation.ok) {
@@ -245,7 +236,7 @@ export async function prepareTranscriptionRequest(
     mode,
     clientPlatform,
     clientVersion,
-    auth: authResult.value,
+    auth: admission.auth,
     audioBuffer: audioPreparation.audioBuffer,
     latencyOptOut,
     latencyReportable: !latencyOptOut && latencyEligibleClient,
