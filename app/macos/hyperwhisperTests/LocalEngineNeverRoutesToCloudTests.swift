@@ -108,17 +108,18 @@ struct LocalEngineNeverRoutesToCloudTests {
         }
     }
 
-    /// `model: "cloud"` with a Whisper engine is refused the way the
-    /// engine-only path refuses it: `resolveProvider` hands the trimmed id to
-    /// `selectLocalProvider`, which throws "Unknown local model: <id>".
-    @Test func aCloudWhisperModelOnTheMixedPathIsRefusedLikeTheEngineOnlyPath() {
+    /// `model: "cloud"` with a Whisper engine is refused on the mixed path.
+    /// Since issue #1934 (Ray's decision 2026-10-18) the refusal is
+    /// INVALID_REQUEST naming the caller's spelling; it was ENGINE_UNAVAILABLE
+    /// "Unknown local model: <id>", "Try again later".
+    @Test func aCloudWhisperModelOnTheMixedPathIsRefused() {
         for engine in Self.whisperSpellings {
             for cloud in ["cloud", "CLOUD", " Cloud "] {
                 let trimmed = cloud.trimmingCharacters(in: .whitespacesAndNewlines)
-                let refused = Self.refusal(engine: engine, model: cloud)
+                let refused = Self.inputRefusal(engine: engine, model: cloud)
                 #expect(refused != nil, "engine '\(engine)' with model '\(cloud)' was not refused")
-                #expect(refused?.provider == "Local")
-                #expect(refused?.reason == "Unknown local model: \(trimmed)")
+                #expect(refused?.code == .invalidRequest)
+                #expect(refused?.message == "'\(trimmed)' is not a local Whisper model")
             }
         }
     }
@@ -174,8 +175,15 @@ struct LocalEngineNeverRoutesToCloudTests {
             .filter { $0 != .whisperLocal && $0 != .parakeet }
             .map { localApiEngineWireLabel(id: $0) }
         #expect(others.count >= 3, "the shared engine table answered too few other local engines")
-        let models: [String?] = ["", "  ", "cloud", "CLOUD", nil]
+        // Nemotron refuses a non-blank model that names no variant ("cloud"
+        // included) with MODEL_NOT_FOUND since issue #1934; that refusal is
+        // pinned in `LocalAPIRequestMistakeErrorTests`. Its blank and missing
+        // models are still let through.
+        let nemotronLabel = localApiEngineWireLabel(id: .nemotron)
         for engine in others {
+            let models: [String?] = engine == nemotronLabel
+                ? ["", "  ", nil]
+                : ["", "  ", "cloud", "CLOUD", nil]
             for model in models {
                 #expect(
                     Self.refusal(engine: engine, model: model) == nil,
