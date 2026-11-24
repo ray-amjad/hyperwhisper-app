@@ -570,6 +570,9 @@ export default function DownloadPage() {
                       >
                         {t("linuxReleaseNotes")}
                       </a>
+                      <Link className={LINK_LAV} href="/linux">
+                        {t("learnMoreLinux")}
+                      </Link>
                     </div>
                   ) : (
                     <button

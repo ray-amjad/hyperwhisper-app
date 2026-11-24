@@ -153,6 +153,7 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     { label: t("features"), href: siteHref("/#features") },
     { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
+    { label: t("linux"), href: siteHref("/linux") },
     chooseModelItem,
     latencyItem,
     { label: t("faq"), href: siteHref("/#faq") },
@@ -162,6 +163,10 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     { label: t("features"), href: siteHref("/#features") },
     { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
+    // A LocaleLink would prefix "en" back onto an English-only page's link.
+    nativeLinks
+      ? { label: t("linux"), href: siteHref("/linux"), raw: true }
+      : { label: t("linux"), href: "/linux" },
     chooseModelItem,
     latencyItem,
     { label: t("faq"), href: siteHref("/#faq") },
