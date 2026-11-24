@@ -61,6 +61,38 @@ static class MicSilenceWarningSessionTests
         }, watcher);
     }
 
+    // Codex review round 1 on #2431: capture opens inside the start, which still awaits work (the
+    // workflow's history write) before StartAsync arms the clock. Speech in that window must count, so a
+    // pause right after it is not "No sound from {mic}"; a silent window still warns as before.
+    public static async Task PeakDuringStartCounts()
+    {
+        var clock = new ManualClock();
+        using var watcher = new MicSilenceWatcher(clock.Now, startTimer: false);
+        var speakDuringStart = true;
+        await RecordingStatusAfterStopTests.RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+        {
+            Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+            Check(!watcher.IsArmed, "speech heard while the start finished did not count");
+            clock.Advance(TimeSpan.FromSeconds(5));
+            watcher.Tick();
+            Check(overlay.MicSilence.All(change => change is null),
+                $"the user spoke during the start and paused, and was told No sound: [{Describe(overlay.MicSilence)}]");
+            await session.StopAsync();
+
+            speakDuringStart = false;
+            Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the second start failed");
+            Check(watcher.IsArmed, "a silent start did not arm the clock");
+            clock.Advance(TimeSpan.FromSeconds(2));
+            watcher.Tick();
+            Check(overlay.MicSilence.LastOrDefault() is { } label && label.Value == session.ActiveMicrophoneName,
+                $"a recording silent through its start did not warn: [{Describe(overlay.MicSilence)}]");
+            await session.CancelAsync();
+        }, watcher, onCaptureStarted: () =>
+        {
+            if (speakDuringStart) watcher.ObserveBlockPeak(-30);
+        });
+    }
+
     private static string Describe(List<LinuxOverlayMicrophoneLabel?> changes) =>
         string.Join(",", changes.Select(change => change is { } label ? $"'{label.Value}'" : "hide"));
 

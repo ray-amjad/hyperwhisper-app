@@ -277,6 +277,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         // The gate above proved this is a real, enumerated, user-selectable source, so no `"default"`
         // sentinel reaches PrepareAudio, parec, or `@DEFAULT_SOURCE@` from here.
         var deviceId = selectedDeviceId!;
+        // #2411: capture can deliver blocks inside the start below, before it returns (the batch workflow
+        // and the live controller await more work after the device opens). Listen from here so speech in
+        // that window counts; the clock itself still starts only once the start succeeded. A failed start
+        // goes through ClearSession, which stops the watcher, so nothing stale survives it.
+        ActiveMicrophoneName = selectedDeviceName;
+        _micSilence.Listen();
         PrepareAudio(deviceId);
         PlatformResult started;
         if (_streaming)
@@ -304,8 +310,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(started.Error?.Code, transcription: false));
             return started;
         }
-        // Capture is running now: the 2 s "No sound from {mic}" clock starts here, not at the hotkey (#2411).
-        ActiveMicrophoneName = selectedDeviceName;
+        // Capture is running now: the 2 s "No sound from {mic}" clock starts here, not at the hotkey, unless
+        // a block was already heard while the start was still finishing (#2411).
         _micSilence.Start();
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);

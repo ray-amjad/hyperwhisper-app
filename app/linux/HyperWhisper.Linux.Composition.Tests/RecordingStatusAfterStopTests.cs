@@ -172,7 +172,8 @@ static class RecordingStatusAfterStopTests
 
     internal static async Task RunAsync(ITextInjectionService textInjection,
         Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body,
-        HyperWhisper.PortableApplication.Audio.MicSilenceWatcher? micSilence = null)
+        HyperWhisper.PortableApplication.Audio.MicSilenceWatcher? micSilence = null,
+        Action? onCaptureStarted = null)
     {
         var root = Path.Combine(Path.GetTempPath(), $"hw-958-status-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -188,7 +189,7 @@ static class RecordingStatusAfterStopTests
             var paths = new StaticPaths(root);
             var database = new ApplicationDb(paths);
             var history = new HistoryRepository(database, paths);
-            using var recorder = new StatusTestRecorder(root);
+            using var recorder = new StatusTestRecorder(root, onCaptureStarted);
             using var devices = new StatusTestDevices();
             using var workflow = new TranscriptionWorkflow(
                 recorder, devices, new StatusTestTranscriber(), history, textInjection: textInjection);
@@ -218,7 +219,9 @@ static class RecordingStatusAfterStopTests
     }
 }
 
-sealed class StatusTestRecorder(string root) : IAudioRecorder
+/// <param name="onCaptureStarted">Runs when capture opens, inside the workflow's start and before it
+/// returns: where a real recorder's first blocks arrive (#2411).</param>
+sealed class StatusTestRecorder(string root, Action? onCaptureStarted = null) : IAudioRecorder
 {
     private string? _path;
     public event EventHandler<float>? AudioLevelChanged { add { } remove { } }
@@ -237,6 +240,7 @@ sealed class StatusTestRecorder(string root) : IAudioRecorder
             writer.Write(Encoding.ASCII.GetBytes("data")); writer.Write(pcm.Length); writer.Write(pcm);
         }
         IsRecording = true;
+        onCaptureStarted?.Invoke();
         return PlatformResult.Success();
     }
     public PlatformResult<string> Stop()

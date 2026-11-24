@@ -15,6 +15,8 @@ static class MicSilenceWatcherTests
         FirstHeardBlockHidesAndDisarmsForTheRestOfTheRecording();
         SoundBeforeTwoSecondsNeverWarns();
         EveryRecordingStartsAgain();
+        SpeechHeardWhileTheStartFinishesCounts();
+        ListeningNeverWarnsAndAFailedStartForgetsIt();
         StopHidesAndStopsWatching();
         EventsAreDeduplicatedAndIsolated();
         ProductionTimerTicksWithoutBlocks();
@@ -108,6 +110,58 @@ static class MicSilenceWatcherTests
         clock.Advance(TimeSpan.FromSeconds(10));
         watcher.Tick();
         Check(!watcher.IsWarning && events.Count == 0, "warned after the mic was heard");
+    }
+
+    // Codex review round 1 on #2431: a head whose capture runs before its start returns (Linux awaits a
+    // history write after the device opened) used to drop that window's blocks, so a user who spoke
+    // during it and then paused was told "No sound". Listen() makes those blocks count.
+    private static void SpeechHeardWhileTheStartFinishesCounts()
+    {
+        var (watcher, clock, events) = Create();
+        watcher.Listen();
+        watcher.ObserveBlockPeak(-25);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        watcher.Start();
+        Check(!watcher.IsArmed, "speech heard while the start finished did not count");
+        clock.Advance(TimeSpan.FromSeconds(10));
+        watcher.Tick();
+        Check(!watcher.IsWarning && !events.Contains(true), "warned 'No sound' after speech heard during the start");
+
+        // Only a heard block counts: quiet blocks during the start still leave the clock to run.
+        watcher.Stop();
+        watcher.Listen();
+        watcher.ObserveBlockPeak(-75);
+        watcher.ObserveBlockPeak(double.NegativeInfinity);
+        watcher.Start();
+        Check(watcher.IsArmed, "silence during the start disarmed the watcher");
+        clock.Advance(TimeSpan.FromSeconds(2));
+        watcher.Tick();
+        Check(watcher.IsWarning, "a recording silent through its start and 2 s after did not warn");
+    }
+
+    private static void ListeningNeverWarnsAndAFailedStartForgetsIt()
+    {
+        var (watcher, clock, events) = Create();
+        // A slow start (a live connect) never warns: the clock waits for Start().
+        watcher.Listen();
+        clock.Advance(TimeSpan.FromSeconds(5));
+        watcher.Tick();
+        Check(!watcher.IsWarning && !watcher.IsArmed && !events.Contains(true), "warned while the start was still connecting");
+
+        // A failed start goes through Stop(): its heard block must not excuse the next recording.
+        watcher.ObserveBlockPeak(-20);
+        watcher.Stop();
+        watcher.Start();
+        Check(watcher.IsArmed, "a failed start's speech disarmed the next recording");
+        clock.Advance(TimeSpan.FromSeconds(2));
+        watcher.Tick();
+        Check(watcher.IsWarning, "the next, silent recording did not warn");
+
+        // A head that never listens (Windows) keeps the old behaviour: blocks before Start() are ignored.
+        watcher.Stop();
+        watcher.ObserveBlockPeak(-20);
+        watcher.Start();
+        Check(watcher.IsArmed, "a block with no Listen() before Start() disarmed the watcher");
     }
 
     private static void EveryRecordingStartsAgain()

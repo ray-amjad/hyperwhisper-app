@@ -41,6 +41,10 @@ public sealed class MicSilenceWatcher : IDisposable
     private readonly Timer? _timer;
     private TimeSpan _startedAt;
     private bool _armed;
+    // Listen() ran and Start() has not yet: capture may already deliver blocks, but the clock is not
+    // running. A heard block in that window is remembered so Start() does not arm for it.
+    private bool _listening;
+    private bool _heardWhileListening;
     private bool _warning;
     private bool _published;
     private bool _disposed;
@@ -85,10 +89,35 @@ public sealed class MicSilenceWatcher : IDisposable
         lock (_gate)
         {
             if (_disposed) return;
+            // A block heard between Listen() and here (capture ran while the start was still awaiting)
+            // already proved the microphone works: no clock for this recording.
+            var heard = _listening && _heardWhileListening;
+            _listening = false;
+            _heardWhileListening = false;
             _startedAt = _clock();
-            _armed = true;
+            _armed = !heard;
             _warning = false;
-            ChangeTimerLocked(running: true);
+            ChangeTimerLocked(running: !heard);
+        }
+        Publish();
+    }
+
+    /// <summary>
+    /// Capture is about to start and may deliver blocks before <see cref="Start"/> is reached (a head
+    /// whose start still awaits work after the device opened). A heard block from here on counts for
+    /// the coming recording, while the clock waits for <see cref="Start"/>, so a slow start never
+    /// warns. <see cref="Stop"/> forgets it, so a failed start leaves nothing behind.
+    /// </summary>
+    public void Listen()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _listening = true;
+            _heardWhileListening = false;
+            _armed = false;
+            _warning = false;
+            ChangeTimerLocked(running: false);
         }
         Publish();
     }
@@ -100,6 +129,8 @@ public sealed class MicSilenceWatcher : IDisposable
         {
             if (_disposed) return;
             _armed = false;
+            _listening = false;
+            _heardWhileListening = false;
             _warning = false;
             ChangeTimerLocked(running: false);
         }
@@ -111,7 +142,14 @@ public sealed class MicSilenceWatcher : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed || !_armed || !IsHeard(peakDbfs)) return;
+            if (_disposed || !IsHeard(peakDbfs)) return;
+            if (_listening)
+            {
+                // Before Start(): no clock runs and no warning can be up, so nothing to publish.
+                _heardWhileListening = true;
+                return;
+            }
+            if (!_armed) return;
             _armed = false;
             _warning = false;
             ChangeTimerLocked(running: false);
@@ -138,6 +176,7 @@ public sealed class MicSilenceWatcher : IDisposable
             if (_disposed) return;
             _disposed = true;
             _armed = false;
+            _listening = false;
             _warning = false;
         }
         _timer?.Dispose();
