@@ -11,7 +11,8 @@ import { transcribeWithAssemblyAI } from './assemblyai';
 import { transcribeWithSoniox } from './soniox';
 import { ProviderUnavailableError } from './types';
 import { captureProviderEvent } from './test-support';
-import * as realGcsStorage from '../lib/gcs-storage';
+import * as realGcsStorage from './gcs-storage';
+import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
 import * as realGoogleAuth from '../lib/google-auth';
 import { stubEnv } from '../test-support/env';
 
@@ -19,7 +20,7 @@ import { stubEnv } from '../test-support/env';
 // override only what google-chirp.ts calls: bun's module registry is
 // process-wide (see the note in google-chirp.test.ts).
 const chirpGcsUri = 'gs://test-bucket/stt-temp/audio.wav';
-mock.module('../lib/gcs-storage', () => ({
+mock.module('./gcs-storage', () => ({
   ...realGcsStorage,
   // Env-driven, like google-chirp.test.ts's mock: a constant `true` here would
   // leak into the route tests' no-bucket 413 cases.
@@ -32,7 +33,7 @@ mock.module('../lib/google-auth', () => ({
   getGoogleAccessToken: async () => 'test-access-token',
   invalidateGoogleAccessToken: async () => {},
 }));
-const { transcribeWithGoogleChirp, INLINE_AUDIO_MAX_BYTES } = await import('./google-chirp');
+const { transcribeWithGoogleChirp } = await import('./google-chirp');
 
 const originalFetch = globalThis.fetch;
 const originalSetTimeout = globalThis.setTimeout;
@@ -288,7 +289,7 @@ describe('async poll loop survives one transport blip (#2923)', () => {
     let error: unknown;
     const logged = await captureProviderEvent('provider.batch_poll_transient', async () => {
       try {
-        result = await transcribeWithGoogleChirp(new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1), 'audio/wav');
+        result = await transcribeWithGoogleChirp(new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1), 'audio/wav');
       } catch (e) { error = e; }
     });
     expect(error).toBeUndefined();
@@ -310,7 +311,7 @@ describe('async poll loop survives one transport blip (#2923)', () => {
       throw new Error(`unexpected ${url}`);
     }) as typeof fetch;
 
-    const error = await transcribeWithGoogleChirp(new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1), 'audio/wav')
+    const error = await transcribeWithGoogleChirp(new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1), 'audio/wav')
       .then(() => undefined, (e: unknown) => e);
     expect(error).toBeInstanceOf(ProviderUnavailableError);
     expect((error as Error).message).toContain('batchRecognize did not complete');
