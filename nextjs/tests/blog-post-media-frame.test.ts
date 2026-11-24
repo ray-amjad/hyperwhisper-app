@@ -90,7 +90,11 @@ test("the prose wrapper frames body images and embeds like the cover", () => {
 
 test("the cover keeps its frame and draws no second edge", () => {
   const wrapper = classOf('<img alt="A post"');
-  for (const token of ["rounded-[22px]", "border", "border-[var(--dusk-line)]"]) {
+  for (const token of [
+    "rounded-[22px]",
+    "border",
+    "border-[var(--dusk-line)]",
+  ]) {
     assert.ok(wrapper.includes(token), `cover wrapper lacks ${token}`);
   }
   const cover = /<img alt="A post" class="([^"]*)"/.exec(html);
