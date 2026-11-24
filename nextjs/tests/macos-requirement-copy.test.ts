@@ -63,7 +63,7 @@ test("every locale's Mac badge and requirements answer state the real macOS floo
 
 test("no comparison post states a macOS floor below the deployment target", () => {
   const floor = deploymentTarget();
-  for (const file of readdirSync(postsDir).filter((f) => f.startsWith("hyperwhisper-"))) {
+  for (const file of readdirSync(postsDir).filter((f) => f.endsWith(".ts"))) {
     const post = readFileSync(join(postsDir, file), "utf8");
     for (const m of Array.from(post.matchAll(/HyperWhisper[^.<]*?(macOS\s?\d+(?:\.\d+)?)/g))) {
       for (const s of statedVersions(m[1])) {

@@ -192,26 +192,59 @@ describe('transcribeRoute request gates', () => {
     }
   });
 
-  test('a provider-side 413 (Soniox, 14.4 MB cap) names its cap in the same unit as the file (#2607)', async () => {
+  test('a Soniox upload over its 14.4 MB cap 413s before buffering, with the adapter\'s numbers', async () => {
+    // Soniox used to be missing from the pre-buffer table, so this was buffered
+    // up to the 128 MB global cap before the adapter's own 413. Same status and
+    // the same `max_size_mb` / `actual_size_mb` the adapter's 413 carries.
     const savedKey = process.env.SONIOX_API_KEY;
     process.env.SONIOX_API_KEY = 'test-soniox-key';
     try {
       const { status, body } = await send(gateRequest({
         headers: { 'X-STT-Provider': 'soniox' },
-        bodyBytes: 15_000_000,
+        bodyBytes: 1024,
+        declaredLength: '15000000',
+      }));
+
+      expect(status).toBe(413);
+      expect(body.error).toBe('File too large');
+      expect(body.message).toBe('Audio file must be 14.4 MB or smaller. Your file is 15.00 MB.');
+      expect(body.max_size_mb).toBe(13);
+      expect(body.actual_size_mb).toBe(14.31);
+      expect(providerCalls).toEqual([]);
+    } finally {
+      if (savedKey === undefined) delete process.env.SONIOX_API_KEY;
+      else process.env.SONIOX_API_KEY = savedKey;
+    }
+  });
+
+  test('a provider-side 413 names its cap in the same unit as the file (#2607)', async () => {
+    // Every Soniox payload over its cap is now refused by the pre-buffer gate
+    // above (and a body cannot exceed its Content-Length), so the adapter's
+    // 413 is reached through Chirp instead: a 2 MB WAV fits the 9.5 MB inline
+    // byte cap but not the ~55 s duration budget, and with no GCS bucket the
+    // adapter refuses it with its inline cap.
+    const savedBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    const savedProject = process.env.GOOGLE_PROJECT_ID;
+    delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    process.env.GOOGLE_PROJECT_ID = 'test-project';
+    try {
+      const { status, body } = await send(gateRequest({
+        headers: { 'X-STT-Provider': 'google-chirp' },
+        bodyBytes: 2_000_000,
       }));
 
       expect(status).toBe(413);
       expect(body.error).toBe('Audio too large for provider');
-      expect(body.message).toBe('soniox accepts at most 14.4 MB inline. Your audio is 15.00 MB.');
-      // Wire fields unchanged: the file in MiB. `max_size_mb` is left
-      // unpinned here: Math.round gives 14 MiB, above the 14.4 MB cap (#2704).
-      expect(Number.isInteger(body.max_size_mb)).toBe(true);
-      expect(body.actual_size_mb).toBe(14.31);
-      expect(providerCalls.filter((url) => url.includes('soniox'))).toEqual([]);
+      expect(body.message).toBe('google-chirp accepts at most 9.5 MB inline. Your audio is 2.00 MB.');
+      // Rounded down so the client never reads back more than the cap (#2704).
+      expect(body.max_size_mb).toBe(9);
+      expect(body.actual_size_mb).toBe(1.91);
+      expect(providerCalls).toEqual([]);
     } finally {
-      if (savedKey === undefined) delete process.env.SONIOX_API_KEY;
-      else process.env.SONIOX_API_KEY = savedKey;
+      if (savedBucket === undefined) delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+      else process.env.GOOGLE_SPEECH_GCS_BUCKET = savedBucket;
+      if (savedProject === undefined) delete process.env.GOOGLE_PROJECT_ID;
+      else process.env.GOOGLE_PROJECT_ID = savedProject;
     }
   });
 
@@ -288,6 +321,9 @@ describe('transcribeRoute request gates', () => {
 
       expect(status).toBe(400);
       expect(body.error).toBe('Invalid Dictation options');
+      // #1290: the same message the route built from the vendor error before
+      // the check moved behind providers/request-options.ts.
+      expect(body.message).toBe('AssemblyAI Dictation rejected input (400): Select an explicit supported language instead of Auto for Dictation.');
       expect(providerCalls).toEqual([]);
 
       const rejections = logSpy.mock.calls
@@ -301,6 +337,28 @@ describe('transcribeRoute request gates', () => {
         hasDomain: false,
       });
       expect(JSON.stringify(rejections[0])).not.toContain('test-account-key');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  // #1290: the option rule moved behind providers/request-options.ts. A
+  // Dictation request with no language at all still gets today's 400, title
+  // and message unchanged, before any provider is called.
+  test('a Dictation request with no language param gets the same 400 title and message', async () => {
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const { status, body } = await send(gateRequest({
+        query: '?account_key=test-account-key',
+        headers: { 'X-STT-Provider': 'assemblyai', 'X-STT-Model': 'dictation' },
+      }));
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        error: 'Invalid Dictation options',
+        message: 'AssemblyAI Dictation rejected input (400): Select an explicit supported language instead of Auto for Dictation.',
+      });
+      expect(providerCalls).toEqual([]);
     } finally {
       logSpy.mockRestore();
     }
