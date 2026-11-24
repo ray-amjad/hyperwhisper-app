@@ -8,6 +8,8 @@
  * - a 400, not Next's 500, for a path that is not valid UTF-8.
  * - uncompressed docs for a client that sent no Accept-Encoding: the
  *   Mintlify rewrite passes Mintlify's Content-Encoding through.
+ * - no site credentials on the Mintlify docs proxy: Cookie and Authorization
+ *   are stripped on the way out, Set-Cookie on the way back (#2636).
  * - the Durable Object classes OpenNext's ISR queue and tag cache need.
  *
  * Excluded from tsconfig: `.open-next/worker.js` exists only after
@@ -17,6 +19,10 @@
 import { default as handler } from "./.open-next/worker.js";
 import { CRON_JOBS } from "./config/cron-jobs.mjs";
 import { withAcceptedEncoding } from "./lib/cloudflare/content-encoding";
+import {
+  withoutDocsCookies,
+  withoutDocsCredentials,
+} from "./lib/cloudflare/docs-proxy-headers";
 import {
   isMalformedPath,
   malformedPathResponse,
@@ -35,12 +41,17 @@ export default {
     if (isMalformedPath(new URL(request.url).pathname)) {
       return malformedPathResponse();
     }
+    // OpenNext forwards every request header to the Mintlify docs and copies
+    // every response header back; keep the session out of both directions
+    // (lib/cloudflare/docs-proxy-headers.ts). Other paths pass through as is.
+    const response = withoutDocsCookies(
+      request,
+      await handler.fetch(withoutDocsCredentials(request), env, ctx),
+    );
+
     // Proxied Mintlify responses keep Mintlify's Content-Encoding; drop it
     // when the client cannot decode it (lib/cloudflare/content-encoding.ts).
-    return withAcceptedEncoding(
-      request,
-      await handler.fetch(request, env, ctx),
-    );
+    return withAcceptedEncoding(request, response);
   },
 
   async scheduled(
