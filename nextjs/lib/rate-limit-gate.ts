@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 
 /**
- * The slice of `@upstash/ratelimit`'s `Ratelimit` a route gate needs. Typed
- * structurally so a route test can hand in a stub without building a client.
+ * What a route gate needs from a limiter (`lib/rate-limit.ts`). Typed
+ * structurally so a route test can hand in a stub without a binding.
  */
 export interface RequestLimiter {
   limit(identifier: string): Promise<{
     success: boolean;
     /** Unix ms at which the window frees a slot. */
     reset?: number;
-    /** `"timeout"` when @upstash/ratelimit gave up waiting and let the call through. */
-    reason?: string;
   }>;
 }
 
@@ -39,12 +37,10 @@ export type RateLimitOutcome =
  * frees a slot. The one fail-open policy for every site limiter, Better Auth's
  * included (#2010).
  *
- * FAILS OPEN: if the check throws (Upstash unreachable, misconfigured), the
- * request is allowed and a warning is logged. @upstash/ratelimit already
- * resolves `{ success: true, reason: "timeout" }` on a slow Upstash; that is
- * logged too, so a disabled limiter is visible. The log line carries the
- * error's class name only — an Upstash error message can quote the command,
- * and with it the caller's IP or key.
+ * FAILS OPEN: if the check throws (binding missing, Cloudflare erroring), the
+ * request is allowed and a warning is logged, so a disabled limiter is
+ * visible. The log line carries the error's class name only — an error
+ * message can quote the key, and with it the caller's IP or licence key.
  */
 export async function countFailOpen(
   check: () => Promise<LimitVerdict>,
@@ -62,9 +58,6 @@ export async function countFailOpen(
     return { limited: false };
   }
 
-  if (verdict.reason === "timeout") {
-    console.warn(`Rate limit timed out for ${label}, failing open`);
-  }
   if (verdict.success) return { limited: false };
 
   return { limited: true, retryAfterSeconds: retryAfterSeconds(verdict.reset) };

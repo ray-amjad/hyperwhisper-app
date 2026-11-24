@@ -104,6 +104,9 @@ test('every navigating <Button as={…}> passes role="link"', () => {
     visit(source);
   }
 
-  assert.ok(checked >= 3, `expected the 3 known CTAs, found ${checked}`);
+  // The homepage hero and /credits CTAs were the other two. The Dusk homepage
+  // draws them as plain <button>s and a locale <Link> (an <a>, with its native
+  // link role), so /purchase-success is the one Button site left.
+  assert.ok(checked >= 1, `expected the known CTA, found ${checked}`);
   assert.deepEqual(missing, []);
 });

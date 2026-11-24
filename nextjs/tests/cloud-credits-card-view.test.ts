@@ -141,7 +141,7 @@ function findButtons(node: ReactNode): ButtonElement[] {
 }
 
 /** The class string the minutes line, and nothing else in this card, carries. */
-const MINUTES_LINE = /class="text-sm text-gray-400 mt-0\.5"/;
+const MINUTES_LINE = /class="mt-2 text-sm text-\[var\(--dusk-mute\)\]"/;
 
 test("the minutes line is painted from the label alone", async () => {
   // #947 round 1, finding 2. The View no longer re-decides this from

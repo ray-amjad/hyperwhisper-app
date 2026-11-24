@@ -4,7 +4,6 @@ import { Fragment, useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { m } from "framer-motion";
 import { Wallet, ShieldCheck, Layers, LogIn } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -20,8 +19,29 @@ import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import { createBuyCreditsHandler } from "@/src/lib/buy-credits";
 import { reportClientError } from "@/lib/shared/report-client-error";
 import { ErrorReveal } from "@/components/ErrorReveal";
+import { PageHero, delay } from "@/components/landing/DuskPage";
+import { WRAP } from "@/components/landing/dusk";
+import {
+  GLASS,
+  ICON_TILE,
+  LABEL,
+  SECTION,
+} from "@/components/landing/dusk-pages";
 
 const PRESETS = [5, 10] as const;
+
+/** Both fields: a dark well with a hairline edge that turns lavender on focus. */
+const INPUT_CLASS_NAMES = {
+  inputWrapper:
+    "rounded-xl border bg-[#090b18] border-[#2a2e4a] shadow-none data-[hover=true]:border-[#3a3f63] group-data-[focus=true]:border-[var(--dusk-lav)]",
+  input: "text-white placeholder:text-[var(--dusk-dim)]",
+};
+
+const AMOUNT_TILE =
+  "cursor-pointer rounded-2xl border p-3 text-start transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dusk-lav)] sm:p-4 hyphens-auto [overflow-wrap:break-word]";
+const AMOUNT_ON = "border-white bg-white/[.07]";
+const AMOUNT_OFF =
+  "border-[var(--dusk-line)] bg-white/[.02] hover:border-white/25";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -128,6 +148,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
     // Reuse the server's pricing math (cents) so the preview matches the charge.
     const { creditAmount, creditCents, feeCents } =
       computeCreditPurchase(effectiveAmount);
+
     return {
       credits: creditAmount,
       feeUsd: feeCents / 100,
@@ -184,6 +205,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
     if (!emailValid) {
       setError(t("errorEmail"));
+
       return;
     }
     if (!amountValid) {
@@ -191,8 +213,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         t("errorAmount", {
           min: MIN_CREDIT_DOLLARS,
           max: MAX_CREDIT_DOLLARS,
-        })
+        }),
       );
+
       return;
     }
 
@@ -201,255 +224,262 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
   };
 
   return (
-    <div className="mx-auto lg:max-w-2xl">
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="text-center mb-10">
-          <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-            {t("eyebrow")}
-          </span>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
-          </h1>
-          <p className="text-lg text-gray-400">{t("subtitle")}</p>
-        </div>
+    <>
+      <PageHero
+        eyebrow={t("eyebrow")}
+        lead={t("subtitle")}
+        title={t("title")}
+      />
 
-        <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border border-purple-700 backdrop-blur-xl">
-          <CardBody className="p-6 md:p-8">
-            {/* Email */}
-            <label
-              className="block text-sm font-medium text-gray-300 mb-2"
-              htmlFor={emailInputId}
-            >
-              {t("emailLabel")}
-            </label>
-            {/* HeroUI names a label-less Input by its placeholder, and an
-                aria-label beats <label for>, so the visible label text is
-                passed as the aria-label too. A caller's aria-describedby
-                REPLACES HeroUI's own (its error id is dropped), so the error
-                gets an id of ours and is listed here while it shows. */}
-            <Input
-              aria-describedby={
-                emailInvalid ? `${emailHelpId} ${emailErrorId}` : emailHelpId
-              }
-              aria-label={t("emailLabel")}
-              autoComplete="email"
-              id={emailInputId}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setEmailTouched(true)}
-              isInvalid={emailInvalid}
-              errorMessage={<span id={emailErrorId}>{t("errorEmail")}</span>}
-              placeholder={t("emailPlaceholder")}
-              variant="bordered"
-              size="lg"
-              classNames={{
-                inputWrapper:
-                  "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
-                input: "text-white",
-              }}
-            />
-            <p className="text-xs text-gray-400 mt-2" id={emailHelpId}>
-              {t("emailHelp")}
-            </p>
-
-            {/* Amount */}
-            <div className="mt-7">
-              <span
-                className="block text-sm font-medium text-gray-300 mb-3"
-                id={amountLabelId}
-              >
-                {t("amountLabel")}
-              </span>
-              {/* A single-choice group of toggle buttons (#969): the chosen card is
-                  exposed by aria-pressed, not only its border colour. Not
-                  role="radio", which would need arrow-key roving focus. */}
-              <div
-                aria-labelledby={amountLabelId}
-                className="grid grid-cols-3 gap-3"
-                role="group"
-              >
-                {PRESETS.map((value) => {
-                  const selected = !isCustom && amount === value;
-                  return (
-                    <button
-                      key={value}
-                      aria-pressed={selected}
-                      type="button"
-                      onClick={() => selectPreset(value)}
-                      className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
-                        selected
-                          ? "bg-gradient-to-b from-purple-600/30 to-blue-600/20 border-purple-500"
-                          : "bg-gray-900/50 border-gray-800 hover:border-gray-700"
-                      }`}
-                    >
-                      <div className="text-2xl font-bold text-white">
-                        ${value}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {t("creditsCount", {
-                          count: value * CREDITS_PER_DOLLAR,
-                        })}
-                      </div>
-                    </button>
-                  );
-                })}
-                <button
-                  aria-pressed={isCustom}
-                  type="button"
-                  onClick={() => setIsCustom(true)}
-                  className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
-                    isCustom
-                      ? "bg-gradient-to-b from-purple-600/30 to-blue-600/20 border-purple-500"
-                      : "bg-gray-900/50 border-gray-800 hover:border-gray-700"
-                  }`}
+      <section className={SECTION}>
+        <div
+          className={`${WRAP} grid items-start gap-10 lg:grid-cols-[1.05fr_.95fr]`}
+        >
+          {/* Above the fold, so the entrance is CSS (`dusk-enter`), not a
+              scroll reveal: it plays from the server HTML. */}
+          <div className="dusk-enter" style={delay(240)}>
+            {/* A HeroUI Card with a palette border colour, so the #1384
+                border-width guard still covers it. */}
+            <Card className="rounded-[22px] border border-violet-300/30 bg-[linear-gradient(180deg,rgba(129,90,220,.14),rgba(255,255,255,.03))] text-start shadow-none">
+              <CardBody className="p-6 md:p-[34px]">
+                {/* Email */}
+                <label className={`block ${LABEL}`} htmlFor={emailInputId}>
+                  {t("emailLabel")}
+                </label>
+                {/* HeroUI names a label-less Input by its placeholder, and an
+                    aria-label beats <label for>, so the visible label text is
+                    passed as the aria-label too. A caller's aria-describedby
+                    REPLACES HeroUI's own (its error id is dropped), so the
+                    error gets an id of ours and is listed here while it shows. */}
+                <Input
+                  aria-describedby={
+                    emailInvalid
+                      ? `${emailHelpId} ${emailErrorId}`
+                      : emailHelpId
+                  }
+                  aria-label={t("emailLabel")}
+                  autoComplete="email"
+                  className="mt-2.5"
+                  classNames={INPUT_CLASS_NAMES}
+                  errorMessage={
+                    <span id={emailErrorId}>{t("errorEmail")}</span>
+                  }
+                  id={emailInputId}
+                  isInvalid={emailInvalid}
+                  placeholder={t("emailPlaceholder")}
+                  size="lg"
+                  type="email"
+                  value={email}
+                  variant="bordered"
+                  onBlur={() => setEmailTouched(true)}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <p
+                  className="mt-2 text-[13px] text-[var(--dusk-dim)]"
+                  id={emailHelpId}
                 >
-                  <div
-                    className="text-2xl font-bold text-white"
-                    id={customTitleId}
-                  >
-                    {t("custom")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {t("customSub")}
-                  </div>
-                </button>
-              </div>
+                  {t("emailHelp")}
+                </p>
 
-              {/* The field grows open from 0fr (#702) instead of arriving at
-                  full height in one frame. */}
-              {isCustom && (
-                <div className="t-cell-reveal">
-                  <div>
-                    <div className="mt-3">
-                      {/* HeroUI still sets aria-label to the placeholder, but a
-                          caller's aria-labelledby reaches the <input> as given and
-                          wins over aria-label in the accessible name. */}
-                      <Input
-                        aria-labelledby={`${amountLabelId} ${customTitleId}`}
-                        type="number"
-                        value={customAmount}
-                        onChange={(e) => {
-                          setCustomAmount(e.target.value);
-                          setError(null);
-                        }}
-                        placeholder={t("customPlaceholder", {
-                          min: MIN_CREDIT_DOLLARS,
-                          max: MAX_CREDIT_DOLLARS,
-                        })}
-                        variant="bordered"
-                        size="lg"
-                        min={MIN_CREDIT_DOLLARS}
-                        max={MAX_CREDIT_DOLLARS}
-                        step={1}
-                        startContent={<span className="text-gray-400">$</span>}
-                        classNames={{
-                          inputWrapper:
-                            "bg-gray-900/60 border-gray-700 data-[hover=true]:border-gray-600 group-data-[focus=true]:border-purple-500",
-                          input: "text-white",
-                        }}
-                      />
+                {/* Amount */}
+                <div className="mt-[26px]">
+                  <span className={`block ${LABEL}`} id={amountLabelId}>
+                    {t("amountLabel")}
+                  </span>
+                  {/* A single-choice group of toggle buttons (#969): the
+                      chosen tile is exposed by aria-pressed, not only its
+                      border colour. Not role="radio", which would need
+                      arrow-key roving focus. */}
+                  <div
+                    aria-labelledby={amountLabelId}
+                    className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3"
+                    role="group"
+                  >
+                    {PRESETS.map((value) => {
+                      const selected = !isCustom && amount === value;
+
+                      return (
+                        <button
+                          key={value}
+                          aria-pressed={selected}
+                          className={`${AMOUNT_TILE} ${selected ? AMOUNT_ON : AMOUNT_OFF}`}
+                          type="button"
+                          onClick={() => selectPreset(value)}
+                        >
+                          <span className="block text-xl font-semibold text-white sm:text-2xl">
+                            ${value}
+                          </span>
+                          <span className="mt-0.5 block text-[13px] text-[var(--dusk-mute)]">
+                            {t("creditsCount", {
+                              count: value * CREDITS_PER_DOLLAR,
+                            })}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      aria-pressed={isCustom}
+                      className={`${AMOUNT_TILE} col-span-2 sm:col-span-1 ${isCustom ? AMOUNT_ON : AMOUNT_OFF}`}
+                      type="button"
+                      onClick={() => setIsCustom(true)}
+                    >
+                      <span
+                        className="block text-xl font-semibold text-white sm:text-2xl"
+                        id={customTitleId}
+                      >
+                        {t("custom")}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-[var(--dusk-mute)]">
+                        {t("customSub")}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* The field grows open from 0fr (#702) instead of arriving
+                      at full height in one frame. */}
+                  {isCustom && (
+                    <div className="t-cell-reveal">
+                      <div>
+                        <div className="mt-3">
+                          {/* HeroUI still sets aria-label to the placeholder,
+                              but a caller's aria-labelledby reaches the
+                              <input> as given and wins over aria-label in the
+                              accessible name. */}
+                          <Input
+                            aria-labelledby={`${amountLabelId} ${customTitleId}`}
+                            classNames={INPUT_CLASS_NAMES}
+                            max={MAX_CREDIT_DOLLARS}
+                            min={MIN_CREDIT_DOLLARS}
+                            placeholder={t("customPlaceholder", {
+                              min: MIN_CREDIT_DOLLARS,
+                              max: MAX_CREDIT_DOLLARS,
+                            })}
+                            size="lg"
+                            startContent={
+                              <span className="text-[var(--dusk-dim)]">$</span>
+                            }
+                            step={1}
+                            type="number"
+                            value={customAmount}
+                            variant="bordered"
+                            onChange={(e) => {
+                              setCustomAmount(e.target.value);
+                              setError(null);
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Summary */}
+                <div className="mt-[26px] grid gap-2.5 border-t border-[var(--dusk-line)] pt-4 text-[15px] tabular-nums">
+                  <div className="flex justify-between gap-4 text-[var(--dusk-mute)]">
+                    <span>{t("summaryCredits")}</span>
+                    <span className="font-medium text-white">
+                      <PopValue text={credits.toLocaleString()} />
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4 text-[var(--dusk-mute)]">
+                    <span>{t("summaryFee")}</span>
+                    <span className="font-medium text-white">
+                      <PopValue text={`$${feeUsd.toFixed(2)}`} />
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4 border-t border-[var(--dusk-line)] pt-3 text-white">
+                    <span>{t("summaryTotal")}</span>
+                    {/* Last in the stagger, so the eye lands on the charge. */}
+                    <span className="text-[22px] font-semibold">
+                      <PopValue delay={120} text={`$${totalUsd.toFixed(2)}`} />
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Summary */}
-            <div className="mt-7 rounded-2xl border border-gray-800 bg-black/30 p-4 text-sm">
-              <div className="flex justify-between text-gray-400 mb-2">
-                <span>{t("summaryCredits")}</span>
-                <span className="text-gray-200">
-                  <PopValue text={credits.toLocaleString()} />
-                </span>
-              </div>
-              <div className="flex justify-between text-gray-400 mb-2">
-                <span>{t("summaryFee")}</span>
-                <span className="text-gray-200">
-                  <PopValue text={`$${feeUsd.toFixed(2)}`} />
-                </span>
-              </div>
-              <div className="flex justify-between font-semibold text-white border-t border-gray-800 pt-2 mt-2">
-                <span>{t("summaryTotal")}</span>
-                {/* Last in the stagger, so the eye lands on the charge. */}
-                <span>
-                  <PopValue delay={120} text={`$${totalUsd.toFixed(2)}`} />
-                </span>
-              </div>
-            </div>
+                {/* #749: the wrapper stays mounted and the message reveals in
+                    it (.t-error-reveal), so the button below moves down over
+                    280 ms instead of in one frame. The alert still mounts with
+                    its text. No field shakes here: the button is disarmed
+                    while the email or the amount is invalid, so the only error
+                    a buyer can reach is the server refusing the checkout,
+                    which no field caused. */}
+                <ErrorReveal>
+                  {error && (
+                    <p className="mt-4 text-sm text-red-400" role="alert">
+                      {error}
+                    </p>
+                  )}
+                </ErrorReveal>
 
-            {/* #749: the wrapper stays mounted and the message reveals in it
-                (.t-error-reveal), so the button below moves down over 280 ms
-                instead of in one frame. The alert still mounts with its text.
-                No field shakes here: the button is disarmed while the email or
-                the amount is invalid, so the only error a buyer can reach is
-                the server refusing the checkout, which no field caused. */}
-            <ErrorReveal>
-              {error && (
-                <p className="text-sm text-red-400 mt-4" role="alert">
-                  {error}
+                {/* h-auto + whitespace-normal: the label wraps instead of
+                    being clipped at 320px in bg, cs, el, fr, id, is, ms, nl,
+                    pt, ro, th (#2871's sibling). */}
+                <Button
+                  className="mt-[22px] h-auto min-h-12 w-full whitespace-normal rounded-full bg-white py-3 text-center text-[15px] font-semibold text-[#0b0b14] data-[hover=true]:bg-[#ececf5] data-[hover=true]:opacity-100 data-[focus-visible=true]:outline-[var(--dusk-lav)]"
+                  isDisabled={loading || !emailValid || !amountValid}
+                  isLoading={loading}
+                  size="lg"
+                  onPress={handleCheckout}
+                >
+                  {loading ? t("ctaLoading") : t("ctaIdle")}
+                </Button>
+
+                <p className="mt-3.5 text-center text-[13px] text-[var(--dusk-dim)]">
+                  {t("secure")}
                 </p>
-              )}
-            </ErrorReveal>
-
-            {/* h-auto + whitespace-normal: the label wraps instead of being
-                clipped at 320px in bg, cs, el, fr, id, is, ms, nl, pt, ro, th
-                (#2871's sibling). */}
-            <Button
-              className="h-auto min-h-12 whitespace-normal py-3 text-center w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
-              size="lg"
-              isLoading={loading}
-              isDisabled={loading || !emailValid || !amountValid}
-              onPress={handleCheckout}
-            >
-              {loading ? t("ctaLoading") : t("ctaIdle")}
-            </Button>
-
-            <p className="text-xs text-gray-400 text-center mt-3">
-              {t("secure")}
-            </p>
-          </CardBody>
-        </Card>
-
-        {/* Reassurance strip */}
-        <div className="grid sm:grid-cols-3 gap-3 mt-6 text-sm">
-          <div className="flex items-center gap-2 text-gray-400">
-            <Layers className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
-            {t("stripProviders")}
+              </CardBody>
+            </Card>
           </div>
-          <div className="flex items-center gap-2 text-gray-400">
-            <Wallet className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
-            {t("stripNoSub")}
-          </div>
-          <div className="flex items-center gap-2 text-gray-400">
-            <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" strokeWidth={1.5} />
-            {t("stripNoTraining")}
-          </div>
-        </div>
 
-        {/* Existing customers: a prominent sign-in CTA so they top up their
-            current wallet instead of buying a second license by mistake. */}
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <p className="text-sm text-gray-400">{t("haveKey")}</p>
-          <Button
-            variant="bordered"
-            size="lg"
-            startContent={<LogIn className="w-4 h-4 shrink-0" strokeWidth={1.5} />}
-            // The label wraps instead of running past a 320px viewport in
-            // the longer locales (is, ro, fr, fi): #2871.
-            className="h-auto min-h-12 max-w-full whitespace-normal py-2 text-center border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
-            onPress={() => {
-              window.location.href = `/${locale}/user/sign-in`;
-            }}
+          {/* Reassurance list */}
+          <div
+            className="dusk-enter grid gap-[22px] lg:pt-3"
+            style={delay(320)}
           >
-            {t("signIn")}
-          </Button>
+            <ul className="grid gap-[22px]">
+              {[
+                { Icon: Layers, text: t("stripProviders") },
+                { Icon: Wallet, text: t("stripNoSub") },
+                { Icon: ShieldCheck, text: t("stripNoTraining") },
+              ].map(({ Icon, text }) => (
+                <li key={text} className="flex items-center gap-4">
+                  <span aria-hidden="true" className={ICON_TILE}>
+                    <Icon strokeWidth={1.75} />
+                  </span>
+                  <span className="text-[17px] font-semibold text-white">
+                    {text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Existing customers: a prominent sign-in CTA so they top up
+                their current wallet instead of buying a second license by
+                mistake. */}
+            <div
+              className={`${GLASS} mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[22px] py-[18px]`}
+            >
+              <p className="text-[15px] text-[var(--dusk-ink)]">
+                {t("haveKey")}
+              </p>
+              <Button
+                className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal rounded-full px-3 py-2 text-start text-[14.5px] text-[var(--dusk-lav)] data-[hover=true]:bg-white/[.06] data-[hover=true]:text-white"
+                startContent={
+                  <LogIn className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                }
+                // The label wraps instead of running past a 320px viewport in
+                // the longer locales (is, ro, fr, fi): #2871.
+                variant="light"
+                onPress={() => {
+                  window.location.href = `/${locale}/user/sign-in`;
+                }}
+              >
+                {t("signIn")}
+              </Button>
+            </div>
+          </div>
         </div>
-      </m.div>
-    </div>
+      </section>
+    </>
   );
 }

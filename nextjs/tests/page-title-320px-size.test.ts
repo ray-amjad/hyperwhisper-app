@@ -20,34 +20,79 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
+/*
+  The support, /credits and /older-versions titles now render in the shared
+  sky band (`PageHero` in components/landing/DuskPage.tsx), whose h1 takes the
+  `PAGE_H1` class string from components/landing/dusk-pages.ts. It is solid
+  white, not a clipped gradient, so the sizes and the overflow-wrap are pinned
+  on that one constant instead of on three literals.
+*/
 const sites = [
-  { file: "components/landing/FeaturesGrid.tsx", tag: "h2", bleed: true },
-  { file: "app/[locale]/support/page.tsx", tag: "h1", bleed: false },
-  // #2714: the four siblings PR #2710 left out.
-  { file: "components/landing/PricingSection.tsx", tag: "h2", bleed: false },
-  { file: "components/landing/FAQSection.tsx", tag: "h2", bleed: false },
-  { file: "components/credits/CreditsPurchase.tsx", tag: "h1", bleed: false },
-  { file: "app/[locale]/older-versions/page.tsx", tag: "h1", bleed: false },
+  "app/[locale]/support/page.tsx",
+  "components/credits/CreditsPurchase.tsx",
+  "app/[locale]/older-versions/page.tsx",
 ];
 
-for (const { file, tag, bleed } of sites) {
-  test(`${file} <${tag}> is text-3xl below sm, text-4xl from sm, text-5xl from md`, () => {
-    const source = readFileSync(
-      fileURLToPath(new URL(`../${file}`, import.meta.url)),
-      "utf8",
-    );
-    const match = source.match(
-      new RegExp(`<${tag} className="([^"]*bg-clip-text[^"]*)"`),
-    );
-    assert.ok(match, `no gradient <${tag}> found in ${file}`);
-    const classes = match[1].split(/\s+/);
+const read = (file: string) =>
+  readFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), "utf8");
 
-    const sizes = classes.filter((c) =>
-      /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c),
-    );
-    assert.deepEqual(sizes, ["text-3xl", "sm:text-4xl", "md:text-5xl"]);
-    if (bleed) {
-      assert.ok(classes.includes("-mx-2") && classes.includes("px-2"));
-    }
+/*
+  The homepage section titles (features, pricing, FAQ and the rest) share one
+  class string, `H2` in components/landing/dusk.ts. They are solid ink now,
+  not a clipped gradient, so no glyph can lose its stroke at the box edge and
+  the old `-mx-2 px-2` bleed is not needed; `[overflow-wrap:anywhere]` still
+  breaks a word wider than a 320px phone's column instead of scrolling.
+*/
+test("the homepage H2 is text-3xl below sm, text-4xl from sm, text-5xl from md", () => {
+  const match = read("components/landing/dusk.ts").match(
+    /export const H2 =\s*"([^"]*)"/,
+  );
+
+  assert.ok(match, "no H2 constant in components/landing/dusk.ts");
+  const classes = match[1].split(/\s+/);
+
+  assert.deepEqual(
+    classes.filter((c) => /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c)),
+    ["text-3xl", "sm:text-4xl", "md:text-5xl"],
+  );
+  assert.ok(classes.includes("[overflow-wrap:anywhere]"));
+});
+
+for (const file of [
+  "components/landing/FeaturesGrid.tsx",
+  "components/landing/PricingSection.tsx",
+  "components/landing/FAQSection.tsx",
+]) {
+  test(`${file} titles its section with the shared H2`, () => {
+    assert.match(read(file), /<h2 className=\{`\$\{H2\}[^`]*`\}>/);
+  });
+}
+
+test("PAGE_H1 is text-3xl below sm, text-4xl from sm, text-5xl from md", () => {
+  const match = read("components/landing/dusk-pages.ts").match(
+    /export const PAGE_H1 =\s*"([^"]*)"/,
+  );
+
+  assert.ok(match, "no PAGE_H1 constant in components/landing/dusk-pages.ts");
+  const classes = match[1].split(/\s+/);
+
+  assert.deepEqual(
+    classes.filter((c) => /^(\w+:)?text-(xs|sm|base|lg|\d?xl)$/.test(c)),
+    ["text-3xl", "sm:text-4xl", "md:text-5xl"],
+  );
+  assert.ok(classes.includes("[overflow-wrap:anywhere]"));
+  assert.ok(!classes.includes("bg-clip-text"));
+});
+
+test("PageHero's h1 uses PAGE_H1", () => {
+  assert.match(
+    read("components/landing/DuskPage.tsx"),
+    /<h1\s+className=\{`[^`]*\$\{PAGE_H1\}[^`]*`\}/,
+  );
+});
+
+for (const file of sites) {
+  test(`${file} renders its title in PageHero`, () => {
+    assert.match(read(file), /<PageHero[^>]*\btitle=\{t\("title"\)\}/);
   });
 }

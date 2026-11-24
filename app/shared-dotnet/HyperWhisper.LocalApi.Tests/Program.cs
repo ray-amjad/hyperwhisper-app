@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
     ,("a deleted mode_id is MODE_NOT_FOUND and an unknown Parakeet model is MODEL_NOT_FOUND, before any work", MissingModeAndModelAreNotFound)
+    ,("a JSON route called with a non-JSON Content-Type is 400 INVALID_REQUEST", JsonContentTypeTests.JsonRoutesRefuseANonJsonContentType)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))

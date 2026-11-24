@@ -1,10 +1,12 @@
 // GROQ WHISPER PROVIDER
-// Fastest and cheapest STT - $0.00185/min using whisper-large-v3
+// Fastest and cheapest STT (Whisper)
 
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
+  billableSeconds,
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   emptyTranscriptOutcome,
@@ -12,6 +14,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
 } from './utils';
 import { isWhisperSilencePhrase } from './whisper-silence';
 
@@ -33,7 +36,7 @@ export async function transcribeWithGroq(
   }
 
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
-  const model = context.model || 'whisper-large-v3-turbo';
+  const model = context.model || getProviderDef('groq').defaultModel;
   const formData = new FormData();
 
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
@@ -85,18 +88,13 @@ export async function transcribeWithGroq(
     });
   }
 
-  let data: {
+  // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
+  // failing over, not by 500ing a request the siblings could serve.
+  const data = await readJson200<{
     text?: string;
     language?: string;
     duration?: number;
-  };
-  try {
-    data = await response.json();
-  } catch {
-    // A truncated/invalid 200 body (edge-proxy hiccup) is recoverable by
-    // failing over, not by 500ing a request the siblings could serve.
-    throw new ProviderUnavailableError('Groq', 'malformed 200 response body');
-  }
+  }>(provider, 'Groq', response, startTime, context);
 
   const duration = data.duration || 0;
 
@@ -155,10 +153,12 @@ export async function transcribeWithGroq(
     });
   }
 
+  const billedSeconds = billableSeconds(data.duration, audio.byteLength);
+
   logProviderEvent(provider, 'success', {
     elapsedMs: Math.round(performance.now() - startTime),
     transcriptChars: transcript.length,
-    durationSeconds: duration,
+    durationSeconds: billedSeconds,
     language: data.language,
     formDataMs: Math.round(formDataMs),
     fetchMs: Math.round(fetchMs),
@@ -167,8 +167,8 @@ export async function transcribeWithGroq(
   return {
     text: transcript,
     language: data.language,
-    durationSeconds: duration,
-    costUsd: computeGroqTranscriptionCost(duration, model),
+    durationSeconds: billedSeconds,
+    costUsd: computeGroqTranscriptionCost(billedSeconds, model),
     source: 'groq',
   };
 }
