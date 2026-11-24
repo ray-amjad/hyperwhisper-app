@@ -560,10 +560,9 @@ final class AppLogger {
         // AppHang raised while the fetch is in flight carries it.
         let fetchStart = Date()
         let onMainThread = Thread.isMainThread
-        publishDiagnosticLogState([
-            "diagnostic_logs_state": "running",
-            "diagnostic_logs_on_main_thread": onMainThread
-        ])
+        publishDiagnosticLogState(
+            diagnosticLogStateExtras(onMainThread: onMainThread, result: nil)
+        )
 
         let command = command ?? logShow([
             "show",
@@ -677,18 +676,57 @@ final class AppLogger {
             settings.debug("Recent-log fetch took \(fetchMs, privacy: .public)ms · outcome=\(outcome, privacy: .public)")
         }
 
-        var extras: [String: Any] = [
-            "diagnostic_logs_state": "finished",
-            "diagnostic_logs_outcome": outcome,
-            "diagnostic_logs_fetch_ms": fetchMs,
+        publishDiagnosticLogState(
+            diagnosticLogStateExtras(
+                onMainThread: onMainThread,
+                result: DiagnosticLogFetchResult(
+                    outcome: outcome,
+                    fetchMs: fetchMs,
+                    lineCount: lineCount,
+                    exitCode: exitCode
+                )
+            )
+        )
+    }
+
+    /// How a `log show` fetch ended.
+    struct DiagnosticLogFetchResult {
+        let outcome: String
+        let fetchMs: Int
+        let lineCount: Int
+        /// nil when the subprocess never launched.
+        let exitCode: Int?
+    }
+
+    /// Stands in for a number the fetch does not have: every number while it
+    /// is running, and the exit code of a fetch that never launched.
+    static let diagnosticLogUnknownNumber = -1
+    /// Stands in for the outcome while the fetch is running.
+    static let diagnosticLogUnknownOutcome = "none"
+
+    /// The `diagnostic_logs_*` scope extras for one publish, `running` when
+    /// `result` is nil and `finished` otherwise (#1205).
+    ///
+    /// Every publish writes EVERY key. `SentryService.setExtras` only adds and
+    /// overwrites keys, it never removes one, so a publish that left a key out
+    /// would leave the PREVIOUS fetch's value beside this fetch's state: a hang
+    /// during a fetch would report the last fetch's outcome and timing. A value
+    /// not known yet is written as a sentinel instead.
+    static func diagnosticLogStateExtras(
+        onMainThread: Bool,
+        result: DiagnosticLogFetchResult?
+    ) -> [String: Any] {
+        let unknown = diagnosticLogUnknownNumber
+        return [
+            "diagnostic_logs_state": result == nil ? "running" : "finished",
             "diagnostic_logs_on_main_thread": onMainThread,
-            "diagnostic_logs_line_count": lineCount,
-            "diagnostic_logs_was_slow": fetchMs >= slowDiagnosticLogFetchMs
+            "diagnostic_logs_outcome": result?.outcome ?? diagnosticLogUnknownOutcome,
+            "diagnostic_logs_fetch_ms": result?.fetchMs ?? unknown,
+            "diagnostic_logs_line_count": result?.lineCount ?? unknown,
+            "diagnostic_logs_exit_code": result?.exitCode ?? unknown,
+            // A running fetch has not stalled anyone yet.
+            "diagnostic_logs_was_slow": result.map { $0.fetchMs >= slowDiagnosticLogFetchMs } ?? false
         ]
-        if let exitCode {
-            extras["diagnostic_logs_exit_code"] = exitCode
-        }
-        publishDiagnosticLogState(extras)
     }
 
     /// Sanitizes a single log line to remove potential PII.
