@@ -1470,6 +1470,7 @@ internal static class ScriptGuardPorts
         Task? worker = null;
         var waited = false;
         var elapsed = TimeSpan.Zero;
+        using var started = new ManualResetEventSlim(false);
         try
         {
             Assert(reader.Read(), "the reader found no row to pause on");
@@ -1481,6 +1482,7 @@ internal static class ScriptGuardPorts
                 worker = Task.Run(() =>
                 {
                     var timer = Stopwatch.StartNew();
+                    started.Set();
                     try { write(); }
                     finally { elapsed = timer.Elapsed; }
                 });
@@ -1489,6 +1491,9 @@ internal static class ScriptGuardPorts
             {
                 SynchronizationContext.SetSynchronizationContext(previousContext);
             }
+            // The one-second hold starts only once the write is running, so a slow
+            // thread-pool start cannot let the reader go first and pass uncontended.
+            Assert(started.Wait(TimeSpan.FromSeconds(30)), "the write did not start within 30 s");
             // Task.Wait would rethrow a fault here; the fault is read once below.
             waited = !((IAsyncResult)worker).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(1));
         }
