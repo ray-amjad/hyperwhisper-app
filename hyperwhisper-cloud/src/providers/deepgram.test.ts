@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { mockFetchOnce } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
 
@@ -18,21 +19,6 @@ const AUDIO = new ArrayBuffer(1_000);
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
-function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  let capturedUrl = '';
-  let capturedInit: RequestInit | undefined;
-  globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-    capturedUrl = String(input);
-    capturedInit = init;
-    return handler(capturedUrl, init);
-  }) as unknown as typeof fetch;
-  return {
-    url: () => capturedUrl,
-    init: () => capturedInit,
-    params: () => new URL(capturedUrl).searchParams,
-  };
 }
 
 describe('transcribeWithDeepgram — configuration', () => {
@@ -245,11 +231,9 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
   });
 
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError', async () => {
-    const originalTimeoutEnv = process.env.STT_PROVIDER_TIMEOUT_MS;
-    process.env.STT_PROVIDER_TIMEOUT_MS = '20';
-    globalThis.fetch = mock(async (_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')));
-    })) as unknown as typeof fetch;
+    globalThis.fetch = mock(async () => {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }) as unknown as typeof fetch;
 
     try {
       await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US');
@@ -257,9 +241,6 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as ProviderUnavailableError).kind).toBe('timeout');
-    } finally {
-      if (originalTimeoutEnv === undefined) delete process.env.STT_PROVIDER_TIMEOUT_MS;
-      else process.env.STT_PROVIDER_TIMEOUT_MS = originalTimeoutEnv;
     }
   });
 });

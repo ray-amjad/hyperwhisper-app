@@ -202,6 +202,20 @@ try
         && camelCaseRestore.Text("GeminiTranscribeApiKey") == "aiza-camel-case-secret",
         "a camelCase provider id did not fold onto its canonical account");
 
+    // A key pasted with padding into another platform's backup is restored trimmed,
+    // as the Linux key dialog and the Windows store save it (#2410), and an entry of
+    // only whitespace leaves the stored key alone.
+    var paddedExport = geminiExport.DeepClone().AsObject();
+    paddedExport["apiKeys"] = new JsonObject { ["deepgram"] = "  deepgram-padded-secret \r\n", ["openai"] = " \t " };
+    var paddedRestore = new MemoryCredentialStore();
+    paddedRestore.Seed("OpenAIApiKey", "openai-kept-secret");
+    var paddedImport = await new ApplicationBackupService(database, settings, paddedRestore)
+        .ImportAsync(paddedExport.ToJsonString(), credentialSelection);
+    Assert(paddedImport.IsSuccess && paddedImport.Value!.CredentialsImported == 1
+        && paddedRestore.Text("DeepgramApiKey") == "deepgram-padded-secret"
+        && paddedRestore.Text("OpenAIApiKey") == "openai-kept-secret",
+        "a padded backup key was not restored trimmed, or a blank one replaced a stored key");
+
     var invalidProvider = full.DeepClone().AsObject();
     invalidProvider["apiKeys"] = new JsonObject { [new string('p', 65)] = "value" };
     Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",

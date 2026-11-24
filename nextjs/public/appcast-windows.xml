@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.15.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.15.0 - ARM64 -->
+<item>
+<title>1.15.0 (ARM64)</title>
+<pubDate>Thu, 22 Oct 2026 11:24:40 +0000</pubDate>
+<sparkle:version>1.15.0</sparkle:version>
+<sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.15.0-arm64-Setup.exe"
+length="180379248"
+type="application/octet-stream"
+sparkle:edSignature="ud2Q9N1X9O60NiEJPpdsAzw15Swbx6iCkyU16mPuLzDciBBw1Ya/kL3s+f8GmQ0a2GfS+5DxrgHZ+tXWflJYCw=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.15.0</h2>
+<ul>
+<li>Choose your microphone in Settings → Sound, and virtual microphones are no longer picked automatically</li><li>Other audio can now be muffled while you record</li><li>New models: ElevenLabs Scribe v2 Medical, Mistral Medium 3.5, Claude Haiku and Sonnet 5.5, and GPT-6 Luna; retired models switch to their replacements automatically</li><li>On-device Whisper starts faster, handles long files, and no longer adds "Thank you." or a repeated phrase to the end of a dictation</li><li>The app is now translated into Polish, Turkish, Korean, Traditional Chinese and Indonesian, and stays sharp when you change display scaling</li><li>Fixed your own Gemini API key being refused when it did not start with "AIza"</li><li>Many fixes to shortcuts, push-to-talk, clipboard restore, History and backup import</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.15.0 - x64 -->
+<item>
+<title>1.15.0 (x64)</title>
+<pubDate>Thu, 22 Oct 2026 11:24:40 +0000</pubDate>
+<sparkle:version>1.15.0</sparkle:version>
+<sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.15.0-x64-Setup.exe"
+length="229726912"
+type="application/octet-stream"
+sparkle:edSignature="fIIBm8ShAe+QR8udHq6hKbdi8PwMdptP/NWCDH4UiMY2nHWqah5e7fqDWKTYfIJWpyCzpMTW2BoBTwqqABo4DQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.15.0</h2>
+<ul>
+<li>Choose your microphone in Settings → Sound, and virtual microphones are no longer picked automatically</li><li>Other audio can now be muffled while you record</li><li>New models: ElevenLabs Scribe v2 Medical, Mistral Medium 3.5, Claude Haiku and Sonnet 5.5, and GPT-6 Luna; retired models switch to their replacements automatically</li><li>On-device Whisper starts faster, handles long files, and no longer adds "Thank you." or a repeated phrase to the end of a dictation</li><li>The app is now translated into Polish, Turkish, Korean, Traditional Chinese and Indonesian, and stays sharp when you change display scaling</li><li>Fixed your own Gemini API key being refused when it did not start with "AIza"</li><li>Many fixes to shortcuts, push-to-talk, clipboard restore, History and backup import</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.14.0 -->
 <!-- ================================================================== -->
 

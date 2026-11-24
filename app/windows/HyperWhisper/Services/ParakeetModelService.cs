@@ -43,10 +43,18 @@ public class ParakeetModelService
     // CONSTRUCTOR
     // =========================================================================
 
+    /// <summary>
+    /// Set only by the smoke tests, to feed <see cref="DownloadModelAsync"/> scripted
+    /// Hugging Face replies. Null in the app: each download builds its own client.
+    /// </summary>
+    private readonly HttpClient? _httpClient;
+
     public ParakeetModelService()
     {
         EnsureModelsDirectory();
     }
+
+    internal ParakeetModelService(HttpClient httpClient) : this() => _httpClient = httpClient;
 
     private void EnsureModelsDirectory()
     {
@@ -182,8 +190,9 @@ public class ParakeetModelService
 
         Directory.CreateDirectory(tempDir);
 
-        using var httpClient = new HttpClient();
-        httpClient.Timeout = TimeSpan.FromHours(2);
+        // Dispose only a client this call created; an injected one belongs to the caller.
+        using var ownedClient = _httpClient is null ? new HttpClient { Timeout = TimeSpan.FromHours(2) } : null;
+        var httpClient = _httpClient ?? ownedClient!;
 
         try
         {

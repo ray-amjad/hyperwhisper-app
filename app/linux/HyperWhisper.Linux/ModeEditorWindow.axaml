@@ -391,7 +391,6 @@
 
       <!-- A failed save keeps the dialog open so this line is readable. -->
       <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap" Classes="caption" Margin="0,0,0,4"/>
-      <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption"/>
 
       <!-- Action buttons, inside the scrolling body exactly as on Windows (:587-614). Delete is
            collapsed while creating (:84) and Save carries the create label there. -->

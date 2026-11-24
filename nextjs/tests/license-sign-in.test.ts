@@ -212,6 +212,18 @@ describe("POST /sign-in/license-key — the revocation race", () => {
     assert.deepEqual(order, ["lookup_1", "lookup_2", "sessions_minted_1"]);
     assert.deepEqual(calls.findAccountByKey, [GRANTED_KEY, GRANTED_KEY]);
   });
+
+  test("the re-read is a locking read, so it waits for a rotation or revocation to commit", async () => {
+    // Under READ COMMITTED a plain re-read sees the row as it was before an
+    // uncommitted rotation, while that rotation's session delete cannot see
+    // this new session: both would miss. FOR SHARE waits for the commit.
+    grantedAccount();
+
+    const result = await signInWithLicenseKey(GRANTED_KEY);
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(calls.findAccountByKeyLocked, [false, true]);
+  });
 });
 
 describe("POST /sign-in/license-key — the redirect target", () => {
@@ -467,6 +479,19 @@ describe("POST /sign-in/license-key — the audit line", () => {
     assert.equal(parseLine(logLines[0]!).fields.ipHash, CLIENT_IP_HASH);
   });
 
+  test("hashes cf-connecting-ip, not x-forwarded-for, when both are sent", async () => {
+    grantedAccount();
+
+    await signInWithLicenseKey(GRANTED_KEY, {
+      headers: {
+        "cf-connecting-ip": CLIENT_IP,
+        "x-forwarded-for": "198.51.100.9, 70.41.3.18",
+      },
+    });
+
+    assert.equal(parseLine(logLines[0]!).fields.ipHash, CLIENT_IP_HASH);
+  });
+
   test("logs a null ipHash when the proxy header is absent", async () => {
     grantedAccount();
 
@@ -488,5 +513,32 @@ describe("the license-key rate-limit rule", () => {
     assert.equal(rule.pathMatcher("/sign-in/email"), false);
     assert.equal(rule.pathMatcher("/sign-in/license-key/extra"), false);
     assert.equal(rule.pathMatcher("/x/sign-in/license-key"), false);
+  });
+});
+
+describe("POST /sign-in/license-key — a key containing a NUL byte (#2079)", () => {
+  test("gets the usual invalid-key refusal, not an empty 500", async () => {
+    // What Postgres does with 0x00 in a text parameter (SQLSTATE 22021).
+    behaviour.beforeLookup = () => {
+      throw Object.assign(
+        new Error('invalid byte sequence for encoding "UTF8": 0x00'),
+        { code: "22021" },
+      );
+    };
+
+    const result = await signInWithLicenseKey("HW-NXAU-\0");
+
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error, INVALID_MESSAGE);
+    assert.deepEqual(calls.findAccountByKey, []);
+    assert.deepEqual(calls.createSession, []);
+    assert.equal(logLines.length, 1, logLines.join("\n"));
+    // "<level> <json>", one line per attempt.
+    const line = logLines[0]!;
+    const space = line.indexOf(" ");
+    assert.equal(line.slice(0, space), "warn");
+    const fields = JSON.parse(line.slice(space + 1)) as Record<string, unknown>;
+    assert.equal(fields.outcome, "rejected");
+    assert.equal(fields.reason, "key_malformed");
   });
 });

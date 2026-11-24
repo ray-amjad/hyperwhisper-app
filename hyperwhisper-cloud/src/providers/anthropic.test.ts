@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
 
 import {
   ANTHROPIC_MODEL,
@@ -6,12 +7,17 @@ import {
   anthropicThinkingFor,
   requestAnthropicChat,
 } from './anthropic';
-import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
+import { computeAnthropicCost, llmModelRow } from '../lib/llm-models';
+import { estimateUsageFromChars } from '../lib/cost-calculator';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
-import { shouldFallback } from '../lib/llm-provider';
+import { shouldFallback } from './llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
 import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
+import { stubEnv } from '../test-support/env';
+
+// Output caps from the llm-models.ts rows.
+const ANTHROPIC_MAX_TOKENS = llmModelRow('anthropic', 'claude-haiku-5-5').maxOutputTokens;
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
@@ -19,25 +25,21 @@ import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } fr
 // test files in the same run.
 
 const originalFetch = globalThis.fetch;
-const originalApiKey = process.env.ANTHROPIC_API_KEY;
 
 const TEST_API_KEY = 'test-anthropic-key';
 const REQUEST_ID = 'req-anthropic-test';
 
 let lastRequest: { url: string; init: RequestInit } | null = null;
+let restoreApiKey: () => void;
 
 beforeEach(() => {
-  process.env.ANTHROPIC_API_KEY = TEST_API_KEY;
+  restoreApiKey = stubEnv('ANTHROPIC_API_KEY', TEST_API_KEY);
   lastRequest = null;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalApiKey === undefined) {
-    delete process.env.ANTHROPIC_API_KEY;
-  } else {
-    process.env.ANTHROPIC_API_KEY = originalApiKey;
-  }
+  restoreApiKey();
 });
 
 /** Install a fetch stub that records the outgoing request and returns `response`. */
@@ -126,7 +128,7 @@ describe('requestAnthropicChat', () => {
   test('a model that needs no thinking switch gets no thinking field', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }));
 
-    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, undefined, 'claude-sonnet-4-6');
+    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, 'claude-sonnet-4-6');
 
     const body = requestBody();
     expect(body.model).toBe('claude-sonnet-4-6');
@@ -172,16 +174,53 @@ describe('requestAnthropicChat', () => {
     expect(result.usage).toEqual({ prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 });
   });
 
-  test('treats a response with no usage object as zero-cost instead of throwing', async () => {
+  // Missing usage used to bill $0 here while every OpenAI-compatible provider
+  // billed a char-based estimate. One rule now: the shared estimate.
+  const PROMPT_CHARS = `sys\n\n${ANTHROPIC_WRAPPER_INSTRUCTION}`.length + 'user'.length;
+
+  test('bills a char-based estimate when the response has no usage object', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
-    expect(result.costUsd).toBe(0);
-    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
+      const estimate = estimateUsageFromChars(PROMPT_CHARS, 'ok'.length);
+      expect(result.usage).toEqual(estimate);
+      expect(result.costUsd).toBeGreaterThan(0);
+      expect(result.costUsd).toBeCloseTo(
+        computeAnthropicCost(ANTHROPIC_MODEL, estimate.prompt_tokens, estimate.completion_tokens, 0, 0),
+        12,
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
-  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+  test('an unreadable input count still bills the reported cache buckets at their own rates', async () => {
+    // The prompt is a few dozen chars, so the estimate is far below the 2000
+    // cached tokens and the uncached remainder floors at 0.
+    stubFetch(
+      Response.json({
+        content: [{ type: 'text', text: 'ok' }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: '1.2k', output_tokens: 500, cache_creation_input_tokens: 2000, cache_read_input_tokens: 4000 },
+      }),
+    );
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+
+      expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+      expect(result.costUsd).toBeCloseTo(computeAnthropicCost(ANTHROPIC_MODEL, 0, 500, 2000, 4000), 12);
+      expect(result.costUsd).toBeCloseTo(0.00054, 9);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('a non-number token count bills the char-based estimate instead of a NaN cost (#922)', async () => {
     stubFetch(
       Response.json({
         content: [{ type: 'text', text: 'ok' }],
@@ -189,13 +228,20 @@ describe('requestAnthropicChat', () => {
         usage: { input_tokens: '1.2k', output_tokens: 500 },
       }),
     );
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+    try {
+      const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
-    expect(Number.isFinite(result.costUsd)).toBe(true);
-    // Only the 500 well-formed output tokens are billed.
-    expect(result.costUsd).toBeCloseTo(0.00025, 9);
-    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+      expect(Number.isFinite(result.costUsd)).toBe(true);
+      // Only the unreadable input count is estimated; the reported output is billed as reported.
+      const estimatedInput = estimateUsageFromChars(PROMPT_CHARS, 'ok'.length).prompt_tokens;
+      expect(result.usage).toEqual({ prompt_tokens: estimatedInput, completion_tokens: 500, total_tokens: estimatedInput + 500 });
+      // The 500 well-formed output tokens are billed as reported, plus the input estimate.
+      expect(result.costUsd).toBeCloseTo(computeAnthropicCost(ANTHROPIC_MODEL, estimatedInput, 500, 0, 0), 12);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('returns the raw body so the completion policy can read Anthropic stop_reason', async () => {
@@ -254,7 +300,18 @@ function routeAnthropicTo(localUrl: string): string[] {
 
 describe('requestAnthropicChat bounded wait', () => {
   let upstream: TestUpstream | undefined;
+  // Shrink the request bound so the real abort fires in milliseconds.
+  let timerSpy: ReturnType<typeof spyOn> | undefined;
+  beforeEach(() => {
+    const realSetTimeout = globalThis.setTimeout;
+    timerSpy = spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: (...args: unknown[]) => void,
+      ms?: number,
+      ...args: unknown[]
+    ) => realSetTimeout(handler, ms === LLM_REQUEST_TIMEOUT_MS ? TIMEOUT_MS : ms, ...args)) as unknown as typeof setTimeout);
+  });
   afterEach(() => {
+    timerSpy?.mockRestore();
     upstream?.stop();
     upstream = undefined;
   });
@@ -264,7 +321,7 @@ describe('requestAnthropicChat bounded wait', () => {
     const requested = routeAnthropicTo(upstream.url);
 
     const startedAt = performance.now();
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
     const elapsedMs = performance.now() - startedAt;
 
     expect(requested).toEqual(['https://api.anthropic.com/v1/messages']);
@@ -279,7 +336,7 @@ describe('requestAnthropicChat bounded wait', () => {
     upstream = stalledBodyUpstream();
     routeAnthropicTo(upstream.url);
 
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
     expect((error as LLMRequestError).status).toBe(504);
     expect(shouldFallback(error)).toBe(true);
@@ -290,7 +347,7 @@ describe('requestAnthropicChat bounded wait', () => {
   test('passes a refused connection through untagged, not as a timeout', async () => {
     routeAnthropicTo(refusedUrl());
 
-    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(LLMRequestError);
@@ -301,7 +358,7 @@ describe('requestAnthropicChat bounded wait', () => {
 
 // The non-streaming bound scales with the transcript (review rounds 1 and 2):
 // the request arms its timer with computeLLMRequestTimeoutMs(transcript chars)
-// unless a test injects its own. Spy on setTimeout to read the delay armed.
+// Spy on setTimeout to read the delay armed.
 describe('requestAnthropicChat timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
@@ -333,14 +390,6 @@ describe('requestAnthropicChat timeout scales with the transcript', () => {
       requestAnthropicChat(correctionPayload('s'.repeat(30_000), 'user'), REQUEST_ID));
     expect(delays).toContain(20_000);
     expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
-  });
-
-  test('an injected timeout still wins over the computed one', async () => {
-    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
-    const delays = await armedDelays(() =>
-      requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID, 1_234));
-    expect(delays).toContain(1_234);
-    expect(delays).not.toContain(50_000);
   });
 });
 

@@ -33,7 +33,7 @@ import { createHash } from 'node:crypto';
 import type { Context, Next } from 'hono';
 import { Ratelimit } from '@upstash/ratelimit';
 import type { Redis } from '@upstash/redis';
-import { createRedisGetter } from '../lib/redis-client';
+import { createRedisGetter, RedisNotConfiguredError } from '../lib/redis-client';
 import { getClientIP } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
 import { toRedactedLogLine } from '../lib/log-redaction';
@@ -148,8 +148,7 @@ function currentStore(): RateLimitStore {
 let notConfiguredLogged = false;
 
 function logUnavailable(bucket: RateLimitBucket, reason: 'timeout' | 'store_error', error?: unknown): void {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  const notConfigured = message.includes('UPSTASH_REDIS_CLOUD_URL');
+  const notConfigured = error instanceof RedisNotConfiguredError;
   if (notConfigured) {
     if (notConfiguredLogged) return;
     notConfiguredLogged = true;

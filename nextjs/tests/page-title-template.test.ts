@@ -14,7 +14,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -58,10 +58,9 @@ moduleMock.module("next-intl/server", {
 
 // The purchase form is a client component with its own imports; the metadata
 // never renders it.
-moduleMock.module(
-  new URL("../components/credits/CreditsPurchase.tsx", import.meta.url).href,
-  { defaultExport: () => null },
-);
+moduleMock.module(moduleUrl("../components/credits/CreditsPurchase.tsx"), {
+  defaultExport: () => null,
+});
 
 // The layout's template, as `app/[locale]/layout.tsx` sets it.
 const TEMPLATE = "%s - HyperWhisper";

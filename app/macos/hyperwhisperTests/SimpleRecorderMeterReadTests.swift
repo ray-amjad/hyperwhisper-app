@@ -158,6 +158,7 @@ private final class Flag {
     var isSet = false
 }
 
+@Suite(.timeLimit(.minutes(10)))
 @MainActor
 struct SimpleRecorderMeterReadTests {
 

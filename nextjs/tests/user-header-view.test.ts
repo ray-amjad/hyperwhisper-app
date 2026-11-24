@@ -32,7 +32,7 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 /**
  * `next-intl`'s `createNavigation` builds a `Link` that reads the request
@@ -40,7 +40,7 @@ import { moduleMock } from "./module-mock";
  * provide. The stub is a plain anchor: the logo link is not what this file is
  * about, but it must render for the header to render at all.
  */
-moduleMock.module("../src/i18n/navigation", {
+moduleMock.module(moduleUrl("../src/i18n/navigation.ts"), {
   namedExports: {
     Link: ({ children, ...props }: { children?: ReactNode; href: string }) =>
       createElement("a", props, children),
@@ -214,7 +214,8 @@ test("a long email truncates and never wraps the logo or Sign Out (#1658)", asyn
   // Its flex parent must be allowed to shrink too, or `truncate` never kicks in.
   assert.match(markup, /<div class="flex min-w-0 items-center gap-4">/);
   // The logo and the button keep their natural width on one line.
-  assert.match(markup, /<a class="shrink-0 whitespace-nowrap [^"]*"[^>]*>HyperWhisper<\/a>/);
+  // The Dusk logo link carries the app icon (decorative, alt="") before the word.
+  assert.match(markup, /<a class="shrink-0 whitespace-nowrap [^"]*"[^>]*><img alt=""[^>]*\/?>HyperWhisper<\/a>/);
   assert.match(markup, /<button class="shrink-0 whitespace-nowrap [^"]*"[^>]*>Sign Out<\/button>/);
 });
 

@@ -11,6 +11,7 @@ import { Hono } from 'hono';
 import { pcm16Wav } from '../test-support/wav';
 import { createMemoryCreditHoldStore, type MemoryCreditHoldStore } from '../lib/credit-hold-store-memory';
 import type { CreditHoldStore } from '../lib/credit-hold-store';
+import { saveEnv, stubEnv } from '../test-support/env';
 
 let cachedCredits = 1000;
 /** The `credit_pool_id` each key's cached licence carries (#2026); none by default. */
@@ -35,8 +36,8 @@ const { drainPendingDeductions } = await import('../middleware/credits');
 const { drainPendingHoldReleases, setCreditHoldStoreForTests } = await import('../middleware/credit-holds');
 
 const originalFetch = globalThis.fetch;
-const originalMetaKey = process.env.META_MODEL_API_KEY;
-const originalGroqKey = process.env.GROQ_API_KEY;
+let restoreMetaKey: () => void;
+const restoreGroqKey = saveEnv('GROQ_API_KEY');
 
 const ACCOUNT = 'test-license';
 // One minute of canonical Meta Muse audio reserves (and bills) exactly 3 credits.
@@ -92,7 +93,7 @@ beforeEach(() => {
   metaUpstream = slowMetaSuccess;
   store = createMemoryCreditHoldStore();
   setCreditHoldStoreForTests(store);
-  process.env.META_MODEL_API_KEY = 'test-meta-key';
+  restoreMetaKey = stubEnv('META_MODEL_API_KEY', 'test-meta-key');
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === 'https://api.meta.ai/v1/asr/transcribe') {
@@ -112,10 +113,8 @@ afterEach(async () => {
   await settle();
   setCreditHoldStoreForTests(null);
   globalThis.fetch = originalFetch;
-  if (originalMetaKey === undefined) delete process.env.META_MODEL_API_KEY;
-  else process.env.META_MODEL_API_KEY = originalMetaKey;
-  if (originalGroqKey === undefined) delete process.env.GROQ_API_KEY;
-  else process.env.GROQ_API_KEY = originalGroqKey;
+  restoreMetaKey();
+  restoreGroqKey();
 });
 
 describe('concurrent /transcribe on a balance that covers one request (#2008)', () => {
@@ -367,6 +366,61 @@ describe('concurrent /post-process shares the same hold rule (#2008)', () => {
     expect(llmCalls).toBe(1);
     expect(charges).toHaveLength(1);
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+  });
+});
+
+// A charge above the hold is capped at what the hold can cover, so the credits a
+// response reports have to be that capped number, not the metered one: before,
+// each route priced the cost again for its header and body and told the client
+// about credits that were never charged.
+describe('a response reports the credits actually charged', () => {
+  test('/transcribe above its hold, with the balance short: header and body say what was charged', async () => {
+    // The upload reserves one minute (3 credits); the upstream bills two (6).
+    // The balance covers 4, so 4 are charged and 2 written off.
+    cachedCredits = 4;
+    metaUpstream = async () => Response.json({ transcript: 'served', audioDurationMs: 120_000, turns: [] });
+    const response = await buildApp().fetch(metaMinuteRequest());
+    await settle();
+
+    expect(response.status).toBe(200);
+    expect(charges).toEqual([expect.objectContaining({ amount: 4 })]);
+    expect(response.headers.get('X-Credits-Used')).toBe('4.0');
+    const body = await response.json() as { cost: { credits: number } };
+    expect(body.cost.credits).toBe(4);
+  });
+
+  test('/post-process above its hold, with the balance short: header and body say what was charged', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    // The estimate holds 1 credit; the LLM bills far more; the balance has 1.5.
+    cachedCredits = 1.5;
+    const baseFetch = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('api.groq.com')) {
+        return Response.json({
+          choices: [{ message: { content: '<clean>Cleaned text.</clean>' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 100_000, completion_tokens: 100_000, total_tokens: 200_000 },
+        });
+      }
+      return baseFetch(input, init);
+    }) as unknown as typeof fetch;
+
+    const body = JSON.stringify({ account_key: ACCOUNT, text: 'raw text', prompt: 'Clean it up.' });
+    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(Buffer.byteLength(body)),
+        'X-LLM-Provider': 'groq',
+      },
+      body,
+    }));
+    await settle();
+
+    expect(response.status).toBe(200);
+    expect(charges).toEqual([expect.objectContaining({ amount: 1.5 })]);
+    expect(response.headers.get('X-Credits-Used')).toBe('1.5');
+    const json = await response.json() as { cost: { credits: number } };
+    expect(json.cost.credits).toBe(1.5);
   });
 });
 

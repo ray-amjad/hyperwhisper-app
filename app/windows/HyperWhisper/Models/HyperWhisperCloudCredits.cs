@@ -127,9 +127,11 @@ public class HyperWhisperCloudCredits
 
     /// <summary>
     /// Whether credits are running low (less than 10 minutes remaining).
+    /// The server floors minutes, so a balance under one minute reads 0 minutes
+    /// while credits are still above 0: that is the most urgent low case, not "fine".
     /// </summary>
     [JsonIgnore]
-    public bool IsLow => MinutesRemaining < 10 && MinutesRemaining > 0;
+    public bool IsLow => MinutesRemaining < 10 && CreditsRemaining > 0;
 
     /// <summary>
     /// Dollar equivalent of current balance.

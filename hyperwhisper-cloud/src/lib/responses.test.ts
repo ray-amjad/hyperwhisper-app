@@ -10,13 +10,19 @@ import {
   jsonResponse,
   licenseRequiredResponse,
   missingContentLengthResponse,
+  sizeLimitFields,
+  sizeLimitWords,
 } from './responses';
 import {
+  AZURE_MAI_MAX_BYTES,
   CREDITS_PER_MINUTE,
   GEMINI_INLINE_MAX_BYTES,
+  GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   MAX_AUDIO_SIZE_BYTES,
+  META_MUSE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
+  SONIOX_MAX_BYTES,
 } from './constants';
 
 // These are the entitlement and size refusals the native clients branch on.
@@ -193,6 +199,80 @@ describe('size refusals', () => {
 
       expect((body['max_size_mb'] as number) * MB).toBeLessThanOrEqual(maxBytes);
     }
+  });
+});
+
+// #2704: the provider adapters throw AudioTooLargeError with their own cap, and
+// routes/transcribe.ts sends `sizeLimitFields` of it. Every cap an adapter
+// throws with, in bytes.
+const ADAPTER_CAPS: Record<string, number> = {
+  'Azure MAI': AZURE_MAI_MAX_BYTES,
+  Gemini: GEMINI_INLINE_MAX_BYTES,
+  'Gemini 3.5 Transcribe': GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
+  'Google Chirp': GOOGLE_CHIRP_INLINE_MAX_BYTES,
+  'Meta Muse': META_MUSE_MAX_BYTES,
+  OpenAI: OPENAI_INLINE_MAX_BYTES,
+  Soniox: SONIOX_MAX_BYTES,
+};
+
+describe('adapter 413s never advertise more than they enforce (#2704)', () => {
+  test('Soniox 14.4 MB cap reads back as 13 MiB, not 14', () => {
+    expect(SONIOX_MAX_BYTES).toBe(14_400_000);
+    expect(sizeLimitFields(15_000_000, SONIOX_MAX_BYTES).max_size_mb).toBe(13);
+  });
+
+  for (const [provider, maxBytes] of Object.entries(ADAPTER_CAPS)) {
+    test(`${provider}: max_size_mb × 1_048_576 ≤ ${maxBytes}`, () => {
+      const { max_size_mb } = sizeLimitFields(maxBytes + 1, maxBytes);
+
+      expect(Number.isInteger(max_size_mb)).toBe(true);
+      // 0 reads as "no limit known" on both clients, so a real cap never says 0.
+      expect(max_size_mb).toBeGreaterThan(0);
+      expect(max_size_mb * MB).toBeLessThanOrEqual(maxBytes);
+    });
+  }
+
+  test('a whole-MiB cap is unchanged by rounding down', () => {
+    for (const maxBytes of [MAX_AUDIO_SIZE_BYTES, OPENAI_INLINE_MAX_BYTES, AZURE_MAI_MAX_BYTES, META_MUSE_MAX_BYTES]) {
+      expect(sizeLimitFields(maxBytes + 1, maxBytes).max_size_mb).toBe(maxBytes / MB);
+    }
+  });
+});
+
+// #2607: the bug hunt's repro, adapted. It asked for `max_size_mb: 9.5`, but
+// both native clients parse that field as an integer (see the whole-number
+// test above), so the wire field stays a whole number and the fix is the
+// message: it states the real 9.5 MB cap and the file in the same unit.
+describe('the Google Chirp 413 states the real 9.5 MB cap (#2607)', () => {
+  test('Chirp pre-buffer 413 states the real 9.5 MB cap', async () => {
+    const response = fileTooLargeResponse(9_600_000, GOOGLE_CHIRP_INLINE_MAX_BYTES);
+    const body = await bodyOf(response);
+
+    expect(response.status).toBe(413);
+    expect(body['message']).toBe('Audio file must be 9.5 MB or smaller. Your file is 9.60 MB.');
+    // The wire fields the clients read are unchanged: a whole-number MiB limit
+    // no larger than the enforced one, and the file in MiB.
+    expect(body['max_size_mb']).toBe(9);
+    expect(body['actual_size_mb']).toBe(9.16);
+  });
+
+  test('a whole-MiB cap still reads as before', async () => {
+    const body = await bodyOf(fileTooLargeResponse(OPENAI_INLINE_MAX_BYTES + MB, OPENAI_INLINE_MAX_BYTES));
+
+    expect(body['message']).toBe('Audio file must be 25 MB or smaller. Your file is 26.00 MB.');
+    expect(body['max_size_mb']).toBe(25);
+  });
+
+  test('sizeLimitWords speaks a decimal cap in decimal MB and a MiB cap in MiB', () => {
+    expect(sizeLimitWords(9_600_000, 9_500_000)).toEqual({ max: '9.5 MB', actual: '9.60 MB' });
+    expect(sizeLimitWords(15_000_000, 14_400_000)).toEqual({ max: '14.4 MB', actual: '15.00 MB' });
+    expect(sizeLimitWords(129 * MB, MAX_AUDIO_SIZE_BYTES)).toEqual({ max: '128 MB', actual: '129.00 MB' });
+    // A file just over the cap never reads as equal to it.
+    expect(sizeLimitWords(9_500_001, 9_500_000).actual).toBe('9.51 MB');
+    // Exact sizes stay exact (16.1 * 100 is 1610.0000000000002 in floats).
+    expect(sizeLimitWords(16_100_000, 9_500_000).actual).toBe('16.10 MB');
+    // A cap is never rounded up past itself.
+    expect(sizeLimitWords(10_000_000, 9_999_999)).toEqual({ max: '9.99 MB', actual: '10.00 MB' });
   });
 });
 

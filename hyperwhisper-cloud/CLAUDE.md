@@ -7,9 +7,10 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 - `src/routes/transcribe.ts` — main `/transcribe` route, header gates, walks the chain the registry gives it
 - `src/routes/ws-streaming-shared.ts` — vendor-neutral live-transcription shell (upgrade preflight, client protocol, audio caps, backpressure, credit cutoff, billing); `ws-streaming-deepgram.ts` and `ws-streaming-gemini-transcribe.ts` are just vendor adapters over it
 - `src/lib/stt-models.ts` — STT registry: routable (provider, model) pairs, preflight rates, each provider's `fallbackChain` (`selfOnly` is derived from it), and its public label (`servedName` → `servedNameFor()` / `formatProviderName()`)
-- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`, `gemini.ts`, `gemini-transcribe.ts`) plus shared `types.ts`, `utils.ts`, `audio-limits.ts` (the pre-buffer size gate), `geo-availability.ts` (the blocked-region plan), `reservation.ts` (the preflight USD/min behind `maxReservationUsdPerMinute()`) and `dispatch.ts` (the id → adapter map behind `transcribeWithProvider()`)
-- `src/lib/` — `constants.ts` (size caps + replay limit), `gcs-storage.ts`, `google-auth.ts`, `cost-calculator.ts`, `redis.ts`, `responses.ts`, `logging.ts`
-- `src/middleware/` — `auth.ts`, `credits.ts`, `credit-holds.ts`, `rate-limit.ts` (Upstash sliding-window request limits — see below)
+- `src/lib/llm-models.ts` — LLM registry for `/post-process`: one row per (provider, model) with wire id, served label, default flag, rates and output cap; the allowlist, served names, defaults and LLM cost (`computeLLMChatCost` / `computeAnthropicCost`) all read it. Rows must match `shared-app-classification/cloud-pp-catalog.json` (parity tests in `llm-dispatch.test.ts` and `cost-calculator.test.ts`)
+- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`, `gemini.ts`, `gemini-transcribe.ts`) plus shared `types.ts`, `utils.ts`, `audio-limits.ts` (the per-provider size caps and the pre-buffer gate), `gcs-storage.ts` (Chirp's GCS staging), `vendor-api-keys.ts` (each vendor's API-key env names), `model-variants.ts` (models on their own endpoint, e.g. AssemblyAI Dictation), `geo-availability.ts` (the blocked-region plan), `reservation.ts` (the preflight USD/min behind `maxReservationUsdPerMinute()`), `dispatch.ts` (the id → adapter map behind `transcribeWithProvider()`), `language-codes.ts` (per-provider language-code normalization), `wav-header.ts` (the PCM16 WAV header parser) and `llm-provider.ts` (the `/post-process` LLM chain, failover and retry over the LLM adapters)
+- `src/lib/` — `constants.ts` (size caps + replay limit), `google-auth.ts`, `cost-calculator.ts`, `redis.ts`, `responses.ts`, `logging.ts`, `errors.ts` (`ProviderUnavailableKind`, the failure vocabulary `providers/` and `latency-report.ts` share). Nothing in `lib/` imports `providers/`
+- `src/middleware/` — `auth.ts`, `credits.ts`, `credit-holds.ts`, `request-gate.ts` (IP block → auth → key rate limit, the one order every key-accepting route runs), `rate-limit.ts` (Upstash sliding-window request limits — see below)
 - `references/custom-vocab.md` — Deepgram vocabulary boosting rules
 
 ## Deployment environments
@@ -64,7 +65,7 @@ Changes to query params (`account_key` / legacy `license_key`, `device_id`, `lan
 
 Every native request also carries `X-HyperWhisper-Platform` (`macos` / `windows`) and `X-HyperWhisper-Version` (app version). `src/lib/client-info.ts` reads them onto `transcribe.request_start`, `transcribe.request_done`, and `post_process.request_start` as `clientPlatform` / `clientVersion`, falling back to the `User-Agent` for builds shipped before the headers existed. They are caller-supplied labels for logs only — never gate auth, billing, or routing on them. Client side: `HyperWhisperClientInfo.swift` (macOS) and `ClientInfoHeaders.cs` (Windows).
 
-The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `post-process`, `usage`, and every `/ws/streaming-*` route via `makeStreamingPreflight`) reads `account_key` first, then falls back to `license_key`, so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
+The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `post-process`, `usage`, and every `/ws/streaming-*` route via `makeStreamingPreflight`) reads `account_key` first, then falls back to `license_key` (one reader: `readAccountKey` in `src/lib/account-key.ts`), so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
 </important>
 
 <important if="you are touching rate limits, `src/middleware/rate-limit.ts`, or adding a key-accepting route">
@@ -74,10 +75,10 @@ The auth credential is accepted under **two param names**: `account_key` (canoni
 | Bucket | Limit | Keyed on | Where it runs |
 |---|---|---|---|
 | `ip` | 120 / min | `getClientIP` (the helper `isIPBlocked` uses) | `ipRateLimit` route middleware in `src/index.ts`, BEFORE the route parses a body or checks the key |
-| `key` | 60 / min | SHA-256 of the account key (never the raw key) | `keyRateLimitResponse` inside each route, right AFTER `validateAuth` accepts the key and before any credit hold |
+| `key` | 60 / min | SHA-256 of the account key (never the raw key) | the request gate (`src/middleware/request-gate.ts`): `openRequestGate` runs the IP block, its `admitKey` runs `validateAuth` then `keyRateLimitResponse`, before any credit hold. `/usage` passes `auth: 'route'` (rate limit BEFORE its own lookup) |
 | `ws_upgrade` | 10 / min | same key hash | `makeStreamingPreflight`, on top of `key` — an upgrade counts against both |
 
-Limited: `/transcribe`, `/post-process`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. A new key-accepting route needs `ipRateLimit` in `index.ts` and a `keyRateLimitResponse` call after its auth; a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
+Limited: `/transcribe`, `/post-process`, `/usage` and every `/ws/streaming-*` upgrade. `/health`, `/warmup` and CORS preflights are not. `POST /internal/license-cache/invalidate` (site → cloud after an Account Key rotation, gated by `x-internal-secret` = `HYPERWHISPER_INTERNAL_SECRET`, `src/routes/internal-license-cache.ts`) runs `ipRateLimit` only; it accepts no key as a credential. A new key-accepting route needs `ipRateLimit` in `index.ts` and `openRequestGate` + `admitKey` (never its own `isIPBlocked` / `validateAuth` / `keyRateLimitResponse` sequence); a new `/ws/streaming-*` route gets the key buckets from `makeStreamingPreflight` but still needs `ipRateLimit` in `index.ts`.
 
 Over a limit: HTTP 429, a `Retry-After` header in whole seconds, and the usual `{ error: 'Too many requests', message, retry_after_seconds }` body; the log line is `rate_limit.rejected` (endpoint + bucket, never the IP or key). The native clients already treat 429 as rate limited.
 
@@ -126,7 +127,7 @@ paid-tier no-training posture — there is no per-request opt-out flag on either
 That endpoint *accepts* the id, *bills the audio*, and returns a content part with
 empty text and no error: a silent, paid no-op. Verified against the live API. Only
 `/v1beta/interactions` serves these models. Same rule on the native side, in
-`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`.
+`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe/mod.rs`.
 
 **TRAP 2 — `custom_vocabulary` is mutually exclusive with `diarization_mode` AND
 with `timestamp_granularities`**, each an HTTP 400 (`custom_vocabulary is
@@ -138,7 +139,7 @@ to the vocabulary.
 
 Billing quirks, both load-bearing:
 - Audio bills at **25 tokens/sec**, not the 32 tok/s of the `:generateContent`
-  models. `GEMINI_AUDIO_TOKENS_PER_MINUTE` / `GEMINI_RATES` /
+  models. `GEMINI_AUDIO_TOKENS_PER_MINUTE` / the gemini rows' token rates /
   `computeGeminiTranscriptionCost` are for the LLM path — never reuse them here.
 - `usage.total_output_tokens` is **always 0** on this endpoint, so the output half
   of the bill is *estimated* from the transcript length (~4 chars/token) in
@@ -204,7 +205,7 @@ Without the secret, Chirp falls back to inline-only and 413s any audio > 9.5 MB.
 The two differ on the wire and the difference is not cosmetic:
 - Wire model string: `mai-transcribe-1.5` stays lowercase (that is what shipped and works); v2 is `MAI-Transcribe-2`, the doc's capitalisation. An explicit two-entry map, never a case transform.
 - v2 only sends `enhancedMode.modelOptions.transcribeStyle: "clean"`. v2's upstream default flipped to `verbatim`, so omitting it would start returning "um"/"uh" to dictation users. Do NOT add `diarization` (a top-level sibling) or `modelOptions.timestamps` — both change the response shape, and the parser reads `combinedPhrases[0].text`.
-- Locales differ: 60 for v2, 42 for 1.5 (`AZURE_MAI_MODEL_LOCALES` in `lib/language-codes.ts`), and the rates differ (`cost-calculator.ts`). Both are keyed on the resolved model, so a model added to the registry needs a row in each.
+- Locales differ: 60 for v2, 42 for 1.5 (`AZURE_MAI_MODEL_LOCALES` in `providers/language-codes.ts`), and the rates differ (each model's `billing` row in `lib/stt-models.ts`, which both the reservation and the charge read). Locales are keyed on the resolved model, so a model added to the registry needs a locale row too.
 
 Both models accept only **WAV, MP3, FLAC**. Anything else (m4a, mp4, webm, opus, ogg, aac, wma) throws `UnsupportedAudioFormatError` BEFORE the multipart upload is built and surfaces as HTTP **415**. Logs `provider.unsupported_audio_format`. Client implication: macOS/Windows must pre-convert non-accepted formats before sending — usually to WAV.
 

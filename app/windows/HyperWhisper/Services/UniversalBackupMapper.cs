@@ -1161,7 +1161,8 @@ public static class UniversalBackupMapper
 
     /// <summary>
     /// Writes universal API keys to ApiKeyService (PasswordVault).
-    /// Only writes non-null keys; does not clear existing keys that aren't in the backup.
+    /// Only writes non-blank keys (SetApiKey trims each one); a blank entry or a key
+    /// that is not in the backup leaves the stored key alone.
     /// </summary>
     /// <returns>
     /// True when every key in the backup was stored; false when Credential Manager
@@ -1188,30 +1189,30 @@ public static class UniversalBackupMapper
         Action<PostProcessingProvider, string?> writePostProcessingKey,
         Action<TranscriptionApiKeyType, string?> writeTranscriptionKey)
     {
-        if (!string.IsNullOrEmpty(apiKeys.OpenAI)) writePostProcessingKey(PostProcessingProvider.OpenAI, apiKeys.OpenAI);
-        if (!string.IsNullOrEmpty(apiKeys.Anthropic)) writePostProcessingKey(PostProcessingProvider.Anthropic, apiKeys.Anthropic);
-        if (!string.IsNullOrEmpty(apiKeys.Groq)) writePostProcessingKey(PostProcessingProvider.Groq, apiKeys.Groq);
-        if (!string.IsNullOrEmpty(apiKeys.Gemini)) writePostProcessingKey(PostProcessingProvider.Gemini, apiKeys.Gemini);
-        if (!string.IsNullOrEmpty(apiKeys.Cerebras)) writePostProcessingKey(PostProcessingProvider.Cerebras, apiKeys.Cerebras);
+        if (!string.IsNullOrWhiteSpace(apiKeys.OpenAI)) writePostProcessingKey(PostProcessingProvider.OpenAI, apiKeys.OpenAI);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Anthropic)) writePostProcessingKey(PostProcessingProvider.Anthropic, apiKeys.Anthropic);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Groq)) writePostProcessingKey(PostProcessingProvider.Groq, apiKeys.Groq);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Gemini)) writePostProcessingKey(PostProcessingProvider.Gemini, apiKeys.Gemini);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Cerebras)) writePostProcessingKey(PostProcessingProvider.Cerebras, apiKeys.Cerebras);
         // Fireworks removed — deprecated no-op backup field, never applied on restore.
-        if (!string.IsNullOrEmpty(apiKeys.Deepgram)) writeTranscriptionKey(TranscriptionApiKeyType.Deepgram, apiKeys.Deepgram);
-        if (!string.IsNullOrEmpty(apiKeys.AssemblyAI)) writeTranscriptionKey(TranscriptionApiKeyType.AssemblyAI, apiKeys.AssemblyAI);
-        if (!string.IsNullOrEmpty(apiKeys.ElevenLabs)) writeTranscriptionKey(TranscriptionApiKeyType.ElevenLabs, apiKeys.ElevenLabs);
-        if (!string.IsNullOrEmpty(apiKeys.Mistral)) writeTranscriptionKey(TranscriptionApiKeyType.Mistral, apiKeys.Mistral);
-        if (!string.IsNullOrEmpty(apiKeys.Soniox)) writeTranscriptionKey(TranscriptionApiKeyType.Soniox, apiKeys.Soniox);
-        if (!string.IsNullOrEmpty(apiKeys.Grok)) writePostProcessingKey(PostProcessingProvider.Grok, apiKeys.Grok);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Deepgram)) writeTranscriptionKey(TranscriptionApiKeyType.Deepgram, apiKeys.Deepgram);
+        if (!string.IsNullOrWhiteSpace(apiKeys.AssemblyAI)) writeTranscriptionKey(TranscriptionApiKeyType.AssemblyAI, apiKeys.AssemblyAI);
+        if (!string.IsNullOrWhiteSpace(apiKeys.ElevenLabs)) writeTranscriptionKey(TranscriptionApiKeyType.ElevenLabs, apiKeys.ElevenLabs);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Mistral)) writeTranscriptionKey(TranscriptionApiKeyType.Mistral, apiKeys.Mistral);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Soniox)) writeTranscriptionKey(TranscriptionApiKeyType.Soniox, apiKeys.Soniox);
+        if (!string.IsNullOrWhiteSpace(apiKeys.Grok)) writePostProcessingKey(PostProcessingProvider.Grok, apiKeys.Grok);
 
         // Own slot, not the legacy `gemini` post-processing key. The fallback
         // covers a backup written with the camelCase catalog spelling
         // (`geminiTranscribe`) instead of the squashed-lowercase apiKeys
         // convention: that lands in AdditionalKeys, and silently dropping it would
         // reproduce exactly the bug this field exists to fix.
-        var geminiTranscribe = !string.IsNullOrEmpty(apiKeys.GeminiTranscribe)
+        var geminiTranscribe = !string.IsNullOrWhiteSpace(apiKeys.GeminiTranscribe)
             ? apiKeys.GeminiTranscribe
             : ExtraApiKey(apiKeys, "geminiTranscribe");
-        if (!string.IsNullOrEmpty(geminiTranscribe))
+        if (!string.IsNullOrWhiteSpace(geminiTranscribe))
             writeTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe, geminiTranscribe);
-        if (!string.IsNullOrEmpty(apiKeys.Meta))
+        if (!string.IsNullOrWhiteSpace(apiKeys.Meta))
             writeTranscriptionKey(TranscriptionApiKeyType.Meta, apiKeys.Meta);
     }
 

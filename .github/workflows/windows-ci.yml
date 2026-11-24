@@ -182,6 +182,15 @@ jobs:
         run: dotnet run --project app/windows/HyperWhisper.WhisperWorker.Tests -c Release
 
       # ----------------------------------------------------------------
+      # 6c. Microphone keep-warm tests (issue #2501)
+      # ----------------------------------------------------------------
+      # MicrophoneKeepWarmService against a fake capture, including a turn-off
+      # racing the end of a recording. Compiles the one service file, so it
+      # needs nothing from the steps above.
+      - name: Run microphone keep-warm tests
+        run: dotnet run --project app/windows/HyperWhisper.KeepWarm.Tests -c Release
+
+      # ----------------------------------------------------------------
       # 7. Catalog conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/catalog-vectors.json is one file run by all three

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { saveEnv } from '../test-support/env';
+import { neverFetch } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
-const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+const restoreLicenseApiUrl = saveEnv('NEXTJS_LICENSE_API_URL');
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string; creditPoolId?: string; issuedAtMs?: number };
 
@@ -20,26 +22,16 @@ mock.module('../lib/redis', () => ({
 
 const { authDiagnosticsForLog, validateAuth } = await import('./auth');
 
-function neverFetch() {
-  return mock(async () => {
-    throw new Error('validateAuth should not have called fetch here');
-  }) as unknown as typeof fetch;
-}
-
 afterEach(() => {
   cacheWrites.length = 0;
   cachedLicenseValue = null;
   globalThis.fetch = originalFetch;
-  if (originalLicenseApiUrl === undefined) {
-    delete process.env.NEXTJS_LICENSE_API_URL;
-  } else {
-    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
-  }
+  restoreLicenseApiUrl();
 });
 
 describe('validateAuth', () => {
   test('rejects a request with no license key, without calling the API', async () => {
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('validateAuth should not have called fetch here');
 
     const result = await validateAuth({});
 
@@ -56,7 +48,7 @@ describe('validateAuth', () => {
 
   test('serves a valid cached license without calling the API', async () => {
     cachedLicenseValue = { isValid: true, credits: 25, cachedAt: 'x' };
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('validateAuth should not have called fetch here');
 
     const result = await validateAuth({ licenseKey: 'abc123' });
 
@@ -75,7 +67,7 @@ describe('validateAuth', () => {
 
   test('rejects a request with a cached invalid license, without calling the API', async () => {
     cachedLicenseValue = { isValid: false, credits: 0, cachedAt: 'x' };
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('validateAuth should not have called fetch here');
 
     const result = await validateAuth({ licenseKey: 'bad-key' });
 
@@ -138,7 +130,7 @@ describe('validateAuth', () => {
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7, creditPoolId: pool });
 
     // The next request reads it back from the cache.
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('validateAuth should not have called fetch here');
     const cached = await validateAuth({ licenseKey: 'pooled-key' });
     expect(cached.ok && cached.value.creditPoolId).toBe(pool);
   });

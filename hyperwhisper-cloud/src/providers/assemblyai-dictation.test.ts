@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { transcribeWithAssemblyAI } from './assemblyai';
+import { transcribeWithProvider } from './dispatch';
 import { dictationKeyterms, parseDictationWav, validateDictationOptions } from './assemblyai-dictation';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
@@ -7,18 +7,18 @@ import { estimatedUsdPerMinute, resolveModel } from '../lib/stt-models';
 import { maxReservationUsdPerMinute } from './reservation';
 import { providerAudioReservation } from './audio-reservation';
 import { pcm16Wav, wav } from '../test-support/wav';
+import { stubEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
-const originalKey = process.env.ASSEMBLYAI_API_KEY;
-beforeEach(() => { process.env.ASSEMBLYAI_API_KEY = 'test-key'; });
+let restoreKey: () => void;
+beforeEach(() => { restoreKey = stubEnv('ASSEMBLYAI_API_KEY', 'test-key'); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalKey === undefined) delete process.env.ASSEMBLYAI_API_KEY;
-  else process.env.ASSEMBLYAI_API_KEY = originalKey;
+  restoreKey();
 });
 
 const transcribe = (audio = pcm16Wav(), language: string | undefined = 'en', domain?: string) =>
-  transcribeWithAssemblyAI(audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
+  transcribeWithProvider('assemblyai', audio, 'audio/vnd.wave', language, 'HyperWhisper, a long phrase with more than six words', { model: 'dictation', domain });
 
 describe('Dictation transport', () => {
   test('config is typed JSON first, canonical WAV second, cleaned text and exact duration win', async () => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
+import { saveEnv } from '../test-support/env';
 
 const originalFetch = globalThis.fetch;
 
@@ -570,14 +571,10 @@ describe('usageRoute credits-balance refresh', () => {
 });
 
 describe('usageRoute licensing API base URL', () => {
-  const originalBase = process.env.NEXTJS_LICENSE_API_URL;
+  const restoreBase = saveEnv('NEXTJS_LICENSE_API_URL');
 
   afterEach(() => {
-    if (originalBase === undefined) {
-      delete process.env.NEXTJS_LICENSE_API_URL;
-    } else {
-      process.env.NEXTJS_LICENSE_API_URL = originalBase;
-    }
+    restoreBase();
   });
 
   test('trailing slashes on NEXTJS_LICENSE_API_URL do not produce a double-slash path', async () => {

@@ -11,6 +11,8 @@ import {
   fakeContext,
   textMessage,
 } from './ws-streaming-test-support';
+import { stubEnv } from '../test-support/env';
+import { neverFetch } from '../test-support/fetch-stubs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -37,19 +39,13 @@ const {
   parseDeepgramLiveClose,
   wsStreamingPreflight,
 } = await import('./ws-streaming-deepgram');
-const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./ws-streaming-shared');
+const { endLiveSessions, resetLiveSessionsForTests } = await import('../lib/background-work');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
-const originalApiKey = process.env.DEEPGRAM_API_KEY;
+let restoreApiKey: () => void;
 
 const BYTES_PER_SECOND = 16000 * 1 * 2;
-
-function neverFetch() {
-  return mock(async () => {
-    throw new Error('no license API call was expected here');
-  }) as unknown as typeof fetch;
-}
 
 describe('durationSecondsForLinear16AudioBytes', () => {
   test('calculates duration from the mono 16 kHz linear16 audio forwarded to Deepgram', () => {
@@ -102,7 +98,7 @@ describe('wsStreamingPreflight', () => {
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
-    globalThis.fetch = neverFetch();
+    globalThis.fetch = neverFetch('no license API call was expected here');
   });
 
   afterEach(() => {
@@ -280,7 +276,7 @@ describe('streaming socket lifecycle', () => {
   beforeEach(() => {
     licenseCharges.length = 0;
     upstreamSockets.length = 0;
-    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    restoreApiKey = stubEnv('DEEPGRAM_API_KEY', 'test-deepgram-key');
     globalThis.WebSocket = FakeUpstreamSocket as unknown as typeof WebSocket;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const target = typeof input === 'string' ? input : input.toString();
@@ -295,8 +291,7 @@ describe('streaming socket lifecycle', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     globalThis.WebSocket = originalWebSocket;
-    if (originalApiKey === undefined) delete process.env.DEEPGRAM_API_KEY;
-    else process.env.DEEPGRAM_API_KEY = originalApiKey;
+    restoreApiKey();
   });
 
   test('closes the session when the Deepgram key is not configured, without dialling upstream', () => {
@@ -376,6 +371,12 @@ describe('streaming socket lifecycle', () => {
       // The legacy nova-2 syntax must not reappear: no `keywords`, no `:boost`.
       expect(params.getAll('keywords')).toEqual([]);
       expect(upstream.url).not.toContain('%3A1.5');
+    });
+
+    test('keeps a literal + in a vocabulary term', () => {
+      const { upstream } = openSession({ query: '&language=en&vocabulary=C++,C%2B%2B' });
+
+      expect(new URL(upstream.url).searchParams.getAll('keyterm')).toEqual(['C++', 'C++']);
     });
 
     test('drops keyterms in auto-detect mode, where Nova-3 ignores them', () => {
@@ -923,15 +924,15 @@ describe('streaming socket lifecycle', () => {
     // A session opened by an earlier test and never closed is still registered.
     // Settle those first, so each test counts only the sessions it opens.
     async function settleLeftoverSessions(): Promise<void> {
-      await endActiveStreamingSessions();
+      await endLiveSessions();
       // Ending latches the machine as shutting down; reopen it for this test.
-      resetStreamingShutdownForTests();
+      resetLiveSessionsForTests();
       await drainPendingDeductions(2000);
       licenseCharges.length = 0;
     }
 
     // The latch is module state and bun runs every test file in one process.
-    afterEach(() => resetStreamingShutdownForTests());
+    afterEach(() => resetLiveSessionsForTests());
 
     test('bills an open session, logs session_end, and closes the client with 1012 without finishing it', async () => {
       await settleLeftoverSessions();
@@ -943,7 +944,7 @@ describe('streaming socket lifecycle', () => {
 
       let ending: Promise<number> = Promise.resolve(-1);
       const { entries, serialised } = captureStreamingLogs(() => {
-        ending = endActiveStreamingSessions();
+        ending = endLiveSessions();
       });
       expect(await ending).toBe(1);
       expect(await drainPendingDeductions(2000)).toBe(1);
@@ -971,13 +972,13 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toEqual([]);
 
       // ...and the session left the set.
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
     });
 
     test('a session that opens after shutdown began gets 1012, no upstream, and no charge', async () => {
       await settleLeftoverSessions();
       upstreamSockets.length = 0;
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
 
       // A preflight that was awaiting auth when the snapshot was taken.
       const auth: AuthContext = { identifier: 'late', licenseKey: 'late', credits: 1000 };
@@ -1001,7 +1002,7 @@ describe('streaming socket lifecycle', () => {
       await drainPendingDeductions(2000);
       expect(licenseCharges).toEqual([]);
       expect(client.messagesOfType('session_complete')).toEqual([]);
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
     });
 
     test('a session whose shutdown throws does not stop the others being ended', async () => {
@@ -1018,7 +1019,7 @@ describe('streaming socket lifecycle', () => {
       console.error = (...args: unknown[]) => { errors.push(args); };
       try {
         captureStreamingLogs(() => {
-          ending = endActiveStreamingSessions();
+          ending = endLiveSessions();
         });
         expect(await ending).toBe(1);
       } finally {
@@ -1030,7 +1031,7 @@ describe('streaming socket lifecycle', () => {
       // Both were billed: the throw came after the broken session's endSession.
       expect(licenseCharges.map((charge) => charge.metadata.audio_duration_seconds).sort()).toEqual([10, 20]);
       expect(errors).toEqual([['ws_streaming.shutdown_session_failed', { errorName: 'Error' }]]);
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
     });
 
     test('a session the client already closed is not ended again at shutdown', async () => {
@@ -1040,7 +1041,7 @@ describe('streaming socket lifecycle', () => {
       await harness.endSession();
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
 
-      expect(await endActiveStreamingSessions()).toBe(0);
+      expect(await endLiveSessions()).toBe(0);
       await drainPendingDeductions(2000);
       expect(licenseCharges).toHaveLength(1);
     });

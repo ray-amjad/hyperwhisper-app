@@ -130,6 +130,12 @@ private final class ScriptedCloudURLProtocol: URLProtocol {
     static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [ScriptedCloudURLProtocol.self]
+        // A held /post-process waits for the test, not the network. With the
+        // 60 s default, a CI stall past a minute times the parked request
+        // out, and the provider's retry reaches the backend a second time
+        // (#2399).
+        config.timeoutIntervalForRequest = 600
+        config.timeoutIntervalForResource = 600
         return URLSession(configuration: config)
     }
 
@@ -198,35 +204,6 @@ private final class ScriptedCloudURLProtocol: URLProtocol {
     }
 }
 
-/// Reports a stored account key, so the real entitlement check passes; every
-/// network call is a no-op refusal, so nothing leaves the process.
-private final class StoredKeyLicenseNetwork: LicenseNetworkServing {
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { "fixture-account-key-754" }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
-}
-
 // MARK: - A conformer for the protocol-level contract
 
 /// One shared instance whose German pass is held until released, so a French
@@ -287,9 +264,12 @@ private final class TextOnlyProvider: TranscriptionProvider {
 @Suite(.serialized)
 struct TranscriptionOutcomePerCallTests {
 
-    /// Waits up to `seconds` for `condition`. The full suite runs in parallel
-    /// in one process, so the deadline is generous.
-    private static func eventually(_ seconds: Double = 20, _ condition: () -> Bool) async -> Bool {
+    /// Waits up to `seconds` for `condition`. The deadline is a failsafe for a
+    /// call that never arrives, not a timing assertion: the full test bundle
+    /// runs in parallel in one process, and on `macos-ci` the suites around
+    /// this one have reported 20 to 90 s, so a 20 s deadline lapsed while
+    /// call A was still on its way (#2399).
+    private static func eventually(_ seconds: Double = 180, _ condition: () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if condition() { return true }
@@ -300,36 +280,12 @@ struct TranscriptionOutcomePerCallTests {
 
     /// A short mono tone in its own temporary folder (a real, non-empty WAV).
     private static func toneWAV() throws -> URL {
-        let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-754-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("tone.wav")
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(0.5 * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(named: "tone.wav", inFolderPrefixed: "hw-754", seconds: 0.5)
     }
 
     private static func licensedManager() -> LicenseManager {
         let manager = LicenseManager(
-            networkService: StoredKeyLicenseNetwork(),
+            networkService: StubLicenseNetwork(storedKey: "fixture-account-key-754"),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )
@@ -390,7 +346,17 @@ struct TranscriptionOutcomePerCallTests {
         let callA = Task {
             try await shared.transcribeDetailed(audioURL: audio, language: "de", mode: mode, vocabulary: [])
         }
-        #expect(await Self.eventually { backend.heldCount == 1 }, "call A never reached its /post-process")
+        // Stop here if A never parked: B's /post-process would be the held
+        // one, and nothing would release it. End A first, so it cannot reach
+        // the shared backend after the next test resets it.
+        let aParked = await Self.eventually { backend.heldCount == 1 }
+        guard aParked else {
+            Issue.record("call A never reached its /post-process")
+            backend.releaseHeld()
+            callA.cancel()
+            _ = try? await callA.value
+            return
+        }
 
         let outcomeB = try await shared.transcribeDetailed(audioURL: audio, language: "fr", mode: mode, vocabulary: [])
         #expect(backend.heldCount == 1, "call A must still be in flight while B finishes")

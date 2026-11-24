@@ -102,7 +102,7 @@ public class ApiKeyService
     /// Sets or removes the API key for a provider.
     /// </summary>
     /// <param name="provider">The post-processing provider.</param>
-    /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
+    /// <param name="apiKey">The API key to store, or null/blank to remove. It is trimmed (<see cref="NormalizeKey"/>).</param>
     /// <returns>
     /// Success when Credential Manager holds the new value (or no longer holds a
     /// cleared one). A failure means the key was NOT stored; the caller must say so.
@@ -113,6 +113,7 @@ public class ApiKeyService
         {
             var settingName = provider.GetApiKeySettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            apiKey = NormalizeKey(apiKey);
             var result = SaveToVault(settingName, apiKey);
             // Registered on failure too, with what the vault holds now: the backend
             // deletes before it adds, so a failed add can already have removed the
@@ -131,35 +132,6 @@ public class ApiKeyService
     {
         return !string.IsNullOrEmpty(GetApiKey(provider));
     }
-
-    /// <summary>
-    /// Whether a bring-your-own-key provider will take this text as a key: it
-    /// only has to be non-blank. There is deliberately no prefix and no length
-    /// rule: vendors change their key formats (Google's newer Gemini keys do not
-    /// start with "AIza"), and a shape rule then refuses working keys. A wrong
-    /// key fails at the provider, which says so.
-    /// </summary>
-    /// <param name="provider">The provider to validate against.</param>
-    /// <param name="key">The API key to validate.</param>
-    /// <returns>True if the key format appears valid.</returns>
-    public static bool IsValidKeyFormat(PostProcessingProvider provider, string? key)
-    {
-        return provider switch
-        {
-            PostProcessingProvider.OpenAI or
-            PostProcessingProvider.Anthropic or
-            PostProcessingProvider.Groq or
-            PostProcessingProvider.Grok or
-            PostProcessingProvider.Gemini or
-            PostProcessingProvider.Cerebras or
-            PostProcessingProvider.Mistral => IsPresent(key),
-
-            // None, HyperWhisper Cloud and the local engine take no key.
-            _ => false
-        };
-    }
-
-    private static bool IsPresent(string? key) => !string.IsNullOrWhiteSpace(key);
 
     /// <summary>
     /// Gets a masked version of the API key for display (e.g., "sk-...abc123").
@@ -197,7 +169,7 @@ public class ApiKeyService
     /// Sets or removes the API key for a transcription provider without a primary post-processing provider.
     /// </summary>
     /// <param name="type">The transcription API key type.</param>
-    /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
+    /// <param name="apiKey">The API key to store, or null/blank to remove. It is trimmed (<see cref="NormalizeKey"/>).</param>
     /// <returns>Success, or a failure meaning the key was NOT stored.</returns>
     public PlatformContracts.PlatformResult SetApiKey(TranscriptionApiKeyType type, string? apiKey)
     {
@@ -205,6 +177,7 @@ public class ApiKeyService
         {
             var settingName = type.GetSettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            apiKey = NormalizeKey(apiKey);
             var result = SaveToVault(settingName, apiKey);
             // See the PostProcessingProvider overload: a failed write still
             // invalidates health, against the value the vault really holds.
@@ -247,16 +220,6 @@ public class ApiKeyService
     }
 
     /// <summary>
-    /// Validates an API key for a transcription provider without a primary post-processing provider: it only
-    /// has to be non-blank, for the reason on the post-processing overload.
-    /// </summary>
-    /// <param name="type">The transcription API key type to validate against.</param>
-    /// <param name="key">The API key to validate.</param>
-    /// <returns>True if the key format appears valid.</returns>
-    public static bool IsValidKeyFormat(TranscriptionApiKeyType type, string? key) =>
-        IsPresent(key);
-
-    /// <summary>
     /// Gets a masked version of the API key for a transcription provider without a primary post-processing provider.
     /// </summary>
     public string? GetMaskedApiKey(TranscriptionApiKeyType type)
@@ -296,6 +259,19 @@ public class ApiKeyService
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
+
+    /// <summary>
+    /// The one rule for what a BYOK provider key write stores: the text trimmed,
+    /// or null (a clear) when nothing but whitespace is left. Both SetApiKey
+    /// overloads apply it, so the API Keys page, the provider modal, onboarding
+    /// and backup import store a key pasted with a trailing newline the same way.
+    /// Custom endpoint keys are not normalised here: CustomEndpointManager and
+    /// its window test and compare the key exactly as typed.
+    /// There is deliberately no prefix or length rule: vendors change their key
+    /// formats (#2389), and a wrong key fails at the provider, which says so.
+    /// </summary>
+    internal static string? NormalizeKey(string? apiKey)
+        => string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim();
 
     /// <summary>
     /// Connects the production key-write seam to transcription health. The

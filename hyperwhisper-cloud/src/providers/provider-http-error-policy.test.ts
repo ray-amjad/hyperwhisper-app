@@ -3,6 +3,7 @@ import { classifyProviderHttpError, providerHttpError, type ProviderHttpErrorPol
 import { ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { readUpstreamError } from './upstream-error';
 import { transcribeWithAzureMai } from './azure-mai';
+import { saveEnv } from '../test-support/env';
 
 // The knobs that let azure-mai, google-chirp, assemblyai and soniox run on the
 // shared ladder without changing what they throw. (issue #731)
@@ -63,11 +64,10 @@ describe('providerHttpError: terminalStatuses and otherStatusError', () => {
 
 describe('azure-mai through the shared ladder', () => {
   const originalFetch = globalThis.fetch;
-  const savedKey = process.env.AZURE_SPEECH_KEY_EASTUS;
+  const restoreKey = saveEnv('AZURE_SPEECH_KEY_EASTUS');
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (savedKey === undefined) delete process.env.AZURE_SPEECH_KEY_EASTUS;
-    else process.env.AZURE_SPEECH_KEY_EASTUS = savedKey;
+    restoreKey();
   });
 
   test('a 403 carrying an out-of-credits body still ends the request with the curated plain Error', async () => {

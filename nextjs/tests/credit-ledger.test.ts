@@ -1,5 +1,5 @@
 /**
- * The credit ledger in `src/lib/db-layer.ts`, run against a real Postgres
+ * The credit ledger in `src/lib/credit-ledger.ts`, run against a real Postgres
  * (PGlite, see `credit-ledger-harness.ts`) with the real migrations.
  *
  * A credit is a unit of paid cloud transcription. Every rule below is money:
@@ -228,6 +228,36 @@ describe("spendCreditGrantsByProvenance", () => {
     assert.equal(g.get("expired")?.remaining, 100);
     assert.equal(g.get("refunded")?.remaining, 100);
     assert.equal(g.get("live")?.status, "spent");
+  });
+
+  test("a charge spanning two grants marks both 'spent', despite float residue (#2620)", async () => {
+    await seedUser("u1");
+    // 0.3 - 0.1 = 0.19999999999999998, so the second grant is left with
+    // 0.2 - 0.19999999999999998 = 2.78e-17: stored as 0.00, but not === 0.
+    await seedGrant({ userId: "u1", sourceId: "a", amount: 0.1, createdAt: inDays(-2) });
+    await seedGrant({ userId: "u1", sourceId: "b", amount: 0.2, createdAt: inDays(-1) });
+
+    const result = await L.spendCreditGrantsByProvenance("u1", 0.3);
+
+    assert.equal(result.balance, 0);
+    const g = await grantsBySource("u1");
+    for (const id of ["a", "b"]) {
+      assert.equal(g.get(id)?.remaining, 0, `grant ${id} remaining`);
+      assert.equal(g.get(id)?.status, "spent", `grant ${id} holds 0.00 but is not 'spent'`);
+    }
+  });
+
+  test("a grant left with a cent or more stays 'active'", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceId: "a", amount: 0.1, createdAt: inDays(-2) });
+    await seedGrant({ userId: "u1", sourceId: "b", amount: 0.2, createdAt: inDays(-1) });
+
+    await L.spendCreditGrantsByProvenance("u1", 0.29);
+
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("a")?.status, "spent");
+    assert.equal(g.get("b")?.remaining, 0.01);
+    assert.equal(g.get("b")?.status, "active");
   });
 
   test("an overspend floors at zero and reports only what it took", async () => {
@@ -565,8 +595,18 @@ describe("provisionAccountKeyForEmail", () => {
     assert.equal(found?.id, license.id);
   });
 
-  test("a second key for the same email reuses the user and pools the credits", async () => {
+  test("a second call for an email with a granted key hands that key back with no second bundle (#2481)", async () => {
+    const first = await L.provisionAccountKeyForEmail("granted@example.test");
+    const second = await L.provisionAccountKeyForEmail("GRANTED@example.test");
+
+    assert.equal(second.id, first.id);
+    assert.equal(second.key, first.key);
+    assert.equal(await L.getCreditBalance(first.userId), 5000);
+  });
+
+  test("a new key after the old one is revoked reuses the user and pools the credits", async () => {
     const first = await L.provisionAccountKeyForEmail("pooled@example.test");
+    await L.updateAccountKey(first.id, { status: "revoked" });
     const second = await L.provisionAccountKeyForEmail("POOLED@example.test");
 
     assert.equal(second.userId, first.userId);

@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("provider and model identifiers remain opaque", IdentifiersRemainOpaque),
     ("disposed resources detach and clear notifications", DisposedResourcesDetach),
     ("disposed bridge releases subscribers", DisposedBridgeReleasesSubscribers),
+    ("compacting subscriptions raises one notification no binding reads", CompactSubscriptionsRaisesOneUnboundNotification),
     ("every Linux key falls back in every supported locale", LinuxCatalogFallbacks),
     ("every supported locale has exact reusable Linux translations", LinuxSatelliteCompleteness),
     ("Linux-specific copy remains an explicit invariant fallback", LinuxSpecificFallbackIsExplicit),
@@ -133,6 +134,29 @@ static void DisposedResourcesDetach()
     return;
 
     void OnChanged(object? sender, PropertyChangedEventArgs args) => notifications++;
+}
+
+static void CompactSubscriptionsRaisesOneUnboundNotification()
+{
+    using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    using var resource = bridge.Bind("common.cancel");
+    var resourceChanges = 0;
+    var bridgeChanges = new List<string?>();
+    resource.PropertyChanged += (_, _) => resourceChanges++;
+    bridge.PropertyChanged += (_, args) => bridgeChanges.Add(args.PropertyName);
+
+    bridge.CompactSubscriptions();
+
+    Equal(1, bridgeChanges.Count, "compact notification count");
+    var name = bridgeChanges[0];
+    NotBlank(name ?? string.Empty, "compact property name");
+    True(name is not ("Item[]" or nameof(AvaloniaLocalizationBridge.Culture)
+        or nameof(AvaloniaLocalizationBridge.FlowDirection)), $"compact name {name} is read by no binding");
+    Equal(0, resourceChanges, "bound resources do not re-read on compaction");
+
+    bridge.Dispose();
+    bridge.CompactSubscriptions();
+    Equal(1, bridgeChanges.Count, "disposed bridge raises nothing");
 }
 
 static void DisposedBridgeReleasesSubscribers()

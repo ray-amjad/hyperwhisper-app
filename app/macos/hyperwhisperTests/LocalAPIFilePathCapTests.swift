@@ -319,7 +319,7 @@ private enum FilePathCapError: Error, CustomStringConvertible {
         switch self {
         case .anchorNotFound(let anchor):
             return """
-            Could not locate '\(anchor)' in TranscribeEndpoint.swift. It was probably renamed or \
+            Could not locate '\(anchor)' in TranscribeEndpoint.swift or TranscribeAudioSource.swift. It was probably renamed or \
             moved — update the anchor in LocalAPIFilePathCapTests rather than deleting the check.
             """
         case .fixture(let step, let code):
@@ -332,6 +332,10 @@ extension LocalAPIFilePathCapTests {
 
     fileprivate static let endpointPath =
         "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeEndpoint.swift"
+    fileprivate static let audioSourcePath =
+        "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeAudioSource.swift"
+    fileprivate static let engineMappingPath =
+        "app/macos/hyperwhisper/Managers/LocalAPI/Endpoints/TranscribeEngineMapping.swift"
 
     /// A temp file of exactly `size` bytes, open for reading, closed and deleted
     /// when `body` returns.
@@ -360,16 +364,20 @@ extension LocalAPIFilePathCapTests {
         try body(fd)
     }
 
-    /// `TranscribeEndpoint.swift` with every comment line removed.
+    /// The whole `/transcribe` endpoint with every comment line removed:
+    /// `TranscribeEndpoint.swift` plus the `TranscribeAudioSource.swift` and
+    /// `TranscribeEngineMapping.swift` it was split into (issue #733).
     fileprivate static func endpointCode() throws -> String {
-        try ProductionSource.code(of: endpointPath)
+        try [endpointPath, audioSourcePath, engineMappingPath]
+            .map { try ProductionSource.code(of: $0) }
+            .joined(separator: "\n")
     }
 
     /// The `file` half of `resolveAudioSource`, ending where the base64 half
     /// begins (the `guard let raw = trimmedBase64` that opens it).
     fileprivate static func fileBranchOfResolveAudioSource() throws -> String {
         try ProductionSource.slice(
-            of: endpointPath,
+            of: audioSourcePath,
             from: "if let filePath = trimmedFile, hasFile {",
             to: "guard let raw = trimmedBase64"
         )
@@ -379,7 +387,7 @@ extension LocalAPIFilePathCapTests {
     /// `catch` arms, ending at the `AudioResolution` the branch returns.
     fileprivate static func stagingCallAndItsCatches() throws -> String {
         try ProductionSource.slice(
-            of: endpointPath,
+            of: audioSourcePath,
             from: "stagedFile = try Self.stageValidatedAudioFile(",
             to: "return AudioResolution("
         )
@@ -390,7 +398,7 @@ extension LocalAPIFilePathCapTests {
     /// it in `resolveAudioSource` is not what gets matched.
     fileprivate static func stageValidatedAudioFileBody() throws -> String {
         try ProductionSource.slice(
-            of: endpointPath,
+            of: audioSourcePath,
             from: "private static func stageValidatedAudioFile(",
             to: "private static func stageAudioData("
         )
@@ -399,7 +407,7 @@ extension LocalAPIFilePathCapTests {
     /// The body of `openValidatedAudioFile(_:)`, ending at the next declaration.
     fileprivate static func openValidatedAudioFileBody() throws -> String {
         try ProductionSource.slice(
-            of: endpointPath,
+            of: audioSourcePath,
             from: "private static func openValidatedAudioFile(",
             to: "private static func openDirectoryRefusingSymlinks("
         )

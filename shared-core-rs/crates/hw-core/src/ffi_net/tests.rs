@@ -298,17 +298,14 @@
         ] {
             let tag = hw_tag(&provider);
             let request = build_health_request(provider, "key-alpha".to_string());
-            assert_eq!(request.url, hw_cloud_health_default(), "default url for {tag}");
+            assert_eq!(
+                request.url,
+                hw_net::health::HW_CLOUD_HEALTH_DEFAULT,
+                "default url for {tag}"
+            );
             // No API key is carried on the routed probe.
             assert_eq!(header(&request, "Authorization"), None, "auth for {tag}");
         }
-
-        let overridden = build_health_request_with_base(
-            HwProvider::AzureMai,
-            "key-alpha".to_string(),
-            Some("https://edge.example.test/health".to_string()),
-        );
-        assert_eq!(overridden.url, "https://edge.example.test/health");
     }
 
     #[test]
@@ -640,38 +637,44 @@
     // Error classification + retry
     // -----------------------------------------------------------------------
 
+    /// The leaf crate's classifier, carried across the FFI `From` arm the
+    /// exported parsers use.
+    fn classify(status: u16, body: String) -> HwTranscriptionError {
+        hw_net::retry::classify_error(status, &body).into()
+    }
+
     #[test]
     fn classify_error_maps_each_status_to_its_own_variant() {
         assert!(matches!(
-            classify_error(401, String::new()),
+            classify(401, String::new()),
             HwTranscriptionError::Unauthorized
         ));
         assert!(matches!(
-            classify_error(403, String::new()),
+            classify(403, String::new()),
             HwTranscriptionError::Unauthorized
         ));
         assert!(matches!(
-            classify_error(402, String::new()),
+            classify(402, String::new()),
             HwTranscriptionError::QuotaExceeded
         ));
         assert!(matches!(
-            classify_error(413, String::new()),
+            classify(413, String::new()),
             HwTranscriptionError::FileTooLarge
         ));
         assert!(matches!(
-            classify_error(408, String::new()),
+            classify(408, String::new()),
             HwTranscriptionError::ProviderUnavailable { status: 408 }
         ));
         assert!(matches!(
-            classify_error(503, String::new()),
+            classify(503, String::new()),
             HwTranscriptionError::ProviderUnavailable { status: 503 }
         ));
         assert!(matches!(
-            classify_error(429, String::new()),
+            classify(429, String::new()),
             HwTranscriptionError::RateLimited { .. }
         ));
 
-        match classify_error(404, r#"{"error":{"message":"no such model"}}"#.to_string()) {
+        match classify(404, r#"{"error":{"message":"no such model"}}"#.to_string()) {
             HwTranscriptionError::BadRequest { status, message } => {
                 assert_eq!(status, 404);
                 assert_eq!(message, "no such model");
@@ -682,14 +685,14 @@
 
     #[test]
     fn a_rate_limit_carries_its_retry_after_across_the_boundary() {
-        match classify_error(429, r#"{"retry_after":7}"#.to_string()) {
+        match classify(429, r#"{"retry_after":7}"#.to_string()) {
             HwTranscriptionError::RateLimited { retry_after_secs } => {
                 assert_eq!(retry_after_secs, Some(7));
             }
             other => panic!("expected RateLimited, got {other:?}"),
         }
 
-        match classify_error(429, "{}".to_string()) {
+        match classify(429, "{}".to_string()) {
             HwTranscriptionError::RateLimited { retry_after_secs } => {
                 assert_eq!(retry_after_secs, None);
             }
@@ -703,7 +706,7 @@
     fn a_quota_exhausted_429_is_terminal_rather_than_rate_limited() {
         let body = r#"{"error":{"code":"insufficient_quota","message":"out of credit"}}"#;
         assert!(matches!(
-            classify_error(429, body.to_string()),
+            classify(429, body.to_string()),
             HwTranscriptionError::QuotaExceeded
         ));
         assert!(!is_retryable(429, body.to_string()));

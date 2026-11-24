@@ -1,3 +1,23 @@
+hyperwhisper (1.15.0) stable; urgency=medium
+
+  * Pick your microphone in Settings > Sound, and optionally muffle other
+    audio while recording.
+  * The CUDA backends now ship as a separate hyperwhisper-cuda package,
+    so the main package is much smaller.
+  * Add ElevenLabs Scribe v2 Medical and Mistral Medium 3.5, refresh the
+    model catalog, and move retired models to their replacements.
+  * Local Whisper no longer repeats a phrase at the end of long
+    dictations, and a silent recording reads No speech.
+  * Faster startup and History, and Stop no longer waits two seconds.
+  * More reliable shortcuts on X11 and evdev, clipboard restore, live
+    streaming, tray menu, and quitting with SIGTERM.
+  * API keys of any shape are accepted, and a typed key is kept when
+    saving it fails.
+  * Backup and vocabulary fixes: clearer errors, no duplicate words,
+    and exports readable only by you.
+
+ -- HyperWhisper Contributors <opensource@hyperwhisper.com>  Thu, 22 Oct 2026 04:21:35 +0000
+
 hyperwhisper (1.14.0) stable; urgency=medium
 
   * Add AssemblyAI Dictation, which returns cleaned-up text with your

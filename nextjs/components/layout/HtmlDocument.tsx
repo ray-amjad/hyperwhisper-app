@@ -6,6 +6,9 @@ import { localeDirection } from "@/src/i18n/locales";
 type Props = {
   locale: string;
   children: ReactNode;
+  /** Classes for <body>. The locale layout passes the font variable here because HeroUI modals
+   * portal straight into <body> and would otherwise fall back to the system font. */
+  bodyClassName?: string;
 };
 
 // The single <html>/<body> shell, rendered by app/[locale]/layout.tsx with the
@@ -14,7 +17,14 @@ type Props = {
 // route in the app dynamic (#843).
 // The site is dark-only, so "dark" is in the server markup: with JavaScript off the next-themes
 // script never runs, and without the class the white text lands on a light page (#1151).
-export default function HtmlDocument({ locale, children }: Props) {
+//
+// The open-source banner's dismissal lives in localStorage, which the server cannot read. This
+// blocking script marks <html> before first paint, and globals.css hides the banner from that
+// mark, so a visitor who dismissed it never sees it flash in and the header never jumps 48px
+// (#849). It reads no cookie or header, so every route stays static (#843).
+const BANNER_DISMISSED_SCRIPT = `try{if(localStorage.getItem("os-banner-dismissed")==="1")document.documentElement.dataset.osBanner="dismissed"}catch(e){}`;
+
+export default function HtmlDocument({ locale, children, bodyClassName }: Props) {
   return (
     <html
       suppressHydrationWarning
@@ -22,7 +32,10 @@ export default function HtmlDocument({ locale, children }: Props) {
       dir={localeDirection(locale)}
       lang={locale}
     >
-      <body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BANNER_DISMISSED_SCRIPT }} />
+      </head>
+      <body className={bodyClassName}>
         {children}
         <Script id="agentstack-init" strategy="lazyOnload">
           {`window.agentstack=new Proxy({_q:[]},{get(t,p){if(p==='_q')return t._q;return(...a)=>t._q.push([p,...a]);}});`}

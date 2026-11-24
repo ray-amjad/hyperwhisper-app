@@ -1,13 +1,13 @@
 // GOOGLE CLOUD SPEECH-TO-TEXT V2 — CHIRP 3 PROVIDER
-// Standard tier: $0.016/min, phrase-list biasing (up to 1000 terms),
+// Standard tier, phrase-list biasing (up to 1000 terms),
 // 100+ languages, word timestamps.
 //
 // Auth: Bearer OAuth token derived from a service-account JSON, cached in Redis.
 //
 // Audio delivery path:
-//   - <= INLINE_AUDIO_MAX_BYTES (9.5 MB)  → inline base64 `content` → sync recognize
-//   - >  INLINE_AUDIO_MAX_BYTES + bucket  → upload to GCS → batchRecognize + poll
-//   - >  INLINE_AUDIO_MAX_BYTES + no bucket → 413 AudioTooLargeError
+//   - <= GOOGLE_CHIRP_INLINE_MAX_BYTES (9.5 MB)  → inline base64 `content` → sync recognize
+//   - >  GOOGLE_CHIRP_INLINE_MAX_BYTES + bucket  → upload to GCS → batchRecognize + poll
+//   - >  GOOGLE_CHIRP_INLINE_MAX_BYTES + no bucket → 413 AudioTooLargeError
 //
 // Why two paths: sync `recognize` enforces TWO hard caps on Google's side —
 // payload ≤ 10 MB AND audio duration ≤ ~60s — regardless of inline vs gs://
@@ -16,15 +16,15 @@
 // the operation poll loop, saving ~3–5 s on the hot path.
 
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
-import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import {
   deleteTranscriptionAudio,
   isGcsTranscriptionBucketConfigured,
   uploadTranscriptionAudio,
   type TranscriptionAudioRef,
-} from '../lib/gcs-storage';
+} from './gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
-import { resolveProviderLanguage } from '../lib/language-codes';
+import { resolveProviderLanguage } from './language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -33,15 +33,16 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  readJson200,
   splitVocabularyTerms,
-  unparsedBodyKind,
   type ProviderHttpErrorPolicy,
+  sleep,
 } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields, type UpstreamErrorRead } from './upstream-error';
 
-// Re-exported for the transcribe route's pre-buffer header gate. Kept here
-// historically; the canonical constant now lives in `lib/constants.ts`.
-export const INLINE_AUDIO_MAX_BYTES = GOOGLE_CHIRP_INLINE_MAX_BYTES;
+// The sync `recognize` inline cap, from the one per-provider table (audio-limits.ts).
+const INLINE_MAX_BYTES = PROVIDER_AUDIO_CAPS['google-chirp'].adapterMaxBytes;
+
 // Sync `recognize` enforces a ~60 s audio-duration cap independent of the
 // 10 MB byte cap. Use 55 s as the gate to leave headroom for the byte-rate
 // estimator being conservative on compressed audio.
@@ -121,6 +122,88 @@ function parseIsoDurationToSeconds(duration: string | undefined): number {
   return 0;
 }
 
+export type ChirpDelivery = 'inline' | 'gcs+batch';
+
+export interface ChirpDeliveryPlan {
+  delivery: ChirpDelivery;
+  estimatedSeconds: number;
+  /** The payload fits the inline byte cap but not the ~60 s duration cap. */
+  disqualifiedByDuration: boolean;
+  /** No inline fit and no GCS bucket: the caller must 413. */
+  tooLarge: boolean;
+}
+
+/**
+ * Decide the audio delivery path. Inline is preferred when the payload fits
+ * — it avoids two extra GCS round-trips. Larger payloads need a `gs://` URI
+ * and v1 only enables that when GOOGLE_SPEECH_GCS_BUCKET is configured.
+ * Sync `recognize` enforces BOTH a 10 MB byte cap AND a ~60 s duration cap,
+ * so a compressed-audio payload that fits the byte cap can still 400 if it's
+ * longer than ~60 s. Gate inline on duration as well as bytes.
+ */
+export function planChirpDelivery(
+  byteLength: number,
+  contentType: string,
+  gcsConfigured: boolean,
+): ChirpDeliveryPlan {
+  const estimatedSeconds = estimateAudioSeconds(byteLength, contentType);
+  const fitsInlineBytes = byteLength <= INLINE_MAX_BYTES;
+  const fitsInlineSeconds = estimatedSeconds <= INLINE_AUDIO_MAX_SECONDS;
+  const useInlineAudio = fitsInlineBytes && fitsInlineSeconds;
+  return {
+    delivery: useInlineAudio ? 'inline' : 'gcs+batch',
+    estimatedSeconds,
+    disqualifiedByDuration: fitsInlineBytes && !fitsInlineSeconds,
+    tooLarge: !useInlineAudio && !gcsConfigured,
+  };
+}
+
+export function chirpEndpoints(projectId: string, region: string): { syncUrl: string; batchUrl: string } {
+  const base = `https://${region}-speech.googleapis.com/v2/projects/${projectId}/locations/${region}/recognizers/_`;
+  return { syncUrl: `${base}:recognize`, batchUrl: `${base}:batchRecognize` };
+}
+
+/**
+ * Build the Speech V2 recognition config for a resolved locale (null means
+ * auto-detect) and an already-parsed phrase list.
+ */
+export function buildChirpConfig(resolvedLocale: string | null, phrases: string[]): Record<string, unknown> {
+  const config: Record<string, unknown> = {
+    autoDecodingConfig: {},
+    // Per Chirp 3 docs: `languageCodes: ["auto"]` is the documented sentinel
+    // for unrestricted automatic language detection. Other forms (empty array,
+    // omitted field, "und", null) are rejected by V2. Monolingual requests
+    // pass the single BCP-47 locale instead.
+    // Ref: cloud.google.com/speech-to-text/v2/docs/chirp_3-model
+    languageCodes: resolvedLocale ? [resolvedLocale] : ['auto'],
+    model: 'chirp_3',
+  };
+  // Speech V2 model adaptation (phrase biasing). Chirp 3 now documents this as
+  // GA with a dictionary of up to 1,000 phrases, so we send an inline phrase
+  // set rather than dropping the terms.
+  // Ref: https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model
+  //
+  // History (read before removing the fallback in `configWithoutAdaptation`):
+  // an earlier integration sent `config.adaptation` against chirp_3 and Google
+  // answered 404 NOT_FOUND ("Requested entity was not found"), which failed the
+  // whole request even though phrases are advisory. Biasing is a nice-to-have
+  // and transcription is not, so a request rejected WITH adaptation is retried
+  // once WITHOUT it instead of surfacing the error. If the 404 ever comes back,
+  // users lose the biasing and keep their transcript.
+  if (phrases.length > 0) {
+    config.adaptation = {
+      phraseSets: [{ inlinePhraseSet: { phrases: phrases.map((value) => ({ value })) } }],
+    };
+  }
+  return config;
+}
+
+/** The same config with the advisory `adaptation` block removed. */
+export function configWithoutAdaptation(config: Record<string, unknown>): Record<string, unknown> {
+  const { adaptation: _dropped, ...rest } = config;
+  return rest;
+}
+
 export async function transcribeWithGoogleChirp(
   audio: ArrayBuffer,
   contentType: string,
@@ -136,36 +219,25 @@ export async function transcribeWithGoogleChirp(
     throw new Error('GOOGLE_PROJECT_ID not configured');
   }
 
-  // Decide the audio delivery path. Inline is preferred when the payload fits
-  // — it avoids two extra GCS round-trips. Larger payloads need a `gs://` URI
-  // and v1 only enables that when GOOGLE_SPEECH_GCS_BUCKET is configured.
-  // Sync `recognize` enforces BOTH a 10 MB byte cap AND a ~60 s duration cap,
-  // so a compressed-audio payload that fits the byte cap can still 400 if it's
-  // longer than ~60 s. Gate inline on duration as well as bytes.
-  const estimatedSeconds = estimateAudioSeconds(audio.byteLength, contentType);
-  const fitsInlineBytes = audio.byteLength <= INLINE_AUDIO_MAX_BYTES;
-  const fitsInlineSeconds = estimatedSeconds <= INLINE_AUDIO_MAX_SECONDS;
-  const useInlineAudio = fitsInlineBytes && fitsInlineSeconds;
-  if (fitsInlineBytes && !fitsInlineSeconds) {
+  const plan = planChirpDelivery(audio.byteLength, contentType, isGcsTranscriptionBucketConfigured());
+  if (plan.disqualifiedByDuration) {
     logProviderEvent(provider, 'inline_disqualified_by_duration', {
       audioBytes: audio.byteLength,
-      estimatedSeconds,
+      estimatedSeconds: plan.estimatedSeconds,
       inlineMaxSeconds: INLINE_AUDIO_MAX_SECONDS,
     }, context);
   }
-  const gcsConfigured = isGcsTranscriptionBucketConfigured();
-  if (!useInlineAudio && !gcsConfigured) {
+  if (plan.tooLarge) {
     logProviderEvent(provider, 'audio_too_large', {
       audioBytes: audio.byteLength,
-      inlineMaxBytes: INLINE_AUDIO_MAX_BYTES,
+      inlineMaxBytes: INLINE_MAX_BYTES,
       gcsConfigured: false,
     }, context);
-    throw new AudioTooLargeError('Google Chirp', audio.byteLength, INLINE_AUDIO_MAX_BYTES);
+    throw new AudioTooLargeError('Google Chirp', audio.byteLength, INLINE_MAX_BYTES);
   }
 
   const region = getRegion();
-  const syncUrl = `https://${region}-speech.googleapis.com/v2/projects/${projectId}/locations/${region}/recognizers/_:recognize`;
-  const batchUrl = `https://${region}-speech.googleapis.com/v2/projects/${projectId}/locations/${region}/recognizers/_:batchRecognize`;
+  const { syncUrl, batchUrl } = chirpEndpoints(projectId, region);
 
   // Speech V2 expects a canonical BCP-47 LOCALE (`en-US`), not a bare primary
   // subtag — which is exactly what the desktop pickers send. Passing `language`
@@ -182,46 +254,13 @@ export async function transcribeWithGoogleChirp(
     provider, model: 'chirp_3', language, context,
   });
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
-
-  const config: Record<string, unknown> = {
-    autoDecodingConfig: {},
-    // Per Chirp 3 docs: `languageCodes: ["auto"]` is the documented sentinel
-    // for unrestricted automatic language detection. Other forms (empty array,
-    // omitted field, "und", null) are rejected by V2. Monolingual requests
-    // pass the single BCP-47 locale instead.
-    // Ref: cloud.google.com/speech-to-text/v2/docs/chirp_3-model
-    languageCodes: resolvedLocale ? [resolvedLocale] : ['auto'],
-    model: 'chirp_3',
-  };
-  // Speech V2 model adaptation (phrase biasing). Chirp 3 now documents this as
-  // GA with a dictionary of up to 1,000 phrases, so we send an inline phrase
-  // set rather than dropping the terms.
-  // Ref: https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model
-  //
-  // History (read before removing the fallback below): an earlier integration
-  // sent `config.adaptation` against chirp_3 and Google answered 404 NOT_FOUND
-  // ("Requested entity was not found"), which failed the whole request even
-  // though phrases are advisory. Biasing is a nice-to-have and transcription is
-  // not, so a request rejected WITH adaptation is retried once WITHOUT it
-  // instead of surfacing the error. If the 404 ever comes back, users lose the
-  // biasing and keep their transcript.
-  if (phrases.length > 0) {
-    config.adaptation = {
-      phraseSets: [{ inlinePhraseSet: { phrases: phrases.map((value) => ({ value })) } }],
-    };
-  }
-
-  /** The same config with the advisory `adaptation` block removed. */
-  function configWithoutAdaptation(): Record<string, unknown> {
-    const { adaptation: _dropped, ...rest } = config;
-    return rest;
-  }
+  const config = buildChirpConfig(resolvedLocale, phrases);
 
   // Allocated before the try so the finally block can clean up even when
   // the upload throws part way through.
   let gcsRef: TranscriptionAudioRef | null = null;
   let currentOperationName: string | null = null;
-  const delivery: 'inline' | 'gcs+batch' = useInlineAudio ? 'inline' : 'gcs+batch';
+  const delivery = plan.delivery;
 
   try {
     logProviderEvent(provider, 'prepare', {
@@ -238,47 +277,15 @@ export async function transcribeWithGoogleChirp(
 
     let normalized: NormalizedTranscript;
 
-    if (useInlineAudio) {
-      const content = base64Encode(audio);
-      const accessToken = await getGoogleAccessToken();
-      const recognize = (body: Record<string, unknown>) => fetchWithTimeout(provider, syncUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
-
-      let response = await recognize({ config, content });
-      let errorRead: UpstreamErrorRead | undefined;
-
-      if (!response.ok) {
-        const rejection = await classifyRejection(response, phrases.length > 0);
-        errorRead = rejection.upstreamError;
-        if (rejection.retryWithoutAdaptation) {
-          // Never the body: a phrase-set 400 quotes the user's vocabulary (#2163).
-          logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-            ...upstreamErrorLogFields(rejection.upstreamError.fields),
-            phraseCount: phrases.length,
-            delivery: 'inline',
-          }, context);
-          response = await recognize({ config: configWithoutAdaptation(), content });
-          errorRead = undefined;
-        }
-      }
-
-      if (!response.ok) {
-        throw await speechHttpError(provider, response, startedAt, context, errorRead);
-      }
-
-      const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
-      normalized = normalizeSpeechResults(data.results, data.metadata);
+    if (delivery === 'inline') {
+      normalized = await recognizeInline({
+        audio, syncUrl, config, phraseCount: phrases.length, provider, startedAt, context,
+      });
     } else {
       // Upload to GCS, submit a batchRecognize operation, then poll until done.
       // batchRecognize lifts both the 10 MB and ~60 s caps that sync recognize
       // enforces — necessary for long recordings.
-      const upload = await uploadTranscriptionAudio(audio, contentType);
+      const upload = await uploadTranscriptionAudio(audio, contentType, context);
       gcsRef = { bucket: upload.bucket, objectName: upload.objectName };
 
       normalized = await runBatchRecognize({
@@ -287,7 +294,7 @@ export async function transcribeWithGoogleChirp(
         gcsUri: upload.gcsUri,
         config,
         // Submit-time only: same advisory-biasing fallback as the inline path.
-        fallbackConfig: phrases.length > 0 ? configWithoutAdaptation() : undefined,
+        fallbackConfig: phrases.length > 0 ? configWithoutAdaptation(config) : undefined,
         phraseCount: phrases.length,
         provider,
         startedAt,
@@ -301,64 +308,12 @@ export async function transcribeWithGoogleChirp(
       currentOperationName = null;
     }
 
-    const transcript = normalized.transcript;
-    const detectedLanguage = normalized.languageCode;
-    const rawBilled = normalized.billedDuration;
-
-    // Captured BEFORE the byte-estimate overwrite below: our guess must never be
-    // recorded as the upstream's reported duration.
-    const rawUpstreamDurationSeconds = parseIsoDurationToSeconds(rawBilled);
-    let durationSeconds = rawUpstreamDurationSeconds;
-    if (durationSeconds <= 0) {
-      // Estimate from byte length using a content-type-aware bytes-per-second
-      // table. Raw PCM (32 kB/s) over-bills compressed audio by up to 10× if
-      // applied blindly; the table picks a representative rate per codec so
-      // an empty-`totalBilledDuration` response still bills a sensible value.
-      const estimatedSeconds = estimateAudioSeconds(audio.byteLength, contentType);
-      logProviderEvent(provider, 'billed_duration_missing', {
-        metadataKeys: normalized.metadataKeys,
-        audioBytes: audio.byteLength,
-        contentType,
-        estimatedSeconds,
-      }, context);
-      durationSeconds = estimatedSeconds;
-    }
-
-    if (!transcript || transcript.length === 0) {
-      logProviderEvent(provider, 'no_speech', {
-        elapsedMs: Math.round(performance.now() - startedAt),
-        detectedLanguage,
-        upstreamDurationSeconds: rawUpstreamDurationSeconds > 0 ? rawUpstreamDurationSeconds : null,
-      }, context);
-      return {
-        text: '',
-        language: detectedLanguage,
-        durationSeconds: 0,
-        costUsd: 0,
-        source: 'no_speech',
-      };
-    }
-
-    logProviderEvent(provider, 'success', {
-      elapsedMs: Math.round(performance.now() - startedAt),
-      transcriptChars: transcript.length,
-      durationSeconds,
-      detectedLanguage,
-      delivery,
-    }, context);
-
-    return {
-      text: transcript,
-      language: detectedLanguage,
-      durationSeconds,
-      costUsd: computeGoogleChirpTranscriptionCost(durationSeconds),
-      source: 'google-chirp',
-    };
+    return buildChirpResult(normalized, audio, contentType, delivery, provider, startedAt, context);
   } finally {
     // Always delete the scratch object — even on throw. `deleteTranscriptionAudio`
     // swallows its own errors so we never mask the original failure.
     if (gcsRef) {
-      await deleteTranscriptionAudio(gcsRef);
+      await deleteTranscriptionAudio(gcsRef, context);
     }
     // If a batch operation was submitted but we're unwinding (timeout or
     // throw), cancel it — otherwise Google keeps running and bills us for
@@ -370,6 +325,124 @@ export async function transcribeWithGoogleChirp(
       await cancelBatchOperation(region, currentOperationName, provider, context);
     }
   }
+}
+
+interface InlineRecognizeParams {
+  audio: ArrayBuffer;
+  syncUrl: string;
+  config: Record<string, unknown>;
+  phraseCount: number;
+  provider: string;
+  startedAt: number;
+  context: ProviderRequestContext;
+}
+
+/**
+ * Sync `recognize` with inline base64 audio. A request rejected because of the
+ * advisory phrase set is retried once without it (see `buildChirpConfig`).
+ */
+async function recognizeInline(params: InlineRecognizeParams): Promise<NormalizedTranscript> {
+  const { audio, syncUrl, config, phraseCount, provider, startedAt, context } = params;
+  const content = base64Encode(audio);
+  const accessToken = await getGoogleAccessToken();
+  const recognize = (body: Record<string, unknown>) => fetchWithTimeout(provider, syncUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
+
+  let response = await recognize({ config, content });
+  let errorRead: UpstreamErrorRead | undefined;
+
+  if (!response.ok) {
+    const rejection = await classifyRejection(response, phraseCount > 0);
+    errorRead = rejection.upstreamError;
+    if (rejection.retryWithoutAdaptation) {
+      // Never the body: a phrase-set 400 quotes the user's vocabulary (#2163).
+      logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
+        ...upstreamErrorLogFields(rejection.upstreamError.fields),
+        phraseCount,
+        delivery: 'inline',
+      }, context);
+      response = await recognize({ config: configWithoutAdaptation(config), content });
+      errorRead = undefined;
+    }
+  }
+
+  if (!response.ok) {
+    throw await speechHttpError(provider, response, startedAt, context, errorRead);
+  }
+
+  const data = await readSpeech200<SpeechRecognizeResponse>(response, provider, 'sync_recognize', startedAt, context);
+  return normalizeSpeechResults(data.results, data.metadata);
+}
+
+/** Turn a normalized transcript into the billed result, logging the outcome. */
+function buildChirpResult(
+  normalized: NormalizedTranscript,
+  audio: ArrayBuffer,
+  contentType: string,
+  delivery: ChirpDelivery,
+  provider: string,
+  startedAt: number,
+  context: ProviderRequestContext,
+): TranscriptionResult {
+  const transcript = normalized.transcript;
+  const detectedLanguage = normalized.languageCode;
+  const rawBilled = normalized.billedDuration;
+
+  // Captured BEFORE the byte-estimate overwrite below: our guess must never be
+  // recorded as the upstream's reported duration.
+  const rawUpstreamDurationSeconds = parseIsoDurationToSeconds(rawBilled);
+  let durationSeconds = rawUpstreamDurationSeconds;
+  if (durationSeconds <= 0) {
+    // Estimate from byte length using a content-type-aware bytes-per-second
+    // table. Raw PCM (32 kB/s) over-bills compressed audio by up to 10× if
+    // applied blindly; the table picks a representative rate per codec so
+    // an empty-`totalBilledDuration` response still bills a sensible value.
+    const estimatedSeconds = estimateAudioSeconds(audio.byteLength, contentType);
+    logProviderEvent(provider, 'billed_duration_missing', {
+      metadataKeys: normalized.metadataKeys,
+      audioBytes: audio.byteLength,
+      contentType,
+      estimatedSeconds,
+    }, context);
+    durationSeconds = estimatedSeconds;
+  }
+
+  if (!transcript || transcript.length === 0) {
+    logProviderEvent(provider, 'no_speech', {
+      elapsedMs: Math.round(performance.now() - startedAt),
+      detectedLanguage,
+      upstreamDurationSeconds: rawUpstreamDurationSeconds > 0 ? rawUpstreamDurationSeconds : null,
+    }, context);
+    return {
+      text: '',
+      language: detectedLanguage,
+      durationSeconds: 0,
+      costUsd: 0,
+      source: 'no_speech',
+    };
+  }
+
+  logProviderEvent(provider, 'success', {
+    elapsedMs: Math.round(performance.now() - startedAt),
+    transcriptChars: transcript.length,
+    durationSeconds,
+    detectedLanguage,
+    delivery,
+  }, context);
+
+  return {
+    text: transcript,
+    language: detectedLanguage,
+    durationSeconds,
+    costUsd: computeGoogleChirpTranscriptionCost(durationSeconds),
+    source: 'google-chirp',
+  };
 }
 
 // Shape returned by both sync recognize and the per-file slice of batchRecognize.
@@ -577,7 +650,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
     throw await speechHttpError(provider, submitResponse, startedAt, context, submitErrorRead);
   }
 
-  const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);
+  const submitData = await readSpeech200<{ name?: string }>(submitResponse, provider, 'batch_submit', startedAt, context);
   if (!submitData.name) {
     throw new Error('Google Speech batchRecognize did not return an operation name');
   }
@@ -742,11 +815,7 @@ async function pollOperation(
     throw await speechHttpError(provider, response, startedAt, context);
   }
 
-  return parseJsonBody<BatchOperationResponse>(response, provider, 'batch_poll', context);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return readSpeech200<BatchOperationResponse>(response, provider, 'batch_poll', startedAt, context);
 }
 
 /**
@@ -813,37 +882,19 @@ function mergeMetadata(
 }
 
 /**
- * Bun's `response.json()` has been observed to throw "Failed to parse JSON" on
- * gzip+chunked 200 responses (same quirk that bit ElevenLabs). Read as text
- * first and JSON.parse — bypasses the Bun bug and surfaces actionable
- * diagnostics if the body ever becomes genuinely empty or non-JSON.
+ * Read a Speech 200 body through the shared `readJson200` contract (#2176).
+ * An empty, unreadable, non-JSON or non-object body (`null`, an array) is a
+ * `bad_response` ProviderUnavailableError, so Chirp answers the same 502 as
+ * any other unavailable provider instead of a 500, and no part of the body
+ * (the user's transcript) is logged. The phase rides in the label, so the
+ * route's failure log still says which call it was.
  */
-async function parseJsonBody<T>(
+function readSpeech200<T extends object>(
   response: Response,
   provider: string,
-  phase: string,
+  phase: 'sync_recognize' | 'batch_submit' | 'batch_poll',
+  startedAt: number,
   context: ProviderRequestContext,
-): Promise<T> {
-  const raw = await response.text();
-  if (!raw) {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    const ce = response.headers.get('content-encoding') ?? 'none';
-    logProviderEvent(provider, 'empty_body', { phase, contentType: ct, contentEncoding: ce }, context);
-    throw new Error(`Google Speech returned empty 200 body during ${phase} (content-type=${ct}, content-encoding=${ce})`);
-  }
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    const ct = response.headers.get('content-type') ?? 'unknown';
-    logProviderEvent(provider, 'parse_error', {
-      phase,
-      contentType: ct,
-      contentEncoding: response.headers.get('content-encoding') ?? 'none',
-      bodyLength: raw.length,
-      bodyKind: unparsedBodyKind(raw),
-    }, context);
-    // No part of the body goes in the message: transcribe.ts logs it and
-    // returns it to the client, and a 200 body is the user's transcript.
-    throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length})`);
-  }
+): Promise<Partial<T>> {
+  return readJson200<T>(provider, `Google Chirp ${phase}`, response, startedAt, context);
 }

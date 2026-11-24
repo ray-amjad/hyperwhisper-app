@@ -7,8 +7,6 @@ using HyperWhisper.Localization;
 using HyperWhisper.Services;
 using HyperWhisper.Services.LocalApi;
 
-using Brush = System.Windows.Media.Brush;
-
 namespace HyperWhisper.Views.Pages.Settings;
 
 public partial class LocalApiSettingsPage : Page
@@ -208,22 +206,25 @@ public partial class LocalApiSettingsPage : Page
         McpTab.Visibility = _selectedTab == Tab.Mcp ? Visibility.Visible : Visibility.Collapsed;
         CurlTab.Visibility = _selectedTab == Tab.Curl ? Visibility.Visible : Visibility.Collapsed;
 
-        var accent = (Brush)FindResource("AccentBrush");
-        var primary = (Brush)FindResource("TextPrimaryBrush");
-        var secondary = (Brush)FindResource("TextSecondaryBrush");
-        var transparent = WpfBrushes.Transparent;
-
-        ConnectionTabUnderline.Fill = _selectedTab == Tab.Connection ? accent : transparent;
-        McpTabUnderline.Fill = _selectedTab == Tab.Mcp ? accent : transparent;
-        CurlTabUnderline.Fill = _selectedTab == Tab.Curl ? accent : transparent;
-
-        ConnectionTabLabel.Foreground = _selectedTab == Tab.Connection ? primary : secondary;
-        McpTabLabel.Foreground = _selectedTab == Tab.Mcp ? primary : secondary;
-        CurlTabLabel.Foreground = _selectedTab == Tab.Curl ? primary : secondary;
+        // Resource references, not FindResource: the theme brushes are frozen,
+        // so a copied brush would keep this theme after a switch (issue #2386).
+        SetTabBrushes(ConnectionTabUnderline, ConnectionTabLabel, _selectedTab == Tab.Connection);
+        SetTabBrushes(McpTabUnderline, McpTabLabel, _selectedTab == Tab.Mcp);
+        SetTabBrushes(CurlTabUnderline, CurlTabLabel, _selectedTab == Tab.Curl);
 
         ConnectionTabLabel.FontWeight = _selectedTab == Tab.Connection ? FontWeights.SemiBold : FontWeights.Normal;
         McpTabLabel.FontWeight = _selectedTab == Tab.Mcp ? FontWeights.SemiBold : FontWeights.Normal;
         CurlTabLabel.FontWeight = _selectedTab == Tab.Curl ? FontWeights.SemiBold : FontWeights.Normal;
+    }
+
+    private static void SetTabBrushes(System.Windows.Shapes.Rectangle underline, TextBlock label, bool selected)
+    {
+        if (selected)
+            underline.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "AccentBrush");
+        else
+            underline.Fill = System.Windows.Media.Brushes.Transparent;
+
+        label.SetResourceReference(TextBlock.ForegroundProperty, selected ? "TextPrimaryBrush" : "TextSecondaryBrush");
     }
 
     private static string StatusLineText(bool enabled, LocalApiServer server)
@@ -304,10 +305,10 @@ public partial class LocalApiSettingsPage : Page
     private void ShowActionStatus(string message, bool isError)
     {
         ActionStatusText.Text = message;
-        ActionStatusText.Foreground = isError
-            ? System.Windows.Media.Brushes.OrangeRed
-            : TryFindResource("TextSecondaryBrush") as Brush
-              ?? System.Windows.Media.Brushes.Gray;
+        if (isError)
+            ActionStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+        else
+            ActionStatusText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         ActionStatusText.Visibility = Visibility.Visible;
     }
 

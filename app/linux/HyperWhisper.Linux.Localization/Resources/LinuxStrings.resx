@@ -320,6 +320,8 @@
   <data name="linux.clipboard.privacy_enabled" xml:space="preserve"><value>Hints sent; enforcement is desktop-dependent.</value></data>
   <data name="linux.clipboard.privacy_unavailable" xml:space="preserve"><value>This clipboard backend cannot send the hint.</value></data>
   <data name="linux.clipboard.privacy_disabled" xml:space="preserve"><value>Hints are off.</value></data>
+  <data name="linux.credentials.stored" xml:space="preserve"><value>Saved</value></data>
+  <data name="linux.credentials.not_stored" xml:space="preserve"><value>Not set</value></data>
   <data name="linux.desktop.context_gnome" xml:space="preserve"><value>Application context: {0} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback.</value></data>
   <data name="linux.desktop.context" xml:space="preserve"><value>Application context: {0}</value></data>
   <data name="linux.error.shortcut_modifiers_invalid" xml:space="preserve"><value>Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.</value></data>
@@ -365,7 +367,6 @@
   <data name="linux.format.speaking.value.wpm" xml:space="preserve"><value>Speaking: {0} WPM</value></data>
   <data name="linux.format.state.value" xml:space="preserve"><value>State: {0}</value></data>
   <data name="linux.format.status.value" xml:space="preserve"><value>Status: {0}</value></data>
-  <data name="linux.format.stored.value" xml:space="preserve"><value>Stored: {0}</value></data>
   <data name="linux.format.typing.value.min" xml:space="preserve"><value>Typing: {0:F1} min</value></data>
   <data name="linux.format.value" xml:space="preserve"><value> / {0}</value></data>
   <data name="linux.format.words.added.value" xml:space="preserve"><value>Words added: {0}</value></data>

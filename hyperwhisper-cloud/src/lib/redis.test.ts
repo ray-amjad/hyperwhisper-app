@@ -14,6 +14,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import type * as RedisModule from './redis';
+import { stubEnv } from '../test-support/env';
 
 const CLOUD_TOKEN = 'cloud-token-fixture';
 const ENV_KEYS = ['UPSTASH_REDIS_CLOUD_URL', 'UPSTASH_REDIS_CLOUD_TOKEN'] as const;
@@ -33,7 +34,7 @@ function encode(value: string | null, base64: boolean): string | null {
 
 let server: ReturnType<typeof Bun.serve>;
 let redis: typeof RedisModule;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 beforeAll(async () => {
   server = Bun.serve({
@@ -61,10 +62,7 @@ beforeAll(async () => {
     },
   });
 
-  for (const k of ENV_KEYS) {
-    savedEnv[k] = process.env[k];
-    delete process.env[k];
-  }
+  restoreEnv = ENV_KEYS.map((k) => stubEnv(k, undefined));
 
   const specifier = './redis.ts?unmocked';
   redis = (await import(specifier)) as typeof RedisModule;
@@ -72,10 +70,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   server.stop(true);
-  for (const k of ENV_KEYS) {
-    if (savedEnv[k] === undefined) delete process.env[k];
-    else process.env[k] = savedEnv[k];
-  }
+  for (const restore of restoreEnv) restore();
 });
 
 beforeEach(() => {

@@ -141,7 +141,7 @@ function findButtons(node: ReactNode): ButtonElement[] {
 }
 
 /** The class string the minutes line, and nothing else in this card, carries. */
-const MINUTES_LINE = /class="text-sm text-gray-400 mt-0\.5"/;
+const MINUTES_LINE = /class="mt-2 text-sm text-\[var\(--dusk-mute\)\]"/;
 
 test("the minutes line is painted from the label alone", async () => {
   // #947 round 1, finding 2. The View no longer re-decides this from
@@ -236,7 +236,7 @@ test("a checkout in flight disarms the tier buttons and spins the one clicked", 
   // POSITIVE, and reachable only because `loadingTier` is a prop. The $5
   // button swaps its label for a spinner; the $10 one keeps its label and is
   // disarmed, so a second checkout cannot be started for the same top-up.
-  assert.match(markup, /<button[^>]*\sdisabled=""[^>]*>\s*<div[^>]*animate-spin/);
+  assert.match(markup, /<button[^>]*\sdisabled=""[^>]*>\s*<svg[^>]*animate-spin/);
   assert.doesNotMatch(markup, />\$5</);
   assert.match(markup, />\$10</);
 });

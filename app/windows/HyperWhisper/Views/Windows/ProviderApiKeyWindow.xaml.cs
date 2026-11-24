@@ -110,7 +110,7 @@ public partial class ProviderApiKeyWindow : Window
             return;
         }
 
-        // Any non-blank text is a key: there is no shape check (ApiKeyService.IsValidKeyFormat).
+        // Any non-blank text is a key: there is no shape check (ApiKeyService.NormalizeKey).
         // On failure the window stays open with the typed key, so the user can retry.
         if (!TryWriteKey(key)) return;
         DialogResult = true;

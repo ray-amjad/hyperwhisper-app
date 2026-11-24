@@ -609,6 +609,52 @@ await CheckAsync("client: a missing worker exe fails as start_failed without a r
     Assert(error.Code == WhisperWorkerErrorCodes.StartFailed, error.Code);
 });
 
+await CheckAsync("launcher: a worker exe that will not start fails with no path in the message (#2381)", async () =>
+{
+    // A real Process.Start failure: a text file is no program on Windows (error 216)
+    // and is not executable on Linux (error 13). Its Win32Exception names the full
+    // path, and the folder stands in for C:\Users\<account name>.
+    var folder = Path.Combine(Path.GetTempPath(), $"hw-2381-JaneDoe-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(folder);
+    try
+    {
+        var exe = Path.Combine(folder, "HyperWhisper.WhisperWorker.exe");
+        await File.WriteAllTextAsync(exe, "not a program");
+        var real = new WhisperWorkerProcessLauncher(exe);
+        var error = await ThrowsAsync<WhisperWorkerException>(() => Task.FromResult(real.Start()));
+        Assert(error.Code == WhisperWorkerErrorCodes.StartFailed, error.Code);
+        var win32 = error.InnerException as System.ComponentModel.Win32Exception;
+        Assert(win32 is not null, $"inner is {error.InnerException?.GetType().Name ?? "null"}");
+        Assert(win32!.Message.Contains("JaneDoe", StringComparison.Ordinal), $"the OS message no longer names the path, so this check proves nothing: {win32.Message}");
+        Assert(!error.Message.Contains("JaneDoe", StringComparison.Ordinal), error.Message);
+        Assert(!error.Message.Contains(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase), error.Message);
+        var reason = new System.ComponentModel.Win32Exception(win32.NativeErrorCode).Message.Trim()
+            .Replace("%1", "HyperWhisper.WhisperWorker.exe", StringComparison.Ordinal);
+        Assert(!error.Message.Contains("%1", StringComparison.Ordinal), error.Message);
+        Assert(!reason.Contains("JaneDoe", StringComparison.Ordinal), reason);
+        var expected = $"The Whisper worker could not be started: {reason} (Win32 error {win32.NativeErrorCode}).";
+        Assert(error.Message == expected, error.Message);
+    }
+    finally
+    {
+        Directory.Delete(folder, recursive: true);
+    }
+});
+
+await CheckAsync("launcher: an Application Control block keeps its Win32 error code and OS reason, not the path (#2381)", () =>
+{
+    // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, as Process.Start raises it (#2379).
+    var block = new System.ComponentModel.Win32Exception(
+        0x11C7, @"An error occurred trying to start process 'C:\Users\JaneDoe\AppData\Local\HyperWhisper\HyperWhisper.WhisperWorker.exe'.");
+    var message = WhisperWorkerProcessLauncher.DescribeStartFailure(block, "HyperWhisper.WhisperWorker.exe");
+    Assert(message.StartsWith("The Whisper worker could not be started: ", StringComparison.Ordinal), message);
+    Assert(message.EndsWith(" (Win32 error 4551).", StringComparison.Ordinal), message);
+    Assert(!message.Contains("JaneDoe", StringComparison.Ordinal) && !message.Contains("start process", StringComparison.Ordinal), message);
+    message = WhisperWorkerProcessLauncher.DescribeStartFailure(new InvalidOperationException(@"C:\Users\JaneDoe"), "HyperWhisper.WhisperWorker.exe");
+    Assert(message == "The Whisper worker could not be started (InvalidOperationException).", message);
+    return Task.CompletedTask;
+});
+
 await CheckAsync("client: stale replies and stray stdout lines are ignored", async () =>
 {
     var launcher = new FakeLauncher(_ => new FakeBehavior

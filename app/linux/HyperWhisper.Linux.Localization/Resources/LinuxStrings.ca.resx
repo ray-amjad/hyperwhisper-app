@@ -48,4 +48,10 @@
   <data name="linux.settings.sound.microphone.testFailed" xml:space="preserve">
     <value>No s'ha pogut obrir el micròfon.</value>
   </data>
+  <data name="linux.credentials.not_stored" xml:space="preserve">
+    <value>No definit</value>
+  </data>
+  <data name="linux.credentials.stored" xml:space="preserve">
+    <value>Desat</value>
+  </data>
 </root>

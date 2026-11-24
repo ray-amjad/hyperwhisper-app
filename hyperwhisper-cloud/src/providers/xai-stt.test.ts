@@ -8,41 +8,25 @@ import { transcribeWithXaiGrok } from './xai-stt';
 import { resolveModel } from '../lib/stt-models';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
+import { stubEnv } from '../test-support/env';
+import { captureMultipartRequest, stubErrorResponse } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
-const ENV_KEYS = ['XAI_API_KEY', 'GROK_API_KEY'] as const;
-const savedEnv: Record<string, string | undefined> = {};
+let restoreEnv: Array<() => void> = [];
 
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
 
 beforeEach(() => {
-  for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
-  process.env.XAI_API_KEY = 'test-key';
-  delete process.env.GROK_API_KEY;
+  restoreEnv = [
+    stubEnv('XAI_API_KEY', 'test-key'),
+    stubEnv('GROK_API_KEY', undefined),
+  ];
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
+  for (const restore of restoreEnv) restore();
 });
-
-function captureRequest(body: unknown) {
-  const captured: { url?: string; headers?: HeadersInit; form?: FormData } = {};
-  globalThis.fetch = mock(async (url: string, init: RequestInit) => {
-    captured.url = url;
-    captured.headers = init.headers;
-    captured.form = init.body as FormData;
-    return typeof body === 'string' ? new Response(body, { status: 200 }) : Response.json(body);
-  }) as unknown as typeof fetch;
-  return captured;
-}
-
-function errorResponse(status: number, text = 'upstream said no') {
-  globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
-}
 
 describe('transcribeWithXaiGrok — credentials', () => {
   test('a missing key fails over rather than throwing a plain Error', async () => {
@@ -59,7 +43,7 @@ describe('transcribeWithXaiGrok — credentials', () => {
   test('falls back to GROK_API_KEY when XAI_API_KEY is unset', async () => {
     delete process.env.XAI_API_KEY;
     process.env.GROK_API_KEY = 'legacy-key';
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect((captured.headers as Record<string, string>).Authorization).toBe('Bearer legacy-key');
@@ -68,7 +52,7 @@ describe('transcribeWithXaiGrok — credentials', () => {
 
 describe('transcribeWithXaiGrok — multipart request shape', () => {
   test('sends format=true with the normalised language for a supported locale', async () => {
-    const captured = captureRequest({ text: 'hola', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hola', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'es-419');
     expect(captured.url).toBe('https://api.x.ai/v1/stt');
@@ -77,26 +61,26 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
   });
 
   test('maps Tagalog (tl) to the Filipino (fil) code the API accepts', async () => {
-    const captured = captureRequest({ text: 'kumusta', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'kumusta', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'tl-PH');
     expect(captured.form?.get('language')).toBe('fil');
   });
 
   test('drops formatting entirely for an unsupported language or for "auto"', async () => {
-    const unsupported = captureRequest({ text: 'hi', duration: 4 });
+    const unsupported = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'sw-KE');
     expect(unsupported.form?.has('language')).toBe(false);
     expect(unsupported.form?.has('format')).toBe(false);
 
-    const auto = captureRequest({ text: 'hi', duration: 4 });
+    const auto = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'auto');
     expect(auto.form?.has('language')).toBe(false);
     expect(auto.form?.has('format')).toBe(false);
   });
 
   test('appends the file part last, after the formatting fields xAI requires first', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'de-DE');
     expect([...(captured.form as FormData).keys()]).toEqual([
@@ -108,17 +92,17 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
   });
 
   test('names the file part from the content type, falling back to .mp3', async () => {
-    const wav = captureRequest({ text: 'hi', duration: 4 });
+    const wav = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/wav');
     expect((wav.form?.get('file') as File).name).toBe('audio.wav');
 
-    const unknown = captureRequest({ text: 'hi', duration: 4 });
+    const unknown = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'application/octet-stream');
     expect((unknown.form?.get('file') as File).name).toBe('audio.mp3');
   });
 
   test('sends an initial prompt as repeated keyterm fields, never as prompt', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, 'HyperWhisper, Drizzle');
     expect(captured.form?.has('prompt')).toBe(false);
@@ -133,7 +117,7 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
   });
 
   test('keeps a leading dash or star that no space follows (issue #729)', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     // '-Xmx' used to reach xAI as 'Xmx'. Only a bullet followed by a space is
     // list markup, as in the canonical `sanitize_vocabulary_word`.
@@ -142,28 +126,23 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
   });
 
   test('drops an empty bullet line rather than sending it as a keyterm', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, 'foo\n-\n*\nbar');
     expect(captured.form?.getAll('keyterm')).toEqual(['foo', 'bar']);
   });
 
   test('pins the model, and honours the one the route resolved', async () => {
-    const pinned = captureRequest({ text: 'hi', duration: 4 });
+    const pinned = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect(pinned.form?.get('model')).toBe('grok-voice-transcribe-2.0');
-
-    // A pre-2026-09-19 client sends no model, and the route passes none on.
-    const blank = captureRequest({ text: 'hi', duration: 4 });
-    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, { model: '  ' });
-    expect(blank.form?.get('model')).toBe('grok-voice-transcribe-2.0');
 
     // A shipped client may still name 1.0, which xAI ended on 2026-10-02
     // (#1908). The route resolves it through the registry alias, and the
     // adapter sends what the route resolved.
     const resolved = resolveModel('grok', 'grok-voice-transcribe-1.0');
     if (!resolved.ok) throw new Error(resolved.reason);
-    const chosen = captureRequest({ text: 'hi', duration: 4 });
+    const chosen = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, {
       model: resolved.model.id,
     });
@@ -177,20 +156,20 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     const registry = resolveModel('grok', undefined);
     expect(registry.ok).toBe(true);
 
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
     if (registry.ok) expect(captured.form?.get('model')).toBe(registry.model.id);
   });
 
   test('sends no keyterm field when there is no initial prompt', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect(captured.form?.has('keyterm')).toBe(false);
   });
 
   test('drops terms over 50 characters, de-duplicates, and caps at 100', async () => {
-    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const captured = captureMultipartRequest({ text: 'hi', duration: 4 });
     const tooLong = 'x'.repeat(51);
     const terms = [tooLong, 'Kept', 'kept', ...Array.from({ length: 120 }, (_, i) => `term${i}`)];
 
@@ -206,7 +185,7 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
 describe('transcribeWithXaiGrok — HTTP error classification', () => {
   test('401 and 403 throw a plain Error so the chain does NOT retry a bad key', async () => {
     for (const status of [401, 403]) {
-      errorResponse(status);
+      stubErrorResponse(status);
       const thrown = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
       expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
       expect(thrown).not.toBeInstanceOf(ProviderInputError);
@@ -215,19 +194,19 @@ describe('transcribeWithXaiGrok — HTTP error classification', () => {
   });
 
   test('429 and 5xx fail over to the next provider', async () => {
-    errorResponse(429);
+    stubErrorResponse(429);
     const rateLimited = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
     expect(rateLimited).toBeInstanceOf(ProviderUnavailableError);
     expect(rateLimited.message).toContain('rate limit exceeded');
 
-    errorResponse(500);
+    stubErrorResponse(500);
     const upstream = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
     expect(upstream).toBeInstanceOf(ProviderUnavailableError);
     expect(upstream.message).toContain('upstream 5xx: 500');
   });
 
   test('402 is NOT a failover here — it falls through to ProviderInputError', async () => {
-    errorResponse(402, 'credits exhausted');
+    stubErrorResponse(402, 'credits exhausted');
 
     const thrown = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
@@ -235,7 +214,7 @@ describe('transcribeWithXaiGrok — HTTP error classification', () => {
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {
-    captureRequest('<html>blocked</html>');
+    captureMultipartRequest('<html>blocked</html>');
 
     const thrown = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderUnavailableError);
@@ -245,7 +224,7 @@ describe('transcribeWithXaiGrok — HTTP error classification', () => {
 
 describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
   test('returns the transcript with the reported duration and bills above $0', async () => {
-    captureRequest({ text: 'hello world', duration: 3_600, language: 'en', request_id: 'req-1' });
+    captureMultipartRequest({ text: 'hello world', duration: 3_600, language: 'en', request_id: 'req-1' });
 
     const result = await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect(result.text).toBe('hello world');
@@ -257,7 +236,7 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
   });
 
   test('derives the duration from the last word end when the body omits duration', async () => {
-    captureRequest({
+    captureMultipartRequest({
       text: 'hello world',
       words: [{ start: 0, end: 1.2, text: 'hello' }, { start: 1.2, end: 4.5, text: 'world' }],
     });
@@ -268,14 +247,14 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
   });
 
   test('falls back to `id` when the body carries no request_id', async () => {
-    captureRequest({ text: 'hello', duration: 4, id: 'fallback-id' });
+    captureMultipartRequest({ text: 'hello', duration: 4, id: 'fallback-id' });
 
     const result = await transcribeWithXaiGrok(audio(), 'audio/mp3');
     expect(result.requestId).toBe('fallback-id');
   });
 
   test('reports the requested formatting language when the body echoes none', async () => {
-    captureRequest({ text: 'bonjour', duration: 4 });
+    captureMultipartRequest({ text: 'bonjour', duration: 4 });
 
     const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'fr-CA');
     expect(result.language).toBe('fr');
@@ -283,7 +262,7 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
 
   test('an empty or whitespace-only transcript returns no_speech, keeping the request id', async () => {
     for (const text of ['', ' \t']) {
-      captureRequest({ text, duration: 12, request_id: 'req-empty' });
+      captureMultipartRequest({ text, duration: 12, request_id: 'req-empty' });
 
       const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'ja');
       expect(result.source).toBe('no_speech');
@@ -297,11 +276,11 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
 
   test('the no_speech log event records the upstream duration, and null when there is none', async () => {
     // The incident shape from issue #381: 22.2 s of audio, no text.
-    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
     const reported = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
     expect(reported.upstreamDurationSeconds).toBe(22.2);
 
-    captureRequest({ text: '', request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', request_id: 'req-empty' });
     const missing = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
     expect(missing.upstreamDurationSeconds).toBeNull();
   });
@@ -310,7 +289,7 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
 describe('transcribeWithXaiGrok — empty-transcript failover (issue #381)', () => {
   test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
     // The incident shape: 22.2 s of audio submitted, no text returned.
-    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
 
     let thrown: unknown;
     try {
@@ -343,7 +322,7 @@ describe('transcribeWithXaiGrok — empty-transcript failover (issue #381)', () 
     // measurable". For the three covered providers the refusal path IS the common
     // path, so an event that fires only when the adapter does NOT refuse counts
     // nothing. Without this the field is dead by construction.
-    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
 
     const reported = await captureNoSpeechEvent(async () => {
       await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { mayRefuseEmptyTranscript: true })
@@ -360,7 +339,7 @@ describe('transcribeWithXaiGrok — empty-transcript failover (issue #381)', () 
     // The gate is "the route says a sibling is there", never `attempt === 1`.
     // A geo-degraded chain's only provider is still its first attempt, and
     // refusing there would return 429 for what is a benign no_speech.
-    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
 
     const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { attempt: 1 });
     expect(result.source).toBe('no_speech');
@@ -369,7 +348,7 @@ describe('transcribeWithXaiGrok — empty-transcript failover (issue #381)', () 
   });
 
   test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
-    captureRequest({ text: '', request_id: 'req-empty' });
+    captureMultipartRequest({ text: '', request_id: 'req-empty' });
 
     const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');

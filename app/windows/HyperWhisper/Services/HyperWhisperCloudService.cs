@@ -63,6 +63,13 @@ public partial class HyperWhisperCloudService : ITranscriptionProvider, ITranscr
     private HttpClient _httpClient;
     private bool _disposed;
 
+    // Builds every HttpClient this service sends on (the first one and each DNS
+    // rebuild), and the clock the warmup debounce and the rebuild gate read.
+    // Production passes CreateHttpClient and DateTime.UtcNow; the smoke tests
+    // pass a stub handler and a fake clock.
+    private readonly Func<HttpClient> _createClient;
+    private readonly Func<DateTime> _utcNow;
+
     // Credit tracking
     private int? _lastCreditsUsed;
     private int? _remainingCredits;
@@ -102,9 +109,13 @@ public partial class HyperWhisperCloudService : ITranscriptionProvider, ITranscr
     // CONSTRUCTOR
     // =========================================================================
 
-    public HyperWhisperCloudService()
+    public HyperWhisperCloudService() : this(CreateHttpClient, () => DateTime.UtcNow) { }
+
+    internal HyperWhisperCloudService(Func<HttpClient> createClient, Func<DateTime> utcNow)
     {
-        _httpClient = CreateHttpClient();
+        _createClient = createClient;
+        _utcNow = utcNow;
+        _httpClient = _createClient();
         LoggingService.Info("HyperWhisperCloudService: Initialized");
     }
 

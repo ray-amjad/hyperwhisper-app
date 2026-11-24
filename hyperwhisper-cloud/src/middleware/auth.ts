@@ -1,7 +1,8 @@
 // AUTHENTICATION HELPERS
 // Validates license keys and device trial identifiers
 
-import { DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { LICENSE_API_TIMEOUT_MS, licenseApiBaseUrl } from '../lib/constants';
+import { canonicalAccountKey } from '../lib/account-key';
 import { cacheLicense, getCachedLicense } from '../lib/redis';
 import { invalidLicenseResponse, licenseRequiredResponse } from '../lib/responses';
 import { isRecord } from '../lib/utils';
@@ -97,7 +98,7 @@ function errorType(error: unknown): AuthDiagnostics['apiErrorType'] {
 
 async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationResult> {
   const startedAt = performance.now();
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  const apiBase = licenseApiBaseUrl();
   const validateUrl = `${apiBase}/api/license/validate`;
 
   try {
@@ -204,9 +205,11 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
   }
 }
 
+export { canonicalAccountKey };
+
 export async function validateAuth(input: AuthInput, forceRefresh = false): Promise<AuthResult> {
   const startedAt = performance.now();
-  const { licenseKey } = input;
+  const licenseKey = canonicalAccountKey(input.licenseKey);
 
   // HyperWhisper Cloud is licensed-only: a valid license key (which carries the
   // credit balance) is required for every request. There is no anonymous/trial

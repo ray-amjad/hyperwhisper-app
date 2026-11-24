@@ -3,16 +3,18 @@ import { setSessionCookie } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { authLogIpHash, emitAuthEvent } from "./auth-event-log";
 import { findAccountByKey } from "./db-layer";
+import { isLookupableLicenseKey } from "./license-key-input";
 import { sanitizeLicenseKeyRedirect } from "./license-key-redirect";
 
-import { sha256Hex } from "@/lib/shared/sha256";
 import { db } from "@/src/db";
 import { user } from "@/src/db/schema/auth";
 
 type SignInOutcome = "ok" | "rejected" | "failed";
 
 type SignInReason =
+  | "key_malformed"
   | "key_not_found"
   | "key_inactive"
   | "key_no_user"
@@ -41,27 +43,17 @@ function logSignIn(
     headers: Headers | undefined;
   },
 ): void {
-  const ip = fields.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const line = JSON.stringify({
-    event: "auth.license_key_sign_in",
+  emitAuthEvent(
+    {
+      event: "auth.license_key_sign_in",
+      outcome,
+      ...(fields.reason ? { reason: fields.reason } : {}),
+      ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
+      ...(fields.userId ? { userId: fields.userId } : {}),
+      ipHash: authLogIpHash(fields.headers),
+    },
     outcome,
-    ...(fields.reason ? { reason: fields.reason } : {}),
-    ...(fields.licenseId ? { licenseId: fields.licenseId } : {}),
-    ...(fields.userId ? { userId: fields.userId } : {}),
-    ipHash: ip ? sha256Hex(ip).slice(0, 12) : null,
-  });
-
-  // The website's console output is its server log (Vercel), so this is the
-  // sink, not leftover debugging.
-  /* eslint-disable no-console */
-  if (outcome === "ok") {
-    console.log(line);
-  } else if (outcome === "rejected") {
-    console.warn(line);
-  } else {
-    console.error(line);
-  }
-  /* eslint-enable no-console */
+  );
 }
 
 export const licenseKeyPlugin = () => ({
@@ -79,6 +71,20 @@ export const licenseKeyPlugin = () => ({
       },
       async (ctx) => {
         const { licenseKey, callbackURL } = ctx.body;
+
+        // A NUL byte makes Postgres throw, which Better Auth answers as an
+        // empty 500 (#2079). No real key has one: give the usual refusal.
+        if (!isLookupableLicenseKey(licenseKey)) {
+          logSignIn("rejected", {
+            reason: "key_malformed",
+            headers: ctx.headers,
+          });
+
+          return ctx.json(
+            { error: "Invalid or inactive license key." },
+            { status: 400 },
+          );
+        }
 
         const license = await findAccountByKey(licenseKey);
 
@@ -152,14 +158,24 @@ export const licenseKeyPlugin = () => ({
           );
         }
 
-        // Re-read the key now that the session row exists. Revocation is a
-        // transaction that flips the status AND deletes the user's sessions
-        // (`revokeWebAccess`), so a revocation landing between the check above
-        // and `createSession` would sweep a session that did not exist yet and
-        // hand out a fresh 90-day one for a dead key. Reading after the write
-        // means the two orderings cannot both miss: either revocation sees this
-        // row and deletes it, or this read sees the revoked status and we do.
-        const current = await findAccountByKey(licenseKey);
+        // Re-read the key now that the session row exists. Revocation and
+        // rotation are transactions that lock the key row, change it, AND
+        // delete the user's sessions (`revokeWebAccess`), so one landing
+        // between the check above and `createSession` would sweep a session
+        // that did not exist yet and leave a 90-day one for a dead key.
+        //
+        // The re-read is a locking read (`FOR SHARE`), so the two orderings
+        // cannot both miss, even under READ COMMITTED:
+        // - if the change's lock was taken before this read, the read waits for
+        //   its COMMIT and then sees the revoked status, or no row under the
+        //   rotated-away key, and we delete the session;
+        // - otherwise the change has not locked the row yet, so its session
+        //   delete runs later, after this session committed, and removes it.
+        // A plain read could see the row as it was before an uncommitted
+        // rotation while that rotation's delete missed this session.
+        const current = await findAccountByKey(licenseKey, db, {
+          lockForShare: true,
+        });
 
         if (!current || current.status !== "granted") {
           await ctx.context.internalAdapter.deleteSession(session.token);
