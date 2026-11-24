@@ -31,6 +31,16 @@ import {
   keyRotatedEmailText,
   type KeyRotatedEmailData,
 } from "@/lib/templates/key-rotated-email";
+import {
+  keyIssuedEmailHtml,
+  keyIssuedEmailText,
+  type KeyIssuedEmailData,
+} from "@/lib/templates/key-issued-email";
+import {
+  keyDeletedEmailHtml,
+  keyDeletedEmailText,
+  type KeyDeletedEmailData,
+} from "@/lib/templates/key-deleted-email";
 import { logSentEmail } from "@/src/lib/db-layer";
 
 interface EmailResult {
@@ -183,6 +193,40 @@ export class EmailService {
   }
 
   /**
+   * Send the notice that a new Account Key was issued from the dashboard. It
+   * carries only a short prefix of the new key, never the full key.
+   */
+  async sendKeyIssued(data: KeyIssuedEmailData): Promise<EmailResult> {
+    const subject = "A new HyperWhisper Account Key was added";
+    return this.sendWithRetry("key-issued", data.customerEmail, subject, () =>
+      this.deps.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject,
+        html: keyIssuedEmailHtml(data),
+        text: keyIssuedEmailText(data),
+      }),
+    );
+  }
+
+  /**
+   * Send the notice that an Account Key was deleted from the dashboard. It
+   * carries only a short prefix of the deleted key, never the full key.
+   */
+  async sendKeyDeleted(data: KeyDeletedEmailData): Promise<EmailResult> {
+    const subject = "A HyperWhisper Account Key was deleted";
+    return this.sendWithRetry("key-deleted", data.customerEmail, subject, () =>
+      this.deps.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject,
+        html: keyDeletedEmailHtml(data),
+        text: keyDeletedEmailText(data),
+      }),
+    );
+  }
+
+  /**
    * Shared send-with-retry loop.
    *
    * Treats a resolved `{ error }` from `sendEmail` as a failure (it never
@@ -191,7 +235,14 @@ export class EmailService {
    * caller's request thread is not blocked on backoff sleeps.
    */
   private async sendWithRetry(
-    kind: "license" | "welcome" | "credit-mint" | "credit-topup" | "key-rotated",
+    kind:
+      | "license"
+      | "welcome"
+      | "credit-mint"
+      | "credit-topup"
+      | "key-rotated"
+      | "key-issued"
+      | "key-deleted",
     customerEmail: string,
     subject: string,
     send: () => Promise<EmailSendOutcome>,

@@ -1435,6 +1435,16 @@ static Task BlankCloudProviderReadsAsHyperWhisperCloud()
         typeof(string), null, CultureInfo.InvariantCulture) as string;
     Assert(retired == successor && retired != "grok-voice-transcribe-1.0",
         $"status bar read '{retired}' for a stored Grok 1.0 mode, not the 2.0 label '{successor}'");
+    // #1976: the status bar and the mode card both read the successor's catalog name, the card the
+    // way Windows draws it ("Grok · Grok Voice Transcribe 2"), not the raw stored id.
+    Assert(retired == "Grok Voice Transcribe 2",
+        $"status bar read '{retired}' for a stored Grok 1.0 mode, not 'Grok Voice Transcribe 2'");
+    using var strings = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    var card = new ModeProviderLineConverter(new OptionLabelConverter(strings)).Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-1.0" },
+        typeof(string), "cloud", CultureInfo.InvariantCulture) as string;
+    Assert(card is not null && card.EndsWith(" · Grok Voice Transcribe 2", StringComparison.Ordinal),
+        $"mode card read '{card}' for a stored Grok 1.0 mode, not '… · Grok Voice Transcribe 2'");
     return Task.CompletedTask;
 }
 

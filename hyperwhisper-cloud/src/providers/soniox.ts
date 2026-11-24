@@ -6,28 +6,22 @@
 // error_type slug + error_message; the poll loop classifies by error_type.
 
 import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../lib/cost-calculator';
-import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { getProviderDef } from '../lib/stt-models';
+import { PROVIDER_AUDIO_CAPS } from './audio-limits';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, billableSeconds, computeUploadTimeoutMs, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, providerHttpError, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson, type ProviderHttpErrorPolicy } from './utils';
 import { readUpstreamError, safeErrorToken, upstreamErrorLogFields } from './upstream-error';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
-const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
 const MAX_CONTEXT_TERMS = 200;
 const MAX_CONTEXT_TERM_CHARS = 80;
-// Soniox supports async files up to 300 min, but our request-scoped poll budget
-// is POLL_DEADLINE_MS, and a transcription still "processing" at the deadline
-// CANNOT be deleted (Soniox returns 409 transcription_invalid_state) — so
-// abandoning it there leaks a running, billable upstream job. Gate overly-long
-// uploads BEFORE creating any upstream file/job so we only accept audio we can
-// reliably poll to completion and clean up. ~30 min at the 64 kbps byte→seconds
-// estimate comfortably covers dictation while keeping a wide margin under the
-// deadline at Soniox's faster-than-realtime batch throughput.
-const SONIOX_MAX_BYTES = 30 * BYTES_PER_MINUTE_ESTIMATE;
+// The cap (and why Soniox needs one) is SONIOX_MAX_BYTES in lib/constants.ts;
+// this adapter reads it from the one per-provider table.
+const SONIOX_MAX_BYTES = PROVIDER_AUDIO_CAPS.soniox.adapterMaxBytes;
 
 // A Soniox async job that ends in failure carries a stable `error_type` slug
 // (branch on the slug, not the message). Only these are genuinely caused by the
@@ -103,9 +97,7 @@ export async function transcribeWithSoniox(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'soniox';
-  const model = !context.model || context.model === 'stt-async-v4'
-    ? DEFAULT_MODEL
-    : context.model;
+  const model = context.model || getProviderDef('soniox').defaultModel;
 
   const apiKey = process.env.SONIOX_API_KEY;
   if (!apiKey) {
@@ -315,15 +307,13 @@ export async function transcribeWithSoniox(
 
     // Fail-closed: a successful transcript with a missing/non-positive duration
     // falls back to a byte-size estimate so we never bill $0.
-    const billableSeconds = (durationSeconds > 0 && Number.isFinite(durationSeconds))
-      ? durationSeconds
-      : estimateSecondsFromBytes(audio.byteLength);
+    const billedSeconds = billableSeconds(durationSeconds, audio.byteLength);
 
     logProviderEvent(provider, 'success', {
       model, polls,
       elapsedMs: Math.round(performance.now() - startedAt),
       transcriptChars: transcript.length,
-      durationSeconds: billableSeconds,
+      durationSeconds: billedSeconds,
       language: language_,
     }, context);
 
@@ -334,8 +324,8 @@ export async function transcribeWithSoniox(
     return {
       text: transcript,
       language: language_,
-      durationSeconds: billableSeconds,
-      costUsd: computeSonioxTranscriptionCost(billableSeconds, contextTextTokens),
+      durationSeconds: billedSeconds,
+      costUsd: computeSonioxTranscriptionCost(billedSeconds, contextTextTokens),
       source: 'soniox',
       requestId: transcriptionId,
     };

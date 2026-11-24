@@ -280,31 +280,7 @@ struct TranscriptionOutcomePerCallTests {
 
     /// A short mono tone in its own temporary folder (a real, non-empty WAV).
     private static func toneWAV() throws -> URL {
-        let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-754-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("tone.wav")
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(0.5 * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(named: "tone.wav", inFolderPrefixed: "hw-754", seconds: 0.5)
     }
 
     private static func licensedManager() -> LicenseManager {

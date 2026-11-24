@@ -256,7 +256,7 @@ async function signInMethods(userId: string): Promise<Array<string | null>> {
 
 interface TrpcReply {
   status: number;
-  data?: { id: string; key: string };
+  data?: { id: string; key: string; cloudCleared: boolean };
   code?: string;
 }
 
@@ -275,7 +275,7 @@ async function rotate(
     }),
   );
   const body = (await response.json()) as {
-    result?: { data: { json: { id: string; key: string } } };
+    result?: { data: { json: { id: string; key: string; cloudCleared: boolean } } };
     error?: { json: { data: { code: string } } };
   };
   return {
@@ -370,6 +370,7 @@ describe("customer.rotateAccountKey, end to end", () => {
     assert.equal(reply.status, 200, `rotate answered ${reply.code}`);
     assert.ok(reply.data);
     const newKey = reply.data.key;
+    assert.equal(reply.data.cloudCleared, true, "every cloud app confirmed the purge");
     // The notice is queued for after the response; the reply did not wait on it.
     assert.equal(sentEmails.length, 0, "no email before the response");
     assert.equal(afterResponseTasks.length, 1);
@@ -654,11 +655,30 @@ describe("customer.rotateAccountKey, end to end", () => {
     try {
       const reply = await rotate(session.cookie, { id: owner.keyId, currentKey: owner.key });
       assert.equal(reply.status, 200);
+      // The owner is told the old key may still work in the cloud for a while.
+      assert.equal(reply.data!.cloudCleared, false);
       assert.equal((await validate(owner.key)).status, 400);
     } finally {
       globalThis.fetch = prev;
     }
     assert.ok(logLines.some((l) => l.includes("Cloud licence cache purge failed")));
+    const purgeLine = logLines.find((l) => l.includes('"event":"account_key.cloud_purge"'));
+    assert.ok(purgeLine, "the purge outcome is logged");
+    const space = purgeLine.indexOf(" ");
+    assert.deepEqual(
+      { level: purgeLine.slice(0, space), ...JSON.parse(purgeLine.slice(space + 1)) },
+      {
+        level: "warn",
+        event: "account_key.cloud_purge",
+        trigger: "rotate",
+        outcome: "unconfirmed",
+        purged: 0,
+        failed: 1,
+        skipped: false,
+        userId: owner.userId,
+        licenseId: owner.keyId,
+      },
+    );
     for (const line of logLines) assert.ok(!line.includes(owner.key));
   });
 });

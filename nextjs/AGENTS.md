@@ -13,6 +13,7 @@ Default to tRPC. These REST endpoints are kept intentionally — don't migrate t
 | `/api/download` | GET does an HTTP redirect to the download URL, not a JSON response |
 | `/api/webhooks/stripe` | **Signature verification** - Needs raw request body for HMAC validation |
 | `/api/auth/*` | Better Auth handlers |
+| `/api/mcp/admin` | **MCP protocol** - An agent gateway speaks MCP (JSON-RPC), not tRPC; see `DEPLOY-CLOUDFLARE.md` section 7 |
 </important>
 
 <important if="you are changing the database schema or writing/running migrations">
