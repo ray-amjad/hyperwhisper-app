@@ -45,6 +45,7 @@ export default function FooterSection() {
         { label: t("links.features"), href: "/#features" },
         { label: t("links.pricing"), href: "/#cloud" },
         { label: t("links.download"), href: downloadPath(), download: true },
+        { label: t("links.linux"), href: "/linux" },
         {
           label: t("links.roadmap"),
           href: "https://hyperwhisper.userjot.com/",

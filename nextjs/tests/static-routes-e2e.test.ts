@@ -26,13 +26,14 @@ const ROOT = path.join(__dirname, "..");
 const HAS_BUILD = existsSync(path.join(ROOT, ".next", "BUILD_ID"));
 const skip = HAS_BUILD ? false : "no .next build: run `next build` first";
 
-// The 8 marketing routes the issue names. /credits is left out: it reads
+// The 8 marketing routes the issue names, plus /linux. /credits is left out: it reads
 // searchParams, so it stays dynamic.
 const MARKETING = [
   "",
   "/download",
   "/support",
   "/open-source",
+  "/linux",
   "/older-versions",
   "/legal/privacy-policy",
   "/legal/terms-of-service",
