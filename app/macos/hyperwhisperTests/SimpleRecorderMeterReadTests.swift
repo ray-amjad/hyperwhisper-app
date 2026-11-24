@@ -299,7 +299,8 @@ struct SimpleRecorderMeterReadTests {
         // The stop is on the meter queue behind the stuck read once its deadline
         // is armed (`DeadlineGate.run` queues the work first). It must not run
         // while the read is stuck.
-        #expect(await deadline.waitUntilArmed())
+        // `#require`: a manual fire before the stop arms its deadline would be lost.
+        try #require(await deadline.waitUntilArmed())
         #expect(await stopper.waitUntilStopped(timeout: 0.5) == false)
         #expect(stopper.stopCount == 0)
 
@@ -335,7 +336,8 @@ struct SimpleRecorderMeterReadTests {
         // Nothing can end it yet. This test runs on the main actor: getting back
         // here while the stop is still waiting proves the wait does not hold the
         // main thread.
-        #expect(await deadline.waitUntilArmed())
+        // `#require`: a manual fire before the stop arms its deadline would be lost.
+        try #require(await deadline.waitUntilArmed())
         #expect(returned.isSet == false)
         #expect(recorder.isRecording == false)
         #expect(recorder.audioLevel == 0)
