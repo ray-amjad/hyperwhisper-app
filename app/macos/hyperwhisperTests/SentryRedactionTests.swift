@@ -163,6 +163,24 @@ struct SentryRedactionTests {
         #expect(spanData["url"] as? String == "https://llm.example.com/v1")
     }
 
+    /// A password that itself holds a parameter shape (`abc123;token=xyz`)
+    /// must go whole: the parameter pass once ate the `@` first and left the
+    /// `abc123` half of the password behind.
+    @Test func userInfoHoldingAParameterShapeGoesWhole() {
+        let head = ["fake", "pw", "4321"].joined(separator: "")
+        let tail = ["xyz", "987"].joined(separator: "")
+        let userInfoValue = "\(head);token=\(tail)&k=\(tail)"
+        let url = "https://alice:\(userInfoValue)@host.example.com/path"
+
+        let viaURL = SentryRedaction.scrubURL(url)
+        #expect(viaURL == "https://host.example.com/path")
+        #expect(!viaURL.contains(head) && !viaURL.contains(tail))
+
+        let viaText = SentryRedaction.scrubFreeText("GET \(url) returned 503")
+        #expect(viaText == "GET https://host.example.com/path returned 503")
+        #expect(!viaText.contains(head) && !viaText.contains(tail))
+    }
+
     @Test func spanDescriptionLosesKeys() {
         let description = "GET https://generativelanguage.googleapis.com/v1/models?key=\(opaqueKey)"
         let scrubbed = SentryRedaction.scrubFreeText(description)

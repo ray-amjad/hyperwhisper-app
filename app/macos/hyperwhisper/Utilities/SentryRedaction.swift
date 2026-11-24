@@ -137,10 +137,16 @@ enum SentryRedaction {
     /// sensitively-named URL parameter's value and key-shaped substring
     /// redacted. Everything else is left byte for byte.
     static func scrubFreeText(_ text: String) -> String {
-        var result = redactEmbeddedParameters(in: text)
+        // Userinfo FIRST. A password can hold `;`, `=` or `&`
+        // (`alice:abc123;token=xyz@host`): the parameter pass would match
+        // `;token=xyz@host/…`, eat the `@`, and leave `abc123` behind with
+        // nothing for this pattern to match. Its class stops only at `/`,
+        // `?`, `#`, `@` and whitespace, so `;`, `=` and `&` cannot cut it short.
+        var result = text
         if let userInfo, result.contains("@") {
             result = replacing(userInfo, in: result, with: "$1")
         }
+        result = redactEmbeddedParameters(in: result)
         for (regex, template) in secretPatterns {
             result = replacing(regex, in: result, with: template)
         }
