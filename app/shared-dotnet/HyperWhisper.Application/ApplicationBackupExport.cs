@@ -483,7 +483,9 @@ public sealed partial class ApplicationBackupService(
     private static VocabularyItem ParseVocabulary(JsonNode? node)
     {
         var value = node as JsonObject ?? throw new JsonException("Vocabulary item must be an object.");
-        return new VocabularyItem { Id = Guid.Parse(value["id"]!.GetValue<string>()), Word = value["word"]!.GetValue<string>(), Replacement = String(value, "replacement"), SortOrder = Int(value, "sortOrder") };
+        // Trimmed on the way in (#2930), the way VocabularyRepository.UpsertAsync and Windows store a
+        // word, so 'Kubernetes ' matches an existing 'Kubernetes' instead of landing as a second entry.
+        return new VocabularyItem { Id = Guid.Parse(value["id"]!.GetValue<string>()), Word = value["word"]!.GetValue<string>().Trim(), Replacement = String(value, "replacement"), SortOrder = Int(value, "sortOrder") };
     }
 
 

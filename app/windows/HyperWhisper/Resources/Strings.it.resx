@@ -917,6 +917,9 @@ Questa azione non può essere annullata.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Annullare?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Nessun suono da {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ Potrai scaricarlo di nuovo in seguito.</value>
     <value>Ancora niente. Avvia una registrazione per vedere il testo comparire qui.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} parole · {1}</value>
+    <value>Parole: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Mostrato solo qui — non incollato in altre app</value>

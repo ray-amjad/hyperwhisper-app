@@ -917,6 +917,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancel?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>لا يوجد صوت من {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ You can re-download it later.</value>
     <value>لا شيء بعد. ابدأ تسجيلاً لترى النص يظهر هنا.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} كلمة · {1}</value>
+    <value>الكلمات: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>يظهر هنا فقط — لا يتم لصقه في تطبيقات أخرى</value>

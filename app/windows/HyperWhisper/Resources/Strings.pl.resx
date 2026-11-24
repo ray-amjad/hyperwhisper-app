@@ -917,6 +917,9 @@ Tej czynności nie można cofnąć.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Anulować?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Brak dźwięku z urządzenia {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ Możesz pobrać go ponownie później.</value>
     <value>Jeszcze nic. Rozpocznij nagrywanie, aby zobaczyć tu tekst.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} słów · {1}</value>
+    <value>Słowa: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Widoczne tylko tutaj — nie jest wklejane do innych aplikacji.</value>

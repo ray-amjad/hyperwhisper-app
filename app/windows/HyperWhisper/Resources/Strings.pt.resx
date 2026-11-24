@@ -917,6 +917,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancelar?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Nenhum som de {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Ainda nada. Inicie uma gravação para ver o texto aparecer aqui.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} palavras · {1}</value>
+    <value>Palavras: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Mostrado apenas aqui — não colado em outros aplicativos.</value>

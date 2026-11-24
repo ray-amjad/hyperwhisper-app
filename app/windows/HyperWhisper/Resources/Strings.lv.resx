@@ -917,6 +917,9 @@
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancel?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Nav skaņas no {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ You can re-download it later.</value>
     <value>Pagaidām nekā nav. Sāciet ierakstu, lai teksts parādītos šeit.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} vārdi · {1}</value>
+    <value>Vārdi: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Rādīts tikai šeit — netiek ielīmēts citās lietotnēs.</value>

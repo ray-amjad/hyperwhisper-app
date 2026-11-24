@@ -177,13 +177,15 @@ static void AllCatalogsLoad()
     // import says whether the API keys landed, and a failed section is not a plain success).
     // 868 -> 865 (#2001): `mode.editor.warning.vocabularyUnsupported.elevenlabs`, `.deepgramBase`
     // and `.deepgramWhisper` are gone, read by nothing since #1998 moved the warning to the models catalog.
-    // 865 -> 876 (#2409): the Vocabulary page's Import/Export buttons add
+    // 865 -> 866 (#2411): `recording.warning.micSilent` is new (the Windows and Linux recording
+    // overlays warn "No sound from {mic}" while the microphone hears nothing).
+    // 866 -> 877 (#2409): the Vocabulary page's Import/Export buttons add
     // `vocabulary.transfer.import`, `.export`, `.import.dialogTitle`, `.export.dialogTitle`,
     // `.fileType.any`, `.fileType.csv`, `.fileType.txt`, `.imported`, `.exported`,
     // `.importFailed` and `.exportFailed` (Windows and Linux).
-    // 876 -> 877 (#2409 review): `vocabulary.transfer.saveFailed` tells a database failure
+    // 877 -> 878 (#2409 review): `vocabulary.transfer.saveFailed` tells a database failure
     // apart from an unreadable file.
-    Equal(877,PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(878,PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

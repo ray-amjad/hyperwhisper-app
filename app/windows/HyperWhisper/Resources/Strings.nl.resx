@@ -917,6 +917,9 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Annuleren?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Geen geluid van {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2657,7 +2660,7 @@ Je kunt het later opnieuw downloaden.</value>
     <value>Nog niets. Start een opname om de tekst hier te zien verschijnen.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} woorden · {1}</value>
+    <value>Woorden: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Alleen hier weergegeven — niet geplakt in andere apps.</value>

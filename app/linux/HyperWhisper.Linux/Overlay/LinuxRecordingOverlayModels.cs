@@ -62,6 +62,25 @@ public readonly record struct LinuxOverlayModeLabel
     public override string ToString() => Value;
 }
 
+/// <summary>
+/// A bounded display-only microphone name for the "No sound from {mic}" warning (#2411): the
+/// device the capture opened, never audio content. Empty when the device has no name.
+/// </summary>
+public readonly record struct LinuxOverlayMicrophoneLabel
+{
+    public const int MaximumCharacters = 96;
+    private LinuxOverlayMicrophoneLabel(string value) => Value = value;
+    public string Value { get; }
+
+    public static LinuxOverlayMicrophoneLabel Create(string? value) =>
+        new(new string((value ?? string.Empty)
+            .Where(character => !char.IsControl(character))
+            .Take(MaximumCharacters)
+            .ToArray()).Trim());
+
+    public override string ToString() => Value;
+}
+
 public sealed record LinuxRecordingOverlaySnapshot(
     LinuxRecordingOverlayState State,
     bool IsVisible,
@@ -69,7 +88,8 @@ public sealed record LinuxRecordingOverlaySnapshot(
     string ModeText,
     string DurationText,
     double AudioLevel = 0,
-    LinuxStreamingOverlayConnectionState? StreamingConnection = null);
+    LinuxStreamingOverlayConnectionState? StreamingConnection = null,
+    bool MicSilent = false);
 
 internal interface ILinuxRecordingOverlaySurface : IDisposable
 {

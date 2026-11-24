@@ -15,6 +15,8 @@ internal interface IStreamingAudioSource : IDisposable
 
     event Action<byte[]>? AudioChunkAvailable;
     event Action<float>? AudioLevelChanged;
+    /// <summary>Each capture block's peak in dBFS, for the "No sound from {mic}" warning (#2411).</summary>
+    event Action<double>? BlockPeakDbfs;
 
     void Start(int deviceNumber, int sampleRate);
     void Stop();

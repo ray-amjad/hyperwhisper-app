@@ -33,6 +33,7 @@ try
     await RunTranscriptionWorkflowTestsAsync(root);
     MicrophoneSelectionTests.Run();
     await MicrophonePickerTests.RunAsync(Path.Combine(root, "microphone-picker"));
+    MicSilenceWatcherTests.Run();
     await RunHistoryRetryTestsAsync(root);
     await RunParakeetRetryConversionTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
