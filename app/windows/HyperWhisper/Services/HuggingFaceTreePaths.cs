@@ -65,24 +65,37 @@ internal static class HuggingFaceTreePaths
     /// <summary>
     /// Throws <see cref="InvalidDataException"/> unless <paramref name="page"/> is
     /// https on huggingface.co:443 at exactly this repo's tree path, has not been
-    /// fetched before, and is within <see cref="MaximumTreePages"/>.
+    /// fetched before, and is within <see cref="MaximumTreePages"/>. Call
+    /// <see cref="ValidateTreeResponse"/> on the response too.
     /// </summary>
     internal static void ValidateTreePage(Uri page, string repo, int pageNumber, ISet<string> visited)
     {
         if (pageNumber > MaximumTreePages)
             throw new InvalidDataException("Model repository pagination exceeded the allowed limit.");
 
-        if (!page.IsAbsoluteUri
-            || page.Scheme != Uri.UriSchemeHttps
-            || !page.Host.Equals(Host, StringComparison.OrdinalIgnoreCase)
-            || page.Port != 443
-            || !string.IsNullOrEmpty(page.UserInfo)
-            || !page.AbsolutePath.Equals($"/api/models/{repo}/tree/main", StringComparison.Ordinal)
-            || !visited.Add(page.AbsoluteUri))
-        {
+        if (!IsTreeEndpoint(page, repo) || !visited.Add(page.AbsoluteUri))
             throw new InvalidDataException("Model repository pagination was invalid.");
-        }
     }
+
+    /// <summary>
+    /// Throws <see cref="InvalidDataException"/> unless the URI a tree page was
+    /// actually served from (<c>response.RequestMessage.RequestUri</c>, which is
+    /// the last hop after any redirect the client followed) is still this repo's
+    /// tree endpoint. <see cref="ValidateTreePage"/> only checks the URL asked for.
+    /// </summary>
+    internal static void ValidateTreeResponse(Uri servedFrom, string repo)
+    {
+        if (!IsTreeEndpoint(servedFrom, repo))
+            throw new InvalidDataException("Model repository tree was served from an unexpected location.");
+    }
+
+    private static bool IsTreeEndpoint(Uri page, string repo) =>
+        page.IsAbsoluteUri
+        && page.Scheme == Uri.UriSchemeHttps
+        && page.Host.Equals(Host, StringComparison.OrdinalIgnoreCase)
+        && page.Port == 443
+        && string.IsNullOrEmpty(page.UserInfo)
+        && page.AbsolutePath.Equals($"/api/models/{repo}/tree/main", StringComparison.Ordinal);
 
     /// <summary>
     /// The <c>/resolve/main/</c> URL of a validated repo path, each segment escaped

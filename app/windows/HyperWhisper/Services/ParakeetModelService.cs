@@ -341,6 +341,11 @@ public class ParakeetModelService
             LoggingService.Info($"  Enumerating model repo tree: {nextUrl}");
 
             using var response = await httpClient.GetAsync(nextUrl, cancellationToken);
+
+            // The client follows redirects (the file downloads need that for the HF
+            // CDN), so a valid tree URL can answer 302 to anywhere. Pin where the
+            // page actually came from, not only the URL asked for.
+            HuggingFaceTreePaths.ValidateTreeResponse(response.RequestMessage?.RequestUri ?? nextUrl, repo);
             response.EnsureSuccessStatusCode();
 
             await using (var stream = await response.Content.ReadAsStreamAsync(cancellationToken))

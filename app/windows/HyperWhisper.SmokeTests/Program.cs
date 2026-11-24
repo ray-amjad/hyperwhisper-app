@@ -7057,6 +7057,9 @@ internal static class Program
                 ("a parent climb (../x)", (_, escapeName) => "../" + escapeName),
                 ("a nested parent climb (tokenizer/../../x)", (_, escapeName) => "tokenizer/../../" + escapeName),
                 ("a leading backslash (\\x)", (_, escapeName) => "\\" + escapeName),
+                ("a backslash parent climb (..\\x)", (_, escapeName) => "..\\" + escapeName),
+                ("a backslash drive-rooted path (C:\\...)", (outside, _) => outside.Replace('/', '\\') + "\\escaped.onnx"),
+                ("a backslash UNC path (\\\\host\\share\\x)", (_, _) => "\\\\localhost\\hw-smoke-no-such-share\\escaped.onnx"),
                 ("an NTFS alternate data stream (tokenizer:ads)", (_, _) => "tokenizer:ads"),
             })
             {
@@ -7147,6 +7150,50 @@ internal static class Program
                             $"followed {treePages} tree pages; the limit is {HuggingFaceTreePaths.MaximumTreePages}");
                         Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was created or left behind");
                         Assert(!Directory.Exists(finalDir), "a refused tree installed a model");
+                    }
+                    finally
+                    {
+                        try { Directory.Delete(finalDir, recursive: true); } catch { /* best effort */ }
+                    }
+                });
+            }
+
+            // CTF #17: the client follows redirects, so a valid tree URL answering
+            // 302 to elsewhere would be fetched and believed. The stub plays the
+            // followed redirect by setting the response's RequestMessage to the last
+            // hop, as SocketsHttpHandler does; the page itself is a good tree.
+            foreach (var (label, servedFrom) in new (string, Func<string, string>)[]
+            {
+                ("off-host", repo => $"https://hf-smoke.invalid/api/models/{repo}/tree/main?recursive=true"),
+                ("to another repo's tree", _ => "https://huggingface.co/api/models/someone/else/tree/main?recursive=true"),
+            })
+            {
+                RunAsync($"ParakeetModelService.DownloadModelAsync refuses a Qwen3 tree page redirected {label} (CTF #17)", async () =>
+                {
+                    var id = Guid.NewGuid().ToString("N")[..8];
+                    var repo = $"smoke/ctf17-redirect-{id}";
+                    var model = new ParakeetModelInfo(
+                        $"smoke-ctf17-redirect-{id}", "Smoke", "1 KB", 16, false, ["en"], [], repo,
+                        engine: ParakeetEngine.Qwen3);
+                    var handler = new HuggingFaceStubHandler((request, _) =>
+                    {
+                        if (!request.RequestUri!.AbsolutePath.StartsWith("/api/models/", StringComparison.Ordinal))
+                            return Respond(HttpStatusCode.OK, "onnx");
+                        var page = TreeJson(("file", "conv_frontend.int8.onnx"), ("file", "encoder.int8.onnx"));
+                        page.RequestMessage = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, servedFrom(repo));
+                        return page;
+                    });
+                    var service = new ParakeetModelService(new HttpClient(handler));
+                    var finalDir = service.GetModelDirectory(model);
+                    try
+                    {
+                        var result = await service.DownloadModelAsync(model);
+
+                        Assert(result.IsFailure, $"a tree page served from {servedFrom(repo)} should fail the download");
+                        Assert(!handler.Requested.Any(u => u.Contains("/resolve/", StringComparison.Ordinal)),
+                            $"files were fetched from a redirected tree: {string.Join(", ", handler.Requested)}");
+                        Assert(!Directory.Exists(finalDir + ".temp"), "the .temp folder was created or left behind");
+                        Assert(!Directory.Exists(finalDir), "a redirected tree installed a model");
                     }
                     finally
                     {
