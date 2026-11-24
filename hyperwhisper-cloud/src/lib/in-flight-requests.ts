@@ -26,7 +26,7 @@
 // so this is the rare request already on its way.
 
 import type { Context, Next } from 'hono';
-import { errorResponse } from '../lib/responses';
+import { errorResponse } from './responses';
 
 /** How long a shutdown waits for in-flight requests, measured from the signal. */
 export const IN_FLIGHT_REQUEST_WAIT_MS = 100_000;

@@ -16,13 +16,19 @@ import Foundation
 
 enum BackupTestFixtures {
 
-    /// A plain "hyper" mode. `BackupMode.init` has no defaults, so a new
-    /// required field is added here once.
-    static func backupMode(id: UUID = UUID(), name: String, isDefault: Bool = false) -> BackupMode {
+    /// A plain mode ("hyper" preset unless given). `BackupMode.init` has no
+    /// defaults, so a new required field is added here once.
+    static func backupMode(
+        id: UUID = UUID(),
+        name: String,
+        preset: String = "hyper",
+        isDefault: Bool = false,
+        sortOrder: Int16 = 0
+    ) -> BackupMode {
         BackupMode(
             id: id,
             name: name,
-            preset: "hyper",
+            preset: preset,
             language: "en",
             model: "base",
             punctuation: true,
@@ -37,7 +43,7 @@ enum BackupTestFixtures {
             englishSpelling: nil,
             userSystemPrompt: nil,
             isDefault: isDefault,
-            sortOrder: 0,
+            sortOrder: sortOrder,
             cloudAccuracyTier: nil,
             removeTrailingPeriod: nil,
             geminiCustomPrompt: nil,
