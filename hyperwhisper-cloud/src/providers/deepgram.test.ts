@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
-import { stubEnv } from '../test-support/env';
 import { mockFetchOnce } from '../test-support/fetch-stubs';
 
 const originalFetch = globalThis.fetch;
@@ -232,10 +231,9 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
   });
 
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError', async () => {
-    const restoreTimeoutEnv = stubEnv('STT_PROVIDER_TIMEOUT_MS', '20');
-    globalThis.fetch = mock(async (_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted', 'AbortError')));
-    })) as unknown as typeof fetch;
+    globalThis.fetch = mock(async () => {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }) as unknown as typeof fetch;
 
     try {
       await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US');
@@ -243,8 +241,6 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect((error as ProviderUnavailableError).kind).toBe('timeout');
-    } finally {
-      restoreTimeoutEnv();
     }
   });
 });

@@ -817,14 +817,15 @@ export default function CustomersClient() {
                           silently mistaken for "$0 spent":
                           - No Stripe customer ID on any license at all -> dash,
                             no Stripe call was ever made for this customer.
+                            Read from the server's uncapped hasStripeCustomer,
+                            not the listed licenses: those are the newest 100
+                            only, and an older paid key may be the only one.
                           - Has Stripe customer ID(s) but totalSpentCents is null ->
                             a fetch failed server-side (logged there); show a
                             distinct "error" indicator rather than a dash or $0.00.
                           - Otherwise -> the real formatted currency amount. */}
                       <td className="px-6 py-4">
-                        {!customer.licenses.some(
-                          (license) => license.stripeCustomerId
-                        ) ? (
+                        {!customer.hasStripeCustomer ? (
                           <span
                             className="text-[var(--dusk-dim)] text-sm font-medium"
                             title="No Stripe purchase on file (may have paid via another method)"
