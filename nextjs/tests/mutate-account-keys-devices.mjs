@@ -169,18 +169,18 @@ const MUTANTS = [
   },
   {
     name: "getDeviceCountsPerLicense lists the smallest first",
-    from: "    .orderBy(sql`count(${deviceValidations.id}) desc`);",
-    to: "    .orderBy(sql`count(${deviceValidations.id}) asc`);",
+    from: "      .orderBy(sql`count(${deviceValidations.id}) desc`, asc(accountKeys.id))",
+    to: "      .orderBy(sql`count(${deviceValidations.id}) asc`, asc(accountKeys.id))",
   },
   {
     name: "getDeviceCountsPerLicense returns the raw count",
-    from: "  return rows.map((r) => ({ ...r, deviceCount: Number(r.deviceCount) }));",
-    to: "  return rows.map((r) => ({ ...r, deviceCount: String(r.deviceCount) as unknown as number }));",
+    from: "    rows: rows.map((r) => ({ ...r, deviceCount: Number(r.deviceCount) })),",
+    to: "    rows: rows.map((r) => ({ ...r, deviceCount: String(r.deviceCount) as unknown as number })),",
   },
   {
     name: "getDeviceCountsPerLicense keeps keys with no devices",
-    from: "    .innerJoin(accountKeys, eq(deviceValidations.licenseKeyId, accountKeys.id))",
-    to: "    .rightJoin(accountKeys, eq(deviceValidations.licenseKeyId, accountKeys.id))",
+    from: "      .innerJoin(\n        accountKeys,\n        eq(deviceValidations.licenseKeyId, accountKeys.id),",
+    to: "      .rightJoin(\n        accountKeys,\n        eq(deviceValidations.licenseKeyId, accountKeys.id),",
   },
 ];
 const results = [];
