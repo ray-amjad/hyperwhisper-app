@@ -152,16 +152,14 @@ function wavDuration(b: Uint8Array): number | undefined {
       const formatTag = u16le(b, body);
       const channels = u16le(b, body + 2);
       const sampleRate = u32le(b, body + 4);
-      const declaredByteRate = u32le(b, body + 8);
       const bitsPerSample = u16le(b, body + 14);
-      if (UNCOMPRESSED_WAVE_FORMATS.has(formatTag)) {
-        // Uncompressed: derive the rate from the format, never the declared byteRate.
-        const frameBytes = channels * Math.ceil(bitsPerSample / 8);
-        if (frameBytes > 0 && sampleRate > 0) byteRate = sampleRate * frameBytes;
-      } else if (declaredByteRate > 0) {
-        // A codec inside RIFF (ADPCM, GSM, MP3): only its declared average rate is known.
-        byteRate = declaredByteRate;
-      }
+      // A codec inside RIFF (ADPCM, GSM, MP3) is unknown: its only rate is the
+      // declared average, which the uploader writes, so trusting it would let
+      // an hour of 8 kbps MP3-in-WAV claim 384,000 B/s and hold seconds.
+      if (!UNCOMPRESSED_WAVE_FORMATS.has(formatTag)) return undefined;
+      // Uncompressed: derive the rate from the format, never the declared byteRate.
+      const frameBytes = channels * Math.ceil(bitsPerSample / 8);
+      if (frameBytes > 0 && sampleRate > 0) byteRate = sampleRate * frameBytes;
     } else if (id === DATA_CHUNK) {
       dataStart = body;
       break;

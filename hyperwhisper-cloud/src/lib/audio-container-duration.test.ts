@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { opusPacketSamples, readAudioContainerDuration } from './audio-container-duration';
+import { reservationAudioSeconds } from './audio-duration';
 import { MAX_COMPRESSED_BYTES_PER_SECOND, MAX_UPLOAD_BYTES_PER_SECOND } from './constants';
 import { concat, oggPage, opusOgg, opusStreamPages } from '../test-support/ogg';
 import { pcm16Wav, wav } from '../test-support/wav';
@@ -123,6 +124,14 @@ describe('readAudioContainerDuration: tampered headers', () => {
     const audio = pcm16Wav(30);
     new DataView(audio).setUint32(40, 32_000, true);
     expect(durationOf(audio)).toBe(30);
+  });
+
+  test('a compressed WAV is unknown, so its declared byte rate cannot shrink the hold', () => {
+    // An hour of 8 kbps MP3 frames in RIFF, declaring 384,000 B/s.
+    const audio = wav({ formatTag: 0x55, sampleRate: 48_000, dataBytes: 3_600_000 });
+    new DataView(audio).setUint32(28, MAX_UPLOAD_BYTES_PER_SECOND, true);
+    expect(readAudioContainerDuration(audio)).toMatchObject({ container: 'wav', durationSeconds: undefined });
+    expect(reservationAudioSeconds(audio)).toBeGreaterThanOrEqual(3600);
   });
 
   test('a WAV cannot declare a byte rate above the highest accepted one', () => {
