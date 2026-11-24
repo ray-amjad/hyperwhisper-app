@@ -4,6 +4,7 @@ import { planGeoRouting } from '../providers/geo-availability';
 import { rejectRequestOptions } from '../providers/request-options';
 import { flyProxyOverheadMs, logEvent } from '../lib/logging';
 import { rawQuery } from '../lib/query';
+import { checkRequestLabels } from '../lib/request-labels';
 import { readAccountKey } from '../lib/account-key';
 import { generateRequestId, getFlyRequestId } from '../lib/request-id';
 import { errorResponse } from '../lib/responses';
@@ -124,6 +125,18 @@ export async function prepareTranscriptionRequest(
   const language = rawQuery(c.req.url, 'language');
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
+  // Both ride along to the charge, so a value outside the known shape is
+  // refused before any credit is held or any vendor is paid (lib/request-labels.ts).
+  const labelCheck = checkRequestLabels({ mode, language });
+  if (!labelCheck.ok) {
+    logEvent(requestId, startTime, 'transcribe.request_rejected', {
+      reason: `invalid_${labelCheck.field}`,
+      flyRequestId,
+      // Never the value itself: it is caller-supplied and unbounded.
+      length: (labelCheck.field === 'mode' ? mode : language)?.length,
+    });
+    return errorResponse(400, `Invalid ${labelCheck.field}`, labelCheck.message, { requestId });
+  }
   // Per-model option rules (language, domain) live in the providers layer; the
   // route only turns a rejection into the 400. See providers/request-options.ts.
   const optionsRejection = rejectRequestOptions(provider, model, { language, domain });

@@ -141,6 +141,47 @@ describe('wsStreamingPreflight', () => {
     expectOneRejection('missing_account_key', 401);
   });
 
+  // CTF #1a: a live session's charge records `language`. A value outside a
+  // language tag's shape never reaches the socket handler (so no vendor socket
+  // and no hold); `neverFetch` proves no licence work happened either.
+  test('rejects an oversized language with 400 before any key or socket work', async () => {
+    cachedLicenseValue = null;
+    const res = await buildApp().request(
+      `/ws/streaming-deepgram?account_key=key-1234-abcd&language=${'e'.repeat(17_000)}`,
+      { headers: UPGRADE_HEADERS },
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('language must be at most 35 bytes');
+    const entry = expectOneRejection('invalid_language', 400);
+    expect(entry.length).toBe(17_000);
+    expect(JSON.stringify(entry)).not.toContain('eeee');
+  });
+
+  test.each([
+    ['a 36-byte value', 'a'.repeat(36)],
+    ['a multi-byte value over 35 bytes', encodeURIComponent('語'.repeat(12))],
+    ['a control character', 'en%01'],
+  ])('rejects %s with 400 before any key or socket work', async (_label, language) => {
+    cachedLicenseValue = null;
+    const res = await buildApp().request(
+      `/ws/streaming-deepgram?account_key=key-1234-abcd&language=${language}`,
+      { headers: UPGRADE_HEADERS },
+    );
+
+    expect(res.status).toBe(400);
+    expectOneRejection('invalid_language', 400);
+  });
+
+  test.each(['en', 'en-US', 'zh-TW', 'auto', 'en US', '中文', 'English (US)', 'e'])('admits language=%s', async (language) => {
+    const res = await buildApp().request(
+      `/ws/streaming-deepgram?account_key=key-1234-abcd&language=${encodeURIComponent(language)}`,
+      { headers: UPGRADE_HEADERS },
+    );
+
+    expect(res.status).toBe(200);
+  });
+
   test('accepts the legacy license_key alias that installed apps still send', async () => {
     const res = await buildApp().request('/ws/streaming-deepgram?license_key=key-1234-abcd', {
       headers: UPGRADE_HEADERS,
