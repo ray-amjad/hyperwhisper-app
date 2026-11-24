@@ -6,8 +6,8 @@
 //  sample pump. These tests drive both converters end to end through their
 //  public API, so they pass the same before and after the pump was shared:
 //
-//  - a real tone CAF converts to a readable file with the returned format and
-//    about the source's duration (every sample went through the pump);
+//  - a real tone WAV (ToneWAVFixture) converts to a readable file with the
+//    returned format and about the source's duration (every sample went through the pump);
 //  - a failure throws and leaves no file at the destination.
 //
 //  Every file lives in a fresh temporary folder that the test removes. Never a
@@ -33,34 +33,9 @@ struct AudioFileConverterPumpTests {
         return folder
     }
 
-    /// Writes a 16-bit PCM CAF holding a 440 Hz tone on every channel, and closes it.
-    private static func writeToneCAF(to url: URL, sampleRate: Double, channels: AVAudioChannelCount, seconds: Double) throws {
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: Int(channels),
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-            AVLinearPCMIsNonInterleaved: false,
-        ]
-        let frames = AVAudioFrameCount(sampleRate * seconds)
-        // The scope releases the writer, which is what finalises the file
-        // (AVAudioFile.close() is macOS 15 only).
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames),
-                  let channelData = buffer.floatChannelData else {
-                throw FixtureError()
-            }
-            buffer.frameLength = frames
-            for channel in 0..<Int(channels) {
-                for index in 0..<Int(frames) {
-                    channelData[channel][index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-                }
-            }
-            try file.write(from: buffer)
-        }
+    /// Writes a `seconds`-long 440 Hz tone source through the shared ToneWAVFixture.
+    private static func writeTone(to url: URL, sampleRate: Double, channels: AVAudioChannelCount, seconds: Double) throws {
+        try ToneWAVFixture.write(to: url, sampleRate: sampleRate, channels: channels, frames: AVAudioFrameCount(sampleRate * seconds))
     }
 
     /// Duration in seconds of a file AVAudioFile can open.
@@ -85,10 +60,10 @@ struct AudioFileConverterPumpTests {
     private func expectAACConversion(sampleRate: Double, channels: AVAudioChannelCount, expectedBitrate: Int) async throws {
         let folder = try Self.makeFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let source = folder.appendingPathComponent("tone.caf")
+        let source = folder.appendingPathComponent("tone-source.wav")
         let destination = folder.appendingPathComponent("tone.m4a")
         let seconds = 1.0
-        try Self.writeToneCAF(to: source, sampleRate: sampleRate, channels: channels, seconds: seconds)
+        try Self.writeTone(to: source, sampleRate: sampleRate, channels: channels, seconds: seconds)
 
         let result = try await AudioFileConverter().convertAudioToAAC(from: source, to: destination)
 
@@ -119,10 +94,10 @@ struct AudioFileConverterPumpTests {
     private func expectWAVConversion(sampleRate: Double, channels: AVAudioChannelCount) async throws {
         let folder = try Self.makeFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let source = folder.appendingPathComponent("tone.caf")
+        let source = folder.appendingPathComponent("tone-source.wav")
         let destination = folder.appendingPathComponent("tone.wav")
         let seconds = 1.0
-        try Self.writeToneCAF(to: source, sampleRate: sampleRate, channels: channels, seconds: seconds)
+        try Self.writeTone(to: source, sampleRate: sampleRate, channels: channels, seconds: seconds)
 
         let result = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
 
@@ -170,8 +145,8 @@ struct AudioFileConverterPumpTests {
     @Test func anUnwritableDestinationThrowsExportFailedFromBothConverters() async throws {
         let folder = try Self.makeFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let source = folder.appendingPathComponent("tone.caf")
-        try Self.writeToneCAF(to: source, sampleRate: 48_000, channels: 1, seconds: 0.5)
+        let source = folder.appendingPathComponent("tone-source.wav")
+        try Self.writeTone(to: source, sampleRate: 48_000, channels: 1, seconds: 0.5)
         let notAFolder = folder.appendingPathComponent("not-a-folder")
         try Data("a regular file".utf8).write(to: notAFolder)
 
