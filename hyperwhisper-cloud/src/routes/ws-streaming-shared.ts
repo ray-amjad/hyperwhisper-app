@@ -49,6 +49,7 @@ import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../mid
 import { insufficientCreditsResponse } from '../lib/responses';
 import { isRecord, roundToTenth } from '../lib/utils';
 import { rawQuery } from '../lib/query';
+import { checkLanguageParam } from '../lib/request-labels';
 import { readAccountKey } from '../lib/account-key';
 import { liveSessionsClosed, registerLiveSession } from '../lib/background-work';
 
@@ -322,6 +323,17 @@ export function makeStreamingPreflight(
     if (!gate.ok) {
       logRejected(gate.reason, gate.response.status);
       return gate.response;
+    }
+
+    // The session's charge records `language`, so a value outside the known
+    // shape is refused before the key is checked, a credit is held or the
+    // vendor socket opens (lib/request-labels.ts). Only `language`: no live
+    // client sends `mode`, and a live charge does not carry it.
+    const language = rawQuery(c.req.url, 'language');
+    const languageCheck = checkLanguageParam(language);
+    if (!languageCheck.ok) {
+      logRejected('invalid_language', 400, { length: language?.length });
+      return c.text(languageCheck.message, 400);
     }
 
     const licenseKey = readAccountKey((field) => rawQuery(c.req.url, field));

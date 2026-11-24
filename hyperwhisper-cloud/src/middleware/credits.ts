@@ -10,6 +10,7 @@ import { cacheLicense } from '../lib/redis';
 import { logEvent } from '../lib/logging';
 import { machineLabels } from '../lib/fly-machine';
 import { backgroundWork } from '../lib/background-work';
+import { buildChargeBody, utf8ByteLength } from '../lib/charge-body';
 import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
 export type CreditsResult =
@@ -177,6 +178,17 @@ async function recordLicenseUsage(
   let sentAt = performance.now();
 
   try {
+    // Bounded well under the licence API's 16 KB limit, whatever the metadata
+    // holds: an oversized body is refused and the charge never lands.
+    const charge = buildChargeBody(licenseKey, creditsUsed, metadata);
+    if (charge.truncated) {
+      // Never the metadata itself: the oversized part is caller-supplied.
+      console.warn(JSON.stringify({
+        event: 'credits.charge_metadata_truncated',
+        endpoint: metadata.endpoint,
+        bodyBytes: utf8ByteLength(charge.body),
+      }));
+    }
     // Taken BEFORE the request goes out: the licence cache orders replies by
     // when the site was asked, the pool balance (#2026, see
     // `WRITE_POOL_BALANCE_SCRIPT`) and the key's own entry (#1899, see
@@ -188,11 +200,7 @@ async function recordLicenseUsage(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        license_key: licenseKey,
-        amount: creditsUsed,
-        metadata,
-      }),
+      body: charge.body,
       signal: AbortSignal.timeout(LICENSE_API_TIMEOUT_MS),
     });
 
