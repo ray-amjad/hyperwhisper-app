@@ -885,6 +885,7 @@
 "streaming.loading.streaming" = "Очакване на реч...";
 "streaming.state.reconnecting" = "Повторно свързване...";
 "recording.stop.help" = "Спиране на записа (%@)";
+"recording.warning.micSilent" = "Няма звук от %@";
 "recording.retry" = "Опитай отново";
 "recording.retry.inProgress" = "Повторен опит...";
 "recording.retry.count" = "Опитай отново (%d)";

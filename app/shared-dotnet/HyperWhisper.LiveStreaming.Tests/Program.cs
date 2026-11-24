@@ -11,6 +11,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("normal stop completes audio and preserves provider final", NormalStopCommits),
     ("controller drives shared-core audio commit and final protocol", SharedCoreProtocol),
     ("controller forwards normalized audio levels safely", AudioLevelsForwardSafely),
+    ("controller relays capture block peaks for the mic silence warning (#2411)", BlockPeaksRelaySafely),
     ("transient transport failure reconnects without stopping capture", TransientFailureReconnects),
     ("OpenAI capture uses provider-required 24 kHz PCM", OpenAiSampleRate),
     ("capture chunks are copied before asynchronous consumption", AudioOwnership),
@@ -139,6 +140,29 @@ static async Task AudioLevelsForwardSafely()
     await controller.DisposeAsync();
     capture.EmitLevel(.25f);
     Equal(3, levels.Count);
+}
+
+static async Task BlockPeaksRelaySafely()
+{
+    var capture = new PeakCapture();
+    var controller = new LiveStreamingSessionController(capture, new CollectingTranscriber());
+    HyperWhisper.Platform.Abstractions.Audio.IAudioBlockPeakSource source = controller;
+    var peaks = new List<double>();
+    source.BlockPeakDbfs += (_, _) => throw new InvalidOperationException("subscriber");
+    source.BlockPeakDbfs += (_, peak) => peaks.Add(peak);
+    capture.EmitPeak(-72.5);
+    capture.EmitPeak(double.NegativeInfinity);
+    Equal(2, peaks.Count);
+    Equal(-72.5, peaks[0]);
+    Equal(true, double.IsNegativeInfinity(peaks[1]));
+    await controller.DisposeAsync();
+    capture.EmitPeak(-10);
+    Equal(2, peaks.Count);
+
+    // A capture that reports no peaks leaves the relay silent rather than failing.
+    await using var plain = new LiveStreamingSessionController(new FakeCapture(), new CollectingTranscriber());
+    plain.BlockPeakDbfs += (_, peak) => peaks.Add(peak);
+    Equal(2, peaks.Count);
 }
 
 static async Task TransientFailureReconnects()
@@ -533,6 +557,20 @@ sealed class FakeCredentials(IReadOnlyDictionary<string, string> values) : ILive
     public IReadOnlyDictionary<string, string> Values { get; } = values;
     public Task<string?> GetCredentialAsync(string account, CancellationToken cancellationToken = default) =>
         Task.FromResult(Values.TryGetValue(account, out var value) ? value : null);
+}
+
+sealed class PeakCapture : IStreamingAudioCapture, HyperWhisper.Platform.Abstractions.Audio.IAudioBlockPeakSource
+{
+    public event EventHandler<ReadOnlyMemory<byte>>? AudioChunkAvailable { add { } remove { } }
+    public event EventHandler<float>? AudioLevelChanged { add { } remove { } }
+    public event EventHandler<PlatformError?>? CaptureStopped { add { } remove { } }
+    public event EventHandler<double>? BlockPeakDbfs;
+    public bool IsCapturing => false;
+    public TimeSpan Duration => TimeSpan.Zero;
+    public PlatformResult Start(AudioRecordingOptions options) => PlatformResult.Success();
+    public void Stop() { }
+    public void EmitPeak(double peak) => BlockPeakDbfs?.Invoke(this, peak);
+    public void Dispose() { }
 }
 
 sealed class FakeCapture : IStreamingAudioCapture

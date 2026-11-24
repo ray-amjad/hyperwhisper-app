@@ -852,7 +852,7 @@ export default async function PrivacyPolicyPage({
         retention statement for its Muse speech-to-text API, so we do not
         claim one for Meta. Our{" "}
         <a
-          href="https://hyperwhisper.com/docs/data-privacy"
+          href="https://www.hyperwhisper.com/docs/data-privacy"
           target="_blank"
           rel="noopener noreferrer"
         >

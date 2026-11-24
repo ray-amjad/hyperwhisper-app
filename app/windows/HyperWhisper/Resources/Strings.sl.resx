@@ -881,6 +881,9 @@ Te akcije se ne da razveljaviti.</value>
   <data name="recording.cancel.prompt" xml:space="preserve">
     <value>Cancel?</value>
   </data>
+  <data name="recording.warning.micSilent" xml:space="preserve">
+    <value>Ni zvoka iz naprave {0}</value>
+  </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
@@ -2621,7 +2624,7 @@ You can re-download it later.</value>
     <value>Še nič. Začni snemanje, da vidiš besedilo tukaj.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} besed · {1}</value>
+    <value>Besede: {0} · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
     <value>Prikazano samo tukaj — ni prilepljeno v druge aplikacije.</value>

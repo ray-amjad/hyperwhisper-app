@@ -53,6 +53,10 @@ if (args is [AutoDeleteDaysCommitRenderTests.ProbeArgument])
 {
     Environment.Exit(AutoDeleteDaysCommitRenderTests.RunProbe());
 }
+if (args is [StorageLastCleanupRenderTests.ProbeArgument])
+{
+    Environment.Exit(StorageLastCleanupRenderTests.RunProbe());
+}
 if (args is [HistoryRevisitRenderTests.ProbeArgument])
 {
     Environment.Exit(HistoryRevisitRenderTests.RunProbe());
@@ -155,12 +159,15 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
     ("a finished batch dictation leaves the status bar reading Ready (#958)", RecordingStatusAfterStopTests.BatchStopLeavesReady),
     ("a failed clipboard write shows Copy failed on the overlay and a paste-failed status line (#1703, #1402)", RecordingStatusAfterStopTests.FailedCopyShowsCopyFailed),
+    ("a silent recording warns No sound from the opened mic and hides on sound, stop and cancel (#2411)", MicSilenceWarningSessionTests.SilentBatchRecordingWarnsWithTheOpenedDevice),
+    ("speech heard while the start is still finishing counts, so a pause after it does not warn No sound (#2411)", MicSilenceWarningSessionTests.PeakDuringStartCounts),
     ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
     ("Settings → Sound shows the saved microphone (not connected) with the fallback line, an idle level bar, and Default clears it for Home too", MicrophonePickerRenderTests.RunAsync),
     ("the Storage auto-delete days box applies nothing until it loses focus (#2199)", AutoDeleteDaysCommitRenderTests.RunAsync),
+    ("Storage shows the start-up cleanup's Last cleanup line on the first visit and after a revisit (#1371)", StorageLastCleanupRenderTests.RunAsync),
     ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
     ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
     ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),

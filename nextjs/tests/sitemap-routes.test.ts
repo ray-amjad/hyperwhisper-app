@@ -32,7 +32,8 @@ async function load() {
     assert.ok(url.startsWith(`${BASE}/`), url);
     const [, locale, ...rest] = url.slice(BASE.length).split("/");
     const path = rest.length ? `/${rest.join("/")}` : "";
-    if (!(locales as readonly string[]).includes(locale)) unprefixed.push(`/${locale}${path}`);
+    if (!(locales as readonly string[]).includes(locale))
+      unprefixed.push(`/${locale}${path}`);
     else if (alternates) localized.add(path);
     else if (!path.startsWith("/blog/")) englishOnly.push(`${locale}:${path}`);
   }
@@ -45,20 +46,35 @@ test("every localized path is a page that renders on every locale", async () => 
   for (const path of localized) {
     const file = pageFile(path);
     assert.ok(existsSync(file), `no app/[locale]${path}/page.tsx`);
-    assert.doesNotMatch(readFileSync(file, "utf8"), englishGate, `${path} 404s off English`);
+    assert.doesNotMatch(
+      readFileSync(file, "utf8"),
+      englishGate,
+      `${path} 404s off English`,
+    );
     for (const locale of locales) {
-      assert.ok(entries.some((e) => e.url === `${BASE}/${locale}${path}`), `${locale}${path}`);
+      assert.ok(
+        entries.some((e) => e.url === `${BASE}/${locale}${path}`),
+        `${locale}${path}`,
+      );
     }
   }
 });
 
 test("every English-only entry is /en and a page gated to English", async () => {
   const { englishOnly } = await load();
-  assert.deepEqual(englishOnly, ["en:/blog", "en:/choosing-a-model", "en:/latency"]);
+  assert.deepEqual(englishOnly, [
+    "en:/blog",
+    "en:/choosing-a-model",
+    "en:/latency",
+  ]);
   for (const path of englishOnly.map((p) => p.slice(3))) {
     const file = pageFile(path);
     assert.ok(existsSync(file), `no app/[locale]${path}/page.tsx`);
-    assert.match(readFileSync(file, "utf8"), englishGate, `${path} renders on every locale`);
+    assert.match(
+      readFileSync(file, "utf8"),
+      englishGate,
+      `${path} renders on every locale`,
+    );
   }
 });
 
@@ -87,18 +103,37 @@ test("sitemap, hreflang and robots.txt all name the www host", async () => {
     }
   }
   const { default: robots } = await import("../app/robots");
-  for (const url of [robots().sitemap ?? []].flat()) assert.ok(url.startsWith(`${BASE}/`), url);
+  for (const url of [robots().sitemap ?? []].flat())
+    assert.ok(url.startsWith(`${BASE}/`), url);
+});
+
+test("localized sitemap entries name x-default at the English 200 URL", async () => {
+  const { entries } = await load();
+  let named = 0;
+  for (const { url, alternates } of entries) {
+    if (!alternates) continue;
+    const languages = alternates.languages ?? {};
+    const path = url.slice(BASE.length);
+    const rest = path.replace(/^\/[^/]+/, "");
+    assert.equal(languages["x-default"], `${BASE}/en${rest}`, url);
+    named += 1;
+  }
+  assert.ok(named > 0, "no localized sitemap entries");
 });
 
 test("no app or lib file hard-codes the redirecting apex as a site URL", () => {
   // Content links (privacy page, email footers, FAQ copy) only need to land
   // somewhere; the declared URLs come from SITE_URL in lib/site-metadata.ts.
+  // `lib/public-href.ts` is the rewriter: it names the apex so it can turn it
+  // into www, and is covered by tests/public-href.test.ts instead.
   for (const file of [
     "../app/sitemap.ts",
     "../app/robots.ts",
     "../app/[locale]/layout.tsx",
     "../app/[locale]/blog/[slug]/page.tsx",
     "../lib/localized-page-metadata.ts",
+    "../lib/home-json-ld.ts",
+    "../components/landing/FooterSection.tsx",
   ]) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.doesNotMatch(source, /https:\/\/hyperwhisper\.com/, file);

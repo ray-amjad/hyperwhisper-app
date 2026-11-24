@@ -3,10 +3,13 @@
 import { Github, Linkedin, Twitter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DownloadCta, downloadPath } from "./DownloadCta";
 import { WRAP } from "./dusk";
 
 import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
+import { SITE_URL } from "@/lib/site-metadata";
+import { isOffSiteHref } from "@/lib/public-href";
 import { useSiteHref } from "@/src/i18n/use-site-href";
 
 type FooterLink = {
@@ -14,7 +17,7 @@ type FooterLink = {
   href: string;
   /** An absolute path that must never get a locale prefix (English-only pages). */
   raw?: boolean;
-  /** Opens the download dialog instead of navigating. */
+  /** Crawlable /download link that still opens the email-capture modal. */
   download?: boolean;
 };
 
@@ -41,7 +44,8 @@ export default function FooterSection() {
       links: [
         { label: t("links.features"), href: "/#features" },
         { label: t("links.pricing"), href: "/#cloud" },
-        { label: t("links.download"), href: "#", download: true },
+        { label: t("links.download"), href: downloadPath(), download: true },
+        { label: t("links.linux"), href: "/linux" },
         {
           label: t("links.roadmap"),
           href: "https://hyperwhisper.userjot.com/",
@@ -51,7 +55,7 @@ export default function FooterSection() {
     {
       title: t("resources"),
       links: [
-        { label: t("links.helpCenter"), href: "https://hyperwhisper.com/docs" },
+        { label: t("links.helpCenter"), href: `${SITE_URL}/docs` },
         /*
           English-only pages: /<locale>/... 404s on every other locale, so the
           href is the absolute /en/... with a native <a>, and the label is the
@@ -61,6 +65,21 @@ export default function FooterSection() {
         { label: "Choose a model", href: "/en/choosing-a-model", raw: true },
         { label: "Latency", href: "/en/latency", raw: true },
         { label: t("links.blog"), href: "/en/blog", raw: true },
+        {
+          label: "Free speech-to-text app",
+          href: "/en/blog/free-speech-to-text-app",
+          raw: true,
+        },
+        {
+          label: "Best dictation software for Windows",
+          href: "/en/blog/best-dictation-software-for-windows",
+          raw: true,
+        },
+        {
+          label: "HyperWhisper vs Spokenly",
+          href: "/en/blog/hyperwhisper-vs-spokenly",
+          raw: true,
+        },
         { label: t("links.customerPortal"), href: "/user" },
         { label: t("links.olderVersions"), href: "/older-versions" },
         { label: t("links.openSource"), href: "/open-source" },
@@ -85,7 +104,7 @@ export default function FooterSection() {
         { label: t("links.refundPolicy"), href: "/legal/refund-policy" },
         {
           label: t("links.dataTraining"),
-          href: "https://hyperwhisper.com/docs/data-privacy",
+          href: `${SITE_URL}/docs/data-privacy`,
         },
       ],
     },
@@ -98,22 +117,24 @@ export default function FooterSection() {
   const renderLink = (link: FooterLink) => {
     if (link.download) {
       return (
-        <button
+        <DownloadCta
           className={`${LINK} text-start`}
-          type="button"
-          onClick={openModal}
+          cta="footer"
+          href={siteHref(link.href)}
+          onOpen={openModal}
         >
           {link.label}
-        </button>
+        </DownloadCta>
       );
     }
     if (link.href.startsWith("http")) {
+      const offSite = isOffSiteHref(link.href);
+
       return (
         <a
           className={LINK}
           href={link.href}
-          rel="noopener noreferrer"
-          target="_blank"
+          {...(offSite ? { rel: "noopener noreferrer", target: "_blank" } : {})}
         >
           {link.label}
         </a>

@@ -106,6 +106,14 @@ moduleMock.module(moduleUrl("../src/i18n/navigation.ts"), {
   },
 });
 
+// The post page ends with BlogDownloadCta, which opens the site-wide download
+// modal; the provider is mounted in app/[locale]/providers.tsx, not here.
+moduleMock.module(moduleUrl("../contexts/DownloadModalContext.tsx"), {
+  namedExports: {
+    useDownloadModal: () => ({ openModal() {}, openModalFor() {} }),
+  },
+});
+
 type Page = (props: {
   params: Promise<{ locale: string; slug?: string }>;
 }) => Promise<ReactElement>;

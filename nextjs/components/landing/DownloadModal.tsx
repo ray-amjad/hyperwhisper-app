@@ -30,6 +30,11 @@ export default function DownloadModal() {
   const errorId = useId();
   // #2286: the field shakes when the address itself is what was refused.
   const field = useRef<HTMLDivElement>(null);
+  // #2950: set the moment a submission starts, before `isPending` can show it.
+  // Two Enter keydowns can land before React re-renders, and both would pass
+  // an `isPending`-only check. Cleared when the request settles, so Enter
+  // after a failed request submits again.
+  const submitting = useRef(false);
   // A homepage platform button carries its platform through to /download,
   // which still resolves the download URL from the appcast. A plain Download
   // button leaves the OS detection on /download in charge.
@@ -51,6 +56,9 @@ export default function DownloadModal() {
       }
       setError(err.message || t("errorGeneric"));
     },
+    onSettled: () => {
+      submitting.current = false;
+    },
   });
 
   useEffect(() => {
@@ -61,7 +69,9 @@ export default function DownloadModal() {
   }, [isOpen]);
 
   const handleDownload = () => {
-    if (!email) return;
+    // #2950: one recordDownload per submission, however fast Enter is pressed.
+    if (!email || recordDownload.isPending || submitting.current) return;
+    submitting.current = true;
     setError(null);
     recordDownload.mutate({ email });
   };

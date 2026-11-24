@@ -20,6 +20,7 @@ import {
   type CSSProperties,
 } from "react";
 
+import { DownloadCta, downloadPath } from "@/components/landing/DownloadCta";
 import { BTN_WHITE } from "@/components/landing/dusk";
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
@@ -152,6 +153,7 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     { label: t("features"), href: siteHref("/#features") },
     { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
+    { label: t("linux"), href: siteHref("/linux") },
     chooseModelItem,
     latencyItem,
     { label: t("faq"), href: siteHref("/#faq") },
@@ -161,6 +163,10 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
     { label: t("features"), href: siteHref("/#features") },
     { label: t("modes"), href: siteHref("/#modes") },
     { label: t("cloud"), href: siteHref("/#cloud") },
+    // A LocaleLink would prefix "en" back onto an English-only page's link.
+    nativeLinks
+      ? { label: t("linux"), href: siteHref("/linux"), raw: true }
+      : { label: t("linux"), href: "/linux" },
     chooseModelItem,
     latencyItem,
     { label: t("faq"), href: siteHref("/#faq") },
@@ -296,13 +302,14 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
           </a>
         </NavbarItem>
         <NavbarItem className="hidden md:flex">
-          <button
+          <DownloadCta
             className={`${BTN_WHITE} px-[18px] py-2.5 text-sm`}
-            type="button"
-            onClick={openModal}
+            cta="header"
+            href={siteHref(downloadPath())}
+            onOpen={openModal}
           >
             {t("download")}
-          </button>
+          </DownloadCta>
         </NavbarItem>
       </NavbarContent>
 
@@ -374,16 +381,17 @@ export const Navbar = ({ overlay = false }: { overlay?: boolean }) => {
           <span className="contents sm:hidden">
             <LanguageSwitcher />
           </span>
-          <button
+          <DownloadCta
             className={`${BTN_WHITE} flex-1 px-5 py-3 text-[15px]`}
-            type="button"
-            onClick={() => {
+            cta="header"
+            href={siteHref(downloadPath())}
+            onOpen={() => {
               closeMenu();
               openModal();
             }}
           >
             {t("download")}
-          </button>
+          </DownloadCta>
         </NavbarMenuItem>
       </NavbarMenu>
     </HeroUINavbar>

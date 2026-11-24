@@ -25,6 +25,7 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 - `tools` — Native build scripts (parakeet-engine, sherpa-onnx)
 - `commands` — Platform-specific CLI utilities
 - `routines` — Scheduled automation routines
+- `.claude/merge-gate.md` — what may squash-merge without Ray, and what stays held for his go-ahead
 
 <important if="you are adding, rotating, or referencing any secret, API key, or credential">
 

@@ -27,8 +27,8 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
       admin: {
         devices: {
           list: {
-            useQuery: () => ({
-              data: { devices: [] },
+            useInfiniteQuery: () => ({
+              data: { pages: [{ devices: [], total: 0, nextCursor: null }] },
               isLoading: false,
               isFetching: false,
               isPlaceholderData: false,
@@ -252,9 +252,11 @@ const CUSTOMERS = readFileSync(
 );
 
 test("Devices and Customers both use the shared HeightTween, keyed on the query data", () => {
-  for (const [name, source] of [
-    ["Devices", DEVICES],
-    ["Customers", CUSTOMERS],
+  // The Devices table pages its keys (#1948), so it keys on its first page,
+  // as DeviceRow's list does (below); Customers keys on the whole result.
+  for (const [name, source, trigger] of [
+    ["Devices", DEVICES, "firstPage"],
+    ["Customers", CUSTOMERS, "data"],
   ] as const) {
     assert.match(
       source,
@@ -264,8 +266,10 @@ test("Devices and Customers both use the shared HeightTween, keyed on the query 
     assert.doesNotMatch(source, /function HeightTween\b/, `${name} keeps no copy`);
     assert.match(
       source,
-      /<HeightTween\s+className=\{`\$\{CARD\} [^`]*`\}\s+\/\/[^\n]*\n\s+transition="opacity 150ms [^"]+"\s+trigger=\{data\}\s*>/,
-      `${name}: the table card tweens on data and keeps its dim`,
+      new RegExp(
+        `<HeightTween\\s+className=\\{\`\\$\\{CARD\\} [^\`]*\`\\}\\s+\\/\\/[^\\n]*\\n\\s+transition="opacity 150ms [^"]+"\\s+trigger=\\{${trigger}\\}\\s*>`,
+      ),
+      `${name}: the table card tweens on ${trigger} and keeps its dim`,
     );
   }
   // The per-key device search list (DeviceRow) tweens on its first page, so

@@ -885,6 +885,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "streaming.loading.streaming" = "Laukimas kalbos...";
 "streaming.state.reconnecting" = "Iš naujo prijungiama...";
 "recording.stop.help" = "Sustabdyti įrašymą (%@)";
+"recording.warning.micSilent" = "Negaunamas garsas iš įrenginio %@";
 "recording.retry" = "Bandyti iš naujo";
 "recording.retry.inProgress" = "Bandau iš naujo…";
 "recording.retry.count" = "Bandyti iš naujo (%d)";

@@ -885,6 +885,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "streaming.loading.streaming" = "Ootan kõnet...";
 "streaming.state.reconnecting" = "Taasühendamine...";
 "recording.stop.help" = "Lõpeta salvestamine (%@)";
+"recording.warning.micSilent" = "Seadmest %@ ei tule heli";
 "recording.retry" = "Proovi uuesti";
 "recording.retry.inProgress" = "Uuesti proovimine…";
 "recording.retry.count" = "Proovi uuesti (%d)";

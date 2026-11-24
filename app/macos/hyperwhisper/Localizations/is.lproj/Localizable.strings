@@ -885,6 +885,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "streaming.loading.streaming" = "Bíð eftir máli...";
 "streaming.state.reconnecting" = "Endurtengist...";
 "recording.stop.help" = "Stöðva upptöku (%@)";
+"recording.warning.micSilent" = "Ekkert hljóð frá %@";
 "recording.retry" = "Reyna aftur";
 "recording.retry.inProgress" = "Reyni aftur…";
 "recording.retry.count" = "Reyna aftur (%d)";

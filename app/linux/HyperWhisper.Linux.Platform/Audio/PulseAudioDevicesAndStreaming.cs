@@ -4,6 +4,7 @@ using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Linux.Platform.SystemIntegration;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 
 namespace HyperWhisper.Linux.Platform.Audio;
 
@@ -182,7 +183,7 @@ internal sealed class ChildProcessStreamingAudioSource(IChildProcess child) : IS
     public ValueTask DisposeAsync() => child.DisposeAsync();
 }
 
-public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
+public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture, IAudioBlockPeakSource
 {
     private readonly object _gate = new();
     private readonly IStreamingAudioSourceFactory _factory;
@@ -196,6 +197,8 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
     internal PulseStreamingAudioCapture(IStreamingAudioSourceFactory factory) => _factory = factory;
     public event EventHandler<ReadOnlyMemory<byte>>? AudioChunkAvailable;
     public event EventHandler<float>? AudioLevelChanged;
+    /// <summary>Each chunk's peak in dBFS, from the raw samples (#2411).</summary>
+    public event EventHandler<double>? BlockPeakDbfs;
     public event EventHandler<PlatformError?>? CaptureStopped;
     public bool IsCapturing { get; private set; }
     public TimeSpan Duration => _format is null ? TimeSpan.Zero : TimeSpan.FromSeconds((double)Interlocked.Read(ref _bytes) / _format.BytesPerSecond);
@@ -280,8 +283,9 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
         var chunk = length == pcm.Length ? pcm : pcm.AsSpan(0, length).ToArray();
         Raise(AudioChunkAvailable, (ReadOnlyMemory<byte>)chunk);
         Raise(AudioLevelChanged, PulseAudioRecorder.CalculateLevel(chunk));
+        Raise(BlockPeakDbfs, AudioBlockPeak.Pcm16Dbfs(chunk));
     }
     private void Raise<T>(EventHandler<T>? handlers, T value)
     { if (handlers is null) return; foreach (EventHandler<T> handler in handlers.GetInvocationList()) try { handler(this, value); } catch { } }
-    public void Dispose() { if (_disposed) return; _disposed = true; Stop(); AudioChunkAvailable = null; AudioLevelChanged = null; CaptureStopped = null; }
+    public void Dispose() { if (_disposed) return; _disposed = true; Stop(); AudioChunkAvailable = null; AudioLevelChanged = null; BlockPeakDbfs = null; CaptureStopped = null; }
 }
