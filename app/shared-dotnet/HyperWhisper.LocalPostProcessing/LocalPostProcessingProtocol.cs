@@ -59,6 +59,21 @@ public static class LocalPostProcessingProtocol
         return true;
     }
 
+    /// <summary>
+    /// True when a transcript with words came back as wrapper-marker debris only
+    /// (<c>&lt;&lt;</c>, <c>&lt;/&gt;</c>, <c>|</c>): a cut-off or off-template
+    /// answer, never a cleanup (issue #2559). Real punctuation ("?" for "question
+    /// mark") and emoji are still answers.
+    /// </summary>
+    public static bool IsDegenerateCompletion(string transcript, string cleaned)
+    {
+        ArgumentNullException.ThrowIfNull(transcript);
+        ArgumentNullException.ThrowIfNull(cleaned);
+        return transcript.Any(char.IsLetterOrDigit)
+            && cleaned.Length > 0
+            && cleaned.All(c => c is '<' or '>' or '/' or '|' || char.IsWhiteSpace(c));
+    }
+
     private static (int Index, int Length)? FindEarliest(
         string text,
         IReadOnlyList<string> markers,

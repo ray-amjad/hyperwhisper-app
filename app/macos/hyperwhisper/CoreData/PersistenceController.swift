@@ -1088,20 +1088,12 @@ class PersistenceController: ObservableObject {
                 mode: mode
             )
 
-            let transcript: Transcript
-            if let reused {
-                transcript = reused
-            } else {
-                let created = Transcript(context: context)
-                created.id = UUID()
-                created.text = "Processing transcription..."
-                created.date = Date()
-                created.duration = duration
-                created.mode = mode
-                created.audioFilePath = audioFilePath
-                created.setValue("processing", forKey: "status")
-                transcript = created
-            }
+            let transcript = reused ?? Self.makeProcessingTranscript(
+                in: context,
+                duration: duration,
+                mode: mode,
+                audioFilePath: audioFilePath
+            )
 
             if let trimmedAudioPath, !trimmedAudioPath.isEmpty {
                 transcript.setValue(trimmedAudioPath, forKey: "trimmedAudioFilePath")
@@ -1295,6 +1287,27 @@ class PersistenceController: ObservableObject {
         return primary
     }
 
+    /// Inserts a new processing row, for when `reuseProcessingTranscript`
+    /// found none to reuse. Stores `audioFilePath` as given (untrimmed).
+    /// Both create paths call this, so the new row's fields live here once
+    /// (#2292). Call on `context`'s queue.
+    static func makeProcessingTranscript(
+        in context: NSManagedObjectContext,
+        duration: TimeInterval,
+        mode: String?,
+        audioFilePath: String?
+    ) -> Transcript {
+        let created = Transcript(context: context)
+        created.id = UUID()
+        created.text = "Processing transcription..."
+        created.date = Date()
+        created.duration = duration
+        created.mode = mode
+        created.audioFilePath = audioFilePath
+        created.setValue("processing", forKey: "status")
+        return created
+    }
+
     /// Collapse transient duplicates: in rare stop/transcribe race
     /// conditions, near-identical entries can be created for the same audio
     /// path. Delete only "near-now" twins of the just-completed `transcript`,
@@ -1362,25 +1375,17 @@ class PersistenceController: ObservableObject {
         context.performAndWait {
             // Idempotency guard: reuse a processing row for the same audio
             // file instead of creating a duplicate.
-            if let reused = Self.reuseProcessingTranscript(
+            transcript = Self.reuseProcessingTranscript(
                 in: context,
                 audioFilePath: audioFilePath,
                 duration: duration,
                 mode: mode
-            ) {
-                transcript = reused
-                return
-            }
-
-            let created = Transcript(context: context)
-            created.id = UUID()
-            created.text = "Processing transcription..."
-            created.date = Date()
-            created.duration = duration
-            created.mode = mode
-            created.audioFilePath = audioFilePath
-            created.setValue("processing", forKey: "status")
-            transcript = created
+            ) ?? Self.makeProcessingTranscript(
+                in: context,
+                duration: duration,
+                mode: mode,
+                audioFilePath: audioFilePath
+            )
         }
 
         save()

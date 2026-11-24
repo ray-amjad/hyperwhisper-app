@@ -8,12 +8,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { moduleMock } from "./module-mock";
+import { moduleMock, moduleUrl } from "./module-mock";
 
 const captured: Array<{ error: unknown; properties: unknown }> = [];
 let client: unknown = null;
 
-moduleMock.module("../src/lib/posthog-client.ts", {
+moduleMock.module(moduleUrl("../src/lib/posthog-client.ts"), {
   namedExports: { loadPostHog: async () => client },
 });
 

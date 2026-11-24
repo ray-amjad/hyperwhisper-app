@@ -500,8 +500,13 @@ class TranscriptionProviderRouter {
         // and `appleSpeech` too and then answer ENGINE_UNAVAILABLE, because a
         // shared table that decided availability would be wrong on two
         // platforms in opposite directions.
+        //
+        // An engine the table does not know is a request mistake, not an outage
+        // (issue #1934): INVALID_REQUEST, not ENGINE_UNAVAILABLE "Try again
+        // later". Only the Local API calls `resolveProvider`, so dictation never
+        // sees this error.
         guard let resolvedEngine = localApiResolveEngineAlias(alias: trimmedEngine) else {
-            throw TranscriptionError.providerNotAvailable(provider: engine, reason: "Unknown engine '\(engine)'")
+            throw TranscribeEndpoint.APIInputError.unknownEngine(trimmedEngine)
         }
         let modelString: String
         switch resolvedEngine {

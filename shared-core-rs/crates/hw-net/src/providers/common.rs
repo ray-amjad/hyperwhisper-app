@@ -404,7 +404,9 @@ const OUT_OF_CREDITS_PHRASES: &[&str] = &[
 /// True when an error body says the provider account is out of credits
 /// ([`OUT_OF_CREDITS_CODES`], [`OUT_OF_CREDITS_PHRASES`]). Matched on the raw
 /// text, not parsed, like the Cloud check.
-fn is_out_of_credits_body(raw: &str) -> bool {
+/// pub(crate): the per-provider classifiers (Deepgram, Soniox, Gemini, the
+/// AssemblyAI poll) apply the same 401/403 check (issue #2144).
+pub(crate) fn is_out_of_credits_body(raw: &str) -> bool {
     let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
     let has_word = |needle: &str| {
         raw.match_indices(needle).any(|(i, _)| {
@@ -472,6 +474,7 @@ pub fn filename_of(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::test_support::field;
 
     #[test]
     fn filename_handles_unix_windows_and_empty() {
@@ -507,10 +510,7 @@ mod tests {
 
     fn language_field(req: &HttpRequest) -> Option<String> {
         match &req.body {
-            Body::Multipart { parts, .. } => parts.iter().find_map(|p| match p {
-                Part::Field { name, value } if name == "language" => Some(value.clone()),
-                _ => None,
-            }),
+            Body::Multipart { parts, .. } => field(parts, "language").map(str::to_owned),
             _ => None,
         }
     }

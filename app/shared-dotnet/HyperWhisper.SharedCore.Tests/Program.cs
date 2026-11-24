@@ -551,6 +551,7 @@ var tests = new (string Name, Func<Task> Run)[]
         }
         return Task.CompletedTask;
     }),
+    ("Dictation uploads a corrected copy of an unpatched WAV and leaves the file alone (#2654)", TestDictationUnpatchedWaveAsync),
 };
 
 var failures = 0;
@@ -2699,6 +2700,121 @@ static HttpResponseMessage JsonWithHeader(string body, string name, string value
     var response = Json(body);
     response.Headers.TryAddWithoutValidation(name, value);
     return response;
+}
+
+// #2654: a header that was never patched (crash-interrupted recorder: RIFF 36 + data 0;
+// piped ffmpeg: 0xFFFFFFFF for both) passes the file-import preflight, so Dictation must
+// read its audio to the end of the file and upload a corrected copy, not refuse it.
+static async Task TestDictationUnpatchedWaveAsync()
+{
+    const int samples = 1000;
+    var audio = new byte[samples * 2];
+    for (var i = 0; i < audio.Length; i++) audio[i] = (byte)(i * 7 + 3);
+    static byte[] Wave(uint riff, uint data, byte[] audio, byte[]? before = null, int tail = 0)
+    {
+        before ??= [];
+        var bytes = new byte[44 + before.Length + audio.Length + tail];
+        "RIFF"u8.CopyTo(bytes); BitConverter.GetBytes(riff).CopyTo(bytes, 4);
+        "WAVEfmt "u8.CopyTo(bytes.AsSpan(8)); BitConverter.GetBytes(16).CopyTo(bytes, 16);
+        BitConverter.GetBytes((ushort)1).CopyTo(bytes, 20);
+        BitConverter.GetBytes((ushort)1).CopyTo(bytes, 22);
+        BitConverter.GetBytes(16_000).CopyTo(bytes, 24);
+        BitConverter.GetBytes(32_000).CopyTo(bytes, 28);
+        BitConverter.GetBytes((ushort)2).CopyTo(bytes, 32);
+        BitConverter.GetBytes((ushort)16).CopyTo(bytes, 34);
+        before.CopyTo(bytes, 36);
+        "data"u8.CopyTo(bytes.AsSpan(36 + before.Length)); BitConverter.GetBytes(data).CopyTo(bytes, 40 + before.Length);
+        audio.CopyTo(bytes, 44 + before.Length);
+        for (var i = 0; i < tail; i++) bytes[^(i + 1)] = 0xEE;
+        return bytes;
+    }
+    var list = new byte[] { (byte)'L', (byte)'I', (byte)'S', (byte)'T', 4, 0, 0, 0, (byte)'I', (byte)'N', (byte)'F', (byte)'O' };
+    var name = $"unpatched-{Guid.NewGuid():N}.wav";
+    var path = Path.Combine(Path.GetTempPath(), name);
+    int RepairedDirectories() => Directory.GetDirectories(Path.GetTempPath(), "hyperwhisper-assemblyai-*").Length;
+    var directoriesBefore = RepairedDirectories();
+    try
+    {
+        // Crash-interrupted recorder, piped ffmpeg with a LIST chunk and a torn last frame,
+        // and a data length that runs past the end of the file.
+        foreach (var (label, input, before) in new (string, byte[], byte[])[] {
+            ("crash 36/0", Wave(36, 0, audio), []),
+            ("ffmpeg pipe 0xFFFFFFFF", Wave(uint.MaxValue, uint.MaxValue, audio, list, tail: 1), list),
+            ("past EOF", Wave(0, 1_000_000, audio), []),
+            // The shared readers trust neither a zero nor a sub-frame length, whatever the RIFF size says.
+            ("patched RIFF, data 0", Wave((uint)(36 + audio.Length), 0, audio), []),
+            ("data under one frame", Wave(36, 1, audio), []),
+            ("patched RIFF, data 0xFFFFFFFF", Wave((uint)(36 + audio.Length), uint.MaxValue, audio), []),
+        })
+        {
+            File.WriteAllBytes(path, input);
+            var handler = new RecordingHandler((_, _) =>
+            {
+                // While the upload runs, the copy sits in an owner-only folder (Unix temp is shared).
+                if (!OperatingSystem.IsWindows())
+                    foreach (var directory in Directory.GetDirectories(Path.GetTempPath(), "hyperwhisper-assemblyai-*"))
+                        Assert.True(File.GetUnixFileMode(directory) == (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute), $"{label}: copy folder is owner-only");
+                return Json("{\"text\":\"unpatched ok\"}");
+            });
+            using (var client = new HttpClient(handler))
+            {
+                var parameters = new uniffi.hyperwhisper_core.TranscribeParams("test-api-key", "dictation", "en", [], null, null,
+                    path, "audio/wav", null, null, null, null, null, null, false);
+                var transcript = await AssemblyAiDictation.TranscribeAsync(parameters, client, default);
+                Assert.True(transcript.text == "unpatched ok", $"{label}: transcript");
+            }
+            var body = handler.LastBody!;
+            var expected = Wave((uint)(36 + before.Length + audio.Length), (uint)audio.Length, audio, before);
+            var start = body.AsSpan().IndexOf("RIFF"u8);
+            Assert.True(start > 0 && body.AsSpan(start).StartsWith(expected), $"{label}: uploaded WAV is the corrected copy");
+            Assert.True(body[start + expected.Length] != 0xEE, $"{label}: torn frame dropped");
+            Assert.True(Encoding.UTF8.GetString(body).Contains($"filename={name}"), $"{label}: upload keeps the file name");
+            Assert.True(File.ReadAllBytes(path).AsSpan().SequenceEqual(input), $"{label}: user file untouched");
+            Assert.True(RepairedDirectories() == directoriesBefore, $"{label}: temp copy deleted");
+        }
+        // The corrected copy is deleted when the upload fails too.
+        File.WriteAllBytes(path, Wave(36, 0, audio));
+        var failing = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new HttpRequestException("offline")));
+        using (var service = new CloudTranscriptionService(failing, new StaticCredentials(), Sharing))
+        {
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, path, "dictation", Language: "en"));
+            Assert.False(result.IsSuccess);
+            Assert.True(failing.LastRequest is not null, "failed upload was attempted");
+            Assert.True(RepairedDirectories() == directoriesBefore, "temp copy deleted after a failed upload");
+        }
+        // A temp folder that cannot be written is reported as such, not as an invalid recording.
+        if (!OperatingSystem.IsWindows())
+        {
+            var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
+            var handler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new Exception("Upload without a copy")));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            Environment.SetEnvironmentVariable("TMPDIR", "/dev/null/no-temp/");
+            CloudTranscriptionResult result;
+            try { result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, path, "dictation", Language: "en")); }
+            finally { Environment.SetEnvironmentVariable("TMPDIR", tmpdir); }
+            Assert.True(result.Failure!.Message.Contains("could not prepare"), $"temp failure message: {result.Failure.Message}");
+            Assert.True(handler.LastRequest is null, "no upload without a copy");
+        }
+        // Still refused before any request: an unpatched header with no audio, one over 120 s,
+        // and a PATCHED header (RIFF matches the file) whose data length runs past the end.
+        foreach (var (label, input, message) in new (string, byte[], string)[] {
+            ("unpatched, no audio", Wave(36, 0, []), "valid PCM16 WAV"),
+            ("unpatched, 1 byte", Wave(36, 0, [1]), "valid PCM16 WAV"),
+            ("unpatched, over 120 s", Wave(uint.MaxValue, uint.MaxValue, new byte[(120 * 16_000 + 1) * 2]), "120"),
+            ("patched RIFF, data past EOF", Wave((uint)(36 + audio.Length), (uint)audio.Length + 2, audio), "valid PCM16 WAV"),
+        })
+        {
+            File.WriteAllBytes(path, input);
+            var handler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new Exception("Refused WAV reached HTTP")));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, path, "dictation", Language: "en"));
+            Assert.True(result.Failure?.Code == CloudTranscriptionErrorCode.InvalidRequest, $"{label}: refused");
+            Assert.True(result.Failure!.Message.Contains(message), $"{label}: message {result.Failure.Message}");
+            Assert.True(handler.LastRequest is null, $"{label}: no request");
+            Assert.True(RepairedDirectories() == directoriesBefore, $"{label}: no temp copy left");
+        }
+    }
+    finally { File.Delete(path); }
 }
 
 sealed record ProviderCase(

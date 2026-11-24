@@ -20,6 +20,11 @@ namespace HyperWhisper.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    // The mode the streaming session started on (#2533). The History row is
+    // labelled with it, so a mode switch mid-stream does not relabel the row,
+    // as _activeRecordingMode does for batch dictation (#2241).
+    private Mode? _streamingMode;
+
     private bool IsStreamingActive() => _isStreamingSession || _isStreamingStarting || _isStoppingStreaming;
 
     private bool IsActiveStreamingGeneration(int generation) =>
@@ -29,6 +34,18 @@ public partial class MainViewModel : ViewModelBase
         !string.IsNullOrWhiteSpace(_streamingFailureMessage)
             ? _streamingFailureMessage
             : "Streaming transcription connection could not be started.";
+
+    /// <summary>
+    /// Test seam (#2242): builds the streaming client for a session. Null in the app,
+    /// which uses <see cref="StreamingTranscriptionSessionFactory.Create"/>.
+    /// </summary>
+    internal Func<IReadOnlyCollection<string>, Result<IStreamingTranscriptionClient>>? StreamingClientFactoryOverride { get; set; }
+
+    /// <summary>
+    /// Test seam (#2242): builds the microphone capture for a session. Null in the
+    /// app, which opens a <see cref="StreamingAudioCapture"/>.
+    /// </summary>
+    internal Func<IStreamingAudioSource>? StreamingAudioSourceFactoryOverride { get; set; }
 
     private async Task StartStreamingRecordingAsync()
     {
@@ -55,7 +72,8 @@ public partial class MainViewModel : ViewModelBase
         // No local trial gate — local transcription is unlimited (open source).
 
         var vocabulary = _vocabularyService.GetVocabularyWords(100);
-        var clientResult = StreamingTranscriptionSessionFactory.Create(vocabulary);
+        var clientResult = StreamingClientFactoryOverride?.Invoke(vocabulary)
+            ?? StreamingTranscriptionSessionFactory.Create(vocabulary).Map<IStreamingTranscriptionClient>(client => client);
         if (clientResult.IsFailure)
         {
             LoggingService.Warn($"StartStreamingRecordingAsync: {clientResult.Error}");
@@ -76,6 +94,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingDurationLimitReached = false;
         _streamingLastPasteResult = SmartPasteResult.Failed;
         _streamingPendingFinalFallbackText = string.Empty;
+        _streamingMode = SelectedMode;
 
         _streamingClient = clientResult.Value!;
         _streamingClient.ErrorReceived += OnStreamingErrorReceived;
@@ -94,7 +113,7 @@ public partial class MainViewModel : ViewModelBase
             "audio.streaming",
             data: new Dictionary<string, string> { ["provider"] = providerName });
 
-        _streamingAudioCapture = new StreamingAudioCapture();
+        _streamingAudioCapture = StreamingAudioSourceFactoryOverride?.Invoke() ?? new StreamingAudioCapture();
         _streamingAudioCapture.AudioChunkAvailable += OnStreamingAudioChunkAvailable;
         _streamingAudioCapture.AudioLevelChanged += _audioLevelHandler;
 
@@ -257,7 +276,7 @@ public partial class MainViewModel : ViewModelBase
             // Off the UI thread (#1589): a locked database makes the insert wait 30 s.
             transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 durationSeconds,
-                SelectedMode?.Name,
+                _streamingMode?.Name,
                 audioFilePath: null);
 
             transcript.Text = finalText;
@@ -718,6 +737,7 @@ public partial class MainViewModel : ViewModelBase
         _streamingSessionGeneration++;
         _streamingFailureMessage = null;
         _streamingTargetLost = false;
+        _streamingMode = null;
 
         if (_streamingAudioCapture != null)
         {

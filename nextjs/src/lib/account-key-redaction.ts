@@ -12,11 +12,14 @@
 
 export const REDACTED = "[redacted]";
 
-// A query or fragment parameter whose raw value starts with `HW-`, whatever
-// the parameter is called (`licenseKey`, `license_key`, `id`, …). The value
-// runs to the next `&` or `#`. `encodeURIComponent` leaves `HW-` and the key's
-// letters, digits and dashes as they are, so the raw form is the key itself.
-const KEY_PARAM_PATTERN = /([?&#][^=&#]*=)HW-[^&#]*/gi;
+// A key parameter (`licenseKey` or `license_key`, any case, in the query or
+// the fragment) whose raw value starts with `hw-`, in any case, so a truncated
+// or odd-shaped key there is still caught. Any other parameter is redacted
+// only when its value is the full `HW-XXXX-XXXX-XXXX-XXXX` shape, by
+// ACCOUNT_KEY_PATTERN below, so `utm_campaign=hw-launch` is kept (#1910). The
+// value runs to the next `&` or `#`. `encodeURIComponent` leaves `HW-` and the
+// key's letters, digits and dashes as they are, so the raw form is the key.
+const KEY_PARAM_PATTERN = /([?&#]license_?key=)HW-[^&#]*/gi;
 
 // A key anywhere else: a path segment, free text, or a parameter nested and
 // encoded inside another one (`returnTo=%2F…%3FlicenseKey%3DHW-…`). Keys are
@@ -26,9 +29,10 @@ const ACCOUNT_KEY_PATTERN = /HW-[A-Z0-9]{4}(?:-[A-Z0-9]{4}){3}(?![A-Z0-9])/gi;
 
 /**
  * Returns `url` with every Account Key in it replaced by `[redacted]`: a
- * parameter whose value starts with `HW-`, and any `HW-XXXX-XXXX-XXXX-XXXX`
- * elsewhere. Everything else, `returnTo` included, is left byte for byte as it
- * was. Works on any string, a URL or not.
+ * `licenseKey` or `license_key` value that starts with `HW-`, and any
+ * `HW-XXXX-XXXX-XXXX-XXXX` anywhere else. Everything else, `returnTo` and
+ * `utm_campaign=hw-launch` included, is left byte for byte as it was. Works on
+ * any string, a URL or not.
  */
 export function redactAccountKeyFromUrl(url: string): string {
   if (!/HW-/i.test(url)) return url;
@@ -39,25 +43,13 @@ export function redactAccountKeyFromUrl(url: string): string {
 
 type Properties = Record<string, unknown>;
 
-// A `licenseKey` or `license_key` parameter whose value starts with `HW-`.
-const NAMED_KEY_PARAM_PATTERN = /([?&#]license_?key=)HW-[^&#]*/gi;
-
-// The narrow redaction for a string nested inside a property: the full key
-// shape, and the two key parameters. The broad any-parameter match stays on
-// top-level strings (#1910), so a nested `utm_campaign=hw-launch` is kept;
-// and the narrow one cannot match by chance in the gzipped strings that
-// posthog-js puts in `$snapshot_data`, so it never corrupts them.
-function redactAccountKeyFromNestedString(value: string): string {
-  return value
-    .replace(NAMED_KEY_PARAM_PATTERN, `$1${REDACTED}`)
-    .replace(ACCOUNT_KEY_PATTERN, REDACTED);
-}
-
 // Redacts every string in `value`, at any depth, in place. PostHog nests the
 // page URL inside objects and arrays: `$web_vitals_*_event.navigationURL` and
 // its `$current_url`, and the session recording's network entries in
 // `$snapshot_data`, which are named with the URL the page was first loaded
-// with, key included (#1920). `seen` stops a cycle from recursing forever.
+// with, key included (#1920). The patterns are narrow enough not to match by
+// chance in the gzipped strings posthog-js puts in `$snapshot_data`, so they
+// never corrupt them. `seen` stops a cycle from recursing forever.
 function redactNested(value: unknown, seen: WeakSet<object>): void {
   if (typeof value !== "object" || value === null || seen.has(value)) return;
   seen.add(value);
@@ -70,7 +62,7 @@ function redactNested(value: unknown, seen: WeakSet<object>): void {
     if (typeof item === "string") {
       if (/HW-/i.test(item)) {
         (value as Record<string | number, unknown>)[name] =
-          redactAccountKeyFromNestedString(item);
+          redactAccountKeyFromUrl(item);
       }
     } else {
       redactNested(item, seen);

@@ -204,35 +204,6 @@ private final class ScriptedCloudURLProtocol: URLProtocol {
     }
 }
 
-/// Reports a stored account key, so the real entitlement check passes; every
-/// network call is a no-op refusal, so nothing leaves the process.
-private final class StoredKeyLicenseNetwork: LicenseNetworkServing {
-    private let invalid = LicenseValidationResult(
-        isValid: false,
-        status: .invalid,
-        customerId: nil,
-        customerEmail: nil,
-        customerName: nil,
-        errorMessage: nil
-    )
-
-    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
-    func validateLicense(
-        _ licenseKey: String,
-        isLaunchValidation: Bool,
-        expectedStoredLicenseKey: String?
-    ) async -> LicenseValidationResult { invalid }
-    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { invalid }
-    func shouldRevalidateLicense() -> Bool { false }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
-    func getStoredLicenseKey() -> String? { "fixture-account-key-754" }
-    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
-    func clearStoredLicense() -> Bool { true }
-    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
-}
-
 // MARK: - A conformer for the protocol-level contract
 
 /// One shared instance whose German pass is held until released, so a French
@@ -309,36 +280,12 @@ struct TranscriptionOutcomePerCallTests {
 
     /// A short mono tone in its own temporary folder (a real, non-empty WAV).
     private static func toneWAV() throws -> URL {
-        let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-754-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent("tone.wav")
-        let sampleRate = 16_000.0
-        let frames = AVAudioFrameCount(0.5 * sampleRate)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        try autoreleasepool {
-            let file = try AVAudioFile(forWriting: url, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
-            let channel = try #require(buffer.floatChannelData?[0])
-            buffer.frameLength = frames
-            for index in 0..<Int(frames) {
-                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
-            }
-            try file.write(from: buffer)
-        }
-        return url
+        try ToneWAVFixture.write(named: "tone.wav", inFolderPrefixed: "hw-754", seconds: 0.5)
     }
 
     private static func licensedManager() -> LicenseManager {
         let manager = LicenseManager(
-            networkService: StoredKeyLicenseNetwork(),
+            networkService: StubLicenseNetwork(storedKey: "fixture-account-key-754"),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )

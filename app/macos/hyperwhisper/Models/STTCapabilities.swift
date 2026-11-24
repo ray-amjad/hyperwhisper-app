@@ -356,6 +356,14 @@ enum STTCapabilities {
                         id: "scribe_v2_medical",
                         languages: STTLanguageTemplates.elevenLabsScribeV2,
                         notes: "Scribe v2 tuned for clinical audio. Supports custom vocabulary with keyterm prompting (up to 100 terms) for drug names and medical phrases."
+                    ),
+                    // Scribe v3 (2026-11-09, #3049). ElevenLabs' Speech to Text page gives one
+                    // language list for "Scribe v3 and Scribe v2", so it shares Scribe v2's set.
+                    // ElevenLabs allows 1,000 keyterms on v3; every head keeps the 100 cap.
+                    STTModelSpec(
+                        id: "scribe_v3",
+                        languages: STTLanguageTemplates.elevenLabsScribeV2,
+                        notes: "Newest Scribe model. Supports custom vocabulary with keyterm prompting (up to 100 terms)."
                     )
                 ]
             ),

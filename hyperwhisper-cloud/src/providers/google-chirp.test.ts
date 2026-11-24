@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
+import { GOOGLE_CHIRP_INLINE_MAX_BYTES } from '../lib/constants';
 import * as realGoogleAuth from '../lib/google-auth';
 import { captureNoSpeechEvent } from './test-support';
-import { saveEnv, stubEnv } from '../test-support/env';
+import { stubEnv } from '../test-support/env';
 
 // ---------------------------------------------------------------------------
 // Mock the GCS scratch-storage module. google-chirp.ts only knows the shape
@@ -20,7 +21,7 @@ let uploadShouldThrow: Error | null = null;
 const uploadCalls: Array<{ bytes: number; contentType: string }> = [];
 const deleteCalls: Array<{ bucket: string; objectName: string }> = [];
 
-mock.module('../lib/gcs-storage', () => ({
+mock.module('./gcs-storage', () => ({
   isGcsTranscriptionBucketConfigured: () =>
     gcsConfigured || Boolean(process.env.GOOGLE_SPEECH_GCS_BUCKET?.trim()),
   uploadTranscriptionAudio: async (audio: ArrayBuffer, contentType: string) => {
@@ -64,7 +65,7 @@ type FetchHandler = (url: string, init: RequestInit) => Response | Promise<Respo
 let fetchHandler: FetchHandler = () => new Response('unhandled', { status: 500 });
 const originalFetch = globalThis.fetch;
 
-const { transcribeWithGoogleChirp, INLINE_AUDIO_MAX_BYTES } = await import('./google-chirp');
+const { transcribeWithGoogleChirp } = await import('./google-chirp');
 
 let restoreEnv: Array<() => void> = [];
 
@@ -72,7 +73,6 @@ beforeEach(() => {
   restoreEnv = [
     stubEnv('GOOGLE_PROJECT_ID', 'test-project'),
     stubEnv('GOOGLE_SPEECH_REGION', undefined),
-    saveEnv('STT_PROVIDER_TIMEOUT_MS'),
   ];
 
   gcsConfigured = false;
@@ -158,7 +158,7 @@ describe('transcribeWithGoogleChirp — input gates (no upstream call)', () => {
 
   test('rejects audio over the inline byte cap with AudioTooLargeError when no GCS bucket is configured', async () => {
     gcsConfigured = false;
-    const oversized = new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1);
+    const oversized = new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1);
     await expect(transcribeWithGoogleChirp(oversized, 'audio/wav')).rejects.toThrow(AudioTooLargeError);
     expect((globalThis.fetch as any).mock.calls.length).toBe(0);
     expect(uploadCalls.length).toBe(0);
@@ -378,7 +378,18 @@ describe('transcribeWithGoogleChirp — sync recognize error mapping', () => {
 });
 
 describe('transcribeWithGoogleChirp — successful response decoding boundaries', () => {
-  test('rejects an empty sync response with the phase and response encodings', async () => {
+  // Every Speech 200 goes through the shared `readJson200` contract (#2176):
+  // a bad body is a retryable `bad_response`, so the route answers a 502, not
+  // the 500 a plain Error gave.
+  async function expectBadResponse(phase: string, run: () => Promise<unknown>) {
+    const error = await run().then(() => null, (e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderUnavailableError);
+    expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((error as ProviderUnavailableError).status).toBe(200);
+    expect((error as Error).message).toBe(`Google Chirp ${phase} unavailable: malformed 200 response body`);
+  }
+
+  test('rejects an empty sync response as a bad_response', async () => {
     fetchHandler = () => new Response('', {
       status: 200,
       headers: {
@@ -387,25 +398,38 @@ describe('transcribeWithGoogleChirp — successful response decoding boundaries'
       },
     });
 
-    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
-      .rejects.toThrow(
-        'Google Speech returned empty 200 body during sync_recognize (content-type=application/json, content-encoding=gzip)',
-      );
+    await expectBadResponse('sync_recognize', () => transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'));
     expect((globalThis.fetch as any).mock.calls.length).toBe(1);
   });
 
-  test('rejects a non-JSON sync response with its shape and no part of the body', async () => {
+  test('rejects a non-JSON sync response as a bad_response with no part of the body', async () => {
     const upstreamBody = '<html>temporary proxy response</html>';
     fetchHandler = () => new Response(upstreamBody, {
       status: 200,
       headers: { 'Content-Type': 'text/html' },
     });
 
-    const error = await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav').catch((e: Error) => e);
-    expect((error as Error).message).toBe(
-      `Google Speech returned non-JSON 200 body during sync_recognize (content-type=text/html, len=${upstreamBody.length})`,
-    );
+    await expectBadResponse('sync_recognize', () => transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'));
     expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+
+  test.each([
+    ['null', 'null'],
+    ['an array', '[{"alternatives":[]}]'],
+    ['a bare string', '"ok"'],
+  ])('rejects a sync 200 whose JSON is %s as a bad_response, not a 500', async (_label, body) => {
+    fetchHandler = () => new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    await expectBadResponse('sync_recognize', () => transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'));
+  });
+
+  test('rejects a sync 200 whose body read resets as a bad_response', async () => {
+    fetchHandler = () => new Response(
+      new ReadableStream({ start(controller) { controller.error(new Error('connection reset')); } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+
+    await expectBadResponse('sync_recognize', () => transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'));
   });
 
   test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
@@ -425,7 +449,13 @@ describe('transcribeWithGoogleChirp — successful response decoding boundaries'
     } finally {
       console.log = originalLog;
     }
-    expect(thrown).toBeInstanceOf(Error);
+    // A truncated 200 is a retryable `bad_response` (the route answers 502),
+    // the same as ElevenLabs, not the plain Error that gave a 500. The
+    // behaviour came with readJson200 (#2176); #1106 asked for it pinned here.
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((thrown as ProviderUnavailableError).status).toBe(200);
+    expect((thrown as Error).message).toBe('Google Chirp sync_recognize unavailable: malformed 200 response body');
     expect((thrown as Error).message).not.toContain(marker);
     const event = logged.find((args) => args[0] === 'provider.parse_error');
     if (!event) throw new Error('no provider.parse_error event was logged');
@@ -441,7 +471,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
   });
 
   function bigAudio() {
-    return new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1); // forces gcs+batch on bytes alone
+    return new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1); // forces gcs+batch on bytes alone
   }
 
   test('uploads to GCS, submits+polls batchRecognize, merges the file-level metadata, and deletes the scratch object on success', async () => {
@@ -480,7 +510,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     expect(result.language).toBe('en-US');
     expect(result.durationSeconds).toBe(12.3);
     expect(result.source).toBe('google-chirp');
-    expect(uploadCalls).toEqual([{ bytes: INLINE_AUDIO_MAX_BYTES + 1, contentType: 'audio/wav' }]);
+    expect(uploadCalls).toEqual([{ bytes: GOOGLE_CHIRP_INLINE_MAX_BYTES + 1, contentType: 'audio/wav' }]);
     expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
     // batchRecognize submit + at least 2 polls (done:false then done:true).
     expect((globalThis.fetch as any).mock.calls.length).toBeGreaterThanOrEqual(3);
@@ -623,16 +653,16 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     )).toBe(false);
   });
 
-  test('an empty successful batch submit reports its phase and still deletes the scratch object', async () => {
+  test('an empty successful batch submit is a bad_response naming its phase and still deletes the scratch object', async () => {
     fetchHandler = () => new Response('', {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
-    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow(
-        'Google Speech returned empty 200 body during batch_submit (content-type=application/json, content-encoding=none)',
-      );
+    const error = await transcribeWithGoogleChirp(bigAudio(), 'audio/wav').then(() => null, (e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderUnavailableError);
+    expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((error as Error).message).toBe('Google Chirp batch_submit unavailable: malformed 200 response body');
     expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
   });
 
@@ -646,10 +676,10 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
       });
     };
 
-    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
-      .rejects.toThrow(
-        'Google Speech returned non-JSON 200 body during batch_poll (content-type=text/plain, len=8)',
-      );
+    const error = await transcribeWithGoogleChirp(bigAudio(), 'audio/wav').then(() => null, (e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderUnavailableError);
+    expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((error as Error).message).toBe('Google Chirp batch_poll unavailable: malformed 200 response body');
     expect((globalThis.fetch as any).mock.calls.some(
       ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/malformed-poll:cancel'),
     )).toBe(true);
@@ -674,7 +704,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
 
 describe('transcribeWithGoogleChirp — explicit network timeout budgets', () => {
   function bigAudio() {
-    return new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1);
+    return new ArrayBuffer(GOOGLE_CHIRP_INLINE_MAX_BYTES + 1);
   }
 
   function completedBatchResponse(transcript = 'batched transcript') {
@@ -692,7 +722,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   }
 
   test('inline recognize keeps its 45s budget when the shared timeout is smaller', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     const requestTimeouts: number[] = [];
 
     await recordTimeouts(async (delays) => {
@@ -709,7 +738,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('batch submit uses 45s and its completed first poll uses 8s', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const requestTimeouts: Record<string, number[]> = { submit: [], poll: [] };
 
@@ -730,7 +758,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('a failed operation uses 8s for cancellation and still deletes the GCS object', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const requestTimeouts: Record<string, number[]> = { poll: [], cancel: [] };
 
@@ -756,7 +783,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('adaptation retries retain the inline and batch submit phase budgets', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     const requestTimeouts: Record<string, number[]> = { inline: [], submit: [], poll: [] };
 
     await recordTimeouts(async (delays) => {
@@ -803,7 +829,6 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
   });
 
   test('transient 429 and 5xx poll responses stay inside the operation and keep the 8s per-poll budget', async () => {
-    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
     gcsConfigured = true;
     const pollTimeouts: number[] = [];
     let pollAttempt = 0;

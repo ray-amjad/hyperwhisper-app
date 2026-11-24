@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   // Keyed by region, not by IP: every machine in one Fly region shares an exit
   // address, so a per-IP limit would throttle the busiest region against itself.
   // This is a runaway-loop backstop, nothing more — the ceiling is far above
-  // real traffic. Fails open: an Upstash outage must not drop the samples (#2136).
+  // real traffic. Fails open: a rate-limiter failure must not drop the samples (#2136).
   const region = result.samples[0]?.flyRegion ?? "unknown";
   const rateLimit = await countFailOpen(
     () => latencyIngestRateLimiter.limit(region),

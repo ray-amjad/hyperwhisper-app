@@ -59,10 +59,12 @@ struct ModeEditorByokVocabularyWarningTests {
     }
 
     @MainActor
-    @Test("Known catalog rows: scribe_v1 warns, scribe_v2 and nova-3-general do not")
+    @Test("Known catalog rows: scribe_v1 warns, scribe_v2, scribe_v3 and nova-3-general do not")
     func knownRows() {
         #expect(ModeEditorView.byokVocabularyUnsupported(provider: .elevenLabs, modelId: "scribe_v1"))
         #expect(!ModeEditorView.byokVocabularyUnsupported(provider: .elevenLabs, modelId: "scribe_v2"))
+        // Scribe v3 (#3049) takes keyterms like v2, so it must not warn.
+        #expect(!ModeEditorView.byokVocabularyUnsupported(provider: .elevenLabs, modelId: "scribe_v3"))
         #expect(!ModeEditorView.byokVocabularyUnsupported(provider: .deepgram, modelId: "nova-3-general"))
     }
 

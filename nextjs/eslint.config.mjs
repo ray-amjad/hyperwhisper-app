@@ -5,6 +5,7 @@ import unusedImports from "eslint-plugin-unused-imports";
 import _import from "eslint-plugin-import";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import jsxA11Y from "eslint-plugin-jsx-a11y";
+import drizzle from "eslint-plugin-drizzle";
 import prettier from "eslint-plugin-prettier";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
@@ -35,6 +36,8 @@ export default defineConfig([globalIgnores([
     "**/node_modules",
     "**/coverage",
     "**/.next",
+    "**/.open-next",
+    "**/.wrangler",
     "**/build",
     "!**/.commitlintrc.cjs",
     "!**/.lintstagedrc.cjs",
@@ -58,6 +61,7 @@ export default defineConfig([globalIgnores([
         "@typescript-eslint": typescriptEslint,
         "jsx-a11y": fixupPluginRules(jsxA11Y),
         prettier: fixupPluginRules(prettier),
+        drizzle,
     },
 
     languageOptions: {
@@ -74,6 +78,10 @@ export default defineConfig([globalIgnores([
             ecmaFeatures: {
                 jsx: true,
             },
+
+            // Type information for the type-aware @typescript-eslint rules below.
+            projectService: true,
+            tsconfigRootDir: __dirname,
         },
     },
 
@@ -123,6 +131,23 @@ export default defineConfig([globalIgnores([
             argsIgnorePattern: "^_.*?$",
         }],
 
+        // Type-aware: they catch an untyped JSON.parse / .json() read or an
+        // unawaited promise, which neither a grep nor tsc --noEmit sees.
+        "@typescript-eslint/no-unsafe-argument": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+
+        // A Drizzle update or delete with no .where() rewrites or empties a
+        // whole table. Scoped to the Drizzle handle names (db, tx, and
+        // revokeWebAccess's `runner = options.tx ?? db` in db-layer.ts): the
+        // unscoped default also flags URLSearchParams.delete and Map.delete.
+        // A deliberate whole-table write takes an eslint-disable-next-line
+        // with a reason.
+        "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db", "tx", "runner"] }],
+        "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db", "tx", "runner"] }],
+
         "import/order": ["warn", {
             groups: [
                 "type",
@@ -166,5 +191,24 @@ export default defineConfig([globalIgnores([
                 prev: ["const", "let", "var"],
                 next: ["const", "let", "var"],
             }],
+    },
+}, {
+    // tsconfig excludes the Worker entry (it imports the generated
+    // `.open-next/worker.js`) and the `npm run cf-typegen` output, so the
+    // project service has no types for either.
+    files: ["worker.ts", "worker-configuration.d.ts"],
+
+    languageOptions: {
+        parserOptions: {
+            projectService: false,
+        },
+    },
+
+    rules: {
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-floating-promises": "off",
     },
 }]);

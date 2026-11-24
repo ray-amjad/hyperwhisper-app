@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.Platform.Abstractions.Audio;
@@ -68,10 +69,27 @@ if (args is [RadioButtonLightThemeRenderTests.ProbeArgument])
 {
     Environment.Exit(RadioButtonLightThemeRenderTests.RunProbe());
 }
+if (args is [HomeLiveStateRenderTests.ProbeArgument])
+{
+    Environment.Exit(HomeLiveStateRenderTests.RunProbe());
+}
+if (args is [StatusHintRenderTests.ProbeArgument])
+{
+    Environment.Exit(StatusHintRenderTests.RunProbe());
+}
+if (args is [OverlayMeterRenderTests.ProbeArgument])
+{
+    Environment.Exit(OverlayMeterRenderTests.RunProbe());
+}
+if (args is [AccountLinkToastRenderTests.ProbeArgument])
+{
+    Environment.Exit(AccountLinkToastRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("toggle owns safe injection lifecycle", ToggleOwnsSafeInjectionLifecycle),
+    ("transcript database is owner-only under umask 022", TranscriptDatabaseIsOwnerOnly),
     ("failed start restores clipboard immediately", FailedStartRestoresImmediately),
     ("stop exception unwinds injection session", StopExceptionUnwindsInjection),
     ("secure completion preserves clipboard", SecureCompletionPreservesClipboard),
@@ -110,6 +128,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
+    ("tray mode selection is validated before it reaches the window", TrayModeSelectionIsValidated),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("the storage maintenance loop starts once and survives a failed tick", StorageMaintenanceLoopStartsOnce),
     ("a later window Opened retries only what has not yet succeeded", WindowStartupGateRetriesOnlyWhatFailed),
@@ -147,6 +166,20 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failed provider-key save leaves no typed key in the shared credentials view model (#1388)", ProviderApiKeySaveFailureRenderTests.RunAsync),
     ("a Gemini key that does not start with AIza saves from the provider-key modal with no Invalid API Key notice", ProviderApiKeyNonAizaGeminiRenderTests.RunAsync),
     ("a RadioButton's disc reaches 3:1 on the light card and keeps Windows' #FFFFFF / #212121 in dark (#2514)", RadioButtonLightThemeRenderTests.RunAsync),
+    ("a live stream that fails after delivering text keeps that text in History, the error only in FailedReason (#2282)", LiveFailureHistoryTests.KeepsDeliveredText),
+    ("Home's state follows a live stream: Recording while it runs, Failed once it fails and is held (#2038)", HomeLiveStateRenderTests.MappingFollowsTheLiveStream),
+    ("the real Home caption reads Failed for a held live stream and Idle again after Stop (#2038)", HomeLiveStateRenderTests.RunAsync),
+    ("the overlay's macOS-style waveform keeps its 25 2 px bars inside the pill, peaks in the middle, grows with the level and animates only while shown (#2711)", OverlayMeterRenderTests.RunAsync),
+    ("Home reads Recording from the moment a live start shows the overlay, Failed once it turns red, and the workflow state after a failed start (#2038)", HomeLiveStartTests.StartWindowFollowsTheOverlay),
+    ("Home keeps Failed through the stop of a live stream whose connection failed, then reads the workflow state (#2038)", HomeLiveStartTests.StopOfAFailedStreamKeepsFailed),
+    ("the status bar drops the record hint while anything is in flight (recording, finishing, Busy) and on an error line (#2599)", RecordingStatusAfterStopTests.StatusHintDroppedWhileInFlightOrOnError),
+    ("the record hint comes back after a stop that wrote its own line while still finishing (#2599)", RecordingStatusAfterStopTests.HintReturnsAfterAStopThatWroteItsOwnLine),
+    ("the status bar drops the record hint while a live start is still connecting and brings it back after (#2599)", RecordingStatusAfterStopTests.HintDroppedWhileALiveStartConnects),
+    ("a held live stream's stop keeps the record hint off while it finishes, and brings it back after (#2599)", RecordingStatusAfterStopTests.HeldStreamStopKeepsTheHintOffWhileFinishing),
+    ("the real status bar drops the record hint while a stream is open, on a Busy line or an error line, and keeps History's hotkey line (#2599)", StatusHintRenderTests.RunAsync),
+    ("an account page the browser could not open gets no Open Settings button; other account codes keep it (#2632)", AccountLinkToastRenderTests.ClassifierDropsTheButtonForAccountLinks),
+    ("the real error toast shows the account-link failure with no button and a selectable URL (#2632)", AccountLinkToastRenderTests.RunAsync),
+    ("post-processing stores and emits the provider id (openai, local_llm), and the History badge maps it to a label (#1158)", PostProcessProviderIdTests.RunAsync),
 };
 
 foreach (var test in tests)
@@ -741,8 +774,8 @@ static async Task TypedTrayActionsRouteSafely()
         "microphone changed during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.TranscribeFile)).Error?.Code == "tray.unsafe_state",
         "file import started during recording");
-    Assert((await handler.HandleAsync(StatusNotifierAction.CycleMode)).IsSuccess,
-        "future mode could not be cycled during recording");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode could not be selected during recording");
     Assert((await handler.HandleAsync(StatusNotifierAction.StopRecording)).IsSuccess,
         "active recording could not be stopped");
 
@@ -752,6 +785,7 @@ static async Task TypedTrayActionsRouteSafely()
         StatusNotifierAction.SelectPreviousMicrophone,
         StatusNotifierAction.SelectNextMicrophone,
         StatusNotifierAction.TranscribeFile,
+        StatusNotifierAction.OpenModes,
         StatusNotifierAction.OpenHistory,
         StatusNotifierAction.OpenSettings,
         StatusNotifierAction.OpenHelp,
@@ -765,7 +799,7 @@ static async Task TypedTrayActionsRouteSafely()
         Assert((await handler.HandleAsync(action)).IsSuccess, $"{action} did not route");
 
     Assert(target.Events.SequenceEqual([
-        "start", "mode", "stop", "mic-default", "mic-previous", "mic-next", "file", "history",
+        "start", "mode:" + FakeTrayTarget.KnownMode, "stop", "mic-default", "mic-previous", "mic-next", "file", "modes", "history",
         "settings", "help", "support", "feedback", "show", "hide", "quit"]),
         "typed tray action mapping changed");
 
@@ -791,6 +825,44 @@ static async Task TypedTrayActionsRouteSafely()
     handler.Dispose();
     Assert((await handler.HandleAsync(StatusNotifierAction.Show)).Error?.Code == "tray.disposed",
         "disposed handler accepted an action");
+}
+
+// A Select Mode click reaches the handler with an id the tray service resolved from its own
+// snapshot. The handler still refuses a missing id, an empty id, a pick during onboarding,
+// and a mode that was deleted after the publish, and it never takes the operation lock.
+static async Task TrayModeSelectionIsValidated()
+{
+    var target = new FakeTrayTarget();
+    using var handler = target.CreateHandler();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode))).Error?.Code
+        == "tray.action_unknown", "a mode click without an id was accepted");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.Empty))).Error?.Code
+        == "tray.action_unknown", "an empty mode id was accepted");
+    Assert((await handler.HandleAsync(StatusNotifierAction.SelectMode)).Error?.Code == "tray.action_unknown",
+        "the bare SelectMode action routed without an id");
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, Guid.NewGuid()))).Error?.Code
+        == "tray.unsafe_state", "a deleted mode was reported as selected");
+    target.OnboardingOpen = true;
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.unsafe_state", "a mode was selected while onboarding was open");
+    target.OnboardingOpen = false;
+    Assert(target.Events.Count == 0, "a refused mode click reached the window");
+
+    var blocked = new FakeTrayTarget { StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+    using var blockedHandler = blocked.CreateHandler();
+    var pendingStart = blockedHandler.HandleAsync(StatusNotifierAction.StartRecording);
+    Assert((await blockedHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).IsSuccess,
+        "a mode pick waited on a long-running recording start");
+    blocked.StartGate.SetResult();
+    await pendingStart;
+
+    var throwing = new FakeTrayTarget { ThrowOnSelect = true };
+    using var throwingHandler = throwing.CreateHandler();
+    Assert((await throwingHandler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.action_failed", "a throwing mode pick escaped the handler");
+    handler.Dispose();
+    Assert((await handler.HandleAsync(new StatusNotifierActionEventArgs(StatusNotifierAction.SelectMode, FakeTrayTarget.KnownMode))).Error?.Code
+        == "tray.disposed", "a disposed handler selected a mode");
 }
 
 static Task TrayMicrophoneSelectionIsDeterministic()
@@ -1363,6 +1435,16 @@ static Task BlankCloudProviderReadsAsHyperWhisperCloud()
         typeof(string), null, CultureInfo.InvariantCulture) as string;
     Assert(retired == successor && retired != "grok-voice-transcribe-1.0",
         $"status bar read '{retired}' for a stored Grok 1.0 mode, not the 2.0 label '{successor}'");
+    // #1976: the status bar and the mode card both read the successor's catalog name, the card the
+    // way Windows draws it ("Grok · Grok Voice Transcribe 2"), not the raw stored id.
+    Assert(retired == "Grok Voice Transcribe 2",
+        $"status bar read '{retired}' for a stored Grok 1.0 mode, not 'Grok Voice Transcribe 2'");
+    using var strings = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    var card = new ModeProviderLineConverter(new OptionLabelConverter(strings)).Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-1.0" },
+        typeof(string), "cloud", CultureInfo.InvariantCulture) as string;
+    Assert(card is not null && card.EndsWith(" · Grok Voice Transcribe 2", StringComparison.Ordinal),
+        $"mode card read '{card}' for a stored Grok 1.0 mode, not '… · Grok Voice Transcribe 2'");
     return Task.CompletedTask;
 }
 
@@ -2307,6 +2389,51 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
+static async Task TranscriptDatabaseIsOwnerOnly()
+{
+    // Issue #2573: SQLite made hyperwhisper.db with the umask, 0644 in a 0755 folder, while
+    // settings, keys and recordings are owner-only.
+    const UnixFileMode privateFile = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    const UnixFileMode privateDirectory = privateFile | UnixFileMode.UserExecute;
+    const UnixFileMode umaskDirectory = privateDirectory | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-db-mode-{Guid.NewGuid():N}");
+    var xdgState = Path.Combine(root, "state");
+    var state = Path.Combine(xdgState, "hyperwhisper");
+    var databasePath = Path.Combine(state, "hyperwhisper.db");
+    var previousMask = ProcessUmask.Set(0b000_010_010);
+    try
+    {
+        var paths = new StaticPaths(state);
+        var database = LinuxApplicationDatabase.Open(paths);
+        Assert(File.GetUnixFileMode(state) == privateDirectory, $"the state folder is {File.GetUnixFileMode(state)} before SQLite opens it, not 0700");
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, "the database is not 0600 before SQLite opens it");
+        await database.InitializeAsync();
+        Assert(await new ModeRepository(database).ListAsync() is { Count: > 0 }, "the database was not migrated and seeded");
+        Assert(File.GetUnixFileMode(xdgState) == umaskDirectory, "the shared XDG state folder was made private too, not just the app's own");
+        Assert(File.GetUnixFileMode(state) == privateDirectory, $"the state folder is {File.GetUnixFileMode(state)}, not 0700");
+        // SQLite gives a sidecar the database's mode; check any that exist (the store runs in
+        // rollback-journal mode, so usually none does between transactions).
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, $"the database is {File.GetUnixFileMode(databasePath)}, not 0600");
+        foreach (var path in new[] { "-wal", "-shm", "-journal" }.Select(suffix => databasePath + suffix).Where(File.Exists))
+            Assert(File.GetUnixFileMode(path) == privateFile, $"{Path.GetFileName(path)} is {File.GetUnixFileMode(path)}, not 0600");
+        SqliteConnection.ClearAllPools();
+
+        // An install from before the fix: a 0644 database in a 0755 folder is repaired on launch.
+        File.SetUnixFileMode(state, umaskDirectory);
+        File.SetUnixFileMode(databasePath, privateFile | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        var reopened = LinuxApplicationDatabase.Open(paths);
+        Assert(File.GetUnixFileMode(state) == privateDirectory, "an existing 0755 state folder was not repaired to 0700");
+        Assert(File.GetUnixFileMode(databasePath) == privateFile, "an existing 0644 database was not repaired to 0600");
+        await reopened.InitializeAsync();
+        SqliteConnection.ClearAllPools();
+    }
+    finally
+    {
+        ProcessUmask.Set(previousMask);
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 sealed class InteractionFixture
 {
     public FakeShortcuts Shortcuts { get; } = new();
@@ -2617,6 +2744,9 @@ sealed class FakeTrayTarget
     public bool Active { get; private set; }
     public bool Importing { get; set; }
     public TaskCompletionSource? StartGate { get; init; }
+    public bool OnboardingOpen { get; set; }
+    public bool ThrowOnSelect { get; init; }
+    public static readonly Guid KnownMode = Guid.Parse("6f1c1f0e-2a8f-4d0b-9a65-3b0f2a1c7d11");
 
     public LinuxTrayActionHandler CreateHandler() => new(
         () => Active,
@@ -2632,7 +2762,15 @@ sealed class FakeTrayTarget
         () => Events.Add("mic-default"),
         () => Events.Add("mic-previous"),
         () => Events.Add("mic-next"),
-        () => Events.Add("mode"),
+        id =>
+        {
+            if (ThrowOnSelect) throw new InvalidOperationException("select");
+            if (id != KnownMode) return false;
+            Events.Add("mode:" + id);
+            return true;
+        },
+        () => OnboardingOpen,
+        () => Events.Add("modes"),
         () => Events.Add("history"),
         () => Events.Add("settings"),
         () => Events.Add("help"),
@@ -2784,5 +2922,72 @@ sealed class OnboardingLocalModels(params string[] installed) : ILocalModelReadi
     {
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(_installed.Contains(model.ModelId));
+    }
+}
+
+static class ProcessUmask
+{
+    [DllImport("libc", EntryPoint = "umask")]
+    private static extern uint NativeUmask(uint mask);
+
+    public static uint Set(uint mask) => NativeUmask(mask);
+}
+
+// #2282: a live stream whose provider closed the socket (1011) after one final had been pasted or copied
+// saved the error as the History row's Text, so the user's words were only on the clipboard. The row
+// goes through the real HistoryRepository and is read back from SQLite.
+static class LiveFailureHistoryTests
+{
+    public static async Task KeepsDeliveredText()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"hw-2282-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var paths = new StaticPaths(root);
+            var database = new ApplicationDb(paths);
+            await database.InitializeAsync();
+            var history = new HistoryRepository(database, paths);
+            const string failure = "The streaming provider closed the session unexpectedly.";
+
+            async Task<Transcript> SaveAsync(string? received)
+            {
+                var row = new Transcript
+                {
+                    Status = TranscriptStatus.Processing,
+                    Text = "Live transcription in progress",
+                    Date = DateTime.UtcNow,
+                    Mode = "Live",
+                };
+                await history.AddAsync(row);
+                LinuxInteractionRecordingSession.RecordLiveFailure(row, received, failure, 1.4);
+                _ = await history.UpdateAsync(row);
+                return await history.GetAsync(row.Id) ?? throw new InvalidOperationException("the live row was not saved");
+            }
+
+            var delivered = await SaveAsync("the quick brown fox");
+            Check(delivered.Status == TranscriptStatus.Failed, $"a failed stream saved as {delivered.Status}, not Failed");
+            Check(delivered.Text == "the quick brown fox" && delivered.TranscribedText == "the quick brown fox",
+                $"the delivered text was not kept in History: Text='{delivered.Text}', TranscribedText='{delivered.TranscribedText}'");
+            Check(delivered.FailedReason == failure, $"the failure reason was lost: '{delivered.FailedReason}'");
+            Check(Math.Abs(delivered.Duration - 1.4) < 0.001, $"duration was {delivered.Duration}");
+
+            foreach (var nothing in new[] { null, "", "  " })
+            {
+                var empty = await SaveAsync(nothing);
+                Check(empty.Status == TranscriptStatus.Failed && empty.Text == failure && empty.FailedReason == failure
+                        && string.IsNullOrEmpty(empty.TranscribedText),
+                    $"a stream that delivered nothing must still save the error as its text: Text='{empty.Text}'");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
+
+    private static void Check(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
     }
 }

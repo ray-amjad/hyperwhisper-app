@@ -138,7 +138,11 @@ Each platform applies the limits differently:
   `POST /modes` and `PATCH /modes/{id}`, an over-limit body gets **HTTP 400**
   with the code `INVALID_REQUEST` and the message `The request body is
   invalid.` Malformed JSON gets `The request body is invalid JSON.`, so you can
-  tell the two apart.
+  tell the two apart. A JSON body whose `Content-Type` is not
+  `application/json` gets **HTTP 400** with `INVALID_REQUEST` and the message
+  `The request body must be application/json.` A JSON body that names a
+  charset the server does not know gets `The request body's charset is not
+  supported.`
 
   Older Windows builds used neither value. Their web server kept its own
   default of 30,000,000 bytes (approximately 28.6 MiB), the refusal arrived as

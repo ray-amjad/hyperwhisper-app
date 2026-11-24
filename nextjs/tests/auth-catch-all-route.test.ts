@@ -8,7 +8,8 @@
  *
  * - both exported methods reach the real `auth` instance under `/api/auth`;
  * - the two sign-in methods the portal offers (magic link, license key) are
- *   mounted, and email + password is NOT;
+ *   mounted, and email + password is not a route (`tests/auth-enabled-paths.test.ts`
+ *   is the full allow-list);
  * - a magic-link POST from a foreign origin, or one that asks to be redirected
  *   off-site, is refused before any handler runs (Better Auth's CSRF check,
  *   which only works while `BETTER_AUTH_URL` names the real origin), and a
@@ -18,7 +19,7 @@
  *
  * Every case stops before a database query, so `@/src/db` is real but never
  * used (see `magic-link-send.test.ts` for why `drizzle()` tolerates that). The
- * one mocked module is `lib/clients/resend.ts`, the email edge. No case
+ * one mocked module is `lib/clients/email.ts`, the email edge. No case
  * reaches it. `src/env/server.mjs` is real, with its format check skipped
  * (this file sets only the one variable it needs, `BETTER_AUTH_URL`).
  */
@@ -27,17 +28,13 @@ import { before, test } from "node:test";
 
 import { moduleMock, moduleUrl } from "./module-mock";
 
-const resendCalls: unknown[] = [];
+const emailCalls: unknown[] = [];
 
-moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
+moduleMock.module(moduleUrl("../lib/clients/email.ts"), {
   namedExports: {
-    resend: {
-      emails: {
-        send: async (payload: unknown) => {
-          resendCalls.push(payload);
-          return { data: { id: "unused" }, error: null };
-        },
-      },
+    sendEmail: async (payload: unknown) => {
+      emailCalls.push(payload);
+      return { data: { id: "unused" }, error: null };
     },
     DEFAULT_FROM_EMAIL: "HyperWhisper <support@hyperwhisper.com>",
   },
@@ -86,10 +83,15 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 test("GET reaches Better Auth under /api/auth", async () => {
-  const response = await GET(new Request(`${BASE}/ok`));
+  // `/ok` is a built-in health route the app does not call, so the allow-list
+  // removes it. `/get-session` is the GET the portal actually makes.
+  const ok = await GET(new Request(`${BASE}/ok`));
+  assert.equal(ok.status, 404);
+
+  const response = await GET(new Request(`${BASE}/get-session`));
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await readJson(response), { ok: true });
+  assert.equal(await readJson(response), null);
 });
 
 test("GET /get-session with no session cookie answers null, not an error", async () => {
@@ -118,7 +120,7 @@ test("POST reaches the magic-link plugin and validates its body", async () => {
     message: "[body.email] Invalid email address",
     code: "VALIDATION_ERROR",
   });
-  assert.equal(resendCalls.length, 0, "a rejected body sends no email");
+  assert.equal(emailCalls.length, 0, "a rejected body sends no email");
 });
 
 test("POST reaches the license-key plugin and validates its body", async () => {
@@ -144,7 +146,7 @@ test("a magic-link POST from a foreign origin is refused before the handler runs
     message: "Invalid origin",
     code: "INVALID_ORIGIN",
   });
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
 test("a cross-site form POST cannot reach either sign-in endpoint", async () => {
@@ -174,7 +176,7 @@ test("a cross-site form POST cannot reach either sign-in endpoint", async () => 
       path,
     );
   }
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
 test("a magic link that would redirect off-site is refused", async () => {
@@ -190,21 +192,20 @@ test("a magic link that would redirect off-site is refused", async () => {
     message: "Invalid callbackURL",
     code: "INVALID_CALLBACK_URL",
   });
-  assert.equal(resendCalls.length, 0, "a refused request sends no email");
+  assert.equal(emailCalls.length, 0, "a refused request sends no email");
 });
 
-test("email + password sign-in and sign-up are not enabled", async () => {
+test("email + password sign-in and sign-up are not routes", async () => {
+  // These handlers used to answer 400 EMAIL_PASSWORD_DISABLED. They are
+  // unmounted now, so a caller learns nothing about the feature flag.
   const signIn = await POST(
     postJson("/sign-in/email", {
       email: "probe@example.com",
       password: "a-password-1",
     }),
   );
-  assert.equal(signIn.status, 400);
-  assert.equal(
-    ((await readJson(signIn)) as { code: string }).code,
-    "EMAIL_PASSWORD_DISABLED",
-  );
+  assert.equal(signIn.status, 404);
+  assert.equal(await signIn.text(), "Not Found");
 
   const signUp = await POST(
     postJson("/sign-up/email", {
@@ -213,11 +214,8 @@ test("email + password sign-in and sign-up are not enabled", async () => {
       name: "Probe",
     }),
   );
-  assert.equal(signUp.status, 400);
-  assert.equal(
-    ((await readJson(signUp)) as { code: string }).code,
-    "EMAIL_PASSWORD_SIGN_UP_DISABLED",
-  );
+  assert.equal(signUp.status, 404);
+  assert.equal(await signUp.text(), "Not Found");
 });
 
 test("a sign-in endpoint does not answer GET, and an unknown path is a 404", async () => {

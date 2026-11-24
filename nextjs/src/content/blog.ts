@@ -9,6 +9,9 @@ import {
   scrollableBodyTables,
 } from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import { bestDictationSoftwareForWindows } from "@/src/content/code-posts/best-dictation-software-for-windows";
+import { freeSpeechToTextApp } from "@/src/content/code-posts/free-speech-to-text-app";
+import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
 
 const BLOG_LOCALE = "en";
@@ -105,17 +108,22 @@ async function readAllPosts(): Promise<BlogPost[]> {
 /**
  * Posts written in the repo rather than published by Outrank, such as a
  * comparison page that has to cite its sources. They render, list and enter
- * the sitemap exactly like a stored post. A stored row with the same slug
- * wins, so Outrank can still replace one.
+ * the sitemap exactly like a stored post. A code post with the same slug
+ * replaces a stored row, so fact-checked copy in git is what the site serves.
  */
-const CODE_POSTS: BlogPost[] = [hyperwhisperVsSpokenly];
+const CODE_POSTS: BlogPost[] = [
+  bestDictationSoftwareForWindows,
+  freeSpeechToTextApp,
+  hyperwhisperVsSpokenly,
+  hyperwhisperVsHandyVsFluidvoice,
+];
 
 function withCodePosts(stored: BlogPost[]): BlogPost[] {
-  const slugs = new Set(stored.map((post) => post.slug));
+  const codeSlugs = new Set(CODE_POSTS.map((post) => post.slug));
 
   return [
-    ...stored,
-    ...CODE_POSTS.filter((post) => !slugs.has(post.slug)),
+    ...stored.filter((post) => !codeSlugs.has(post.slug)),
+    ...CODE_POSTS,
   ].sort(
     (a, b) => Date.parse(b.frontMatter.date) - Date.parse(a.frontMatter.date),
   );

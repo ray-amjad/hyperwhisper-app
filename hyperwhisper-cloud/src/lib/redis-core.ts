@@ -188,3 +188,43 @@ export async function cacheLicense(
     console.error('Failed to cache license:', toRedactedLogLine(error, { licenseKey }));
   }
 }
+
+/**
+ * Mark a key's cached verdict REFUSED, now, for the full TTL: the site rotated
+ * (replaced) the key, so it must stop admitting requests before the hour its
+ * last "valid" entry would otherwise live. Called by
+ * `POST /internal/license-cache/invalidate`, which only the site can call.
+ *
+ * Why write a refusal instead of deleting the entry: a licence API call ASKED
+ * before the rotation can still be in flight. On a delete its slow "valid"
+ * reply would land in an empty slot and admit the old key for another hour.
+ * Through `WRITE_LICENSE_SCRIPT`, stamped with now, this refusal is newer than
+ * any such reply, so the compare-and-set drops it (#1899's ordering rule).
+ *
+ * Unlike `cacheLicense`, this reports failure (`false`) instead of swallowing
+ * it, so the caller can answer non-2xx and the site can log that the cloud
+ * still holds the old verdict.
+ */
+export async function invalidateCachedLicense(
+  store: RedisStoreFactory,
+  licenseKey: string,
+  nowMs: number = Date.now(),
+): Promise<boolean> {
+  const entry: CachedLicense = {
+    isValid: false,
+    credits: 0,
+    cachedAt: new Date(nowMs).toISOString(),
+    issuedAtMs: nowMs,
+  };
+  try {
+    await store().eval(
+      WRITE_LICENSE_SCRIPT,
+      [`license:${licenseKey}`],
+      [JSON.stringify(entry), String(LICENSE_CACHE_TTL_SECONDS), String(nowMs)],
+    );
+    return true;
+  } catch (error) {
+    console.error('Failed to invalidate cached license:', toRedactedLogLine(error, { licenseKey }));
+    return false;
+  }
+}

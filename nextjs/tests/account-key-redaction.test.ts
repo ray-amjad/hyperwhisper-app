@@ -48,6 +48,65 @@ test("a key that is not the usual shape is still redacted as a parameter", () =>
   );
 });
 
+test("only a key parameter redacts any hw- value; others need the full key shape (#1910)", () => {
+  for (const [url, want] of [
+    [
+      "https://hyperwhisper.com/en?licenseKey=hw-abc",
+      "https://hyperwhisper.com/en?licenseKey=[redacted]",
+    ],
+    [
+      "https://hyperwhisper.com/en#LICENSE_KEY=Hw-Old1&x=1",
+      "https://hyperwhisper.com/en#LICENSE_KEY=[redacted]&x=1",
+    ],
+    [
+      `https://hyperwhisper.com/en?utm_campaign=hw-launch&ref=${KEY.toLowerCase()}`,
+      "https://hyperwhisper.com/en?utm_campaign=hw-launch&ref=[redacted]",
+    ],
+    [
+      "https://hyperwhisper.com/credits?id=HW-OLD1-X&utm_campaign=HW-launch",
+      "https://hyperwhisper.com/credits?id=HW-OLD1-X&utm_campaign=HW-launch",
+    ],
+  ]) {
+    assert.equal(redactAccountKeyFromUrl(url), want, url);
+  }
+});
+
+test("before_send keeps utm_campaign=hw-launch in the page URLs and still redacts the key (#1910)", () => {
+  const campaign = "https://hyperwhisper.com/en?utm_campaign=hw-launch#faq";
+  const keyed = `https://hyperwhisper.com/en?licenseKey=${KEY}&utm_campaign=hw-launch`;
+  const short = "https://hyperwhisper.com/en?licenseKey=hw-abc";
+  const event = {
+    event: "$pageview",
+    properties: {
+      $current_url: campaign,
+      $session_entry_url: keyed,
+      $referrer: short,
+      utm_campaign: "hw-launch",
+    },
+    $set: { $current_url: campaign },
+    $set_once: {
+      $initial_current_url: campaign,
+      $initial_utm_campaign: "hw-launch",
+    },
+  };
+
+  const sent = redactAccountKeyFromEvent(event);
+
+  assert.equal(sent.properties.$current_url, campaign);
+  assert.equal(
+    sent.properties.$session_entry_url,
+    "https://hyperwhisper.com/en?licenseKey=[redacted]&utm_campaign=hw-launch",
+  );
+  assert.equal(
+    sent.properties.$referrer,
+    "https://hyperwhisper.com/en?licenseKey=[redacted]",
+  );
+  assert.equal(sent.properties.utm_campaign, "hw-launch");
+  assert.equal(sent.$set.$current_url, campaign);
+  assert.equal(sent.$set_once.$initial_current_url, campaign);
+  assert.equal(sent.$set_once.$initial_utm_campaign, "hw-launch");
+});
+
 test("a key in a fragment, a path, or nested and encoded in returnTo is redacted", () => {
   for (const url of [
     `https://hyperwhisper.com/en/user/sign-in#licenseKey=${KEY}`,

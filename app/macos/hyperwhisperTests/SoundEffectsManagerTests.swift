@@ -64,15 +64,16 @@ private final class BlockingSoundPlayer: SoundEffectPlayer, @unchecked Sendable 
         if blocks {
             // Only the test's `release()` should end the block. A short cap let a
             // loaded CI runner time out the start sound before the test released
-            // it, so the stop sound played early (#1216).
-            _ = releaseSemaphore.wait(timeout: .now() + 60)
+            // it, so the stop sound played early (#1216). The cap sits above the
+            // tests' 120 s waits, so a stalled runner never ends a hold early (#2540).
+            _ = releaseSemaphore.wait(timeout: .now() + 300)
         }
         state.withLock { $0.finishedPlay = true }
         return true
     }
 
     /// True once `play()` has been entered, or false after `timeout` seconds.
-    func waitUntilBlocked(timeout: Double = 30) async -> Bool {
+    func waitUntilBlocked(timeout: Double = 120) async -> Bool {
         await waitOffThePool(for: entered, seconds: timeout)
     }
 
@@ -83,6 +84,7 @@ private final class BlockingSoundPlayer: SoundEffectPlayer, @unchecked Sendable 
 
 /// HYPERWHISPER-KY: the start and stop sounds must never load, prepare or play
 /// on the main thread, because every AVAudioPlayer call can wait on a busy HAL.
+@Suite(.timeLimit(.minutes(10)))
 @MainActor
 struct SoundEffectsManagerTests {
 
@@ -105,7 +107,7 @@ struct SoundEffectsManagerTests {
 
         manager.playStartSound(volume: 0.5)
 
-        // An inline play would have blocked here to its 60 s cap, and finished.
+        // An inline play would have blocked here to its 300 s cap, and finished.
         #expect(start.finishedPlay == false)
         #expect(await start.waitUntilBlocked())
         #expect(start.loadRanOnMainThread == false)

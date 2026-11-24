@@ -224,7 +224,7 @@ class LibWhisperProvider: TranscriptionProvider {
         do {
             logger.info("🎨 Creating WhisperContext for \(modelName)...")
             let coldLoadStart = Date()
-            let context = try await WhisperContext.createContext(path: modelPath)
+            let context = try await WhisperContext.createContext(path: modelPath, model: model.name)
             whisperContext = context
             currentModel = model
             isModelReady = true

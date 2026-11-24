@@ -234,6 +234,9 @@
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>זהו מצב ברירת המחדל, ולכן לא ניתן לשנות את שמו. אפשר לשנות את השם של כל מצב אחר.</value>
   </data>
+  <data name="mode.editor.field.name.taken" xml:space="preserve">
+    <value>כבר קיים מצב בשם הזה.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>
@@ -772,6 +775,9 @@
   <data name="status.model.noApiKey" xml:space="preserve">
     <value>{0} (אין מפתח API)</value>
   </data>
+  <data name="status.model.keyInvalid" xml:space="preserve">
+    <value>{0} (מפתח לא חוקי)</value>
+  </data>
   <data name="status.model.loadFailed" xml:space="preserve">
     <value>Load failed</value>
   </data>
@@ -942,15 +948,6 @@
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
     <value>Custom vocabulary is not supported with Parakeet models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
-  </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
     <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
@@ -2183,7 +2180,7 @@ You can re-download it later.</value>
     <value>בחר לפחות מקטע אחד לייבוא.</value>
   </data>
   <data name="settings.backup.import.premerge.message" xml:space="preserve">
-    <value>הוסף {0} מילים חדשות, {1} התנגשויות עם מילים קיימות. להמשיך?</value>
+    <value>מילים חדשות: {0}. התנגשויות עם מילים קיימות: {1}. להמשיך?</value>
   </data>
   <data name="settings.backup.import.premerge.title" xml:space="preserve">
     <value>ייבוא אוצר מילים?</value>
@@ -2205,6 +2202,21 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.summary.settings" xml:space="preserve">
     <value>ההגדרות שוחזרו.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeys" xml:space="preserve">
+    <value>מפתחות ה-API שוחזרו.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר מפתח API אחד או יותר.</value>
+  </data>
+  <data name="settings.backup.import.summary.apiKeysNone" xml:space="preserve">
+    <value>הגיבוי אינו מכיל מפתחות API.</value>
+  </data>
+  <data name="settings.backup.import.summary.settingsFailed" xml:space="preserve">
+    <value>לא ניתן היה לשחזר את ההגדרות.</value>
+  </data>
+  <data name="settings.backup.import.partial" xml:space="preserve">
+    <value>הגיבוי יובא עם בעיות. {0}</value>
   </data>
   <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
     <value>אם מילה כבר קיימת:</value>

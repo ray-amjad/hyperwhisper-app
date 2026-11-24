@@ -365,21 +365,13 @@ struct ModeEditorPageGuardTests {
             "modes.editor.discard.keepEditing",
             "modes.editor.discard.button",
         ]
-        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
-        let locales = try FileManager.default.contentsOfDirectory(
-            at: localizations,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "lproj" }
+        let locales = try ProductionSource.localeDirectories()
         #expect(locales.count == 40)
 
         for locale in locales {
-            let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
-                .components(separatedBy: .newlines)
+            let lines = try ProductionSource.localizableLines(of: locale)
             for key in keys {
-                let matches = lines.filter { $0.hasPrefix("\"\(key)\" = \"") }
-                #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one \(key)")
-                guard let line = matches.first else { continue }
-                #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent) \(key)")
+                guard let line = ProductionSource.onlyLine(forKey: key, in: lines, locale: locale) else { continue }
                 #expect(!line.contains("%"), "\(locale.lastPathComponent) \(key) takes no format argument")
             }
         }
