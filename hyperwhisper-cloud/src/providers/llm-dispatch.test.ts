@@ -49,12 +49,13 @@ describe('resolveLLMModel', () => {
     expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'mistral-small-latest' }))).toBe('mistral-small-latest');
   });
 
-  test('the retired gpt-5-mini and gpt-5-nano ids resolve to gpt-5.6-luna', () => {
+  test('the retired gpt-5-mini and gpt-5-nano ids resolve to the gpt-6-luna default', () => {
     // OpenAI removes both snapshots 2026-12-11 (#1018). Old clients still send
-    // them; they must route to luna, never to a dead model and never error.
-    expect(defaultModelFor('openai')).toBe('gpt-5.6-luna');
-    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-mini' }))).toBe('gpt-5.6-luna');
-    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-5.6-luna');
+    // them; they must route to the default, never to a dead model and never error.
+    expect(defaultModelFor('openai')).toBe('gpt-6-luna');
+    expect(resolveLLMModel('openai', requestWith({}))).toBe('gpt-6-luna');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-mini' }))).toBe('gpt-6-luna');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-6-luna');
   });
 
   test('the retired open-mistral-nemo id falls back to the mistral default', () => {
@@ -111,13 +112,17 @@ describe('cost functions', () => {
   // 1,000,000 prompt + 1,000,000 completion tokens → cost == (in$ + out$) per 1M.
   const oneM: GroqUsage = { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 };
 
-  test('openai bills every id at the one luna rate', () => {
+  test('openai bills gpt-5.6-luna at its own rate and every other id at the gpt-6-luna default', () => {
+    // A mode pinned to gpt-5.6-luna keeps its rate.
     expect(computeLLMChatCost('openai', 'gpt-5.6-luna', oneM)).toBeCloseTo(0.20 + 1.20, 6);
-    // Unknown model bills at the default (gpt-5.6-luna) rate, never $0 — and so
-    // do the retired gpt-5-mini / gpt-5-nano ids.
-    expect(computeLLMChatCost('openai', 'unknown', oneM)).toBeCloseTo(0.20 + 1.20, 6);
-    expect(computeLLMChatCost('openai', 'gpt-5-mini', oneM)).toBeCloseTo(0.20 + 1.20, 6);
-    expect(computeLLMChatCost('openai', 'gpt-5-nano', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    // Unknown model bills at the default (gpt-6-luna) row, never $0 — and so do
+    // the retired gpt-5-mini / gpt-5-nano ids. The default's rate is pending Ray,
+    // so it is read from the row, not restated.
+    const luna6 = computeLLMChatCost('openai', 'gpt-6-luna', oneM);
+    expect(luna6).toBeGreaterThan(0);
+    expect(computeLLMChatCost('openai', 'unknown', oneM)).toBe(luna6);
+    expect(computeLLMChatCost('openai', 'gpt-5-mini', oneM)).toBe(luna6);
+    expect(computeLLMChatCost('openai', 'gpt-5-nano', oneM)).toBe(luna6);
   });
 
   test('gpt-6-luna and groq gpt-oss-20b bill at their own rows', () => {
@@ -173,7 +178,7 @@ describe('servedLLMName', () => {
       groq: 'groq-gpt-oss-120b',
       anthropic: 'claude-haiku-5-5',
       grok: 'xai-grok-4.3',
-      openai: 'openai-gpt-5.6-luna',
+      openai: 'openai-gpt-6-luna',
       gemini: 'gemini-3.8-flash',
       mistral: 'mistral-small-latest',
     });

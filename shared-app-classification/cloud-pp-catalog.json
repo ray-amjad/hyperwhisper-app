@@ -32,7 +32,7 @@
           "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": true, "isRecommended": true,
           "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true },
         { "id": "openai/gpt-oss-20b", "displayName": "GPT-OSS 20B", "llmModelHeader": "openai/gpt-oss-20b",
-          "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": false, "isRecommended": false,
+          "pricePerMInput": 0.075, "pricePerMOutput": 0.30, "isDefault": false, "isRecommended": false,
           "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true }
       ],
       "sources": ["https://console.groq.com/docs/models"]
@@ -81,10 +81,10 @@
       "enabled": true,
       "enabledNote": "Set true once hyperwhisper-cloud PR #47 (hyperwhisper-fly) deploys with OPENAI_API_KEY set. Until then the app hides this engine so X-LLM-Provider: openai won't silently fall back to Cerebras (wrong model + wrong billing).",
       "models": [
-        { "id": "gpt-5.6-luna", "displayName": "GPT-5.6 Luna", "llmModelHeader": "gpt-5.6-luna",
-          "pricePerMInput": 0.20, "pricePerMOutput": 1.20, "isDefault": true, "isRecommended": true,
-          "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true },
         { "id": "gpt-6-luna", "displayName": "GPT-6 Luna", "llmModelHeader": "gpt-6-luna",
+          "pricePerMInput": 0.10, "pricePerMOutput": 0.50, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true },
+        { "id": "gpt-5.6-luna", "displayName": "GPT-5.6 Luna", "llmModelHeader": "gpt-5.6-luna",
           "pricePerMInput": 0.20, "pricePerMOutput": 1.20, "isDefault": false, "isRecommended": false,
           "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true }
       ],

@@ -76,9 +76,9 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
     rate: { promptPerToken: 0.15 / M, completionPerToken: 0.60 / M }, maxOutputTokens: 4096 },
   // Groq GPT-OSS-20B: same wire shape and same low default cap as the 120b row
   // above, so the same 4,096 ceiling. https://console.groq.com/docs/models
-  // Rate pending Ray (Ask #3771): bills at the 120b rate until approved.
+  // $0.075/$0.30 per 1M, read 2026-11-25. PROPOSED rate, pending Ray (Ask #3771).
   { provider: 'groq', model: 'openai/gpt-oss-20b', servedName: 'groq-gpt-oss-20b',
-    rate: { promptPerToken: 0.15 / M, completionPerToken: 0.60 / M }, maxOutputTokens: 4096 },
+    rate: { promptPerToken: 0.075 / M, completionPerToken: 0.30 / M }, maxOutputTokens: 4096 },
 
   // Anthropic Claude Haiku 5.5. Undated id on purpose: Anthropic's undated
   // aliases are the supported form, and a pinned snapshot is what left the
@@ -104,13 +104,16 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
   // gpt-5-nano lose their only snapshots 2026-12-11 and are no longer rows, so an
   // old client still sending either id resolves to luna and bills at its rate
   // (the open-mistral-nemo precedent).
-  { provider: 'openai', model: 'gpt-5.6-luna', servedName: 'openai-gpt-5.6-luna', isDefault: true,
+  { provider: 'openai', model: 'gpt-5.6-luna', servedName: 'openai-gpt-5.6-luna',
     rate: { promptPerToken: 0.20 / M, completionPerToken: 1.20 / M } },
   // OpenAI GPT-6 Luna (chat/completions; same reasoning_effort 'none' and no
   // temperature as luna 5.6). https://developers.openai.com/api/docs/models/gpt-6-luna
-  // Rate pending Ray (Ask #3771): bills at the gpt-5.6-luna rate until approved.
-  { provider: 'openai', model: 'gpt-6-luna', servedName: 'openai-gpt-6-luna',
-    rate: { promptPerToken: 0.20 / M, completionPerToken: 1.20 / M } },
+  // $0.10/$0.50 per 1M, read 2026-11-25. PROPOSED rate, pending Ray (Ask #3771).
+  // The OpenAI default: a missing or unknown X-LLM-Model (the retired gpt-5-mini /
+  // gpt-5-nano included) resolves here and bills at this row. gpt-5.6-luna stays
+  // a row, so a mode pinned to it keeps its model and rate.
+  { provider: 'openai', model: 'gpt-6-luna', servedName: 'openai-gpt-6-luna', isDefault: true,
+    rate: { promptPerToken: 0.10 / M, completionPerToken: 0.50 / M } },
 
   // Google Gemini (OpenAI-compatible endpoint). https://ai.google.dev/gemini-api/docs/pricing
   // Google limits gemini-2.5-* to past users, so a request with no (or an

@@ -1572,7 +1572,7 @@ mod tests {
     /// differ, and so do accuracy and speed, so a swapped pair fails.
     #[test]
     fn pp_model_mirrors_every_field_of_the_default_model() {
-        // gemini, not openai: gpt-5.6-luna has accuracy == speed (4, 4), so it
+        // gemini, not openai: gpt-6-luna has accuracy == speed (4, 4), so it
         // could not catch a swapped pair.
         let m = cloud_pp()
             .default_model("gemini")
@@ -1594,11 +1594,11 @@ mod tests {
             .default_model("openai")
             .map(PpModel::from)
             .expect("openai has a default model");
-        assert_eq!(luna.id, "gpt-5.6-luna");
-        assert_eq!(luna.display_name, "GPT-5.6 Luna");
-        assert_eq!(luna.llm_model_header.as_deref(), Some("gpt-5.6-luna"));
-        assert_eq!(luna.price_per_m_input, Some(0.20));
-        assert_eq!(luna.price_per_m_output, Some(1.2));
+        assert_eq!(luna.id, "gpt-6-luna");
+        assert_eq!(luna.display_name, "GPT-6 Luna");
+        assert_eq!(luna.llm_model_header.as_deref(), Some("gpt-6-luna"));
+        assert_eq!(luna.price_per_m_input, Some(0.10));
+        assert_eq!(luna.price_per_m_output, Some(0.5));
         assert_eq!(luna.is_default, Some(true));
         assert_eq!(luna.is_recommended, Some(true));
         assert_eq!(luna.accuracy, Some(4));
@@ -1654,7 +1654,7 @@ mod tests {
             .collect();
         assert_eq!(
             openai,
-            vec!["gpt-5.6-luna".to_string(), "gpt-6-luna".to_string()]
+            vec!["gpt-6-luna".to_string(), "gpt-5.6-luna".to_string()]
         );
     }
 }

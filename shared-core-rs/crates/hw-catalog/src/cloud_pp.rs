@@ -300,11 +300,11 @@ mod tests {
         // Specific lookup.
         let lite = c.model("gemini", "gemini-2.5-flash-lite").unwrap();
         assert_eq!(lite.price_per_m_input, Some(0.10));
-        // openai lists gpt-5.6-luna and gpt-6-luna; gpt-5-mini / gpt-5-nano lost
-        // their only snapshots 2026-12-11 (#1018) and are not rows.
+        // openai lists gpt-6-luna (default) and gpt-5.6-luna; gpt-5-mini /
+        // gpt-5-nano lost their only snapshots 2026-12-11 (#1018) and are not rows.
         assert_eq!(c.models("openai").len(), 2);
-        assert_eq!(c.default_model("openai").unwrap().id, "gpt-5.6-luna");
-        assert!(c.model("openai", "gpt-6-luna").is_some());
+        assert_eq!(c.default_model("openai").unwrap().id, "gpt-6-luna");
+        assert!(c.model("openai", "gpt-5.6-luna").is_some());
         assert!(c.model("openai", "gpt-5-nano").is_none());
         // groq lists gpt-oss-120b (default) and gpt-oss-20b.
         assert_eq!(c.models("groq").len(), 2);

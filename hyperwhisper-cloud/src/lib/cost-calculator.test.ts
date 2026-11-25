@@ -670,7 +670,7 @@ describe('LLM chat costs', () => {
     // Catalog or response-header drift must fail closed: a model id we do not
     // recognise bills at the provider default, not free.
     const tokens = usage(1_000_000, 1_000_000);
-    expect(computeLLMChatCost('openai', 'gpt-9-imaginary', tokens)).toBe(computeLLMChatCost('openai', 'gpt-5.6-luna', tokens));
+    expect(computeLLMChatCost('openai', 'gpt-9-imaginary', tokens)).toBe(computeLLMChatCost('openai', 'gpt-6-luna', tokens));
     expect(computeLLMChatCost('gemini', 'gemini-99-ultra', tokens)).toBe(computeLLMChatCost('gemini', 'gemini-3.8-flash', tokens));
     // The retired Nemo id is no longer allowlisted; old clients still sending
     // it resolve to the Mistral default rate.
