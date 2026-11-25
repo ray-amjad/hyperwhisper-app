@@ -12,6 +12,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
     ("Azure MAI file transcription accepts both models", AzureMaiAcceptsBothModels),
     ("ElevenLabs file transcription accepts Scribe v2 Medical", ElevenLabsAcceptsScribeV2Medical),
+    ("ElevenLabs and Mistral file transcription accept Scribe v3 and Voxtral Small Transcribe 3", AcceptsScribeV3AndVoxtralSmall3),
     ("a retired BYOK model id resolves through the alias table before the check", RetiredModelAliasesBeforeCheck),
     ("AssemblyAI Dictation accepts only short PCM16 WAV on BYOK and Cloud", AssemblyAiDictationFiles),
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
@@ -134,6 +135,26 @@ static async Task ElevenLabsAcceptsScribeV2Medical()
     Assert(result.IsSuccess && result.ResolvedModel == "scribe_v2_medical"
         && result.Constraints?.MaximumBytes == 3L * ByteSizes.GiB,
         "ElevenLabs file transcription rejected scribe_v2_medical");
+}
+
+// Scribe v3 (#3049) and Voxtral Small Transcribe 3 are BYOK batch rows on the same
+// endpoints and caps as their siblings, so a file import must not fail them as
+// model_unsupported.
+static async Task AcceptsScribeV3AndVoxtralSmall3()
+{
+    var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(1)) };
+    var scribe = await Service(metadata).ValidateAsync(
+        "recording.wav",
+        new(FileTranscriptionRoute.Cloud, "scribe_v3", CloudProvider: CloudTranscriptionProvider.ElevenLabs));
+    Assert(scribe.IsSuccess && scribe.ResolvedModel == "scribe_v3"
+        && scribe.Constraints?.MaximumBytes == 3L * ByteSizes.GiB,
+        "ElevenLabs file transcription rejected scribe_v3");
+    var voxtral = await Service(metadata).ValidateAsync(
+        "recording.wav",
+        new(FileTranscriptionRoute.Cloud, "voxtral-small-transcribe-3", CloudProvider: CloudTranscriptionProvider.Mistral));
+    Assert(voxtral.IsSuccess && voxtral.ResolvedModel == "voxtral-small-transcribe-3"
+        && voxtral.Constraints?.MaximumBytes == 100L * ByteSizes.MiB,
+        "Mistral file transcription rejected voxtral-small-transcribe-3");
 }
 
 // A Linux mode saved before the 2026-10 retirement carries cloudProvider=gemini and

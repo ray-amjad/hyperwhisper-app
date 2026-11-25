@@ -255,6 +255,16 @@ extension CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: 0.003 / 60.0  // $0.003 per minute
         ),
+        // Voxtral Small Transcribe 3 (2026-11): BYOK only (no HyperWhisper Cloud
+        // row yet), same endpoint and request shape as Voxtral Mini. Not the
+        // default — voxtral-mini-latest stays isPopular.
+        CloudTranscriptionModel(
+            id: "voxtral-small-transcribe-3",
+            isAvailable: true,
+            description: "Mistral's larger Voxtral 3 transcription model, 53 languages. Supports custom vocabulary with context bias.",
+            provider: .mistral,
+            pricePerSecond: nil
+        ),
         ]
     }
 

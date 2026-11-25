@@ -5,7 +5,7 @@
 //
 // REQUEST FORMAT: multipart/form-data
 // - file: Audio file
-// - model: Model ID (voxtral-mini-latest)
+// - model: Model ID (voxtral-mini-latest, voxtral-small-transcribe-3)
 // - language: ISO 639-1 language code (optional)
 //
 // RESPONSE FORMAT: { "text": "transcribed text" }
