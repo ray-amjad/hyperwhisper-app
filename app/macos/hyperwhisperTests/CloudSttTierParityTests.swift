@@ -122,6 +122,8 @@ struct CloudSttTierParityTests {
             ("gemini-2.0-flash", .gemini, "gemini-3.8-flash"),
             // Google auto-routes 2.5 Pro to 3.8 Flash from 2026-12-01 (#3009).
             ("gemini-2.5-pro", .gemini, "gemini-3.8-flash"),
+            // 2.5 Flash follows it to 3.8 Flash at its existing price (#3009).
+            ("gemini-2.5-flash", .gemini, "gemini-3.8-flash"),
             // xAI ended 1.0 on 2026-10-02 (#1908).
             ("grok-voice-transcribe-1.0", .grok, "grok-voice-transcribe-2.0"),
         ]
@@ -135,11 +137,12 @@ struct CloudSttTierParityTests {
         #expect(
             CloudTranscriptionModels.resolveModelAlias("grok-voice-transcribe-1.0", provider: nil)
                 == "grok-voice-transcribe-2.0")
-        // ...and the retired Gemini 2.5 Pro / Soniox v5 ids (#3009, #3030).
+        // ...and the retired Gemini 2.5 Pro / 2.5 Flash / Soniox v5 ids (#3009, #3030).
         #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-pro", provider: nil) == "gemini-3.8-flash")
+        #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-flash", provider: nil) == "gemini-3.8-flash")
         #expect(CloudTranscriptionModels.resolveModelAlias("stt-async-v5", provider: nil) == "stt-async-v6")
-        // 2.5 Flash's STT target is still pending (#3009): no alias yet.
-        #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-flash", provider: .gemini) == "gemini-2.5-flash")
+        // 2.5 Flash Lite is NOT retired: it keeps its own id.
+        #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-flash-lite", provider: .gemini) == "gemini-2.5-flash-lite")
         #expect(CloudTranscriptionModels.defaultModel(for: .soniox) == "stt-async-v6")
         #expect(
             CloudTranscriptionModels.availableModels.allSatisfy { $0.id != "grok-voice-transcribe-1.0" },
@@ -149,7 +152,7 @@ struct CloudSttTierParityTests {
         // and swapped, so pin each target to the catalog entry's models.
         let sold = Set(CloudSTTCatalog.shared.models(forEntryId: "gemini").map(\.id))
         #expect(!sold.isEmpty)
-        for oldId in ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash", "gemini-3-flash-preview", "gemini-2.5-pro"] {
+        for oldId in ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash", "gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash"] {
             let target = CloudTranscriptionModels.resolveModelAlias(oldId, provider: .gemini)
             #expect(sold.contains(target), "\(oldId) resolves to \(target), which the gemini catalog entry does not sell")
         }
@@ -470,7 +473,7 @@ struct CloudSttTierParityTests {
         let retired = Set([
             "universal-3-pro", "universal-3-pro-medical",
             "stt-async-v4", "stt-async-v5", "gemini-3.1-flash-lite-preview",
-            "gemini-2.5-pro",
+            "gemini-2.5-pro", "gemini-2.5-flash",
         ])
         #expect(CloudTranscriptionModels.availableModels.allSatisfy { !retired.contains($0.id) })
     }

@@ -293,7 +293,6 @@ final class ModelLibraryManager: ObservableObject {
         "stt-async-v6":                      (2, 5),
         // Gemini
         "gemini-3.8-flash":                  (2, 4),
-        "gemini-2.5-flash":                  (2, 4),
         "gemini-2.5-flash-lite":             (3, 3),
         // gemini-2.5-pro voice row removed (#3009); it resolves to gemini-3.8-flash.
         "gemini-3.1-flash-lite":             (3, 4),

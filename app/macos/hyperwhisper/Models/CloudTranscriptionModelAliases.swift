@@ -54,7 +54,10 @@ extension CloudTranscriptionModels {
         // from 2026-12-01 (#3009); the 2.5 Pro voice row left the picker.
         // PARITY: hw-catalog GEMINI_ALIASES.
         "gemini-2.5-pro": "gemini-3.8-flash",
-        // PENDING #3009: gemini-2.5-flash STT target not chosen; add its alias here when decided.
+        // 2.5 Flash goes the same way (#3009): saved ids move to 3.8 Flash at its
+        // existing price; the 2.5 Flash voice row left the picker.
+        // PARITY: hw-catalog GEMINI_ALIASES.
+        "gemini-2.5-flash": "gemini-3.8-flash",
     ]
 
     static func resolveGeminiModelAlias(_ id: String) -> String {

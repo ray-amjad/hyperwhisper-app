@@ -294,19 +294,12 @@ extension CloudTranscriptionModels {
         // Google Gemini Models
         // gemini-3.8-flash is the catalog default since #1019: Google limits the
         // 2.5 models to accounts that used them before 2026-09-18, so a fresh key
-        // may not reach 2.5 Flash. 2.5 Pro was retired (#3009, aliased to 3.8 Flash); 2.5 Flash and Flash Lite stay for now.
+        // may not reach the 2.5 models. 2.5 Pro and 2.5 Flash were retired (#3009,
+        // both aliased to 3.8 Flash); only 2.5 Flash Lite stays.
         CloudTranscriptionModel(
             id: "gemini-3.8-flash",
             isAvailable: true,
             description: "Google's current Flash model and the default for new keys. Supports custom vocabulary via prompting.",
-            provider: .gemini,
-            isPopular: true,
-            pricePerSecond: nil  // Token-based pricing, not per-second
-        ),
-        CloudTranscriptionModel(
-            id: "gemini-2.5-flash",
-            isAvailable: true,
-            description: "Fast and affordable multimodal transcription. Supports custom vocabulary via prompting.",
             provider: .gemini,
             isPopular: true,
             pricePerSecond: nil  // Token-based pricing, not per-second

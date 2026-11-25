@@ -213,6 +213,21 @@ struct ModeSeedConformanceVectorTests {
         }
     }
 
+    /// #3009: `gemini-2.5-flash` left the Cloud post-processing catalog. A mode
+    /// that saved it must keep the Gemini engine and land on that engine's
+    /// default (3.8 Flash) through the "known engine, unknown model" arm, not
+    /// fall through to the Grok fallback.
+    @Test("a retired Cloud post-processing Gemini model resolves to the Gemini default")
+    func retiredCloudGeminiPostProcessingModelResolves() {
+        #expect(CloudPPCatalog.shared.model(forProviderId: "gemini", modelId: "gemini-2.5-flash") == nil)
+        let model = CloudPostProcessingModel.fromStorageValue("gemini:gemini-2.5-flash")
+        #expect(model.engineId == "gemini")
+        #expect(model.modelId == "gemini-3.8-flash")
+        #expect(model != CloudPostProcessingModel.fallback, "fell through to the Grok fallback")
+        // 2.5 Flash Lite is still sold and keeps its own id.
+        #expect(CloudPostProcessingModel.fromStorageValue("gemini:gemini-2.5-flash-lite").modelId == "gemini-2.5-flash-lite")
+    }
+
     // MARK: - The compile-time link in the chain
 
     /// ⚠️ Constructs `ModeSeed` with its FULL memberwise initialiser on purpose.

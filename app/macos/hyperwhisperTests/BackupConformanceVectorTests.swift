@@ -208,7 +208,10 @@ struct BackupConformanceVectorTests {
         // auto-routes `gemini-2.5-pro` from 2026-12-01 (#3009). One row each covers
         // the provider-scoped alias, and one more the chain arm for a backup that
         // carries `gemini-2.5-pro` with no provider. No row was removed.
-        #expect(rows.count == 139, "the frozen modeNormalization row count changed")
+        //
+        // 139 → 141: `gemini-2.5-flash` follows 2.5 Pro to `gemini-3.8-flash`
+        // (#3009): one provider-scoped row and one no-provider chain row.
+        #expect(rows.count == 141, "the frozen modeNormalization row count changed")
 
         for row in rows {
             let label = Self.name(row)
