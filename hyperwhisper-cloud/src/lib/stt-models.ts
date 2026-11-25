@@ -409,14 +409,25 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // it is served the catalog default at the same 3.0 credits/min, never a 400.
     // The native aliases (hw-catalog GEMINI_ALIASES, macOS, Windows, shared-dotnet)
     // target the same id, so the Cloud and BYOK routes cannot diverge.
-    aliases: { 'gemini-3-flash-preview': 'gemini-3.8-flash' },
+    //
+    // Google deprecated gemini-2.5-pro on 2026-11-02 and auto-routes it to 3.8
+    // Flash from 2026-12-01, billed at 3.8 Flash's rates (#3009). Its row is gone,
+    // so a client still sending it is served AND billed as 3.8 Flash (reserved
+    // 0.0030/min, below 2.5 Pro's 0.0075), never a 400. PARITY: hw-catalog
+    // GEMINI_ALIASES, macOS legacyGeminiAliases.
+    // PENDING #3009: the gemini-2.5-flash STT target is not chosen yet; when it
+    // is, add its one entry here and drop the 2.5-flash row below.
+    aliases: {
+      'gemini-3-flash-preview': 'gemini-3.8-flash',
+      'gemini-2.5-pro': 'gemini-3.8-flash',
+    },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
     //
     // Audio bills at 32 tokens/sec; cost is read from usageMetadata. Input is
     // multi-modal: TEXT (the instruction+vocab prompt) and AUDIO bill at
     // DIFFERENT per-token rates on Flash models, so both are authored. Pro models
-    // (2.5-pro, 3.1-pro) bill every input modality at one rate but switch to a
+    // (3.1-pro) bill every input modality at one rate but switch to a
     // higher long-context tier above 200k prompt tokens. The prices the
     // /post-process LLM rows bill too come from gemini-prices.ts. Rates:
     // Standard paid tier, per-1M ÷ 1e6. Ref: https://ai.google.dev/gemini-api/docs/pricing
@@ -450,16 +461,6 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
         id: 'gemini-2.5-flash-lite', supportsVocabulary: false,
         billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_LITE_PRICE },
         reserveUsdPerMinute: 0.0008, thinking: { thinkingBudget: 0 },
-      },
-      {
-        id: 'gemini-2.5-pro', supportsVocabulary: false,
-        billing: {
-          kind: 'tokens',
-          textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
-          longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
-        },
-        // 0 is invalid on Pro.
-        reserveUsdPerMinute: 0.0075, thinking: { thinkingBudget: 128 },
       },
       {
         id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false,
@@ -564,11 +565,15 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
   soniox: {
     id: 'soniox',
-    // v4 is retained only as a compatibility alias for older callers.
-    defaultModel: 'stt-async-v5',
+    // Soniox removes stt-async-v5 on 2026-12-15 and routes it to v6, "fully
+    // compatible" (#3030). v4 and v5 are compatibility aliases for older callers,
+    // both one hop to v6. v6 keeps v5's rate below (Ray, #3030: Soniox publishes
+    // no separate v6 price; flag it if one appears). PARITY: hw-catalog
+    // SONIOX_ALIASES.
+    defaultModel: 'stt-async-v6',
     fallbackChain: ['soniox'],
     async: true,
-    aliases: { 'stt-async-v4': 'stt-async-v5' },
+    aliases: { 'stt-async-v4': 'stt-async-v6', 'stt-async-v5': 'stt-async-v6' },
     models: [
       // Token-billed upstream, but the ≈ $0.10/hr async equivalence covers
       // input-AUDIO + OUTPUT-text tokens for typical speech, so it bills as a
@@ -576,7 +581,7 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       // `computeSonioxTranscriptionCost`). Ref: https://soniox.com/pricing.
       // Reserves at the per-minute rate rounded up.
       {
-        id: 'stt-async-v5',
+        id: 'stt-async-v6',
         supportsVocabulary: true,
         billing: { kind: 'perMinute', usdPerMinute: 0.10 / 60 },
         reserveUsdPerMinute: 0.00167,

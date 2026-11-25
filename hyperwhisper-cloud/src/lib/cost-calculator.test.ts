@@ -156,17 +156,18 @@ describe('new STT provider cost functions', () => {
   });
 
   test('Gemini Pro applies the >200k long-context tier (input + output rates rise)', () => {
-    // 2.5-pro: <=200k input $1.25/1M, output $10/1M; >200k input $2.50/1M, output $15/1M.
+    // 3.1-pro-preview: <=200k input $2.00/1M, output $12/1M; >200k input $4.00/1M, output $18/1M.
+    // (2.5 Pro was the case here until its row was retired, #3009.)
     // Prompt = audio + text; cross the 200k boundary and the whole bill switches tier.
-    const under = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const under = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 100_000, textInputTokens: 0, outputTokens: 1000,
     });
-    expect(under).toBeCloseTo(100_000 * (1.25 / 1e6) + 1000 * (10 / 1e6), 8);
+    expect(under).toBeCloseTo(100_000 * (2.00 / 1e6) + 1000 * (12 / 1e6), 8);
 
-    const over = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const over = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 250_000, textInputTokens: 0, outputTokens: 1000,
     });
-    expect(over).toBeCloseTo(250_000 * (2.50 / 1e6) + 1000 * (15 / 1e6), 8);
+    expect(over).toBeCloseTo(250_000 * (4.00 / 1e6) + 1000 * (18 / 1e6), 8);
     // Per-token cost is strictly higher above the threshold.
     expect(over / 251_000).toBeGreaterThan(under / 101_000);
   });
@@ -204,10 +205,10 @@ describe('new STT provider cost functions', () => {
     // The adapter sums candidatesTokenCount + thoughtsTokenCount into
     // outputTokens, so the cost fn must charge for output. With output tokens
     // present the bill is strictly higher than audio-input alone.
-    const withOutput = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const withOutput = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 1920, outputTokens: 1000,
     });
-    const withoutOutput = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const withoutOutput = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 1920, outputTokens: 0,
     });
     expect(withOutput).toBeGreaterThan(withoutOutput);

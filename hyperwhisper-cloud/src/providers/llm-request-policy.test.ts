@@ -33,6 +33,15 @@ describe('hosted LLM output-limit policy', () => {
     expect(Object.keys(body)).toEqual(['model', 'reasoning_effort', 'messages', 'temperature', 'stream']);
   });
 
+  test('Gemini 3.x gets no temperature and a thinking level; 2.5 keeps temperature 0 (#3009)', () => {
+    // Gemini API changelog 2026-11-02: sampling params removed on 3.x.
+    const v38 = buildOpenAICompatBody('gemini', buildCorrectionRequest('system', 'transcript'), 'gemini-3.8-flash');
+    expect('temperature' in v38).toBe(false);
+    expect(v38.reasoning_effort).toBe('low');
+    const v25 = buildOpenAICompatBody('gemini', buildCorrectionRequest('system', 'transcript'), 'gemini-2.5-flash-lite');
+    expect(v25.temperature).toBe(0);
+  });
+
   test('keeps the Groq cap under the free-tier TPM ceiling', () => {
     expect(GROQ_MAX_COMPLETION_TOKENS).toBe(4096);
     expect(GROQ_MAX_COMPLETION_TOKENS).toBeLessThan(8000);

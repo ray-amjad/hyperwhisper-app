@@ -166,9 +166,9 @@ describe('transcribeWithSoniox — create request shape', () => {
     return calls.find((c) => c.url === CREATE_URL)!.body as Record<string, any>;
   }
 
-  test('defaults to stt-async-v5 and always requests language identification', async () => {
+  test('defaults to stt-async-v6 and always requests language identification', async () => {
     const body = await createBodyFor(SMALL_AUDIO, 'audio/wav');
-    expect(body).toMatchObject({ file_id: 'file-xyz', model: 'stt-async-v5', enable_language_identification: true });
+    expect(body).toMatchObject({ file_id: 'file-xyz', model: 'stt-async-v6', enable_language_identification: true });
   });
 
   test('a BCP-47 language is stripped to its bare ISO subtag so the hint actually biases detection', async () => {

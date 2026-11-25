@@ -36,7 +36,7 @@ function audio(bytes = 8): ArrayBuffer {
 
 interface GeminiBody {
   contents: Array<{ role: string; parts: Array<Record<string, any>> }>;
-  generationConfig: { temperature: number; thinkingConfig: Record<string, unknown> };
+  generationConfig: { temperature?: number; thinkingConfig: Record<string, unknown> };
 }
 
 interface Captured {
@@ -154,8 +154,26 @@ describe('transcribeWithGemini — request shape', () => {
     );
     expect(inlineDataOf(captured).mime_type).toBe('audio/mp3');
     expect(inlineDataOf(captured).data).toBe(Buffer.from(new Uint8Array(6).fill(0x41)).toString('base64'));
-    expect(captured.body!.generationConfig.temperature).toBe(0);
+    // The default is 3.8 Flash: Gemini 3.x removed sampling params (#3009).
+    expect('temperature' in captured.body!.generationConfig).toBe(false);
     expect(captured.body!.contents[0].role).toBe('user');
+  });
+
+  test('sends temperature only to the 2.5 rows; 3.x models get thinking only (#3009)', async () => {
+    const cases: Array<[string, boolean]> = [
+      ['gemini-2.5-flash', true],
+      ['gemini-2.5-flash-lite', true],
+      ['gemini-3.8-flash', false],
+      ['gemini-3.1-pro-preview', false],
+    ];
+    for (const [model, sendsTemperature] of cases) {
+      const captured = captureRequest(generateContentResponse('hello'));
+      await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model });
+      const config = captured.body!.generationConfig;
+      expect('temperature' in config, model).toBe(sendsTemperature);
+      if (sendsTemperature) expect(config.temperature, model).toBe(0);
+      expect(Object.keys(config.thinkingConfig), model).toHaveLength(1);
+    }
   });
 
   test('URL-encodes the caller-selected model instead of splicing it in raw', async () => {
@@ -171,8 +189,6 @@ describe('transcribeWithGemini — request shape', () => {
     const cases: Array<[string, Record<string, unknown>]> = [
       ['gemini-2.5-flash', { thinkingBudget: 0 }],
       ['gemini-2.5-flash-lite', { thinkingBudget: 0 }],
-      // 0 is rejected by 2.5 Pro, so the floor there is 128.
-      ['gemini-2.5-pro', { thinkingBudget: 128 }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
       // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
       ['gemini-3.8-flash', { thinkingLevel: 'low' }],
@@ -180,6 +196,8 @@ describe('transcribeWithGemini — request shape', () => {
       // unknown ids first) gets the default model's config — no longer a
       // thinkingBudget 0 guess, which Pro models reject.
       ['gemini-3-flash-preview', { thinkingLevel: 'low' }],
+      // 2.5 Pro's row is gone (#3009); the route serves it as 3.8 Flash.
+      ['gemini-2.5-pro', { thinkingLevel: 'low' }],
       ['some-future-model', { thinkingLevel: 'low' }],
     ];
 

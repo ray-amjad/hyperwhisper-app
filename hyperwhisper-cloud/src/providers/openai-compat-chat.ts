@@ -28,7 +28,7 @@ type OpenAICompatAdapter = {
   /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
   extraBodyFirst?: boolean;
   /** Leave the shared payload's `temperature` out of the body (the model accepts only its default). */
-  omitTemperature?: boolean;
+  omitTemperature?: boolean | ((model: string) => boolean);
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
@@ -103,6 +103,10 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
       const effort = GEMINI_REASONING_EFFORT_BY_PREFIX.find(([prefix]) => model.startsWith(prefix))?.[1];
       return effort ? { reasoning_effort: effort } : {};
     },
+    // Gemini 3.x removed the sampling parameters (Gemini API changelog
+    // 2026-11-02, #3009), so only the 2.5 rows still get `temperature: 0`.
+    // Matches generationConfig() in providers/gemini.ts.
+    omitTemperature: (model) => !model.startsWith('gemini-2.5-'),
   },
   // Mistral's chat/completions accepts the shared chat payload unchanged.
   // Verified 2026-06-19.
@@ -122,7 +126,10 @@ export function buildOpenAICompatBody(
 ): Record<string, unknown> {
   const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const { temperature, ...withoutTemperature } = payload;
-  const shared = adapter.omitTemperature ? withoutTemperature : payload;
+  const omit = typeof adapter.omitTemperature === 'function'
+    ? adapter.omitTemperature(model)
+    : adapter.omitTemperature === true;
+  const shared = omit ? withoutTemperature : payload;
   const { maxOutputTokens } = llmModelRow(provider, model);
   const cap = maxOutputTokens === undefined ? {} : { max_completion_tokens: maxOutputTokens };
   const extra = adapter.extraBody?.(model);
