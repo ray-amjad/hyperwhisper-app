@@ -1652,7 +1652,10 @@ mod tests {
             .into_iter()
             .map(|m| m.id)
             .collect();
-        assert_eq!(openai, vec!["gpt-5.6-luna".to_string()]);
+        assert_eq!(
+            openai,
+            vec!["gpt-5.6-luna".to_string(), "gpt-6-luna".to_string()]
+        );
     }
 }
 

@@ -2640,6 +2640,16 @@
     },
     {
       "provider": "groq",
+      "id": "openai/gpt-oss-20b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
@@ -2957,7 +2967,7 @@
       "id": "gpt-6-luna",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
