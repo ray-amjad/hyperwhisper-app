@@ -333,6 +333,30 @@ enum STTCapabilities {
                             "auto", "en", "es", "de", "fr"
                         ]),
                         notes: "Universal-3.5 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
+                    ),
+                    // STT-3.7 (released 2026-11-18, #3106), BYOK only. 32 languages per
+                    // docs.assemblyai.com/docs/pre-recorded-audio/supported-languages;
+                    // must match shared-models/models-catalog.json (CatalogLanguageParityTests).
+                    // `xh` and `zu` are unknown to the shared language table, so they are
+                    // named here the way the `dictation` row names them.
+                    STTModelSpec(
+                        id: "assemblyai-stt-3-7",
+                        languages: STTLanguageTemplates.codes([
+                            "auto",
+                            "af", "ar", "ca", "da", "de", "en", "es", "et", "fa", "fi",
+                            "fr", "gl", "he", "hi", "it", "ja", "ko", "mr", "nl", "nn",
+                            "no", "pt", "ro", "ru", "sv", "tr", "ur", "vi", "yue", "zh"
+                        ]) + ["xh", "zu"].map { code in
+                            STTLanguageSpec(code: code, displayName: LanguageData.info(for: code)?.displayName ?? ["xh": "Xhosa", "zu": "Zulu"][code] ?? code)
+                        },
+                        notes: "AssemblyAI's newest flagship model. Natively supports 32 languages. Keyterms prompting up to 1000 terms."
+                    ),
+                    STTModelSpec(
+                        id: "assemblyai-stt-3-7-medical",
+                        languages: STTLanguageTemplates.codes([
+                            "auto", "en", "es", "de", "fr"
+                        ]),
+                        notes: "STT-3.7 with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
                     )
                 ]
             ),
@@ -400,7 +424,7 @@ enum STTCapabilities {
                 lastVerifiedAt: "2026-03-21",
                 models: [
                     STTModelSpec(
-                        id: "stt-async-v5",
+                        id: "stt-async-v6",
                         languages: STTLanguageTemplates.sonioxAsync,
                         notes: "Soniox async batch transcription model with optional language hints and plain-text transcript output."
                     )

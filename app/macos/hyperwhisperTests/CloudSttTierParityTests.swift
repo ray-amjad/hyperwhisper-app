@@ -115,9 +115,13 @@ struct CloudSttTierParityTests {
             ("slam-1", .assemblyAI, "universal-3-5-pro"),
             ("universal-3-pro", .assemblyAI, "universal-3-5-pro"),
             ("universal-3-pro-medical", .assemblyAI, "universal-3-5-pro-medical"),
-            ("stt-async-v4", .soniox, "stt-async-v5"),
+            // Soniox removes v5 on 2026-12-15 (#3030): v4 and v5 both land on v6 in one hop.
+            ("stt-async-v4", .soniox, "stt-async-v6"),
+            ("stt-async-v5", .soniox, "stt-async-v6"),
             ("gemini-3.1-flash-lite-preview", .gemini, "gemini-2.5-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.8-flash"),
+            // Google auto-routes 2.5 Pro to 3.8 Flash from 2026-12-01 (#3009).
+            ("gemini-2.5-pro", .gemini, "gemini-3.8-flash"),
             // xAI ended 1.0 on 2026-10-02 (#1908).
             ("grok-voice-transcribe-1.0", .grok, "grok-voice-transcribe-2.0"),
         ]
@@ -131,6 +135,12 @@ struct CloudSttTierParityTests {
         #expect(
             CloudTranscriptionModels.resolveModelAlias("grok-voice-transcribe-1.0", provider: nil)
                 == "grok-voice-transcribe-2.0")
+        // ...and the retired Gemini 2.5 Pro / Soniox v5 ids (#3009, #3030).
+        #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-pro", provider: nil) == "gemini-3.8-flash")
+        #expect(CloudTranscriptionModels.resolveModelAlias("stt-async-v5", provider: nil) == "stt-async-v6")
+        // 2.5 Flash's STT target is still pending (#3009): no alias yet.
+        #expect(CloudTranscriptionModels.resolveModelAlias("gemini-2.5-flash", provider: .gemini) == "gemini-2.5-flash")
+        #expect(CloudTranscriptionModels.defaultModel(for: .soniox) == "stt-async-v6")
         #expect(
             CloudTranscriptionModels.availableModels.allSatisfy { $0.id != "grok-voice-transcribe-1.0" },
             "the retired Grok 1.0 row must not be selectable")
@@ -139,9 +149,57 @@ struct CloudSttTierParityTests {
         // and swapped, so pin each target to the catalog entry's models.
         let sold = Set(CloudSTTCatalog.shared.models(forEntryId: "gemini").map(\.id))
         #expect(!sold.isEmpty)
-        for oldId in ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash", "gemini-3-flash-preview"] {
+        for oldId in ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash", "gemini-3-flash-preview", "gemini-2.5-pro"] {
             let target = CloudTranscriptionModels.resolveModelAlias(oldId, provider: .gemini)
             #expect(sold.contains(target), "\(oldId) resolves to \(target), which the gemini catalog entry does not sell")
+        }
+    }
+
+    /// AssemblyAI STT-3.7 (#3106) is BYOK only: a selectable direct-AssemblyAI
+    /// row with its own language sets, absent from the HyperWhisper Cloud tier
+    /// until Cloud prices it. Its `-medical` variant splits to the base speech
+    /// model + `domain: medical-v1`, and the core keeps the 1,000-term keyterm
+    /// cap for it (a cap keyed on universal-3-5-pro alone cut it to 200).
+    @Test("AssemblyAI STT-3.7 is a BYOK row with the 1,000-term keyterm cap")
+    func assemblyAISTT37IsByokOnly() throws {
+        for id in ["assemblyai-stt-3-7", "assemblyai-stt-3-7-medical"] {
+            #expect(CloudTranscriptionModels.model(withId: id, provider: .assemblyAI) != nil, "\(id) must be selectable on BYOK")
+            #expect(!STTCapabilities.languages(providerId: "assemblyai", modelId: id).isEmpty, "\(id) needs a per-model language set")
+            #expect(
+                !CloudSTTCatalog.shared.models(forEntryId: "assemblyAI").contains { $0.id == id },
+                "\(id) must not be sold on the HyperWhisper Cloud tier yet")
+            // Not a retired id: it passes through the alias dispatcher untouched.
+            #expect(CloudTranscriptionModels.resolveModelAlias(id, provider: .assemblyAI) == id)
+        }
+        #expect(CloudTranscriptionModels.defaultModel(for: .assemblyAI) == "universal-3-5-pro")
+        #expect(STTCapabilities.languages(providerId: "assemblyai", modelId: "assemblyai-stt-3-7").contains { $0.code == "zu" })
+
+        let medical = CloudTranscriptionModels.assemblyAIRequestParams(for: "assemblyai-stt-3-7-medical")
+        #expect(medical.speechModel == "assemblyai-stt-3-7")
+        #expect(medical.medical)
+
+        let terms = (0..<1001).map { "t\($0)" }
+        for (model, cap) in [
+            ("assemblyai-stt-3-7", 1000), ("assemblyai-stt-3-7-medical", 1000),
+            ("universal-3-5-pro", 1000), ("universal-2", 200),
+        ] {
+            let params = RustCoreMapping.transcribeParams(
+                audioPath: "/tmp/rec.m4a", audioMime: "audio/mp4", language: nil,
+                vocabulary: terms, apiKey: "k", model: model, shareAnonymousSpeedData: false
+            )
+            let request = try assemblyaiBuildCreateRequest(params: params, audioUrl: "https://example.invalid/u")
+            guard case let .bytes(_, payload) = request.body,
+                  let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any] else {
+                Issue.record("\(model): create body was not inline JSON")
+                continue
+            }
+            #expect((json["keyterms_prompt"] as? [Any])?.count == cap, "\(model): keyterms_prompt cap")
+            if model.hasPrefix("assemblyai-stt-3-7") {
+                #expect(json["speech_models"] as? [String] == ["assemblyai-stt-3-7"], "\(model): speech_models")
+            }
+            if model.hasSuffix("-medical") {
+                #expect(json["domain"] as? String == "medical-v1", "\(model): domain")
+            }
         }
     }
 
@@ -411,7 +469,8 @@ struct CloudSttTierParityTests {
     func retiredCloudModelsAreNotSelectable() {
         let retired = Set([
             "universal-3-pro", "universal-3-pro-medical",
-            "stt-async-v4", "gemini-3.1-flash-lite-preview",
+            "stt-async-v4", "stt-async-v5", "gemini-3.1-flash-lite-preview",
+            "gemini-2.5-pro",
         ])
         #expect(CloudTranscriptionModels.availableModels.allSatisfy { !retired.contains($0.id) })
     }

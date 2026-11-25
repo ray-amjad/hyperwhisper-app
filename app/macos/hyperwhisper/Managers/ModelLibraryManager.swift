@@ -277,6 +277,9 @@ final class ModelLibraryManager: ObservableObject {
         "universal-3-5-pro":                 (2, 5),
         "universal-2-medical":               (2, 4),
         "universal-3-5-pro-medical":         (2, 5),
+        // STT-3.7 (#3106): copied from universal-3-5-pro pending a benchmark run.
+        "assemblyai-stt-3-7":                (2, 5),
+        "assemblyai-stt-3-7-medical":        (2, 5),
         // ElevenLabs
         "scribe_v1":                         (3, 5),
         "scribe_v2":                         (3, 5),
@@ -285,12 +288,14 @@ final class ModelLibraryManager: ObservableObject {
         // Mistral
         "voxtral-mini-latest":               (4, 2),
         // Soniox
-        "stt-async-v5":                      (2, 5),
+        // stt-async-v6 replaced v5 (#3030), "fully compatible" per Soniox; v5's
+        // rating carried over pending a benchmark run.
+        "stt-async-v6":                      (2, 5),
         // Gemini
         "gemini-3.8-flash":                  (2, 4),
         "gemini-2.5-flash":                  (2, 4),
         "gemini-2.5-flash-lite":             (3, 3),
-        "gemini-2.5-pro":                    (1, 5),
+        // gemini-2.5-pro voice row removed (#3009); it resolves to gemini-3.8-flash.
         "gemini-3.1-flash-lite":             (3, 4),
         "gemini-3.1-pro-preview":            (1, 5),
         // HyperWhisper Cloud routed tiers (Azure MAI / Google Chirp). Chirp 3

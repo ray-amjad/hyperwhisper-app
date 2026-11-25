@@ -24,7 +24,7 @@
 //  first — one blocking request returns the finished transcript in the same
 //  response (~134ms p50), no upload/create/poll. Falls back to the pipeline
 //  above when the requested model is a medical variant (sync has no
-//  medical/domain concept), the exact AVFoundation duration is unavailable,
+//  medical/domain concept) or STT-3.7 (sync runs only universal-3-5-pro), the exact AVFoundation duration is unavailable,
 //  >= the cap, or the sync call itself errors/times out. A `.NoSpeech` result
 //  is NOT a fallback trigger — see `tryTranscribeSync`.
 //
@@ -162,9 +162,16 @@ class AssemblyAIProvider: TranscriptionProvider {
         // plain universal-3-5-pro, so routing a medical request through sync
         // would silently drop the paid Medical Mode add-on instead of erroring
         // or falling back — matches the cloud TS path's existing exclusion.
-        let isMedicalModel = CloudTranscriptionModels.assemblyAIRequestParams(for: modelToSend).medical
+        //
+        // STT-3.7 is excluded for the same reason (#3106): sync would serve
+        // universal-3-5-pro in its place, swapping the user's picked model for
+        // the deprecated one on every short clip. PARITY: Windows
+        // AssemblyAIService.IsSyncEligible.
+        let requestParams = CloudTranscriptionModels.assemblyAIRequestParams(for: modelToSend)
+        let isMedicalModel = requestParams.medical
+        let syncServesModel = !requestParams.speechModel.hasPrefix("assemblyai-stt-3-7")
         let syncMaxDuration = assemblyaiSyncMaxDurationSecs()
-        if !isMedicalModel, let duration = await syncEligibleDuration(for: audioURL), duration < syncMaxDuration {
+        if !isMedicalModel, syncServesModel, let duration = await syncEligibleDuration(for: audioURL), duration < syncMaxDuration {
             AppLogger.network.debug("AssemblyAI duration \(duration, privacy: .public)s < \(syncMaxDuration, privacy: .public)s sync cap — trying sync fast path")
             if let syncText = try await tryTranscribeSync(params: params, durationSeconds: duration) {
                 AppLogger.network.info("AssemblyAI sync transcription complete · chars=\(syncText.count, privacy: .public)")
@@ -172,7 +179,7 @@ class AssemblyAIProvider: TranscriptionProvider {
             }
             AppLogger.network.info("AssemblyAI sync fast path unavailable — falling back to async upload/create/poll")
         } else {
-            AppLogger.network.debug("AssemblyAI skipping sync fast path (medical=\(isMedicalModel, privacy: .public), duration unknown or >= \(syncMaxDuration, privacy: .public)s cap)")
+            AppLogger.network.debug("AssemblyAI skipping sync fast path (medical=\(isMedicalModel, privacy: .public), syncServesModel=\(syncServesModel, privacy: .public), duration unknown or >= \(syncMaxDuration, privacy: .public)s cap)")
         }
 
         // 1) Upload the audio to AssemblyAI to get a temporary URL.
