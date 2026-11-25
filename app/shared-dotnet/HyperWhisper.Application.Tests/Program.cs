@@ -2828,6 +2828,13 @@ static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
     Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("groq:openai/gpt-oss-120b")
             == "groq:openai/gpt-oss-120b",
         "a listed cloud post-processing value was rewritten");
+    // gpt-6-luna and Groq gpt-oss-20b are Cloud rows too; gpt-5.6-luna stays one for pinned modes.
+    foreach (var cloudRow in new[] { "openai:gpt-6-luna", "openai:gpt-5.6-luna", "groq:openai/gpt-oss-20b" })
+    {
+        Assert(editor.HyperWhisperCloudModels.Contains(cloudRow), $"the picker does not list {cloudRow}");
+        Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize(cloudRow) == cloudRow,
+            $"a listed {cloudRow} was rewritten");
+    }
     // The engine and model match case-insensitively, like Windows FromString, macOS
     // fromStorageValue and hw-backup; the result is the catalog's own spelling.
     var mixedRetired = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("Anthropic:claude-haiku-4-5");
