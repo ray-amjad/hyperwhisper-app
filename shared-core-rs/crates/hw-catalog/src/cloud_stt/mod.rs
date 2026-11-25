@@ -368,7 +368,7 @@ mod tests {
     fn soniox_default_is_flagged_not_first() {
         let c = catalog();
         // soniox lists v4 first but v5 is isDefault — default must be v5.
-        assert_eq!(c.default_model_id("soniox"), Some("stt-async-v5"));
+        assert_eq!(c.default_model_id("soniox"), Some("stt-async-v6"));
     }
 
     // --- Golden: cloud-tier filtering ---------------------------------------

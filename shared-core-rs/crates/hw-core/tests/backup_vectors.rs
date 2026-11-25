@@ -634,9 +634,15 @@ fn vector_groups_are_populated() {
     // added: it demonstrates "a provider with no alias table passes the model
     // through" and used to say that with openai + `whisper-1`, which is exactly
     // what stopped being true — it now uses groq, which still has no table.
+    //
+    // 136 → 139: Soniox removes `stt-async-v5` on 2026-12-15 (#3030) and Google
+    // auto-routes `gemini-2.5-pro` from 2026-12-01 (#3009). One row each covers
+    // the provider-scoped alias, and one more the chain arm for a backup that
+    // carries `gemini-2.5-pro` with no provider. No row was removed; the two v4
+    // rows now expect `stt-async-v6`, the new end of the Soniox alias chain.
     assert_eq!(
         rows("modeNormalization").len(),
-        136,
+        139,
         "the frozen modeNormalization row count changed; a row may only be ADDED, and the \
          count here must be updated deliberately when one is"
     );

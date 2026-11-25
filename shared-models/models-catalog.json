@@ -272,6 +272,28 @@
       "supportedLanguages": ["de", "en", "es", "fr"],
       "notes": "Medical Mode add-on variant of universal-3-5-pro, available in both native BYOK pickers."
     },
+    {
+      "provider": "assemblyAI",
+      "id": "assemblyai-stt-3-7",
+      "kind": "voice",
+      "displayName": "STT-3.7",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "ar", "ca", "da", "de", "en", "es", "et", "fa", "fi", "fr", "gl", "he", "hi", "it", "ja", "ko", "mr", "nl", "nn", "no", "pt", "ro", "ru", "sv", "tr", "ur", "vi", "xh", "yue", "zh", "zu"],
+      "notes": "AssemblyAI's flagship pre-recorded model (released 2026-11-18), successor to the deprecated universal-3-5-pro (#3106). 32 languages per docs.assemblyai.com/docs/pre-recorded-audio/supported-languages; keyterms prompting up to 1,000 terms. BYOK only until HyperWhisper Cloud prices it."
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "assemblyai-stt-3-7-medical",
+      "kind": "voice",
+      "displayName": "STT-3.7 Medical",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["de", "en", "es", "fr"],
+      "notes": "Medical Mode add-on variant of assemblyai-stt-3-7 (domain medical-v1), available in both native BYOK pickers."
+    },
 
     {
       "provider": "elevenLabs",
@@ -330,9 +352,9 @@
 
     {
       "provider": "soniox",
-      "id": "stt-async-v5",
+      "id": "stt-async-v6",
       "kind": "voice",
-      "displayName": "Async v5",
+      "displayName": "Async v6",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
@@ -365,16 +387,6 @@
       "id": "gemini-2.5-flash-lite",
       "kind": "voice",
       "displayName": "Gemini 2.5 Flash Lite",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-2.5-pro",
-      "kind": "voice",
-      "displayName": "Gemini 2.5 Pro",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],

@@ -727,11 +727,11 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "stt-async-v5",
+      "defaultModelId": "stt-async-v6",
       "models": [
         {
-          "id": "stt-async-v5",
-          "displayName": "Async v5",
+          "id": "stt-async-v6",
+          "displayName": "Async v6",
           "creditsPerMinute": 1.67,
           "isDefault": true,
           "previewStatus": false,
@@ -804,15 +804,6 @@
           "id": "gemini-2.5-flash-lite",
           "displayName": "Gemini 2.5 Flash Lite",
           "creditsPerMinute": 0.8,
-          "isDefault": false,
-          "previewStatus": false,
-          "supportsCustomVocabulary": true,
-          "streaming": null
-        },
-        {
-          "id": "gemini-2.5-pro",
-          "displayName": "Gemini 2.5 Pro",
-          "creditsPerMinute": 7.5,
           "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
@@ -932,7 +923,6 @@
         "gemini/gemini-3.8-flash",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
-        "gemini/gemini-2.5-pro",
         "gemini/gemini-3.1-pro-preview"
       ]
     },
@@ -1000,7 +990,7 @@
         "soniox"
       ],
       "models": [
-        "soniox/stt-async-v5"
+        "soniox/stt-async-v6"
       ]
     },
     {
@@ -1714,6 +1704,64 @@
     },
     {
       "provider": "assemblyAI",
+      "id": "assemblyai-stt-3-7",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": false,
+      "languageCodes": [
+        "af",
+        "ar",
+        "ca",
+        "da",
+        "de",
+        "en",
+        "es",
+        "et",
+        "fa",
+        "fi",
+        "fr",
+        "gl",
+        "he",
+        "hi",
+        "it",
+        "ja",
+        "ko",
+        "mr",
+        "nl",
+        "nn",
+        "no",
+        "pt",
+        "ro",
+        "ru",
+        "sv",
+        "tr",
+        "ur",
+        "vi",
+        "xh",
+        "yue",
+        "zh",
+        "zu"
+      ],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "assemblyai-stt-3-7-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": false,
+      "languageCodes": [
+        "de",
+        "en",
+        "es",
+        "fr"
+      ],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "assemblyAI",
       "id": "dictation",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2384,16 +2432,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-2.5-pro",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-flash-lite",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2984,7 +3022,7 @@
     },
     {
       "provider": "soniox",
-      "id": "stt-async-v5",
+      "id": "stt-async-v6",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,

@@ -69,7 +69,7 @@
     {
       "catalogEntryId": "soniox",
       "providerIdentifier": "soniox",
-      "defaultModelId": "stt-async-v5",
+      "defaultModelId": "stt-async-v6",
       "creditsPerMinute": 1.67,
       "byokRequestBuilder": true
     },

@@ -10,8 +10,7 @@ use crate::helpers::keyword_boost_terms;
 use crate::providers::common::classify_http;
 
 use super::{
-    auth_header, default_model, filter_keyterm_words, request_params, MAX_KEYTERMS_DEFAULT,
-    MAX_KEYTERMS_PRO,
+    auth_header, default_model, filter_keyterm_words, max_keyterms_for, request_params,
 };
 
 fn base(params: &TranscribeParams) -> String {
@@ -121,11 +120,7 @@ pub fn build_create_request(
     }
 
     // keyterms_prompt: shared sanitize/dedup, drop > 6-word phrases, cap by model.
-    let max_terms = if speech_model == "universal-3-pro" || speech_model == "universal-3-5-pro" {
-        MAX_KEYTERMS_PRO
-    } else {
-        MAX_KEYTERMS_DEFAULT
-    };
+    let max_terms = max_keyterms_for(&speech_model);
     let keyterms: Vec<serde_json::Value> =
         filter_keyterm_words(keyword_boost_terms(&params.vocabulary, None))
             .into_iter()
@@ -264,6 +259,7 @@ pub fn parse_poll_response(resp: &HttpResponse) -> Result<PollOutcome, Transcrip
 mod tests {
     use super::*;
     use crate::providers::assemblyai::test_support::params;
+    use crate::providers::assemblyai::{MAX_KEYTERMS_DEFAULT, MAX_KEYTERMS_PRO};
 
     fn body_json(req: &HttpRequest) -> serde_json::Value {
         match &req.body {
@@ -433,6 +429,34 @@ mod tests {
             j["keyterms_prompt"].as_array().unwrap().len(),
             MAX_KEYTERMS_PRO
         );
+    }
+
+    #[test]
+    fn create_request_stt_3_7_keeps_the_1000_term_cap() {
+        // #3106: STT-3.7 accepts up to 1,000 keyterms. Keying the cap on the
+        // deprecated universal-3-5-pro id alone cut it to 200.
+        for model in ["assemblyai-stt-3-7", "assemblyai-stt-3-7-medical"] {
+            let mut p = params();
+            p.model = model.to_string();
+            p.vocabulary = (0..1001).map(|i| format!("t{i}")).collect();
+            let j = body_json(&build_create_request(&p, "u").unwrap());
+            assert_eq!(
+                j["speech_models"],
+                serde_json::json!(["assemblyai-stt-3-7"]),
+                "{model}"
+            );
+            assert_eq!(
+                j["keyterms_prompt"].as_array().unwrap().len(),
+                MAX_KEYTERMS_PRO,
+                "{model}"
+            );
+        }
+        let j = {
+            let mut p = params();
+            p.model = "assemblyai-stt-3-7-medical".to_string();
+            body_json(&build_create_request(&p, "u").unwrap())
+        };
+        assert_eq!(j["domain"], "medical-v1");
     }
 
     #[test]

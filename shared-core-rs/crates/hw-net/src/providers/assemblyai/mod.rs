@@ -51,7 +51,8 @@
 //!   A trailing `-medical` suffix is stripped and surfaces as
 //!   `domain: "medical-v1"` (Medical Mode add-on).
 //! - **Vocabulary** (`keyterms_prompt`): trimmed, drop empties, drop phrases
-//!   with > 6 words, capped at 1000 for `universal-3-5-pro` else 200. (`word_boost`
+//!   with > 6 words, capped at 1000 for [`HIGH_KEYTERM_CAP_MODELS`]
+//!   (`assemblyai-stt-3-7`, `universal-3-5-pro`) else 200. (`word_boost`
 //!   is deprecated; both platforms moved to `keyterms_prompt`.)
 //! - **Poll status mapping**: `completed` → text (empty text → `NoSpeech`);
 //!   `error` → `BadRequest`; `queued`/`processing`/unknown →
@@ -80,8 +81,26 @@ pub fn default_model() -> &'static str {
     crate::providers::defaults::default_model(CATALOG_ENTRY_ID)
 }
 
-/// Max `keyterms_prompt` terms for `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
+/// Max `keyterms_prompt` terms for the models in [`HIGH_KEYTERM_CAP_MODELS`]
+/// (else [`MAX_KEYTERMS_DEFAULT`]).
 pub const MAX_KEYTERMS_PRO: usize = 1000;
+/// Speech models AssemblyAI documents with a 1,000-term `keyterms_prompt` cap.
+/// A set, not one id: STT-3.7 (`assemblyai-stt-3-7`, released 2026-11-18) takes
+/// 1,000 like the deprecated Universal-3.5 Pro it replaces, and a model missing
+/// here silently falls to the 200-term default (#3106). Ids are the resolved
+/// speech model, after [`request_params`] strips `-medical`.
+/// Ref: https://www.assemblyai.com/docs/getting-started/models
+pub const HIGH_KEYTERM_CAP_MODELS: &[&str] =
+    &["assemblyai-stt-3-7", "universal-3-5-pro", "universal-3-pro"];
+
+/// The `keyterms_prompt` term cap for a resolved speech model.
+pub fn max_keyterms_for(speech_model: &str) -> usize {
+    if HIGH_KEYTERM_CAP_MODELS.contains(&speech_model) {
+        MAX_KEYTERMS_PRO
+    } else {
+        MAX_KEYTERMS_DEFAULT
+    }
+}
 /// Max `keyterms_prompt` terms for non-pro models.
 pub const MAX_KEYTERMS_DEFAULT: usize = 200;
 /// Max words per `keyterms_prompt` phrase (AssemblyAI spec). Shared by both the
