@@ -224,6 +224,7 @@ public static class CloudTranscriptionModels
     /// AssemblyAI transcription models.
     /// - universal-2: Multi-language model supporting 99 languages (default, keyterms_prompt ≤ 200 terms)
     /// - universal-3-5-pro: Highest-accuracy model, 18 languages, keyterms_prompt ≤ 1000 terms
+    /// - assemblyai-stt-3-7 (+ -medical): STT-3.7, 32 languages, keyterms_prompt ≤ 1000 terms (BYOK only)
     /// Legacy IDs "universal" and "slam-1" are resolved to these via GetById for backward compatibility.
     /// </summary>
     public static readonly CloudTranscriptionModel[] AssemblyAI = new[]
@@ -259,6 +260,23 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
             PricePerMinute = 0.0035m  // $0.21/hour base — medical add-on billed separately
+        },
+        // STT-3.7 (released 2026-11-18, #3106): successor to universal-3-5-pro.
+        // BYOK only — not Cloud-tier eligible until HyperWhisper Cloud prices it.
+        // Price copied from universal-3-5-pro pending AssemblyAI's published rate.
+        new CloudTranscriptionModel
+        {
+            Id = "assemblyai-stt-3-7",
+            Description = "AssemblyAI's newest flagship model. Covers 32 languages. Keyterms prompting up to 1000 terms.",
+            Provider = CloudTranscriptionProvider.AssemblyAI,
+            PricePerMinute = 0.0035m
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "assemblyai-stt-3-7-medical",
+            Description = "STT-3.7 with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of STT-3.7 pricing.",
+            Provider = CloudTranscriptionProvider.AssemblyAI,
+            PricePerMinute = 0.0035m
         },
         new CloudTranscriptionModel
         {
@@ -346,13 +364,15 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// Soniox transcription models.
-    /// - stt-async-v5: Current default async transcription model
+    /// - stt-async-v6: Current default async transcription model. Soniox removes
+    ///   stt-async-v5 on 2026-12-15 (#3030); saved v4/v5 ids resolve to v6 through
+    ///   ResolveModelAlias (hw-catalog SONIOX_ALIASES).
     /// </summary>
     public static readonly CloudTranscriptionModel[] Soniox = new[]
     {
         new CloudTranscriptionModel
         {
-            Id = "stt-async-v5",
+            Id = "stt-async-v6",
             Description = "Soniox's latest async batch transcription model with 60+ supported languages",
             Provider = CloudTranscriptionProvider.Soniox,
             IsPopular = true
@@ -372,7 +392,6 @@ public static class CloudTranscriptionModels
     ///   the 2.5 models to accounts that used them before 2026-09-18)
     /// - gemini-2.5-flash: Fast, cost-effective
     /// - gemini-2.5-flash-lite: Cheapest option
-    /// - gemini-2.5-pro: Highest quality
     /// - gemini-3.x: Current and preview models
     /// The default itself is read from cloud-stt-catalog.json (see GetDefault).
     /// </summary>
@@ -399,13 +418,9 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.Gemini,
             IsPopular = true
         },
-        new CloudTranscriptionModel
-        {
-            Id = "gemini-2.5-pro",
-            Description = "Highest quality - best accuracy for complex audio",
-            Provider = CloudTranscriptionProvider.Gemini,
-            IsPopular = true
-        },
+        // gemini-2.5-pro row removed (#3009): Google deprecated it 2026-11-02 and
+        // auto-routes it to 3.8 Flash from 2026-12-01. A saved id resolves to
+        // gemini-3.8-flash through ResolveModelAlias (hw-catalog GEMINI_ALIASES).
         new CloudTranscriptionModel
         {
             Id = "gemini-3.1-flash-lite",
@@ -663,6 +678,13 @@ public static class CloudTranscriptionModels
         => ResolveScopedModelAlias(modelId, "soniox");
 
     /// <summary>Resolve a legacy Gemini model ID to its current equivalent.</summary>
+    /// <remarks>
+    /// The table is hw-catalog GEMINI_ALIASES (model_alias.rs); Windows keeps no copy.
+    /// PARITY: gemini-2.5-pro → gemini-3.8-flash (#3009) lives there.
+    /// </remarks>
+    // PENDING #3009: gemini-2.5-flash STT target not chosen; add its alias here when decided.
+    // (i.e. in hw-catalog GEMINI_ALIASES, which this delegates to — then drop the
+    // gemini-2.5-flash row from the Gemini array above.)
     public static string ResolveGeminiModelAlias(string modelId)
         => ResolveScopedModelAlias(modelId, "gemini");
 

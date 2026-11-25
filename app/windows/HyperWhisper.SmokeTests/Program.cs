@@ -3794,7 +3794,11 @@ internal static class Program
                     ("slam-1", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro"),
                     ("universal-3-pro", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro"),
                     ("universal-3-pro-medical", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro-medical"),
-                    ("stt-async-v4", CloudTranscriptionProvider.Soniox, "stt-async-v5"),
+                    // #3030: Soniox removes v5 on 2026-12-15; v4 and v5 both land on v6.
+                    ("stt-async-v4", CloudTranscriptionProvider.Soniox, "stt-async-v6"),
+                    ("stt-async-v5", CloudTranscriptionProvider.Soniox, "stt-async-v6"),
+                    // #3009: Google auto-routes 2.5 Pro to 3.8 Flash from 2026-12-01.
+                    ("gemini-2.5-pro", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
                     // #796: targets the Cloud catalog sells, not 3.1 Flash Lite / 3.6 Flash.
                     ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-2.5-flash-lite"),
                     ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
@@ -3811,6 +3815,29 @@ internal static class Program
                     Assert(CloudTranscriptionModels.GetModelsForProvider(provider).All(m => m.Id != oldId),
                         $"retired model {oldId} is still selectable");
                 }
+            });
+
+            Run("AssemblyAI STT-3.7 BYOK rows are additive (#3106) and Gemini 2.5 Flash stays (#3009)", () =>
+            {
+                var stt37 = CloudTranscriptionModels.GetById("assemblyai-stt-3-7", CloudTranscriptionProvider.AssemblyAI);
+                var stt37Medical = CloudTranscriptionModels.GetById("assemblyai-stt-3-7-medical", CloudTranscriptionProvider.AssemblyAI);
+                Assert(stt37?.Id == "assemblyai-stt-3-7", "STT-3.7 row missing from the AssemblyAI picker");
+                Assert(stt37Medical?.Id == "assemblyai-stt-3-7-medical", "STT-3.7 Medical row missing from the AssemblyAI picker");
+                Assert(stt37?.DisplayName == "STT-3.7", $"STT-3.7 display name was {stt37?.DisplayName}");
+                Assert(stt37Medical?.DisplayName == "STT-3.7 Medical", $"STT-3.7 Medical display name was {stt37Medical?.DisplayName}");
+                Assert(CloudTranscriptionModels.GetAssemblyAIRequestParams("assemblyai-stt-3-7-medical") == ("assemblyai-stt-3-7", true),
+                    "STT-3.7 Medical must send speech model assemblyai-stt-3-7 with domain medical-v1");
+                Assert(CloudTranscriptionModels.GetAssemblyAIRequestParams("assemblyai-stt-3-7") == ("assemblyai-stt-3-7", false),
+                    "STT-3.7 must not enable Medical Mode");
+                // The 3.5 Pro rows are untouched until the Cloud pricing decision.
+                Assert(CloudTranscriptionModels.GetById("universal-3-5-pro", CloudTranscriptionProvider.AssemblyAI)?.Id == "universal-3-5-pro",
+                    "universal-3-5-pro must stay selectable");
+                Assert(CloudTranscriptionModels.ResolveModelAlias("gemini-2.5-flash", CloudTranscriptionProvider.Gemini) == "gemini-2.5-flash",
+                    "gemini-2.5-flash STT target is PENDING (#3009): it must not be aliased yet");
+                Assert(CloudTranscriptionModels.GetModelsForProvider(CloudTranscriptionProvider.Gemini).Any(m => m.Id == "gemini-2.5-flash"),
+                    "the gemini-2.5-flash voice row must stay until its target is chosen");
+                Assert(CloudTranscriptionModels.GetById("stt-async-v6", CloudTranscriptionProvider.Soniox)?.DisplayName == "Async v6",
+                    "Soniox row should read Async v6");
             });
 
             // Replays shared-conformance/default-model-vectors.json through THIS
@@ -6260,6 +6287,29 @@ internal static class Program
                 Assert(
                     !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: true),
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
+
+                // #3106: sync always sends X-AAI-Model universal-3-5-pro, so STT-3.7
+                // (and its medical variant) must go straight to async. universal-2 and
+                // 3.5 Pro keep their sync path.
+                foreach (var model in new[] { "assemblyai-stt-3-7", "assemblyai-stt-3-7-medical" })
+                {
+                    var (speechModel, medical) = CloudTranscriptionModels.GetAssemblyAIRequestParams(model);
+                    Assert(!AssemblyAIService.SyncServesModel(speechModel), $"{model}: sync must not serve {speechModel}");
+                    Assert(
+                        !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, medical, AssemblyAIService.SyncServesModel(speechModel)),
+                        $"{model} should NOT be sync-eligible — sync would silently run universal-3-5-pro");
+                }
+                Assert(
+                    AssemblyAIService.DescribeSyncSkipReason(Result<double>.Success(cap - 1), cap, isMedicalModel: false, syncServesModel: false)
+                        == "model not served by sync (sync always runs universal-3-5-pro)",
+                    "an STT-3.7 skip should name the model, not a duration");
+                foreach (var model in new[] { "universal-2", "universal-3-5-pro" })
+                {
+                    Assert(AssemblyAIService.SyncServesModel(model), $"{model} must keep the sync fast path");
+                    Assert(
+                        AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: false, AssemblyAIService.SyncServesModel(model)),
+                        $"{model} under the cap should stay sync-eligible");
+                }
             });
 
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips confirmed dead silence", () =>
@@ -27459,7 +27509,7 @@ internal static class Program
                         $"fallback: calls {string.Join(",", r2.Calls)}");
 
                     // 3. Over the cap, and 4. a medical model: no sync call at all.
-                    foreach (var (model, seconds) in new[] { ("universal-2", cap + 10), ("universal-3-5-pro-medical", 5.0) })
+                    foreach (var (model, seconds) in new[] { ("universal-2", cap + 10), ("universal-3-5-pro-medical", 5.0), ("assemblyai-stt-3-7-medical", 5.0) })
                     {
                         var r = await Drive(model, seconds, (key, seen) => Async(key, seen, completed));
                         Assert(r.Text == "async words", $"{model} {seconds}s: text '{r.Text}', error {r.Error?.Message}");

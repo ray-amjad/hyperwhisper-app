@@ -43,7 +43,7 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
     public override string Name => "Soniox";
 
     public SonioxService(HttpMessageHandler? httpHandler = null)
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v5", httpHandler: httpHandler)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v6", httpHandler: httpHandler)
     {
     }
 
@@ -59,7 +59,7 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
     /// <inheritdoc />
     protected override string ResolveModelId(string modelId)
         => CloudTranscriptionModels.ResolveSonioxModelAlias(
-            string.IsNullOrWhiteSpace(modelId) ? "stt-async-v5" : modelId);
+            string.IsNullOrWhiteSpace(modelId) ? "stt-async-v6" : modelId);
 
     protected override async Task<string> TranscribeCoreAsync(
         TranscriptionRequest request,

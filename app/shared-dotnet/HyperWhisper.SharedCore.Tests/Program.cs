@@ -203,6 +203,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("single-shot providers use Rust request and response contracts", TestSingleShotProvidersAsync),
     ("Dictation uses one request, validates audio, and never falls back", TestDictationAsync),
     ("multi-step providers execute upload poll parse and cleanup flows", TestMultiStepProvidersAsync),
+    ("AssemblyAI STT-3.7 keeps the 1,000 keyterm cap and medical sends domain medical-v1", TestAssemblyAiStt37CreateRequestAsync),
     ("observer diagnostics redact credentials and request bodies", TestObserverRedactionAsync),
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("the retry backoff budget stops a hard-down provider early", TestRetryBudgetAsync),
@@ -825,7 +826,7 @@ static async Task TestMultiStepProvidersAsync()
                 3),
             new MultiStepCase(
                 CloudTranscriptionProvider.Soniox,
-                "stt-async-v5",
+                "stt-async-v6",
                 [
                     Json("{\"id\":\"file_abc\"}"),
                     Json("{\"id\":\"tx_123\"}"),
@@ -865,6 +866,65 @@ static async Task TestMultiStepProvidersAsync()
             Assert.Equal(value.Expected, result.Transcript!.Text);
             Assert.Equal(value.ExpectedAttempts, result.Attempts);
             Assert.Equal(0, handler.Remaining);
+        }
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+/// <summary>
+/// #3106: STT-3.7 accepts up to 1,000 keyterms like universal-3-5-pro. The cap is
+/// keyed on a SET in hw-net (HIGH_KEYTERM_CAP_MODELS); a model missing from it
+/// silently falls to 200. -medical strips to speech model assemblyai-stt-3-7 and
+/// adds domain medical-v1.
+/// </summary>
+static async Task TestAssemblyAiStt37CreateRequestAsync()
+{
+    var audio = TempAudio();
+    try
+    {
+        foreach (var (model, medical) in new[] { ("assemblyai-stt-3-7", false), ("assemblyai-stt-3-7-medical", true) })
+        {
+            string? createBody = null;
+            RecordingHandler? handler = null;
+            handler = new RecordingHandler((request, _) =>
+            {
+                var path = request.RequestUri!.AbsolutePath;
+                if (path.EndsWith("/upload", StringComparison.Ordinal))
+                {
+                    return Json("{\"upload_url\":\"https://upload.test/audio\"}");
+                }
+                if (request.Method == HttpMethod.Post && path.EndsWith("/transcript", StringComparison.Ordinal))
+                {
+                    createBody = Encoding.UTF8.GetString(handler!.LastBody!);
+                    return Json("{\"id\":\"transcript_abc\",\"status\":\"queued\"}");
+                }
+                return Json("{\"id\":\"transcript_abc\",\"status\":\"completed\",\"text\":\"stt37 text\"}");
+            });
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing, new ImmediateDelay());
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.AssemblyAi,
+                audio,
+                model,
+                Vocabulary: [.. Enumerable.Range(0, 1001).Select(index => $"t{index}")]));
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("stt37 text", result.Transcript!.Text);
+            Assert.NotNull(createBody);
+            using var document = JsonDocument.Parse(createBody!);
+            var root = document.RootElement;
+            Assert.Equal("assemblyai-stt-3-7", root.GetProperty("speech_models")[0].GetString());
+            Assert.Equal(1000, root.GetProperty("keyterms_prompt").GetArrayLength());
+            if (medical)
+            {
+                Assert.Equal("medical-v1", root.GetProperty("domain").GetString());
+            }
+            else
+            {
+                Assert.False(root.TryGetProperty("domain", out _));
+            }
         }
     }
     finally
