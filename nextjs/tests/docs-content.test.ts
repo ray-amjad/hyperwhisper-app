@@ -187,6 +187,20 @@ test("an endpoint's meta description is its whole description, as Mintlify's was
 
 // Verify round 1: the Mintlify pages carried Organization, WebSite, WebPage
 // and TechArticle JSON-LD; every docs page now emits the same graph.
+test("the models page targets Whisper vs Parakeet and the latest Whisper model", () => {
+  const raw = sources.get("models") ?? "";
+  const { data } = splitFrontmatter(raw, "models");
+  const ids = headingIds(raw);
+
+  assert.match(data.description, /Whisper models/i);
+  assert.match(data.description, /Parakeet vs Whisper/i);
+  assert.match(data.description, /latest Whisper model/i);
+  assert.ok(ids.has("whisper-vs-parakeet"), "missing Whisper vs Parakeet heading");
+  assert.ok(ids.has("latest-whisper-model"), "missing latest Whisper model heading");
+  assert.ok(ids.has("faq"), "missing FAQ heading");
+  assert.match(raw, /https:\/\/www\.hyperwhisper\.com\/en\/download/);
+});
+
 test("every docs page emits Organization, WebSite, TechArticle and BreadcrumbList JSON-LD", async () => {
   const { docsPageJsonLd } = await import("../lib/docs/json-ld");
   const page = readFileSync(

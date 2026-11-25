@@ -1,9 +1,9 @@
 ---
 title: Models
-description: Every model HyperWhisper offers — speech-to-text and post-processing, on-device and cloud — and why each one exists. Choose by privacy, language coverage, speed, accuracy, and cost.
+description: Whisper models, Parakeet vs Whisper, and the latest Whisper model HyperWhisper ships on-device. Choose by privacy, language, speed, accuracy, and cost.
 ---
 
-HyperWhisper does not lock you into one engine. It ships a **library** of models, because no single model wins on everything. Each model makes a different trade between **privacy, language coverage, speed, accuracy, and cost**. This page lists every model and explains why each one is there.
+HyperWhisper does not lock you into one engine. It ships a **library** of models, because no single model wins on everything. Each model makes a different trade between **privacy, language coverage, speed, accuracy, and cost**. This page lists every model and explains why each one is there, including **Whisper models**, **Parakeet vs Whisper**, and which checkpoint is the **latest Whisper model**.
 
 There are two kinds of model:
 
@@ -123,6 +123,33 @@ Nemotron 3.5 ASR from NVIDIA is the newest on-device option. macOS gets a broade
 
 - **Apple Speech** is built into macOS. There is no download, and it is available when you start the app. It is the fastest private option for daily Mac dictation. (It requires a recent macOS version.)
 - **Qwen3 ASR** is an additional multilingual on-device model for users who want the ASR model from Alibaba. It runs on macOS, Windows, and Linux. Windows and Linux run it with the sherpa-onnx daemon. The Windows and Linux variant is Qwen3 ASR 0.6B, and it covers Japanese, English, Chinese, Korean, Spanish, French, German, Italian, Portuguese, Russian, and Arabic.
+
+## Whisper vs Parakeet
+
+**Parakeet vs Whisper** is the usual local-model choice. Both run on your machine after you download them. Audio does not leave the device.
+
+| | Whisper | NVIDIA Parakeet |
+| --- | --- | --- |
+| Best for | The universal fallback: 101 languages, many sizes, CPU-friendly | Fast, accurate English and European dictation |
+| Languages | 101 | English (V2) · 25 European on macOS, 26 European on Windows and Linux (V3) |
+| Sizes | Tiny through Large v3 (and Large v3 Turbo) | One V2 English checkpoint and one V3 multilingual checkpoint |
+| Speed | Solid; smaller sizes are the CPU option | Faster than a Whisper model of an equivalent size |
+| Windows ARM | Whisper is x64 only | Parakeet runs on x64 and ARM64 |
+| When to pick it | Non-European languages, one model family on every machine, or older hardware | English or European dictation when you want it fast and local |
+
+Use **Whisper** when you need the same language coverage on Mac, Windows, and Linux, or when Parakeet does not list your language. Use **Parakeet** when you dictate English or a supported European language and care about speed. For Chinese, Japanese, Korean, or Arabic offline on macOS, skip both and use **Nemotron 3.5 (Multilingual)** above.
+
+## Latest Whisper model
+
+The **latest Whisper model** HyperWhisper ships for on-device use is **Whisper Large v3**. In the Whisper table above it is the highest-accuracy Whisper checkpoint. **Large v3 Turbo** is the other current OpenAI Whisper checkpoint: accuracy near Large v3, much faster, and a smaller download.
+
+OpenAI's older **Large v2** remains in the library if you already use it. It is not newer than Large v3.
+
+This is not the same product as OpenAI's cloud **GPT Transcribe** models. Those run through a provider API (HyperWhisper Cloud or your own OpenAI key). The open Whisper checkpoints in this library stay on the device.
+
+<Tip>
+  If you want the latest Whisper accuracy locally, download **Large v3**. If you want the latest Whisper *speed* at near-Large quality, download **Large v3 Turbo**. **Small** stays the recommended balance for most machines.
+</Tip>
 
 ## Offline language coverage
 
@@ -496,6 +523,24 @@ To make disk space available, click the trash icon next to a downloaded model in
 - **Low-noise environment** — background noise makes every model less accurate. See [Best Practices](/docs/best-practices).
 - **Natural pace** — speech that is too fast or too slow decreases accuracy.
 
+## FAQ
+
+### Which Whisper model should I download?
+
+**Small** is the recommended balance for most users. Download **Large v3** when you want the latest Whisper accuracy locally, or **Large v3 Turbo** when you want near-Large quality at higher speed. Tiny and Base are for low-end machines.
+
+### Parakeet vs Whisper — which is more accurate?
+
+Parakeet is faster than a Whisper model of an equivalent size, and it is accurate for the languages it supports. Whisper covers far more languages. Cloud models are generally more accurate than either local family. There is no single winner; pick from the table in [Whisper vs Parakeet](#whisper-vs-parakeet).
+
+### What is the latest Whisper model in HyperWhisper?
+
+On-device: **Large v3** (highest Whisper accuracy) and **Large v3 Turbo** (the faster sibling). See [Latest Whisper model](#latest-whisper-model). OpenAI's cloud GPT Transcribe models are a different product.
+
+### Do local Whisper and Parakeet models send audio anywhere?
+
+No. After you download a model, it runs on your machine. The app does not upload your audio. Read [Data Privacy](/docs/data-privacy).
+
 # More information
 
 <CardGroup cols={2}>
@@ -506,3 +551,5 @@ To make disk space available, click the trash icon next to a downloaded model in
     Configure bring-your-own-key access for any supported provider.
   </Card>
 </CardGroup>
+
+[Download HyperWhisper](https://www.hyperwhisper.com/en/download) for Mac, Windows, or Linux. Local Whisper and Parakeet models stay on the device after you download them.
