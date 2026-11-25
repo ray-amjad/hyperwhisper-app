@@ -690,6 +690,17 @@ impl HwLiveSession {
             .collect()
     }
 
+    /// Text the provider streamed but never committed, as one final, or nil.
+    ///
+    /// Call it when the session ends WITHOUT its completion event (the stop
+    /// path's `WaitForSessionComplete` timed out, or the socket closed or
+    /// failed) and before a reconnect, then append the final like any other.
+    /// It answers once, and nil for a provider that commits as it goes, so it
+    /// is safe to call on every ending path. Only Mistral holds text back.
+    pub fn flush_uncommitted(&self) -> Option<HwLiveEvent> {
+        self.locked().flush_uncommitted().map(Into::into)
+    }
+
     /// Forget every frame this session has seen. What makes a reconnect able to
     /// reuse one object instead of rebuilding it from the config.
     pub fn reset(&self) {

@@ -30,6 +30,12 @@
 //! says to "save the text of transcription.done as the transcript of record".
 //! The buffered deltas are the fallback only when `done` carries no text.
 //!
+//! When `done` never arrives at all (the stop wait times out, the socket
+//! closes or errors), the head calls
+//! [`super::LiveSession::flush_uncommitted`], which commits the buffered
+//! deltas as the final instead. Whichever of the two runs first takes the
+//! buffer, so the text is committed exactly once.
+//!
 //! ## Not verified against the live service
 //!
 //! This module is built from Mistral's published protocol and pinned by unit
@@ -203,4 +209,18 @@ fn parse_done(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent {
         duration_seconds,
         credits_used,
     }
+}
+
+/// The buffered deltas as one final, for a session that ended without
+/// `transcription.done`. Takes the buffer, so it answers once.
+pub(super) fn flush_uncommitted(state: &mut SessionState) -> Option<LiveEvent> {
+    let buffered = std::mem::take(&mut state.pending_delta);
+    let text = buffered.trim();
+    if text.is_empty() {
+        return None;
+    }
+    state.committed_transcript.push_str(text);
+    Some(LiveEvent::FinalTranscript {
+        text: text.to_string(),
+    })
 }

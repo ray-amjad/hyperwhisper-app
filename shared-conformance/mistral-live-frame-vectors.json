@@ -1,5 +1,5 @@
 {
-  "description": "Conformance vectors for the BYOK Mistral Voxtral Mini Transcribe Realtime 3 WebSocket (wss://api.mistral.ai/v1/audio/transcriptions/realtime). Source of truth: shared-core-rs/crates/hw-net/src/live/mistral.rs, replayed through hw_net::live::LiveSession by shared-core-rs/crates/hw-net/tests/mistral_live_frame_vectors.rs. Protocol from docs.mistral.ai/studio/audio/speech-to-text/transcribe-in-realtime: a session.update start frame (settings lock at the first audio chunk), input_audio.append frames of base64 pcm_s16le, input_audio.end to stop, transcription.text.delta fragments that are append-only and never revised, and transcription.done carrying the transcript of record, which is the one final (deltas are only ever the partial, so the record's whitespace survives). `connect` cases compare the URL, headers and the start frame (JSON compared structurally). `session` cases feed server frames in order and compare each parsed event. Not yet verified against the live service.",
+  "description": "Conformance vectors for the BYOK Mistral Voxtral Mini Transcribe Realtime 3 WebSocket (wss://api.mistral.ai/v1/audio/transcriptions/realtime). Source of truth: shared-core-rs/crates/hw-net/src/live/mistral.rs, replayed through hw_net::live::LiveSession by shared-core-rs/crates/hw-net/tests/mistral_live_frame_vectors.rs. Protocol from docs.mistral.ai/studio/audio/speech-to-text/transcribe-in-realtime: a session.update start frame (settings lock at the first audio chunk), input_audio.append frames of base64 pcm_s16le, input_audio.end to stop, transcription.text.delta fragments that are append-only and never revised, and transcription.done carrying the transcript of record, which is the one final (deltas are only ever the partial, so the record's whitespace survives). `expectFlush` is what LiveSession::flush_uncommitted answers after the frames: the deltas as a final when done never arrived, nothing once done committed. `connect` cases compare the URL, headers and the start frame (JSON compared structurally). `session` cases feed server frames in order and compare each parsed event. Not yet verified against the live service.",
   "connect": [
     {
       "name": "defaults-auto-language-no-vocabulary",
@@ -54,7 +54,16 @@
         { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"lo, version 3.5 shipped.\"}", "expect": { "event": "partial", "text": "Hello, version 3.5 shipped." } },
         { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"\\nWorld\"}", "expect": { "event": "partial", "text": "Hello, version 3.5 shipped.\nWorld" } },
         { "in": "{\"type\":\"transcription.done\",\"text\":\"Hello, version 3.5 shipped.\\nWorld\",\"usage\":{\"prompt_audio_seconds\":3.2}}", "expect": { "event": "finalAndComplete", "text": "Hello, version 3.5 shipped.\nWorld", "durationSeconds": 3.2 } }
-      ]
+      ],
+      "expectFlush": { "event": "none" }
+    },
+    {
+      "name": "done-never-arrives-so-the-flush-commits-the-deltas",
+      "frames": [
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"Hello.\"}", "expect": { "event": "partial", "text": "Hello." } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\" World\"}", "expect": { "event": "partial", "text": "Hello. World" } }
+      ],
+      "expectFlush": { "event": "final", "text": "Hello. World" }
     },
     {
       "name": "done-without-text-falls-back-to-the-deltas",

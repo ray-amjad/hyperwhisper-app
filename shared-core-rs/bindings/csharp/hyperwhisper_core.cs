@@ -1276,6 +1276,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1326,6 +1328,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(IntPtr @ptr,ulong @nowMs,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_flush_uncommitted(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3521,6 +3527,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_flush_uncommitted(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio(
     );
 
@@ -5031,6 +5041,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_flush_uncommitted();
+            if (checksum != 45313) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_flush_uncommitted` checksum `45313`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio();
             if (checksum != 4758) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio` checksum `4758`, library returned `{checksum}`");
@@ -5718,6 +5734,16 @@ internal interface IHwLiveSession {
     /// </summary>
     List<HwLiveFrame> ControlFrames(ulong @nowMs);
     /// <summary>
+    /// Text the provider streamed but never committed, as one final, or nil.
+    ///
+    /// Call it when the session ends WITHOUT its completion event (the stop
+    /// path's `WaitForSessionComplete` timed out, or the socket closed or
+    /// failed) and before a reconnect, then append the final like any other.
+    /// It answers once, and nil for a provider that commits as it goes, so it
+    /// is safe to call on every ending path. Only Mistral holds text back.
+    /// </summary>
+    HwLiveEvent? FlushUncommitted();
+    /// <summary>
     /// Record that `byte_count` bytes of PCM were just handed to the socket.
     ///
     /// A **count**, never the bytes: this is the one place a live session is
@@ -5896,6 +5922,23 @@ internal class HwLiveSession : IHwLiveSession, IDisposable {
         return CallWithPointer(thisPtr => FfiConverterSequenceTypeHwLiveFrame.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(thisPtr, FfiConverterUInt64.INSTANCE.Lower(@nowMs), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// Text the provider streamed but never committed, as one final, or nil.
+    ///
+    /// Call it when the session ends WITHOUT its completion event (the stop
+    /// path's `WaitForSessionComplete` timed out, or the socket closed or
+    /// failed) and before a reconnect, then append the final like any other.
+    /// It answers once, and nil for a provider that commits as it goes, so it
+    /// is safe to call on every ending path. Only Mistral holds text back.
+    /// </summary>
+    public HwLiveEvent? FlushUncommitted() {
+        return CallWithPointer(thisPtr => FfiConverterOptionalTypeHwLiveEvent.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_flush_uncommitted(thisPtr,  ref _status)
 )));
     }
     
@@ -14928,6 +14971,37 @@ class FfiConverterOptionalTypeHwLiveErrorKind: FfiConverterRustBuffer<HwLiveErro
         } else {
             stream.WriteByte(1);
             FfiConverterTypeHwLiveErrorKind.INSTANCE.Write((HwLiveErrorKind)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLiveEvent: FfiConverterRustBuffer<HwLiveEvent?> {
+    public static FfiConverterOptionalTypeHwLiveEvent INSTANCE = new FfiConverterOptionalTypeHwLiveEvent();
+
+    public override HwLiveEvent? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLiveEvent.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLiveEvent? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLiveEvent.INSTANCE.AllocationSize((HwLiveEvent)value);
+        }
+    }
+
+    public override void Write(HwLiveEvent? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLiveEvent.INSTANCE.Write((HwLiveEvent)value, stream);
         }
     }
 }

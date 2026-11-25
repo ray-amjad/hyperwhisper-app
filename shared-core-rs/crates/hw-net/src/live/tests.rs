@@ -2475,14 +2475,23 @@ fn mistral_model_only_passes_a_voxtral_realtime_id() {
         (None, "voxtral-mini-transcribe-realtime-3"),
         (Some(""), "voxtral-mini-transcribe-realtime-3"),
         (Some("nova-3-general"), "voxtral-mini-transcribe-realtime-3"),
-        (Some("voxtral-small-transcribe-3"), "voxtral-mini-transcribe-realtime-3"),
-        (Some("voxtral-mini-transcribe-realtime-3-0"), "voxtral-mini-transcribe-realtime-3-0"),
+        (
+            Some("voxtral-small-transcribe-3"),
+            "voxtral-mini-transcribe-realtime-3",
+        ),
+        (
+            Some("voxtral-mini-transcribe-realtime-3-0"),
+            "voxtral-mini-transcribe-realtime-3-0",
+        ),
     ] {
         let mut config = LiveConfig::new(LiveProvider::Mistral);
         config.api_key = Some("k".to_string());
         config.model = model.map(str::to_string);
         let url = LiveSession::new(config).connect().expect("connect").url;
-        assert!(url.ends_with(&format!("?model={expected}")), "{model:?} -> {url}");
+        assert!(
+            url.ends_with(&format!("?model={expected}")),
+            "{model:?} -> {url}"
+        );
     }
 }
 
@@ -2536,7 +2545,10 @@ fn mistral_context_bias_caps_at_100() {
     let connect = LiveSession::new(config).connect().expect("connect");
     let frame: serde_json::Value =
         serde_json::from_str(&connect.start_frames[0].data).expect("json");
-    assert_eq!(frame["session"]["context_bias"].as_array().map(Vec::len), Some(100));
+    assert_eq!(
+        frame["session"]["context_bias"].as_array().map(Vec::len),
+        Some(100)
+    );
 }
 
 #[test]
@@ -2573,21 +2585,29 @@ fn mistral_fragments_concatenate_verbatim_into_one_partial_and_never_commit_mid_
     let mut session = mistral_session();
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":"Hel"}"#),
-        LiveEvent::PartialTranscript { text: "Hel".to_string() }
+        LiveEvent::PartialTranscript {
+            text: "Hel".to_string()
+        }
     );
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":"lo, version 3.5 shipped."}"#),
-        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.".to_string() }
+        LiveEvent::PartialTranscript {
+            text: "Hello, version 3.5 shipped.".to_string()
+        }
     );
     // A sentence end does not commit: a final would be joined with a space by
     // every head and lose the separator the fragments carry.
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":"\nNext"}"#),
-        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.\nNext".to_string() }
+        LiveEvent::PartialTranscript {
+            text: "Hello, version 3.5 shipped.\nNext".to_string()
+        }
     );
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":" one"}"#),
-        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.\nNext one".to_string() }
+        LiveEvent::PartialTranscript {
+            text: "Hello, version 3.5 shipped.\nNext one".to_string()
+        }
     );
 }
 
@@ -2650,6 +2670,72 @@ fn mistral_done_with_no_text_anywhere_is_a_bare_completion() {
 }
 
 #[test]
+fn mistral_flush_commits_the_deltas_when_done_never_arrives() {
+    // The stop wait timed out, or the socket closed: no transcription.done.
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"Hello."}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":" World"}"#);
+    assert_eq!(
+        session.flush_uncommitted(),
+        Some(LiveEvent::FinalTranscript {
+            text: "Hello. World".to_string()
+        })
+    );
+    // Once only.
+    assert_eq!(session.flush_uncommitted(), None);
+}
+
+#[test]
+fn mistral_flush_after_done_is_none_so_done_still_wins() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"draft"}"#);
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.done","text":"Record."}"#),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "Record.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0,
+        }
+    );
+    assert_eq!(session.flush_uncommitted(), None);
+}
+
+#[test]
+fn mistral_flush_after_an_error_still_commits_the_deltas() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"Kept words"}"#);
+    session.parse(r#"{"type":"error","error":{"message":"boom"}}"#);
+    assert_eq!(
+        session.flush_uncommitted(),
+        Some(LiveEvent::FinalTranscript {
+            text: "Kept words".to_string()
+        })
+    );
+}
+
+#[test]
+fn mistral_flush_with_nothing_buffered_is_none() {
+    let mut session = mistral_session();
+    assert_eq!(session.flush_uncommitted(), None);
+    session.parse(r#"{"type":"transcription.text.delta","text":"   "}"#);
+    assert_eq!(session.flush_uncommitted(), None);
+}
+
+#[test]
+fn flush_uncommitted_is_none_for_every_provider_that_commits_as_it_goes() {
+    for provider in LiveProvider::ALL {
+        if provider == LiveProvider::Mistral {
+            continue;
+        }
+        let mut session = keyed(provider);
+        // Text a Mistral session would hold back; every other provider has
+        // committed or discarded it already.
+        session.parse(r#"{"type":"transcription.text.delta","text":"words"}"#);
+        assert_eq!(session.flush_uncommitted(), None, "{provider:?}");
+    }
+}
+
+#[test]
 fn mistral_done_without_any_delta_uses_the_record() {
     let mut session = mistral_session();
     assert_eq!(
@@ -2669,7 +2755,9 @@ fn mistral_reset_forgets_pending_fragments() {
     session.connect().expect("connect");
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":"fresh"}"#),
-        LiveEvent::PartialTranscript { text: "fresh".to_string() }
+        LiveEvent::PartialTranscript {
+            text: "fresh".to_string()
+        }
     );
 }
 
@@ -2696,10 +2784,16 @@ fn mistral_error_frames_carry_the_nested_message() {
 
 #[test]
 fn mistral_capabilities() {
-    assert!(supports_vocabulary_without_language(LiveProvider::Mistral, None));
+    assert!(supports_vocabulary_without_language(
+        LiveProvider::Mistral,
+        None
+    ));
     assert!(complete_ends_session_before_stop(LiveProvider::Mistral));
     assert_eq!(start_timeout_ms(LiveProvider::Mistral), 0);
-    assert_eq!(control_frames_of(LiveProvider::Mistral), Vec::<LiveFrame>::new());
+    assert_eq!(
+        control_frames_of(LiveProvider::Mistral),
+        Vec::<LiveFrame>::new()
+    );
 }
 
 fn control_frames_of(provider: LiveProvider) -> Vec<LiveFrame> {
