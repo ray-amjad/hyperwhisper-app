@@ -43,10 +43,10 @@ public partial class ParakeetTranscriptionService
     /// or kill) is expected: Info. One that exited on its own crashed or was killed by
     /// something else: WARN, with its exit code, as before.
     /// </summary>
-    internal static (bool Warn, string Message) DescribeDaemonExit(int processId, int exitCode, string? requestedBy) =>
+    internal static (bool Warn, string Message) DescribeDaemonExit(int exitCode, string? requestedBy) =>
         requestedBy == null
-            ? (true, $"ParakeetTranscriptionService: Daemon process exited unexpectedly (pid: {processId}, exit code: {exitCode})")
-            : (false, $"ParakeetTranscriptionService: Daemon process exited after the app asked it to ({requestedBy}; pid: {processId}, exit code: {exitCode})");
+            ? (true, $"ParakeetTranscriptionService: Daemon process exited unexpectedly (exit code: {exitCode})")
+            : (false, $"ParakeetTranscriptionService: Daemon process exited after the app asked it to ({requestedBy}; exit code: {exitCode})");
 
     /// <summary>
     /// Handles a daemon process exiting (crash detection). Reads the daemon that raised
@@ -62,18 +62,22 @@ public partial class ParakeetTranscriptionService
             return;
         }
 
-        // Each on its own: the Process may already be disposed (a reload's teardown).
-        var processId = -1;
         var exitCode = -1;
-        try { processId = process.Id; } catch { }
-        try { exitCode = process.ExitCode; } catch { }
+        try
+        {
+            exitCode = process.ExitCode;
+        }
+        catch
+        {
+            // Process may already be disposed (a reload's teardown)
+        }
 
         if (ReferenceEquals(_daemonProcess, process))
         {
             _isReady = false;
         }
 
-        var (warn, message) = DescribeDaemonExit(processId, exitCode, ExitRequestedBy(process));
+        var (warn, message) = DescribeDaemonExit(exitCode, ExitRequestedBy(process));
         LogDaemonExit(warn, message);
     }
 

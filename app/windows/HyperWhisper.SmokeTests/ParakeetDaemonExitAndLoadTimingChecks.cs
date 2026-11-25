@@ -46,19 +46,19 @@ internal static class ParakeetDaemonExitAndLoadTimingChecks
 
     private static void DescribeDaemonExitLevels()
     {
-        var (quitWarn, quitMessage) = ParakeetTranscriptionService.DescribeDaemonExit(4242, 0, "quit");
+        var (quitWarn, quitMessage) = ParakeetTranscriptionService.DescribeDaemonExit(0, "quit");
         Assert(!quitWarn, $"a quit the app asked for logged at WARN: {quitMessage}");
         Assert(!quitMessage.Contains("unexpectedly", StringComparison.Ordinal), $"a requested quit still reads as unexpected: {quitMessage}");
         Assert(quitMessage.Contains("quit", StringComparison.Ordinal) && quitMessage.Contains("exit code: 0", StringComparison.Ordinal),
             $"the requested-quit line lost how or its exit code: {quitMessage}");
 
-        var (killWarn, killMessage) = ParakeetTranscriptionService.DescribeDaemonExit(4242, -1, "kill");
+        var (killWarn, killMessage) = ParakeetTranscriptionService.DescribeDaemonExit(-1, "kill");
         Assert(!killWarn && killMessage.Contains("kill", StringComparison.Ordinal), $"a kill the app made logged as a crash: {killMessage}");
 
         // Exit code 0 is no excuse: a daemon nobody asked to quit that leaves is still a WARN.
-        var (crashWarn, crashMessage) = ParakeetTranscriptionService.DescribeDaemonExit(4242, 0, null);
+        var (crashWarn, crashMessage) = ParakeetTranscriptionService.DescribeDaemonExit(0, null);
         Assert(crashWarn, $"a daemon that exited on its own was not a WARN: {crashMessage}");
-        var (crash7Warn, crash7Message) = ParakeetTranscriptionService.DescribeDaemonExit(4242, 7, null);
+        var (crash7Warn, crash7Message) = ParakeetTranscriptionService.DescribeDaemonExit(7, null);
         Assert(crash7Warn && crash7Message.Contains("exited unexpectedly", StringComparison.Ordinal)
                && crash7Message.Contains("exit code: 7", StringComparison.Ordinal),
             $"the unexpected-exit WARN lost its wording or exit code: {crash7Message}");
@@ -122,13 +122,11 @@ internal static class ParakeetDaemonExitAndLoadTimingChecks
         {
             await service.InitializeAsync(standIn.ModelDirectoryA, null).WaitAsync(TimeSpan.FromSeconds(30));
             var daemon = standIn.Started.Single();
-            var pid = daemon.Id;
-
             // The daemon exits on its own, with code 7: nobody in the app asked it to.
             daemon.StandardInput.WriteLine("die");
             daemon.StandardInput.Flush();
 
-            var expected = $"pid: {pid}, exit code: 7";
+            const string expected = "exit code: 7";
             var clock = Stopwatch.StartNew();
             while (!standIn.ExitLogs.Any(entry => entry.Message.Contains(expected, StringComparison.Ordinal)))
             {
