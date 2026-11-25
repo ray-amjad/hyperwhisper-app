@@ -137,7 +137,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "soniox",
     vendorDisplayName: "Soniox",
     models: [
-      { id: "stt-async-v5", displayName: "Async v5", isDefault: true },
+      { id: "stt-async-v6", displayName: "Async v6", isDefault: true },
     ],
   },
   {
@@ -148,7 +148,6 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "gemini-3.8-flash", displayName: "Gemini 3.8 Flash", isDefault: true },
       { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash" },
       { id: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite" },
-      { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" },
       { id: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro" },
     ],
   },
@@ -222,9 +221,15 @@ export const RETIRED_PROVIDERS: readonly string[] = ["google-chirp"];
  *
  *  - `grok-voice-transcribe-1.0` — removed from every catalog in #1974 (#1908);
  *    hyperwhisper-cloud aliases it to 2.0 for old app builds.
+ *  - `stt-async-v5` — renamed to `stt-async-v6` in every catalog (#3030);
+ *    Soniox removes v5 on 2026-12-15 and the cloud aliases it to v6.
+ *  - `gemini-2.5-pro` — its speech-to-text row left every catalog (#3009);
+ *    Google auto-routes it to 3.8 Flash from 2026-12-01, and so does the cloud.
  */
 export const RETIRED_MODELS: Readonly<Record<string, readonly CatalogModel[]>> = {
   grok: [{ id: "grok-voice-transcribe-1.0", displayName: "Grok Voice Transcribe 1" }],
+  soniox: [{ id: "stt-async-v5", displayName: "Async v5" }],
+  gemini: [{ id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" }],
 };
 
 function resolveRetiredModel(
