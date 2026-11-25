@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-10-18",
+  "lastUpdated": "2026-11-25",
   "models": [
     {
       "provider": "appleSpeech",
@@ -478,6 +478,16 @@
     },
     {
       "provider": "groq",
+      "id": "openai/gpt-oss-20b",
+      "kind": "text",
+      "displayName": "GPT OSS 20B",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "notes": "Available BYOK and via HyperWhisper Cloud (hyperwhisper-cloud llm-models.ts groq row, maxOutputTokens 4096 like the 120b row); kept in sync with the cloud-pp-catalog.json groq row."
+    },
+    {
+      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "displayName": "Qwen 3.8 27B",
@@ -585,7 +595,7 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "OpenAI's named replacement for gpt-4.1-nano (retires 2026-10-23) and gpt-5-nano (removed 2026-12-11); also the redirect target for gpt-5 and gpt-5-mini. Routed through HyperWhisper Cloud as the only OpenAI model (hyperwhisper-cloud llm-provider.ts, #1018); kept in sync with cloud-pp-catalog.json. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
+      "notes": "OpenAI's named replacement for gpt-4.1-nano (retires 2026-10-23) and gpt-5-nano (removed 2026-12-11); also the redirect target for gpt-5 and gpt-5-mini. Routed through HyperWhisper Cloud (hyperwhisper-cloud llm-models.ts, #1018), beside gpt-6-luna; kept in sync with cloud-pp-catalog.json. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
     },
     {
       "provider": "openai",
@@ -593,9 +603,9 @@
       "kind": "text",
       "displayName": "GPT-6 Luna",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition (2026-10) — NOT routed through hyperwhisper-cloud's llm-provider.ts; gpt-5.6-luna stays the Cloud OpenAI model."
+      "notes": "BYOK row since 2026-10; routed through HyperWhisper Cloud since 2026-11 (hyperwhisper-cloud llm-models.ts openai row); kept in sync with cloud-pp-catalog.json. gpt-5.6-luna stays a Cloud row so pinned modes keep working."
     },
 
     {

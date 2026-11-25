@@ -84,6 +84,16 @@ describe('resolveLLMModel', () => {
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gemini-3.8-flash');
   });
 
+  test('gpt-6-luna and groq openai/gpt-oss-20b are allowlisted next to the older rows', () => {
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-6-luna' }))).toBe('gpt-6-luna');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gpt-5.6-luna');
+    expect(resolveLLMModel('groq', requestWith({ 'x-llm-model': 'openai/gpt-oss-20b' }))).toBe('openai/gpt-oss-20b');
+    expect(resolveLLMModel('groq', requestWith({ 'x-llm-model': 'openai/gpt-oss-120b' }))).toBe('openai/gpt-oss-120b');
+    // The 20b id is Groq's, not Cerebras's: Cerebras keeps its one default.
+    expect(resolveLLMModel('cerebras', requestWith({ 'x-llm-model': 'openai/gpt-oss-20b' }))).toBe('gpt-oss-120b');
+    expect(defaultModelFor('groq')).toBe('openai/gpt-oss-120b');
+  });
+
   test('the gemini default is 3.8 Flash, and the 2.5 ids stay selectable', () => {
     // Google limits gemini-2.5-* to past users, so a blank, typo'd or BYOK-only
     // gemini id falls back to 3.8 Flash. A client that asks for a 2.5 id by
@@ -108,6 +118,27 @@ describe('cost functions', () => {
     expect(computeLLMChatCost('openai', 'unknown', oneM)).toBeCloseTo(0.20 + 1.20, 6);
     expect(computeLLMChatCost('openai', 'gpt-5-mini', oneM)).toBeCloseTo(0.20 + 1.20, 6);
     expect(computeLLMChatCost('openai', 'gpt-5-nano', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+  });
+
+  test('gpt-6-luna and groq gpt-oss-20b bill at their own rows', () => {
+    // Read from the row rather than restated: the rates are pending Ray
+    // (Ask #3771) and stay a one-line edit in llm-models.ts. The catalog-parity
+    // block in src/lib/cost-calculator.test.ts pins the catalog copy.
+    const rowCost = (provider: LLMProvider, model: string): number => {
+      const row = LLM_MODELS.find((r) => r.provider === provider && r.model === model);
+      expect(row).toBeDefined();
+      return row!.rate.promptPerToken * oneM.prompt_tokens + row!.rate.completionPerToken * oneM.completion_tokens;
+    };
+    expect(computeLLMChatCost('openai', 'gpt-6-luna', oneM)).toBeCloseTo(rowCost('openai', 'gpt-6-luna'), 9);
+    expect(computeLLMChatCost('openai', 'gpt-5.6-luna', oneM)).toBeCloseTo(rowCost('openai', 'gpt-5.6-luna'), 9);
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-20b', oneM)).toBeCloseTo(rowCost('groq', 'openai/gpt-oss-20b'), 9);
+    expect(computeLLMChatCost('groq', 'openai/gpt-oss-120b', oneM)).toBeCloseTo(rowCost('groq', 'openai/gpt-oss-120b'), 9);
+    // A missing or unknown X-LLM-Model bills at the provider default row.
+    for (const provider of ['openai', 'groq'] as const) {
+      const fallback = rowCost(provider, defaultModelFor(provider));
+      expect(computeLLMChatCost(provider, 'not-a-real-model', oneM)).toBeCloseTo(fallback, 9);
+      expect(computeLLMChatCost(provider, '', oneM)).toBeCloseTo(fallback, 9);
+    }
   });
 
   test('gemini bills per model', () => {
@@ -153,6 +184,12 @@ describe('servedLLMName', () => {
     expect(servedLLMName('gemini', 'gemini-2.5-flash')).toBe('gemini-2.5-flash');
     expect(servedLLMName('gemini', 'gemini-2.5-flash')).not.toBe(providerLabel('gemini'));
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
+  });
+
+  test('gpt-6-luna and groq gpt-oss-20b serve their own labels', () => {
+    expect(servedLLMName('openai', 'gpt-6-luna')).toBe('openai-gpt-6-luna');
+    expect(servedLLMName('openai', 'gpt-5.6-luna')).toBe('openai-gpt-5.6-luna');
+    expect(servedLLMName('groq', 'openai/gpt-oss-20b')).toBe('groq-gpt-oss-20b');
   });
 
   test('the retired open-mistral-nemo has no served name of its own', () => {

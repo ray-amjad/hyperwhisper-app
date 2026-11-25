@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for HyperWhisper Cloud POST-PROCESSING (LLM) engines. Loaded by macOS and Windows to drive the credit-billed (no-key) post-processing Engine + Model picker and the X-LLM-Provider / X-LLM-Model headers sent to hyperwhisper-cloud /post-process. Mirrors cloud-stt-catalog.json. Prices are USD per 1M tokens and are the DISPLAY/estimate source of truth; the ACTUAL billing constants live in hyperwhisper-cloud/src/lib/cost-calculator.ts and MUST match these values (see CLAUDE.md). See CLAUDE.md in this directory before editing.",
   "version": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-11-25",
   "providers": [
     {
       "id": "cerebras",
@@ -30,6 +30,9 @@
       "models": [
         { "id": "openai/gpt-oss-120b", "displayName": "GPT-OSS 120B", "llmModelHeader": "openai/gpt-oss-120b",
           "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true },
+        { "id": "openai/gpt-oss-20b", "displayName": "GPT-OSS 20B", "llmModelHeader": "openai/gpt-oss-20b",
+          "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": false, "isRecommended": false,
           "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true }
       ],
       "sources": ["https://console.groq.com/docs/models"]
@@ -80,9 +83,12 @@
       "models": [
         { "id": "gpt-5.6-luna", "displayName": "GPT-5.6 Luna", "llmModelHeader": "gpt-5.6-luna",
           "pricePerMInput": 0.20, "pricePerMOutput": 1.20, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true },
+        { "id": "gpt-6-luna", "displayName": "GPT-6 Luna", "llmModelHeader": "gpt-6-luna",
+          "pricePerMInput": 0.20, "pricePerMOutput": 1.20, "isDefault": false, "isRecommended": false,
           "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true }
       ],
-      "sources": ["https://developers.openai.com/api/docs/models/gpt-5.6-luna", "https://developers.openai.com/api/docs/deprecations"]
+      "sources": ["https://developers.openai.com/api/docs/models/gpt-5.6-luna", "https://developers.openai.com/api/docs/models/gpt-6-luna", "https://developers.openai.com/api/docs/deprecations"]
     },
 
     {

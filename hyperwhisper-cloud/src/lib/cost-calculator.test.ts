@@ -647,10 +647,9 @@ describe('LLM chat costs', () => {
   });
 
   test('the multi-model chat providers price each model separately', () => {
-    // OpenAI is not here: it is down to one model, gpt-5.6-luna (#1018), so it has
-    // no second rate to tell apart. Its one rate is pinned by the "bills every id
-    // at the one luna rate" test in src/providers/llm-dispatch.test.ts and by the
-    // catalog-parity block below. Flash-lite is cheaper than flash.
+    // OpenAI (gpt-5.6-luna, gpt-6-luna) and Groq (gpt-oss-120b, gpt-oss-20b) are
+    // not here: their per-row rates are pinned in src/providers/llm-dispatch.test.ts
+    // and by the catalog-parity block below. Flash-lite is cheaper than flash.
     expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
     expect(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
     expect(computeLLMChatCost('mistral', 'mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);

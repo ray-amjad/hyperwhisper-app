@@ -172,9 +172,8 @@ describe('provider endpoint and auth', () => {
     expect(calls[1].url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
     expect(lastBody().model).toBe('gemini-2.5-flash-lite');
 
-    // OpenAI (above) and Mistral are each down to a single allowlisted model, so the
-    // handed model and the provider default coincide — the client still must send
-    // what it was handed.
+    // Mistral is down to a single allowlisted model, so the handed model and the
+    // provider default coincide — the client still must send what it was handed.
     await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
     expect(calls[2].url).toBe('https://api.mistral.ai/v1/chat/completions');
     expect(lastBody().model).toBe('mistral-small-latest');
@@ -297,6 +296,27 @@ describe('request body construction', () => {
     // (xai put it before the payload) could never be observed.
     await requestXaiGrokChat(PAYLOAD, 'req-1');
     expect(lastBody().reasoning_effort).toBe('none');
+  });
+
+  test('groq openai/gpt-oss-20b goes out as itself with the 4,096 ceiling and low effort', async () => {
+    // Groq's own default cap (1,024) is too low for a reasoning model, the same
+    // trap as the 120b row, so the 20b row carries the same ceiling.
+    const result = await requestOpenAICompatibleChat('groq', PAYLOAD, 'req-1', 'openai/gpt-oss-20b');
+    expect(calls[0].url).toBe('https://api.groq.com/openai/v1/chat/completions');
+    expect(lastBody().model).toBe('openai/gpt-oss-20b');
+    expect(lastBody().max_completion_tokens).toBe(4096);
+    expect(lastBody().reasoning_effort).toBe('low');
+    expect(result.costUsd).toBe(computeLLMChatCost('groq', 'openai/gpt-oss-20b', USAGE));
+  });
+
+  test('openai gpt-6-luna drops temperature and sends reasoning effort none', async () => {
+    // gpt-6-luna takes none|low|medium|high|xhigh|max, like gpt-5.6-luna.
+    const result = await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-6-luna');
+    expect(lastBody().model).toBe('gpt-6-luna');
+    expect(lastBody()).not.toHaveProperty('temperature');
+    expect(lastBody().reasoning_effort).toBe('none');
+    expect(lastBody()).not.toHaveProperty('max_completion_tokens');
+    expect(result.costUsd).toBe(computeLLMChatCost('openai', 'gpt-6-luna', USAGE));
   });
 });
 
