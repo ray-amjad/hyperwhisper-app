@@ -96,9 +96,10 @@ const GEMINI_ALIASES: &[(&str, &str)] = &[
     // Flash is cheaper on Cloud ($0.0030/min reserved vs $0.0075). Same PARITY
     // list as the entry above.
     ("gemini-2.5-pro", "gemini-3.8-flash"),
-    // PENDING (#3009): `gemini-2.5-flash` STT target not chosen yet. When it is,
-    // add ONE line here — ("gemini-2.5-flash", "<target>") — then drop the
-    // 2.5 Flash voice row (see the PR for every head that needs the same line).
+    // Google deprecated 2.5 Flash on the same date. Its named successor (3.5
+    // Flash Lite) is not a Gemini STT row anywhere, so Ray chose 3.8 Flash at its
+    // existing price (#3009, 2026-11-25); the 2.5 Flash voice row is gone too.
+    ("gemini-2.5-flash", "gemini-3.8-flash"),
 ];
 
 /// OpenAI STT ids deprecated 2026-08-26, shutdown 2027-02-26
@@ -277,10 +278,15 @@ mod tests {
             "gemini-3.8-flash"
         );
         assert_eq!(resolve_model_alias("gemini-2.5-pro", None), "gemini-3.8-flash");
-        // 2.5 Flash's STT target is still pending (#3009): no alias yet.
         assert_eq!(
             resolve_model_alias("gemini-2.5-flash", Some("gemini")),
-            "gemini-2.5-flash"
+            "gemini-3.8-flash"
+        );
+        assert_eq!(resolve_model_alias("gemini-2.5-flash", None), "gemini-3.8-flash");
+        // 2.5 Flash Lite is not deprecated and must not move.
+        assert_eq!(
+            resolve_model_alias("gemini-2.5-flash-lite", Some("gemini")),
+            "gemini-2.5-flash-lite"
         );
         assert_eq!(
             resolve_model_alias("gemini-2.0-flash", Some("gemini")),

@@ -163,10 +163,16 @@ describe('resolveModel', () => {
     expect(getProviderDef('gemini').models.map((m) => m.id)).not.toContain('gemini-2.5-pro');
     // The alias cannot raise the bill: the retired 2.5 Pro row reserved $0.0075/min.
     expect(estimatedUsdPerMinute('gemini', 'gemini-2.5-pro')).toBeLessThanOrEqual(0.0075);
-    // 2.5 Flash's STT target is still pending (#3009): it keeps its own row.
+    // 2.5 Flash went the same way (Ray, #3009): served and billed as 3.8 Flash at
+    // its existing rate. 2.5 Flash Lite is not deprecated and keeps its row.
     const flash = resolveModel('gemini', 'gemini-2.5-flash');
     expect(flash.ok).toBe(true);
-    if (flash.ok) expect(flash.model.id).toBe('gemini-2.5-flash');
+    if (flash.ok) expect(flash.model.id).toBe('gemini-3.8-flash');
+    expect(getProviderDef('gemini').models.map((m) => m.id)).not.toContain('gemini-2.5-flash');
+    expect(estimatedUsdPerMinute('gemini', 'gemini-2.5-flash')).toBe(estimatedUsdPerMinute('gemini', 'gemini-3.8-flash'));
+    const lite = resolveModel('gemini', 'gemini-2.5-flash-lite');
+    expect(lite.ok).toBe(true);
+    if (lite.ok) expect(lite.model.id).toBe('gemini-2.5-flash-lite');
   });
 
   test('the retired grok-voice-transcribe-1.0 id is served as 2.0, not a 400 (#1908)', () => {
@@ -499,7 +505,6 @@ describe('cloud STT registry ↔ cloud-stt-catalog.json parity', () => {
     'openai/gpt-4o-mini-transcribe': 'token-billed; reservation adds an output-token allowance on top of the catalog input rate',
     'openai/gpt-4o-mini-transcribe-2025-12-15': 'token-billed at the gpt-4o-mini-transcribe rates (same reservation)',
     'gemini/gemini-3.8-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
-    'gemini/gemini-2.5-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini/gemini-2.5-flash-lite': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini/gemini-3.1-pro-preview': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini-transcribe/gemini-3.5-transcribe': 'token-billed; 5.5 credits/min is pinned in cost-calculator.test.ts',

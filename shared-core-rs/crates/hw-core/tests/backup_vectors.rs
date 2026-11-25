@@ -640,9 +640,12 @@ fn vector_groups_are_populated() {
     // the provider-scoped alias, and one more the chain arm for a backup that
     // carries `gemini-2.5-pro` with no provider. No row was removed; the two v4
     // rows now expect `stt-async-v6`, the new end of the Soniox alias chain.
+    //
+    // 139 → 141: Ray moved `gemini-2.5-flash` onto 3.8 Flash too (#3009): one
+    // provider-scoped row and one chain-arm row. No row was removed.
     assert_eq!(
         rows("modeNormalization").len(),
-        139,
+        141,
         "the frozen modeNormalization row count changed; a row may only be ADDED, and the \
          count here must be updated deliberately when one is"
     );

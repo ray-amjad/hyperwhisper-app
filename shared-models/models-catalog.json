@@ -374,16 +374,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-2.5-flash",
-      "kind": "voice",
-      "displayName": "Gemini 2.5 Flash",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-2.5-flash-lite",
       "kind": "voice",
       "displayName": "Gemini 2.5 Flash Lite",

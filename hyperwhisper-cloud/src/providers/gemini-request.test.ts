@@ -161,7 +161,6 @@ describe('transcribeWithGemini — request shape', () => {
 
   test('sends temperature only to the 2.5 rows; 3.x models get thinking only (#3009)', async () => {
     const cases: Array<[string, boolean]> = [
-      ['gemini-2.5-flash', true],
       ['gemini-2.5-flash-lite', true],
       ['gemini-3.8-flash', false],
       ['gemini-3.1-pro-preview', false],
@@ -187,7 +186,6 @@ describe('transcribeWithGemini — request shape', () => {
 
   test('keeps thinking at the lowest value each model family allows', async () => {
     const cases: Array<[string, Record<string, unknown>]> = [
-      ['gemini-2.5-flash', { thinkingBudget: 0 }],
       ['gemini-2.5-flash-lite', { thinkingBudget: 0 }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
       // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
@@ -196,8 +194,10 @@ describe('transcribeWithGemini — request shape', () => {
       // unknown ids first) gets the default model's config — no longer a
       // thinkingBudget 0 guess, which Pro models reject.
       ['gemini-3-flash-preview', { thinkingLevel: 'low' }],
-      // 2.5 Pro's row is gone (#3009); the route serves it as 3.8 Flash.
+      // 2.5 Pro's and 2.5 Flash's rows are gone (#3009); the route serves both
+      // as 3.8 Flash.
       ['gemini-2.5-pro', { thinkingLevel: 'low' }],
+      ['gemini-2.5-flash', { thinkingLevel: 'low' }],
       ['some-future-model', { thinkingLevel: 'low' }],
     ];
 
@@ -357,15 +357,16 @@ describe('transcribeWithGemini — result and billing', () => {
       thoughtsTokenCount: 50,
     }))) as unknown as typeof fetch;
 
-    // Pinned to 2.5 Flash, not the default: 3.8 Flash has ONE input rate, so it
-    // cannot tell text billing from audio billing.
-    const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
+    // Pinned to 2.5 Flash Lite, not the default: 3.8 Flash has ONE input rate, so
+    // it cannot tell text billing from audio billing. (2.5 Flash, retired in
+    // #3009, was the case here before.)
+    const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash-lite' });
 
-    // gemini-2.5-flash: audio $1.00/M, text $0.30/M, output $2.50/M.
+    // gemini-2.5-flash-lite: audio $0.30/M, text $0.10/M, output $0.40/M.
     // 1920 audio + 80 text + (100 + 50) output.
-    expect(result.costUsd).toBeCloseTo(0.002319, 9);
-    // Billing the 80 text tokens at the audio rate would give 0.002375.
-    expect(result.costUsd).toBeLessThan(0.002375);
+    expect(result.costUsd).toBeCloseTo(0.000644, 9);
+    // Billing the 80 text tokens at the audio rate would give 0.00066.
+    expect(result.costUsd).toBeLessThan(0.00066);
   });
 
   test('bills thinking tokens as output, not as free', async () => {
@@ -376,14 +377,14 @@ describe('transcribeWithGemini — result and billing', () => {
         candidatesTokenCount: 100,
         thoughtsTokenCount,
       }))) as unknown as typeof fetch;
-      const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
+      const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash-lite' });
       return result.costUsd;
     };
 
     const withoutThinking = await costFor(0);
     const withThinking = await costFor(400);
-    // 400 extra output tokens at $2.50/M.
-    expect(withThinking - withoutThinking).toBeCloseTo(400 * 2.5e-6, 9);
+    // 400 extra output tokens at $0.40/M (2.5 Flash Lite).
+    expect(withThinking - withoutThinking).toBeCloseTo(400 * 0.4e-6, 9);
   });
 
   // #2634: the endpoint is token-billed, so silent audio is charged what Google
@@ -463,11 +464,11 @@ describe('transcribeWithGemini — result and billing', () => {
     globalThis.fetch = mock(async () => Response.json(generateContentResponse('hello'))) as unknown as typeof fetch;
 
     // 480_000 bytes ≈ 1 minute at the 64 kbps estimate → 1920 audio tokens.
-    const result = await transcribeWithGemini(audio(480_000), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
+    const result = await transcribeWithGemini(audio(480_000), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash-lite' });
     expect(result.durationSeconds).toBeCloseTo(60, 6);
     // No usage total → no text tokens are invented, so it is audio-only billing
-    // (2.5 Flash audio $1.00/M).
-    expect(result.costUsd).toBeCloseTo(1920 * 1e-6, 9);
+    // (2.5 Flash Lite audio $0.30/M).
+    expect(result.costUsd).toBeCloseTo(1920 * 0.3e-6, 9);
   });
 
   test('prices a non-default model at that model rate', async () => {

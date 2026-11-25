@@ -1344,6 +1344,37 @@
       }
     },
     {
+      "name": "gemini model alias: \"gemini-2.5-flash\" (deprecated 2026-11-02, #3009)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000140",
+        "name": "vec-140",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.5-flash"
+      },
+      "expected": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a retired gemini-2.5-flash id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000141",
+        "name": "vec-141",
+        "cloudTranscriptionModel": "gemini-2.5-flash"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
       "name": "deepgram model alias: \"nova-3\"",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000085",

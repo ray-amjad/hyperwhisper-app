@@ -335,10 +335,10 @@ describe('successful completion', () => {
   });
 
   test('prices the multi-model providers on the model actually used', async () => {
-    const flash = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
+    const flash = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
     const flashLite = await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
 
-    expect(flash.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE));
+    expect(flash.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-3.8-flash', USAGE));
     expect(flashLite.costUsd).toBe(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', USAGE));
     // Billing the cheap model at the expensive model's rate (or the reverse)
     // is invisible in the response, so pin that they differ.

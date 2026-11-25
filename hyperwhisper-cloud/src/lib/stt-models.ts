@@ -12,7 +12,6 @@
 
 import {
   GEMINI_2_5_FLASH_LITE_PRICE,
-  GEMINI_2_5_FLASH_PRICE,
   GEMINI_3_8_FLASH_PRICE,
 } from './gemini-prices';
 
@@ -415,11 +414,13 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // so a client still sending it is served AND billed as 3.8 Flash (reserved
     // 0.0030/min, below 2.5 Pro's 0.0075), never a 400. PARITY: hw-catalog
     // GEMINI_ALIASES, macOS legacyGeminiAliases.
-    // PENDING #3009: the gemini-2.5-flash STT target is not chosen yet; when it
-    // is, add its one entry here and drop the 2.5-flash row below.
+    // gemini-2.5-flash was deprecated the same day. Ray chose 3.8 Flash for it
+    // too (#3009, 2026-11-25), at 3.8 Flash's existing rate: a mode on 2.5 Flash
+    // now reserves 0.0030/min instead of 0.0024 — a decided increase, not drift.
     aliases: {
       'gemini-3-flash-preview': 'gemini-3.8-flash',
       'gemini-2.5-pro': 'gemini-3.8-flash',
+      'gemini-2.5-flash': 'gemini-3.8-flash',
     },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
@@ -433,7 +434,7 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // Standard paid tier, per-1M ÷ 1e6. Ref: https://ai.google.dev/gemini-api/docs/pricing
     //
     // `thinking` is the generationConfig.thinkingConfig the adapter sends: keep
-    // thinking as low as each model allows (only 2.5-flash/flash-lite can zero
+    // thinking as low as each model allows (only 2.5 Flash Lite can zero
     // it). Every row here must author it, because a wrong guess is a 400:
     // thinkingBudget 0 is invalid on Pro, and 3.8 Flash has no 'minimal' level.
     models: [
@@ -451,11 +452,6 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
         id: 'gemini-3.8-flash', supportsVocabulary: false,
         billing: { kind: 'tokens', ...GEMINI_3_8_FLASH_PRICE },
         reserveUsdPerMinute: 0.0030, thinking: { thinkingLevel: 'low' },
-      },
-      {
-        id: 'gemini-2.5-flash', supportsVocabulary: false,
-        billing: { kind: 'tokens', ...GEMINI_2_5_FLASH_PRICE },
-        reserveUsdPerMinute: 0.0024, thinking: { thinkingBudget: 0 },
       },
       {
         id: 'gemini-2.5-flash-lite', supportsVocabulary: false,

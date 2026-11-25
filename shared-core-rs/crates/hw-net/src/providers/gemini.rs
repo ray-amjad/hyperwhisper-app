@@ -479,7 +479,7 @@ mod tests {
     fn params() -> TranscribeParams {
         TranscribeParams {
             api_key: "gem-key".to_string(),
-            model: "gemini-2.5-flash".to_string(),
+            model: "gemini-2.5-flash-lite".to_string(),
             audio_path: "/tmp/rec.m4a".to_string(),
             ..Default::default()
         }
@@ -737,7 +737,7 @@ mod tests {
         let req = build_generate_request(&params(), &file).unwrap();
         assert_eq!(
             req.url,
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=gem-key"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=gem-key"
         );
         let j = body_json(&req);
         let parts = &j["contents"][0]["parts"];
