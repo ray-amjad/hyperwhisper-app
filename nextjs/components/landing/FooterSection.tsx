@@ -66,6 +66,11 @@ export default function FooterSection() {
         { label: "Latency", href: "/en/latency", raw: true },
         { label: t("links.blog"), href: "/en/blog", raw: true },
         {
+          label: "Best dictation software",
+          href: "/en/blog/best-dictation-software",
+          raw: true,
+        },
+        {
           label: "Free speech-to-text app",
           href: "/en/blog/free-speech-to-text-app",
           raw: true,
@@ -73,6 +78,11 @@ export default function FooterSection() {
         {
           label: "Best dictation software for Windows",
           href: "/en/blog/best-dictation-software-for-windows",
+          raw: true,
+        },
+        {
+          label: "Best dictation app for Mac",
+          href: "/en/blog/mac-voice-dictation-software",
           raw: true,
         },
         {

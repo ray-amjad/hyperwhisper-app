@@ -9,10 +9,13 @@ import {
   scrollableBodyTables,
 } from "@/src/content/blog-html";
 import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
+import { bestDictationSoftware } from "@/src/content/code-posts/best-dictation-software";
 import { bestDictationSoftwareForWindows } from "@/src/content/code-posts/best-dictation-software-for-windows";
+import { bestDictationSoftwareForWriters } from "@/src/content/code-posts/best-dictation-software-for-writers";
 import { freeSpeechToTextApp } from "@/src/content/code-posts/free-speech-to-text-app";
 import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
+import { macVoiceDictationSoftware } from "@/src/content/code-posts/mac-voice-dictation-software";
 
 const BLOG_LOCALE = "en";
 
@@ -149,17 +152,31 @@ async function readPostSummaries(): Promise<BlogPostSummary[]> {
  * replaces a stored row, so fact-checked copy in git is what the site serves.
  */
 const CODE_POSTS: BlogPost[] = [
+  bestDictationSoftware,
   bestDictationSoftwareForWindows,
+  bestDictationSoftwareForWriters,
   freeSpeechToTextApp,
   hyperwhisperVsSpokenly,
   hyperwhisperVsHandyVsFluidvoice,
+  macVoiceDictationSoftware,
 ];
+
+/**
+ * Outrank slugs that next.config 308s onto a code post. Drop them from the
+ * index and the sitemap so crawlers never see a URL that only redirects.
+ * getBlogPost also refuses them, so a missed redirect cannot serve the old
+ * body as a duplicate of the canonical page.
+ */
+export const REDIRECTED_BLOG_SLUGS = new Set(["good-dictation-software"]);
 
 function withCodePosts(stored: BlogPostSummary[]): BlogPostSummary[] {
   const codeSlugs = new Set(CODE_POSTS.map((post) => post.slug));
 
   return [
-    ...stored.filter((post) => !codeSlugs.has(post.slug)),
+    ...stored.filter(
+      (post) =>
+        !codeSlugs.has(post.slug) && !REDIRECTED_BLOG_SLUGS.has(post.slug),
+    ),
     ...CODE_POSTS.map(({ locale, slug, frontMatter }) => ({
       locale,
       slug,
@@ -194,6 +211,7 @@ async function readStoredPost(slug: string): Promise<BlogPost | undefined> {
 
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
+  if (REDIRECTED_BLOG_SLUGS.has(normalizedSlug)) return null;
   // A code post replaces a stored row with the same slug, so a code slug never
   // reaches the database.
   const stored =

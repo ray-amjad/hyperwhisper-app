@@ -20,6 +20,19 @@ const escapeRegex = (/** @type {string} */ value) =>
 /** `:locale(en|ja|…|hi)`, built from the one locale list. */
 export const localeParam = `:locale(${localeCodes.map(escapeRegex).join("|")})`;
 
+/**
+ * English blog slugs that 308 onto a canonical post. Permanent, so search
+ * engines transfer ranking. Keep the source slug out of the sitemap in
+ * src/content/blog.ts (REDIRECTED_BLOG_SLUGS).
+ */
+export const blogPostRedirects = [
+  {
+    source: "/en/blog/good-dictation-software",
+    destination: "/en/blog/best-dictation-software",
+    permanent: true,
+  },
+];
+
 /** The `redirects()` entries for next.config.mjs. */
 export const blogLinkRedirects = [
   // The privacy policy page is /legal/privacy-policy.
