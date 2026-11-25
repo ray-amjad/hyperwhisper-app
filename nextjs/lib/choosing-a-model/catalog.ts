@@ -323,7 +323,9 @@ const CLOUD_MODELS_RAW = [
   // union. No published benchmark is recorded for this cleanup-enabled model.
   { id: "assemblyAI:dictation", name: "Dictation", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "dictation", credits: 10.3333333333, wer: null, speedFactor: null, languages: 32, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "mistralVoxtral:voxtral-mini-latest", name: "Voxtral Mini", vendorLabel: "Mistral Voxtral", vendor: "Mistral", sttProvider: "mistral", modelId: "voxtral-mini-latest", credits: 3.0, wer: 3.8, speedFactor: 78.1, languages: 13, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "soniox:stt-async-v6", name: "Async v6", vendorLabel: "Soniox", vendor: "Soniox", sttProvider: "soniox", modelId: "stt-async-v6", credits: 1.67, wer: 3.8, speedFactor: 18.8, languages: 60, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  // Async v6 has not been benchmarked yet. The 3.8 / 18.8 figures were measured
+  // on Async v5 (#3030), so both columns stay null until the board measures v6.
+  { id: "soniox:stt-async-v6", name: "Async v6", vendorLabel: "Soniox", vendor: "Soniox", sttProvider: "soniox", modelId: "stt-async-v6", credits: 1.67, wer: null, speedFactor: null, languages: 60, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   // The Gemini default since #1019. No leaderboard figures yet, so wer and
   // speedFactor stay null (scored a neutral 0.5) rather than borrowing 2.5's.
   { id: "gemini:gemini-3.8-flash", name: "Gemini 3.8 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.8-flash", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
