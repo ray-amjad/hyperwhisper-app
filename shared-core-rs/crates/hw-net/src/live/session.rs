@@ -58,8 +58,9 @@ pub(super) struct SessionState {
     /// `ready` is a 10 s wait on an event that cannot arrive.
     pub(super) session_started: bool,
 
-    /// Mistral: delta fragments received since the last committed sentence.
-    /// `committed_transcript` above holds what was already committed.
+    /// Mistral: every delta fragment of the session, concatenated verbatim.
+    /// Shown as the partial; `transcription.done`'s text replaces it as the
+    /// one final, and it is the fallback only when that text is blank.
     pub(super) pending_delta: String,
 }
 
