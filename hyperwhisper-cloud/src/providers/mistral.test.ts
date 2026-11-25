@@ -5,6 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { transcribeWithMistral } from './mistral';
+import { getProviderDef } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import { captureNoSpeechEvent } from './test-support';
 import { stubEnv } from '../test-support/env';
@@ -47,6 +48,21 @@ describe('transcribeWithMistral — multipart request shape', () => {
     expect(captured.url).toBe('https://api.mistral.ai/v1/audio/transcriptions');
     expect(captured.form?.get('model')).toBe('voxtral-mini-latest');
     expect((captured.headers as Record<string, string>).Authorization).toBe('Bearer mist-unit-test');
+  });
+
+  test('bills the row of the model it sent, not the default row', async () => {
+    // A probe row with a rate no real row has; see cost-calculator.test.ts.
+    const models = getProviderDef('mistral').models as unknown as Array<Record<string, unknown>>;
+    const id = 'probe-mistral-adapter-row';
+    models.push({ id, supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.5 }, estimatedUsdPerMinute: 0.5 });
+    try {
+      captureMultipartRequest(okBody);
+      const result = await transcribeWithMistral(audio(), 'audio/wav', undefined, undefined, { model: id });
+      expect(result.durationSeconds).toBeGreaterThan(0);
+      expect(result.costUsd).toBeCloseTo((result.durationSeconds / 60) * 0.5, 6);
+    } finally {
+      models.splice(models.findIndex((m) => m.id === id), 1);
+    }
   });
 
   test('honours a model from the context', async () => {

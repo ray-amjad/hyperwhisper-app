@@ -180,7 +180,7 @@ export async function transcribeWithMistral(
     text: transcript,
     language: data.language,
     durationSeconds,
-    costUsd: computeMistralTranscriptionCost(durationSeconds),
+    costUsd: computeMistralTranscriptionCost(durationSeconds, model),
     source: 'mistral',
   };
 }
