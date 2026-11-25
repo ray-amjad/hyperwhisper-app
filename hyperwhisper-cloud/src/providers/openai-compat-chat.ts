@@ -39,7 +39,8 @@ type OpenAICompatAdapter = {
 // inheriting one of these. First match wins, so keep a longer prefix above a
 // shorter one it extends.
 //
-// - 2.5-flash: 'none' turns thinking off.
+// - 2.5-flash-lite: 'none' turns thinking off. (gemini-2.5-flash itself is gone,
+//   #3009; a saved id resolves to 3.8 Flash before it gets here.)
 // - 3.8-flash: thinking cannot be turned off; its levels are low/medium/high
 //   (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07). Measured on
 //   the OpenAI-compat surface 2026-10-15: 'minimal' is a 400 ("Thinking level
@@ -50,7 +51,7 @@ type OpenAICompatAdapter = {
 //   matches the transcription client (the `thinking` field on the gemini rows
 //   in stt-models.ts).
 const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
-  ['gemini-2.5-flash', 'none'],
+  ['gemini-2.5-flash-lite', 'none'],
   ['gemini-3.8-flash', 'low'],
 ];
 

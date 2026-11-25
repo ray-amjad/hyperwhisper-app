@@ -420,7 +420,7 @@ function geminiRow(language: string | null, question: string): ProbeRow {
     sent: language ? `prompt says code "${language}"` : 'no language in prompt',
     question,
     requires: ['GEMINI_API_KEY'],
-    call: audio => callGemini(audio, 'gemini-2.5-flash', language),
+    call: audio => callGemini(audio, 'gemini-3.8-flash', language),
   };
 }
 

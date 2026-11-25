@@ -182,7 +182,7 @@ describe('provider endpoint and auth', () => {
 
   test('accepts the secondary env var name for the two providers that have one', async () => {
     delete process.env.GEMINI_API_KEY;
-    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
     expect(lastHeaders().Authorization).toBe('Bearer test-google_gemini_api_key');
 
     delete process.env.XAI_API_KEY;
@@ -201,7 +201,7 @@ describe('request body construction', () => {
       () => requestGroqChat(PAYLOAD, 'req-1'),
       () => requestXaiGrokChat(PAYLOAD, 'req-1'),
       () => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'),
-      () => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'),
+      () => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash'),
       () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
     ];
 
@@ -233,12 +233,10 @@ describe('request body construction', () => {
     expect(lastBody().temperature).toBe(0);
   });
 
-  test('gemini sends the lowest thinking level on the 2.5-flash and 3.8-flash families only', async () => {
+  test('gemini sends the lowest thinking level on 2.5 Flash-Lite and 3.8 Flash only', async () => {
     // Both families default to a dynamic thinking budget and bill thinking
     // tokens as output — pure cost on a text-cleanup call.
-    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
-    expect(lastBody().reasoning_effort).toBe('none');
-
+    // (gemini-2.5-flash itself is gone, #3009: a saved id resolves to 3.8 Flash.)
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
     expect(lastBody().reasoning_effort).toBe('none');
 
@@ -320,7 +318,7 @@ describe('successful completion', () => {
       [() => requestGroqChat(PAYLOAD, 'req-1'), computeLLMChatCost('groq', 'openai/gpt-oss-120b', USAGE)],
       [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeLLMChatCost('grok', 'grok-4.3', USAGE)],
       [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeLLMChatCost('openai', 'gpt-5.6-luna', USAGE)],
-      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeLLMChatCost('gemini', 'gemini-2.5-flash', USAGE)],
+      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash'), computeLLMChatCost('gemini', 'gemini-3.8-flash', USAGE)],
       [
         () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
         computeLLMChatCost('mistral', 'mistral-small-latest', USAGE),
@@ -448,7 +446,7 @@ describe('upstream error propagation', () => {
     expect(errorProvider(grokError)).toBe('grok');
     expect((grokError as Error).message).toBe('SpaceXAI Grok chat failed with status 500');
     expect(errorProvider(await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna')))).toBe('openai');
-    expect(errorProvider(await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash')))).toBe('gemini');
+    expect(errorProvider(await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash')))).toBe('gemini');
     expect(errorProvider(await captureError(() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest')))).toBe('mistral');
   });
 
@@ -487,7 +485,7 @@ describe('missing API key', () => {
     await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
     await captureError(() => requestGroqChat(PAYLOAD, 'req-1'));
     await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'));
-    await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'));
+    await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash'));
     await captureError(() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'));
     await captureError(() => requestXaiGrokChat(PAYLOAD, 'req-1'));
 
@@ -502,7 +500,7 @@ describe('missing API key', () => {
       [() => requestCerebrasChat(PAYLOAD, 'req-1'), 'cerebras', 'CEREBRAS_API_KEY'],
       [() => requestGroqChat(PAYLOAD, 'req-1'), 'groq', 'GROQ_API_KEY'],
       [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), 'openai', 'OPENAI_API_KEY'],
-      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), 'gemini', 'GEMINI_API_KEY'],
+      [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash'), 'gemini', 'GEMINI_API_KEY'],
       [() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'), 'mistral', 'MISTRAL_API_KEY'],
       [() => requestXaiGrokChat(PAYLOAD, 'req-1'), 'grok', 'XAI_API_KEY'],
     ];
@@ -609,7 +607,7 @@ describe('bounded wait on a silent upstream', () => {
     await requestGroqChat(PAYLOAD, 'req-1');
     await requestXaiGrokChat(PAYLOAD, 'req-1');
     await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna');
-    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
     await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
 
     expect(calls).toHaveLength(6);
@@ -646,7 +644,7 @@ describe('timeout scales with the transcript', () => {
       await requestGroqChat(LONG_PAYLOAD, 'req-long');
       await requestXaiGrokChat(LONG_PAYLOAD, 'req-long');
       await requestOpenAIChat(LONG_PAYLOAD, 'req-long', 'gpt-5.6-luna');
-      await requestGeminiChat(LONG_PAYLOAD, 'req-long', 'gemini-2.5-flash');
+      await requestGeminiChat(LONG_PAYLOAD, 'req-long', 'gemini-3.8-flash');
       await requestMistralChat(LONG_PAYLOAD, 'req-long', 'mistral-small-latest');
     });
     expect(delays.filter((ms) => ms === 50_000)).toHaveLength(6);

@@ -118,7 +118,7 @@ There are **two** Gemini STT paths here and they are not interchangeable:
 
 | Provider id | Adapter | Endpoint | Models |
 |---|---|---|---|
-| `gemini` | `providers/gemini.ts` | `models/{model}:generateContent` | the multimodal LLMs (`gemini-2.5-flash`, …) |
+| `gemini` | `providers/gemini.ts` | `models/{model}:generateContent` | the multimodal LLMs (`gemini-3.8-flash`, …) |
 | `gemini-transcribe` | `providers/gemini-transcribe.ts` | `/v1beta/interactions` | `gemini-3.5-transcribe` |
 | `gemini-transcribe` (live) | `routes/ws-streaming-gemini-transcribe.ts` | `BidiGenerateContent` WebSocket | `gemini-3.5-transcribe-live` |
 

@@ -576,7 +576,6 @@ final class ModelLibraryManager: ObservableObject {
         "claude-sonnet-5":                               (4, 5),
         "claude-sonnet-5-5":                             (4, 5),
         "claude-haiku-5-5":                              (4, 4),
-        "gemini-2.5-flash":                              (2, 5),
         "gemini-3.5-flash":                              (2, 5),
         "gemini-3.6-flash":                              (2, 5),
         "gemini-3.7-flash":                              (2, 5),

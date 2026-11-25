@@ -489,8 +489,8 @@ public sealed class ModelLibraryManager
         // Gemini
         ["gemini-3.8-flash"]                  = (2, 4),
         ["gemini-2.5-flash-lite"]             = (3, 3),
-        // gemini-2.5-pro / gemini-2.5-flash voice rows removed (#3009); their post-processing
-        // ratings stay below.
+        // gemini-2.5-pro / gemini-2.5-flash voice rows removed (#3009). gemini-2.5-flash is gone
+        // entirely (Ray, 10:43 JST): a saved id aliases to gemini-3.8-flash.
         ["gemini-3.1-flash-lite"]             = (3, 4),
         ["gemini-3.6-flash"]                  = (2, 4),
         ["gemini-3.1-pro-preview"]            = (1, 5),
@@ -554,7 +554,6 @@ public sealed class ModelLibraryManager
         ["claude-sonnet-5"]                               = (4, 5),
         ["claude-sonnet-5-5"]                             = (4, 5),
         ["claude-haiku-5-5"]                              = (4, 4),
-        ["gemini-2.5-flash"]                              = (2, 5),
         ["gemini-3.5-flash"]                              = (2, 5),
         ["gemini-3.6-flash"]                              = (2, 5),
         ["gemini-3.7-flash"]                              = (2, 5),
