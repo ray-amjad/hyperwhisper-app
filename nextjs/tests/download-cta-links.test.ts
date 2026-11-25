@@ -94,6 +94,9 @@ test("the footer points at the blog index and key commercial posts", async () =>
   assert.deepEqual(hrefsOfLabel(html, "Best dictation app for Mac"), [
     "/en/blog/mac-voice-dictation-software",
   ]);
+  assert.deepEqual(hrefsOfLabel(html, "Best voice recognition software"), [
+    "/en/blog/best-voice-recognition-software",
+  ]);
   assert.deepEqual(hrefsOfLabel(html, "HyperWhisper vs Spokenly"), [
     "/en/blog/hyperwhisper-vs-spokenly",
   ]);

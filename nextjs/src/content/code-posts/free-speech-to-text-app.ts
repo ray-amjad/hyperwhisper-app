@@ -119,7 +119,7 @@ const html = `
   <li><strong>Mac-only local transcribers</strong> are useful if your job is dropping files onto a Mac, not dictating all day across Windows and Linux as well.</li>
 </ul>
 
-<p>For the cross-platform roundup, see <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. For Windows-only built-in vs dedicated apps, see <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>. For Apple Dictation vs third-party apps, see <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. For side-by-side desktop comparisons, see <a href="/en/blog/hyperwhisper-vs-spokenly">HyperWhisper vs Spokenly</a> and <a href="/en/blog/hyperwhisper-vs-handy-vs-fluidvoice">HyperWhisper vs Handy vs FluidVoice</a>.</p>
+<p>For the cross-platform roundup, see <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. For Windows-only built-in vs dedicated apps, see <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>. For Apple Dictation vs third-party apps, see <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. For speech recognition and voice to text software, see <a href="/en/blog/best-voice-recognition-software">best voice recognition software</a>. For side-by-side desktop comparisons, see <a href="/en/blog/hyperwhisper-vs-spokenly">HyperWhisper vs Spokenly</a> and <a href="/en/blog/hyperwhisper-vs-handy-vs-fluidvoice">HyperWhisper vs Handy vs FluidVoice</a>.</p>
 
 <h2>FAQ</h2>
 

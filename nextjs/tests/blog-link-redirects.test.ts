@@ -210,6 +210,11 @@ test("good-dictation-software 308s onto the umbrella post", async () => {
         "/en/blog/best-dictation-software",
         true,
       ],
+      [
+        "/en/blog/best-voice-to-text-app",
+        "/en/blog/best-voice-recognition-software",
+        true,
+      ],
     ],
   );
   const redirects = await loadRedirects();
@@ -223,5 +228,20 @@ test("good-dictation-software 308s onto the umbrella post", async () => {
     follow(redirects, "/en/blog/best-dictation-software"),
     [],
     "canonical umbrella must not redirect again",
+  );
+});
+
+test("best-voice-to-text-app 308s onto the voice recognition post", async () => {
+  const redirects = await loadRedirects();
+  const hit = resolve(redirects, "/en/blog/best-voice-to-text-app");
+  assert.ok(hit);
+  assert.equal(hit.to, "/en/blog/best-voice-recognition-software");
+  assert.equal(hit.statusCode, 308);
+  const hops = follow(redirects, "/en/blog/best-voice-to-text-app/");
+  assert.equal(hops.at(-1)?.to, "/en/blog/best-voice-recognition-software");
+  assert.deepEqual(
+    follow(redirects, "/en/blog/best-voice-recognition-software"),
+    [],
+    "canonical voice recognition page must not redirect again",
   );
 });

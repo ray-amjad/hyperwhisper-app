@@ -117,7 +117,7 @@ const html = `
 
 <p><a href="/en/download">Download HyperWhisper for Mac</a> (and for Windows or Linux if you use those too).</p>
 
-<p>For the cross-platform comparison, see <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. For Windows-only built-in tools vs Dragon, see <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>.</p>
+<p>For the cross-platform comparison, see <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. For Windows-only built-in tools vs Dragon, see <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>. For speech recognition as a category, see <a href="/en/blog/best-voice-recognition-software">best voice recognition software</a>. Mac-app alternatives: <a href="/en/blog/hyperwhisper-vs-superwhisper">Superwhisper alternative</a> and <a href="/en/blog/hyperwhisper-vs-voiceink">VoiceInk alternative</a>. Clinic notes: <a href="/en/blog/medical-dictation-software-mac">best medical dictation software for Mac</a>.</p>
 
 <h2>FAQ</h2>
 

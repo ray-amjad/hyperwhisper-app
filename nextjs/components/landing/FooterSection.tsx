@@ -86,6 +86,11 @@ export default function FooterSection() {
           raw: true,
         },
         {
+          label: "Best voice recognition software",
+          href: "/en/blog/best-voice-recognition-software",
+          raw: true,
+        },
+        {
           label: "HyperWhisper vs Spokenly",
           href: "/en/blog/hyperwhisper-vs-spokenly",
           raw: true,

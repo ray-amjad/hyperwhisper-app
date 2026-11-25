@@ -12,10 +12,15 @@ import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
 import { bestDictationSoftware } from "@/src/content/code-posts/best-dictation-software";
 import { bestDictationSoftwareForWindows } from "@/src/content/code-posts/best-dictation-software-for-windows";
 import { bestDictationSoftwareForWriters } from "@/src/content/code-posts/best-dictation-software-for-writers";
+import { bestVoiceRecognitionSoftware } from "@/src/content/code-posts/best-voice-recognition-software";
 import { freeSpeechToTextApp } from "@/src/content/code-posts/free-speech-to-text-app";
 import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
+import { hyperwhisperVsSuperwhisper } from "@/src/content/code-posts/hyperwhisper-vs-superwhisper";
+import { hyperwhisperVsVoiceink } from "@/src/content/code-posts/hyperwhisper-vs-voiceink";
 import { macVoiceDictationSoftware } from "@/src/content/code-posts/mac-voice-dictation-software";
+import { medicalDictationSoftwareMac } from "@/src/content/code-posts/medical-dictation-software-mac";
+import { medicalDragonDictationSoftware } from "@/src/content/code-posts/medical-dragon-dictation-software";
 
 const BLOG_LOCALE = "en";
 
@@ -155,10 +160,15 @@ const CODE_POSTS: BlogPost[] = [
   bestDictationSoftware,
   bestDictationSoftwareForWindows,
   bestDictationSoftwareForWriters,
+  bestVoiceRecognitionSoftware,
   freeSpeechToTextApp,
   hyperwhisperVsSpokenly,
   hyperwhisperVsHandyVsFluidvoice,
+  hyperwhisperVsSuperwhisper,
+  hyperwhisperVsVoiceink,
   macVoiceDictationSoftware,
+  medicalDictationSoftwareMac,
+  medicalDragonDictationSoftware,
 ];
 
 /**
@@ -167,7 +177,10 @@ const CODE_POSTS: BlogPost[] = [
  * getBlogPost also refuses them, so a missed redirect cannot serve the old
  * body as a duplicate of the canonical page.
  */
-export const REDIRECTED_BLOG_SLUGS = new Set(["good-dictation-software"]);
+export const REDIRECTED_BLOG_SLUGS = new Set([
+  "good-dictation-software",
+  "best-voice-to-text-app",
+]);
 
 function withCodePosts(stored: BlogPostSummary[]): BlogPostSummary[] {
   const codeSlugs = new Set(CODE_POSTS.map((post) => post.slug));
