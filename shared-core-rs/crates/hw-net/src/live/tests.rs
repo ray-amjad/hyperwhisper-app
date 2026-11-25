@@ -956,6 +956,44 @@ fn elevenlabs_connect_carries_the_key_in_a_header() {
 }
 
 #[test]
+fn elevenlabs_scribe_v3_live_is_sent_as_the_model_id() {
+    let mut config = LiveConfig::new(LiveProvider::ElevenLabs);
+    config.api_key = Some("k".to_string());
+    config.model = Some("scribe_v3_live".to_string());
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert_eq!(
+        url,
+        "wss://api.elevenlabs.io/v1/speech-to-text/realtime\
+         ?model_id=scribe_v3_live&audio_format=pcm_16000&commit_strategy=vad\
+         &vad_silence_threshold_secs=1.5&vad_threshold=0.4"
+    );
+}
+
+#[test]
+fn elevenlabs_live_model_falls_back_to_scribe_v2_realtime() {
+    // The heads fill `model` from the shared streaming setting that was
+    // Deepgram's, so a Deepgram id, a batch Scribe id, a blank and None must
+    // all keep connecting to the model every head shipped.
+    for model in [
+        None,
+        Some(""),
+        Some("nova-3-general"),
+        Some("scribe_v3"),
+        Some("scribe_v2_realtime"),
+        Some("SCRIBE_V3_LIVE"),
+    ] {
+        let mut config = LiveConfig::new(LiveProvider::ElevenLabs);
+        config.api_key = Some("k".to_string());
+        config.model = model.map(str::to_string);
+        let url = LiveSession::new(config).connect().expect("connect").url;
+        assert!(
+            url.contains("?model_id=scribe_v2_realtime&"),
+            "{model:?} -> {url}"
+        );
+    }
+}
+
+#[test]
 fn elevenlabs_language_code_is_the_normalized_primary_subtag() {
     let mut config = LiveConfig::new(LiveProvider::ElevenLabs);
     config.api_key = Some("k".to_string());
