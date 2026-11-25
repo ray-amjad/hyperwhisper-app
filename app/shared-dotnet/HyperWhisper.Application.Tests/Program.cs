@@ -78,6 +78,7 @@ try
     await RunModeDeleteRaceTestsAsync(Path.Combine(root, "mode-delete-race"));
     await RunModeSaveRaceTestsAsync(Path.Combine(root, "mode-save-race"));
     await RunModeDeleteStaleCardTestsAsync(Path.Combine(root, "mode-delete-stale-card"));
+    await RunPersistentInstructionsUntickTestsAsync(Path.Combine(root, "persistent-instructions-untick"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
@@ -602,6 +603,8 @@ try
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "editing a field cleared the error the user is fixing");
+        // Only a ticked Persistent Instructions prompt is saved or length-checked (#2932).
+        shell.Modes.UserPromptEnabled = true;
         shell.Modes.UserSystemPrompt = new string('p', 8001);
         await shell.Modes.SaveAsync();
         Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
@@ -2645,6 +2648,59 @@ static Task<Mode?> ModeSaveApiAsync(ModeRepository repository, Guid? updateId, F
 
 // Issue #2667: a delete refused because another writer had removed a mode only set Status, so the
 // Modes page kept a card for a row that was gone.
+// Issue #2932: unticking Persistent Instructions and saving must clear the stored prompt, as
+// Windows' `UserPromptCheck.IsChecked ? text : ""` does, so post-processing stops sending it and the
+// editor re-opens unticked.
+static async Task RunPersistentInstructionsUntickTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+    var hyper = editor.Items.Single();
+    editor.Selected = hyper;
+    editor.UserPromptEnabled = true;
+    editor.UserSystemPrompt = "Always answer like a pirate.";
+    await editor.SaveAsync();
+    var stored = (await repository.ListAsync()).Single();
+    Assert(stored.UserSystemPrompt == "Always answer like a pirate.",
+        $"a ticked Persistent Instructions prompt was not saved (stored '{stored.UserSystemPrompt}')");
+
+    // Re-open (a fresh view model reads the row as the editor does on launch), untick, Save.
+    var reopened = new ModesViewModel(repository);
+    await reopened.RefreshAsync();
+    Assert(reopened.UserPromptEnabled && reopened.UserSystemPrompt == "Always answer like a pirate.",
+        "the saved prompt did not re-open ticked");
+    reopened.UserPromptEnabled = false;
+    await reopened.SaveAsync();
+    Assert(reopened.Status.Message == "Mode saved", $"the unticked save reported '{reopened.Status.Message}'");
+    stored = (await repository.ListAsync()).Single();
+    Assert(string.IsNullOrEmpty(stored.UserSystemPrompt),
+        $"unticked Persistent Instructions kept the stored prompt '{stored.UserSystemPrompt}' (#2932)");
+    // The same view model re-opening the same mode does not reload the fields; re-ticking must
+    // not bring the cleared prompt back.
+    reopened.ReloadSelected();
+    Assert(!reopened.UserPromptEnabled, "the editor re-opened with Persistent Instructions ticked (#2932)");
+    Assert(reopened.UserSystemPrompt.Length == 0,
+        $"the cleared prompt is still in the editor: '{reopened.UserSystemPrompt}'");
+    reopened.UserPromptEnabled = true;
+    Assert(reopened.UserSystemPrompt.Length == 0, "re-ticking brought back a prompt that is no longer stored");
+
+    // A fresh load opens unticked with no prompt text.
+    var fresh = new ModesViewModel(repository);
+    await fresh.RefreshAsync();
+    Assert(!fresh.UserPromptEnabled && fresh.UserSystemPrompt.Length == 0,
+        "a fresh load of the mode re-ticked Persistent Instructions (#2932)");
+
+    // A hidden over-long prompt does not refuse the save: it is not stored.
+    fresh.UserSystemPrompt = new string('p', 8001);
+    fresh.UserPromptEnabled = false;
+    await fresh.SaveAsync();
+    Assert(!fresh.Status.HasError && string.IsNullOrEmpty((await repository.ListAsync()).Single().UserSystemPrompt),
+        $"an unticked over-long prompt refused or was stored: {fresh.Status.ErrorCode}");
+}
+
 static async Task RunModeDeleteStaleCardTestsAsync(string root)
 {
     var db = new ApplicationDb(new TestPaths(root));

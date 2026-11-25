@@ -266,7 +266,8 @@ public sealed partial class ModesViewModel : ViewModelBase
             Status.Failure("modes.local_llm_model_required", "Enter a GGUF model filename from the local LLM models directory.");
             return false;
         }
-        if (UserSystemPrompt.Length > 8000)
+        // Only a ticked prompt is saved (#2932), so a hidden one cannot refuse the Save.
+        if (UserPromptEnabled && UserSystemPrompt.Length > 8000)
         {
             Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 8000 characters.");
             return false;
@@ -346,7 +347,11 @@ public sealed partial class ModesViewModel : ViewModelBase
         mode.LanguageModel = string.IsNullOrWhiteSpace(PostProcessingModel) ? null : PostProcessingModel.Trim();
         mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(HyperWhisperCloudModel)
             ? "anthropic:claude-haiku-5-5" : HyperWhisperCloudModel.Trim();
-        mode.UserSystemPrompt = string.IsNullOrWhiteSpace(UserSystemPrompt) ? null : UserSystemPrompt.Trim();
+        // Windows saves `UserPromptCheck.IsChecked ? text : ""` (ModeEditorWindow.xaml.cs:1953). An
+        // unticked Persistent Instructions box clears the stored prompt, so post-processing stops
+        // sending it and the editor re-opens unticked (issue #2932); the hidden text is not kept.
+        mode.UserSystemPrompt = !UserPromptEnabled || string.IsNullOrWhiteSpace(UserSystemPrompt)
+            ? null : UserSystemPrompt.Trim();
         mode.CustomInstructions = string.IsNullOrWhiteSpace(CustomInstructions) ? null : CustomInstructions.Trim();
         mode.Punctuation = Punctuation; mode.Capitalization = Capitalization;
         mode.ProfanityFilter = ProfanityFilter; mode.RemoveTrailingPeriod = RemoveTrailingPeriod;
@@ -377,6 +382,10 @@ public sealed partial class ModesViewModel : ViewModelBase
             _customEndpointId = savedId;
             CustomEndpointApiKey = string.Empty;
         }
+        // The unticked prompt was not saved (#2932). Selected is the same object, so the setter
+        // did not reload the fields; drop the hidden text too, or re-ticking the box on the next
+        // open would bring back a prompt that is no longer stored (Windows clears it on untick).
+        if (!UserPromptEnabled) UserSystemPrompt = string.Empty;
         Status.Success("Mode saved");
     }
 

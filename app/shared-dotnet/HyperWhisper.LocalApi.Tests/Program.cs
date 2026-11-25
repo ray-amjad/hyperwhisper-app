@@ -7,6 +7,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.SharedCore;
 using HyperWhisper.TranscriptionRouting;
 using Microsoft.AspNetCore.Routing;
@@ -69,6 +70,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a deleted mode_id is MODE_NOT_FOUND and an unknown Parakeet model is MODEL_NOT_FOUND, before any work", MissingModeAndModelAreNotFound)
     ,("a JSON route called with a non-JSON Content-Type is 400 INVALID_REQUEST", JsonContentTypeTests.JsonRoutesRefuseANonJsonContentType)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
+    ,("a Local API mode write reaches the app's mode list and survives a page save (#3000)", ModeWritesReachTheApp)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
     ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
@@ -1242,6 +1244,114 @@ static async Task DoubleDispose()
     await host.DisposeAsync();
     await host.DisposeAsync();
     Assert(!File.Exists(host.DiscoveryPath), "double dispose left discovery behind");
+}
+
+// Issue #3000. On Linux the Local API writes modes through its own repository, so the app's
+// in-memory list (the Modes page, the editor, the status bar) kept the launch-time copy, and the
+// next page Save reverted the API's fields, re-created a deleted mode or took the default back.
+// The backend now raises `modesChanged` after each committed write; the Linux head runs
+// `ApplicationShellViewModel.ReloadModesAsync` on it, which this test calls the same way.
+static async Task ModeWritesReachTheApp()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    var settings = new PortableSettingsService(new DiskPrivateFiles(), Path.Combine(paths.DataDirectory, "settings.json"));
+    using var shell = new ApplicationShellViewModel(database, settings);
+    await shell.InitializeAsync();
+    var hyper = shell.Modes.Items.Single();
+    Assert(hyper.IsDefault, "the seeded mode is not the default");
+
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var changes = 0;
+    var backend = new ApplicationLocalApiBackend(new ModeRepository(database), history, workflow, new EmptyCatalog(),
+        new DiskPrivateFiles(), paths, "1.0", modesChanged: () => Interlocked.Increment(ref changes));
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+    var repository = new ModeRepository(database);
+
+    async Task AssertListMatchesStore(string step)
+    {
+        var stored = (await repository.ListAsync()).OrderBy(mode => mode.Id).ToList();
+        var shown = shell.Modes.Items.OrderBy(mode => mode.Id).ToList();
+        Assert(stored.Select(mode => (mode.Id, mode.Name, mode.Language, mode.IsDefault, mode.CustomInstructions))
+                .SequenceEqual(shown.Select(mode => (mode.Id, mode.Name, mode.Language, mode.IsDefault, mode.CustomInstructions))),
+            $"{step}: the Modes page lists [{string.Join(", ", shown.Select(mode => $"{mode.Name}|{mode.Language}|{mode.IsDefault}"))}]"
+            + $" but the store holds [{string.Join(", ", stored.Select(mode => $"{mode.Name}|{mode.Language}|{mode.IsDefault}"))}]");
+        Assert(shell.History.AvailableRetryModes.Select(mode => mode.Id).Order().SequenceEqual(stored.Select(mode => mode.Id).Order()),
+            $"{step}: History's retry modes were not reloaded");
+    }
+
+    // 1. POST /modes: the new mode shows on the page.
+    using (var create = new StringContent(ModeBody("ApiMode"), Encoding.UTF8, "application/json"))
+    {
+        var response = await fixture.Client.PostAsync("/modes", create);
+        Assert(response.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(response), "POST /modes failed");
+    }
+    Assert(Volatile.Read(ref changes) == 1, $"POST /modes raised modesChanged {changes} times, expected 1");
+    await shell.ReloadModesAsync();
+    await AssertListMatchesStore("after POST");
+    var apiMode = shell.Modes.Items.Single(mode => mode.Name == "ApiMode");
+
+    // 2. PATCH the selected mode: the page and the editor fields carry the API's values.
+    using (var patch = new StringContent("{\"language\":\"ja\",\"customInstructions\":\"set by API\"}", Encoding.UTF8, "application/json"))
+    {
+        var response = await fixture.Client.PatchAsync($"/modes/{hyper.Id:D}", patch);
+        Assert(response.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(response), "PATCH /modes failed");
+    }
+    Assert(Volatile.Read(ref changes) == 2, $"PATCH /modes did not raise modesChanged (count {changes})");
+    await shell.ReloadModesAsync();
+    await AssertListMatchesStore("after PATCH");
+    Assert(shell.Modes.Selected?.Id == hyper.Id && shell.Modes.Language == "ja" && shell.Modes.CustomInstructions == "set by API",
+        $"the editor still shows language '{shell.Modes.Language}' after the API patch");
+
+    // 3. A page Save of an unrelated field keeps the API's fields.
+    shell.Modes.CustomVocabulary = "Kubernetes";
+    await shell.Modes.SaveAsync();
+    Assert(shell.Modes.Status.Message == "Mode saved", $"the page save reported '{shell.Modes.Status.Message}'");
+    var saved = (await repository.ListAsync()).Single(mode => mode.Id == hyper.Id);
+    Assert(saved.Language == "ja" && saved.CustomInstructions == "set by API" && (saved.CustomVocabulary ?? []).SequenceEqual(["Kubernetes"]),
+        $"the page save reverted the API patch: language '{saved.Language}', instructions '{saved.CustomInstructions}'");
+
+    // 4. DELETE the selected default: the page drops it and the selection moves off it.
+    var deleteResponse = await fixture.Client.DeleteAsync($"/modes/{hyper.Id:D}");
+    Assert(deleteResponse.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(deleteResponse), "DELETE /modes failed");
+    Assert(Volatile.Read(ref changes) == 3, $"DELETE /modes did not raise modesChanged (count {changes})");
+    await shell.ReloadModesAsync();
+    await AssertListMatchesStore("after DELETE");
+    Assert(shell.Modes.Items.All(mode => mode.Id != hyper.Id), "the deleted mode is still on the Modes page");
+    Assert(shell.Modes.Selected?.Id == apiMode.Id, $"the selection is {shell.Modes.Selected?.Name}, expected ApiMode");
+    Assert(settings.Get<string>("selectedModeId") == apiMode.Id.ToString("D"),
+        "the remembered selection still names the deleted mode (/recording/toggle reads it)");
+
+    // 5. A page Save with no edit neither re-creates the deleted mode nor takes the default back.
+    await shell.Modes.SaveAsync();
+    var afterSave = await repository.ListAsync();
+    Assert(afterSave.All(mode => mode.Id != hyper.Id), "a page save re-created the mode the API deleted");
+    Assert(afterSave.Single(mode => mode.IsDefault).Id == apiMode.Id, "a page save moved the default flag off ApiMode");
+
+    // A write that changes nothing raises nothing: a PATCH or DELETE of a missing mode.
+    using (var missingPatch = new StringContent("{\"language\":\"en\"}", Encoding.UTF8, "application/json"))
+        _ = await fixture.Client.PatchAsync($"/modes/{Guid.NewGuid():D}", missingPatch);
+    _ = await fixture.Client.DeleteAsync($"/modes/{Guid.NewGuid():D}");
+    Assert(Volatile.Read(ref changes) == 3, $"a missing-mode PATCH or DELETE raised modesChanged (count {changes})");
+
+    // Reloads that overlap fold into one more pass instead of appending the list twice.
+    await Task.WhenAll(shell.ReloadModesAsync(), shell.ReloadModesAsync(), shell.ReloadModesAsync());
+    await AssertListMatchesStore("after overlapping reloads");
+
+    // A listener that throws does not turn a committed write into an error reply.
+    var throwing = new ApplicationLocalApiBackend(new ModeRepository(database), history, workflow, new EmptyCatalog(),
+        new DiskPrivateFiles(), paths, "1.0", modesChanged: () => throw new InvalidOperationException("listener failed"));
+    await using var throwingFixture = await Fixture.Create(backend: throwing);
+    throwingFixture.Authenticate();
+    using (var create = new StringContent(ModeBody("Second"), Encoding.UTF8, "application/json"))
+    {
+        var response = await throwingFixture.Client.PostAsync("/modes", create);
+        Assert(response.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(response),
+            "a throwing modesChanged listener failed the POST it ran after");
+    }
+    Assert((await repository.ListAsync()).Any(mode => mode.Name == "Second"), "the POST behind a throwing listener did not land");
 }
 
 // Issue #536. `PATCH /modes/{id}` is the documented write path, and its rules

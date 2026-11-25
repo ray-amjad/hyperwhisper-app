@@ -368,6 +368,36 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         catch (Exception) { Status.Failure("backup.refresh_failed", "Backup imported, but the views could not be refreshed."); }
     }
 
+    private bool _modesReloadRunning;
+    private bool _modesReloadAgain;
+
+    /// <summary>
+    /// Reloads the mode list from the database after another writer changed it — the Local API's
+    /// POST, PATCH or DELETE /modes (issue #3000) — the way launch does: the Modes page, the
+    /// selection (and with it the editor fields the next Save writes) and History's retry list.
+    /// Call it on the UI thread. <see cref="ModesViewModel.RefreshAsync"/> clears the list before it
+    /// awaits the repository, so two overlapping reloads would both append; a call that lands while
+    /// one runs is folded into one more pass instead.
+    /// </summary>
+    public async Task ReloadModesAsync()
+    {
+        if (_disposed) return;
+        if (_modesReloadRunning) { _modesReloadAgain = true; return; }
+        _modesReloadRunning = true;
+        try
+        {
+            do
+            {
+                _modesReloadAgain = false;
+                await Modes.RefreshAsync(_lifetime.Token);
+                if (_disposed) return;
+                History.SetRetryModes(Modes.Items);
+            }
+            while (_modesReloadAgain);
+        }
+        finally { _modesReloadRunning = false; }
+    }
+
     private async void OnTranscriptionSaved(object? sender, EventArgs e)
     {
         try

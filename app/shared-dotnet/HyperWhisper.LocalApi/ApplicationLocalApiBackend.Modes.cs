@@ -40,6 +40,7 @@ public sealed partial class ApplicationLocalApiBackend
             // rows it moved with this one.
             return mode;
         }, cancellationToken).ConfigureAwait(false);
+        NotifyModesChanged();
         return ToModeJson(saved!);
     }
 
@@ -69,6 +70,7 @@ public sealed partial class ApplicationLocalApiBackend
                 throw new ArgumentException("At least one mode must remain the default.");
             return mode;
         }, cancellationToken).ConfigureAwait(false);
+        if (saved is not null) NotifyModesChanged();
         return saved is null ? null : ToModeJson(saved);
     }
 
@@ -81,12 +83,24 @@ public sealed partial class ApplicationLocalApiBackend
         // answers false, and the last-mode refusal is still an ArgumentException with this text.
         try
         {
-            return await _modes.DeleteSafelyAsync(modeId, cancellationToken).ConfigureAwait(false);
+            var deleted = await _modes.DeleteSafelyAsync(modeId, cancellationToken).ConfigureAwait(false);
+            if (deleted) NotifyModesChanged();
+            return deleted;
         }
         catch (ModeRuleViolationException rule)
         {
             throw new ArgumentException(rule.Message, rule);
         }
+    }
+
+    /// <summary>
+    /// Tells the app a mode write committed (issue #3000). The write has already landed, so a
+    /// listener that throws must not turn it into an error reply the caller would retry.
+    /// </summary>
+    private void NotifyModesChanged()
+    {
+        try { _modesChanged?.Invoke(); }
+        catch (Exception) { /* the app reloads on its next write or launch; the reply stays ok */ }
     }
 
     private static void EnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing, HwLocalApiModeOperation operation)
