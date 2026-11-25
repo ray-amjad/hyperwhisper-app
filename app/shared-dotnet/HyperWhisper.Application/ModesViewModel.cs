@@ -141,8 +141,8 @@ public sealed partial class ModesViewModel : ViewModelBase
     public ICommand DeleteCommand { get; }
 
     /// <summary>
-    /// True while <see cref="RefreshAsync"/> runs. The list is cleared before the
-    /// repository is awaited, so an observer that mirrors <see cref="Items"/> elsewhere
+    /// True while <see cref="RefreshAsync"/> runs. The list is cleared and refilled once
+    /// the repository answers, so an observer that mirrors <see cref="Items"/> elsewhere
     /// (the Linux tray's Select Mode menu) waits for this to drop instead of
     /// publishing the transient empty list.
     /// </summary>
@@ -163,8 +163,11 @@ public sealed partial class ModesViewModel : ViewModelBase
         IsRefreshing = true;
         try
         {
+            // Read BEFORE clearing: a failed read (a busy database during a reload after a Local API
+            // write, #3000) keeps the list the page already shows instead of leaving it empty.
+            var loaded = await _repository.ListAsync(cancellationToken);
             Items.Clear();
-            foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item);
+            foreach (var item in loaded) Items.Add(item);
             var selectedId = _settings?.Get<string>("selectedModeId");
             Selected = Guid.TryParse(selectedId, out var id)
                 ? Items.FirstOrDefault(item => item.Id == id) ?? FallbackSelection()

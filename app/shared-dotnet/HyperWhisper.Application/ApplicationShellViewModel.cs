@@ -375,9 +375,10 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     /// Reloads the mode list from the database after another writer changed it — the Local API's
     /// POST, PATCH or DELETE /modes (issue #3000) — the way launch does: the Modes page, the
     /// selection (and with it the editor fields the next Save writes) and History's retry list.
-    /// Call it on the UI thread. <see cref="ModesViewModel.RefreshAsync"/> clears the list before it
-    /// awaits the repository, so two overlapping reloads would both append; a call that lands while
-    /// one runs is folded into one more pass instead.
+    /// Call it on the UI thread. A call that lands while one runs is folded into one more pass, so a
+    /// burst of writes reads the store once more at the end, never out of order. A failed read keeps
+    /// the lists already shown (<see cref="ModesViewModel.RefreshAsync"/> reads before it clears) and
+    /// reports modes.load_failed on the Modes status.
     /// </summary>
     public async Task ReloadModesAsync()
     {

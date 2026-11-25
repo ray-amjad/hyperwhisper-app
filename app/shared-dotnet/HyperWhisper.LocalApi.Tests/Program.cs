@@ -1340,6 +1340,23 @@ static async Task ModeWritesReachTheApp()
     await Task.WhenAll(shell.ReloadModesAsync(), shell.ReloadModesAsync(), shell.ReloadModesAsync());
     await AssertListMatchesStore("after overlapping reloads");
 
+    // A reload whose read fails (a busy database, here a missing table) keeps the lists already
+    // shown instead of emptying the Modes page and History's retry choices (review round 1).
+    var shownBefore = shell.Modes.Items.Select(mode => mode.Id).Order().ToList();
+    await using (var context = database.CreateContext())
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE Modes RENAME TO ModesUnreadable");
+    await shell.ReloadModesAsync();
+    Assert(shell.Modes.Status.ErrorCode == "modes.load_failed",
+        $"a failed reload reported '{shell.Modes.Status.ErrorCode}', expected modes.load_failed");
+    Assert(shell.Modes.Items.Select(mode => mode.Id).Order().SequenceEqual(shownBefore),
+        $"a failed reload left the Modes page with {shell.Modes.Items.Count} modes, expected {shownBefore.Count}");
+    Assert(shell.History.AvailableRetryModes.Select(mode => mode.Id).Order().SequenceEqual(shownBefore),
+        $"a failed reload left History with {shell.History.AvailableRetryModes.Count} retry modes, expected {shownBefore.Count}");
+    await using (var context = database.CreateContext())
+        await context.Database.ExecuteSqlRawAsync("ALTER TABLE ModesUnreadable RENAME TO Modes");
+    await shell.ReloadModesAsync();
+    await AssertListMatchesStore("after the store is readable again");
+
     // A listener that throws does not turn a committed write into an error reply.
     var throwing = new ApplicationLocalApiBackend(new ModeRepository(database), history, workflow, new EmptyCatalog(),
         new DiskPrivateFiles(), paths, "1.0", modesChanged: () => throw new InvalidOperationException("listener failed"));
