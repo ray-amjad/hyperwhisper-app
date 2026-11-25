@@ -11221,6 +11221,10 @@ extension HwLiveEvent: Equatable, Hashable {}
  * `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
  * from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
  * tier — only the latter bills credits.
+ *
+ * `Mistral` is the BYOK Voxtral Mini Transcribe Realtime 3 socket. No head
+ * maps a provider onto it yet; it is here so the core's protocol is reachable
+ * the day one does, and so this enum stays a total mirror of the core's.
  */
 
 public enum HwLiveProvider {
@@ -11231,6 +11235,7 @@ public enum HwLiveProvider {
     case grok
     case geminiTranscribe
     case hyperWhisperCloud
+    case mistral
 }
 
 
@@ -11255,6 +11260,8 @@ public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
         case 5: return .geminiTranscribe
         
         case 6: return .hyperWhisperCloud
+        
+        case 7: return .mistral
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -11286,6 +11293,10 @@ public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
         
         case .hyperWhisperCloud:
             writeInt(&buf, Int32(6))
+        
+        
+        case .mistral:
+            writeInt(&buf, Int32(7))
         
         }
     }

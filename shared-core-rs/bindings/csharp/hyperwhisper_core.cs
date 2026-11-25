@@ -12118,6 +12118,10 @@ class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
 /// `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
 /// from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
 /// tier — only the latter bills credits.
+///
+/// `Mistral` is the BYOK Voxtral Mini Transcribe Realtime 3 socket. No head
+/// maps a provider onto it yet; it is here so the core's protocol is reachable
+/// the day one does, and so this enum stays a total mirror of the core's.
 /// </summary>
 internal enum HwLiveProvider: int {
     
@@ -12126,7 +12130,8 @@ internal enum HwLiveProvider: int {
     OpenAi,
     Grok,
     GeminiTranscribe,
-    HyperWhisperCloud
+    HyperWhisperCloud,
+    Mistral
 }
 
 class FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer<HwLiveProvider> {

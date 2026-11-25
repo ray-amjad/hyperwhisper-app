@@ -13,7 +13,7 @@
 
 use super::config::{LiveConfig, LiveConnect, LiveError, LiveEvent, LiveFrame, StopStep};
 use super::LiveProvider;
-use super::{deepgram, elevenlabs, gemini, hw_cloud, openai, xai};
+use super::{deepgram, elevenlabs, gemini, hw_cloud, mistral, openai, xai};
 
 /// Everything a protocol remembers between frames.
 ///
@@ -57,6 +57,10 @@ pub(super) struct SessionState {
     /// session the relay started, so waiting for one on a socket that never saw
     /// `ready` is a 10 s wait on an event that cannot arrive.
     pub(super) session_started: bool,
+
+    /// Mistral: delta fragments received since the last committed sentence.
+    /// `committed_transcript` above holds what was already committed.
+    pub(super) pending_delta: String,
 }
 
 impl SessionState {
@@ -114,6 +118,7 @@ impl LiveSession {
             LiveProvider::Grok => xai::connect(&self.config),
             LiveProvider::GeminiTranscribe => gemini::connect(&self.config),
             LiveProvider::HyperWhisperCloud => hw_cloud::connect(&self.config),
+            LiveProvider::Mistral => mistral::connect(&self.config),
         }
     }
 
@@ -139,7 +144,8 @@ impl LiveSession {
             LiveProvider::ElevenLabs
             | LiveProvider::Grok
             | LiveProvider::GeminiTranscribe
-            | LiveProvider::HyperWhisperCloud => Vec::new(),
+            | LiveProvider::HyperWhisperCloud
+            | LiveProvider::Mistral => Vec::new(),
         }
     }
 
@@ -182,6 +188,7 @@ impl LiveSession {
             LiveProvider::Grok => xai::parse(&mut self.state, root),
             LiveProvider::GeminiTranscribe => gemini::parse(root, text),
             LiveProvider::HyperWhisperCloud => hw_cloud::parse(&mut self.state, root),
+            LiveProvider::Mistral => mistral::parse(&mut self.state, root),
         }
     }
 
@@ -200,6 +207,7 @@ impl LiveSession {
             LiveProvider::Grok => xai::stop_sequence(),
             LiveProvider::GeminiTranscribe => gemini::stop_sequence(),
             LiveProvider::HyperWhisperCloud => hw_cloud::stop_sequence(&self.state),
+            LiveProvider::Mistral => mistral::stop_sequence(),
         }
     }
 

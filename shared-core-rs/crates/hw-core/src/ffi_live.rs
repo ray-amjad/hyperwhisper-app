@@ -25,6 +25,10 @@ use hw_net::live as lv;
 /// `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
 /// from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
 /// tier — only the latter bills credits.
+///
+/// `Mistral` is the BYOK Voxtral Mini Transcribe Realtime 3 socket. No head
+/// maps a provider onto it yet; it is here so the core's protocol is reachable
+/// the day one does, and so this enum stays a total mirror of the core's.
 #[derive(uniffi::Enum)]
 pub enum HwLiveProvider {
     Deepgram,
@@ -33,6 +37,7 @@ pub enum HwLiveProvider {
     Grok,
     GeminiTranscribe,
     HyperWhisperCloud,
+    Mistral,
 }
 
 impl From<HwLiveProvider> for lv::LiveProvider {
@@ -44,6 +49,7 @@ impl From<HwLiveProvider> for lv::LiveProvider {
             HwLiveProvider::Grok => lv::LiveProvider::Grok,
             HwLiveProvider::GeminiTranscribe => lv::LiveProvider::GeminiTranscribe,
             HwLiveProvider::HyperWhisperCloud => lv::LiveProvider::HyperWhisperCloud,
+            HwLiveProvider::Mistral => lv::LiveProvider::Mistral,
         }
     }
 }
@@ -57,6 +63,7 @@ impl From<lv::LiveProvider> for HwLiveProvider {
             lv::LiveProvider::Grok => HwLiveProvider::Grok,
             lv::LiveProvider::GeminiTranscribe => HwLiveProvider::GeminiTranscribe,
             lv::LiveProvider::HyperWhisperCloud => HwLiveProvider::HyperWhisperCloud,
+            lv::LiveProvider::Mistral => HwLiveProvider::Mistral,
         }
     }
 }
@@ -698,7 +705,7 @@ impl HwLiveSession {
 mod tests {
     use super::*;
 
-    const ALL: [lv::LiveProvider; 6] = lv::LiveProvider::ALL;
+    const ALL: [lv::LiveProvider; 7] = lv::LiveProvider::ALL;
 
     fn hw_tag(p: &HwLiveProvider) -> &'static str {
         match p {
@@ -708,6 +715,7 @@ mod tests {
             HwLiveProvider::Grok => "grok",
             HwLiveProvider::GeminiTranscribe => "gemini_transcribe",
             HwLiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
+            HwLiveProvider::Mistral => "mistral",
         }
     }
 
@@ -719,6 +727,7 @@ mod tests {
             lv::LiveProvider::Grok => "grok",
             lv::LiveProvider::GeminiTranscribe => "gemini_transcribe",
             lv::LiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
+            lv::LiveProvider::Mistral => "mistral",
         }
     }
 

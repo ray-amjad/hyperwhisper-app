@@ -1,0 +1,67 @@
+{
+  "description": "Conformance vectors for the BYOK Mistral Voxtral Mini Transcribe Realtime 3 WebSocket (wss://api.mistral.ai/v1/audio/transcriptions/realtime). Source of truth: shared-core-rs/crates/hw-net/src/live/mistral.rs, replayed through hw_net::live::LiveSession by shared-core-rs/crates/hw-net/tests/mistral_live_frame_vectors.rs. Protocol from docs.mistral.ai/studio/audio/speech-to-text/transcribe-in-realtime: a session.update start frame (settings lock at the first audio chunk), input_audio.append frames of base64 pcm_s16le, input_audio.end to stop, transcription.text.delta fragments that are append-only and never revised, and transcription.done carrying the transcript of record. `connect` cases compare the URL, headers and the start frame (JSON compared structurally). `session` cases feed server frames in order and compare each parsed event. Not yet verified against the live service.",
+  "connect": [
+    {
+      "name": "defaults-auto-language-no-vocabulary",
+      "model": null,
+      "language": "auto",
+      "vocabulary": [],
+      "expectUrl": "wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=voxtral-mini-transcribe-realtime-3",
+      "expectAuthorization": "Bearer test-key",
+      "expectStartFrame": {
+        "type": "session.update",
+        "session": { "audio_format": { "encoding": "pcm_s16le", "sample_rate": 16000 } }
+      }
+    },
+    {
+      "name": "language-subtag-and-context-bias",
+      "model": "voxtral-mini-transcribe-realtime-3-0",
+      "language": "en-US",
+      "vocabulary": ["HyperWhisper", "Claude Code"],
+      "expectUrl": "wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=voxtral-mini-transcribe-realtime-3-0",
+      "expectAuthorization": "Bearer test-key",
+      "expectStartFrame": {
+        "type": "session.update",
+        "session": {
+          "audio_format": { "encoding": "pcm_s16le", "sample_rate": 16000 },
+          "language": "en",
+          "context_bias": ["HyperWhisper", "Claude Code"]
+        }
+      }
+    },
+    {
+      "name": "a-deepgram-model-id-from-the-shared-setting-is-not-forwarded",
+      "model": "nova-3-general",
+      "language": null,
+      "vocabulary": [],
+      "expectUrl": "wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=voxtral-mini-transcribe-realtime-3",
+      "expectAuthorization": "Bearer test-key",
+      "expectStartFrame": {
+        "type": "session.update",
+        "session": { "audio_format": { "encoding": "pcm_s16le", "sample_rate": 16000 } }
+      }
+    }
+  ],
+  "audioFrame": { "prefix": "{\"type\":\"input_audio.append\",\"audio\":\"", "suffix": "\"}" },
+  "stopFrames": ["{\"type\":\"input_audio.end\"}"],
+  "session": [
+    {
+      "name": "fragments-commit-at-sentence-ends-and-done-commits-the-tail",
+      "frames": [
+        { "in": "{\"type\":\"session.created\",\"session\":{\"id\":\"sess_1\"}}", "expect": { "event": "sessionStarted", "sessionId": "sess_1" } },
+        { "in": "{\"type\":\"session.updated\",\"session\":{}}", "expect": { "event": "ignore" } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"Hel\"}", "expect": { "event": "partial", "text": "Hel" } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"lo, version 3.5\"}", "expect": { "event": "partial", "text": "Hello, version 3.5" } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\" shipped. Next\"}", "expect": { "event": "final", "text": "Hello, version 3.5 shipped." } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\" one\"}", "expect": { "event": "partial", "text": "Next one" } },
+        { "in": "{\"type\":\"transcription.done\",\"text\":\"Hello, version 3.5 shipped. Next one\",\"usage\":{\"prompt_audio_seconds\":3.2}}", "expect": { "event": "finalAndComplete", "text": "Next one", "durationSeconds": 3.2 } }
+      ]
+    },
+    {
+      "name": "errors-carry-the-nested-message",
+      "frames": [
+        { "in": "{\"type\":\"error\",\"error\":{\"message\":\"Session fields cannot be changed after audio has started.\",\"code\":\"invalid_request\"}}", "expect": { "event": "error", "text": "Session fields cannot be changed after audio has started." } }
+      ]
+    }
+  ]
+}

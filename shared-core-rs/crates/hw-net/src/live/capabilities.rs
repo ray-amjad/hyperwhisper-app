@@ -23,7 +23,8 @@ pub fn required_sample_rate(provider: LiveProvider) -> u32 {
         | LiveProvider::ElevenLabs
         | LiveProvider::Grok
         | LiveProvider::GeminiTranscribe
-        | LiveProvider::HyperWhisperCloud => 16_000,
+        | LiveProvider::HyperWhisperCloud
+        | LiveProvider::Mistral => 16_000,
     }
 }
 
@@ -40,7 +41,8 @@ pub fn supports_vocabulary(provider: LiveProvider) -> bool {
         LiveProvider::Deepgram
         | LiveProvider::Grok
         | LiveProvider::GeminiTranscribe
-        | LiveProvider::HyperWhisperCloud => true,
+        | LiveProvider::HyperWhisperCloud
+        | LiveProvider::Mistral => true,
         LiveProvider::ElevenLabs | LiveProvider::OpenAi => false,
     }
 }
@@ -73,7 +75,9 @@ pub fn supports_vocabulary_without_language(
         LiveProvider::HyperWhisperCloud => {
             super::hw_cloud::stt_provider_for_tier(cloud_tier) != super::hw_cloud::DEEPGRAM_STT
         }
-        LiveProvider::Grok | LiveProvider::GeminiTranscribe => true,
+        // Mistral's `context_bias` is a session setting with no language
+        // condition on its realtime page.
+        LiveProvider::Grok | LiveProvider::GeminiTranscribe | LiveProvider::Mistral => true,
         LiveProvider::ElevenLabs | LiveProvider::OpenAi => false,
     }
 }
@@ -103,7 +107,8 @@ pub fn complete_ends_session_before_stop(provider: LiveProvider) -> bool {
         | LiveProvider::ElevenLabs
         | LiveProvider::OpenAi
         | LiveProvider::Grok
-        | LiveProvider::HyperWhisperCloud => true,
+        | LiveProvider::HyperWhisperCloud
+        | LiveProvider::Mistral => true,
     }
 }
 
@@ -131,7 +136,8 @@ pub fn start_timeout_ms(provider: LiveProvider) -> u32 {
         | LiveProvider::ElevenLabs
         | LiveProvider::OpenAi
         | LiveProvider::Grok
-        | LiveProvider::HyperWhisperCloud => 0,
+        | LiveProvider::HyperWhisperCloud
+        | LiveProvider::Mistral => 0,
     }
 }
 
@@ -149,5 +155,6 @@ pub fn provider_label(provider: LiveProvider) -> &'static str {
         LiveProvider::Grok => "SpaceXAI (Streaming)",
         LiveProvider::GeminiTranscribe => "Gemini 3.5 Transcribe (Streaming)",
         LiveProvider::HyperWhisperCloud => "HyperWhisper Cloud (Streaming)",
+        LiveProvider::Mistral => "Mistral (Streaming)",
     }
 }

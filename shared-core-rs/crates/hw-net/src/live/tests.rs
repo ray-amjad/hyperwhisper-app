@@ -599,6 +599,7 @@ fn each_provider_carries_its_own_capability_row() {
             true,
             "HyperWhisper Cloud (Streaming)",
         ),
+        (LiveProvider::Mistral, 16_000, true, "Mistral (Streaming)"),
     ];
 
     for (provider, rate, vocabulary, label) in expected {
@@ -2429,4 +2430,258 @@ fn only_gemini_makes_the_pump_wait_for_a_session_start() {
         };
         assert_eq!(start_timeout_ms(provider), expected, "{provider:?}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Mistral (Voxtral Mini Transcribe Realtime 3)
+// ---------------------------------------------------------------------------
+
+fn mistral_session() -> LiveSession {
+    keyed(LiveProvider::Mistral)
+}
+
+#[test]
+fn mistral_connect_pins_the_model_and_sends_a_bearer_key() {
+    let connect = connect_of(&mut mistral_session());
+    assert_eq!(
+        connect.url,
+        "wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=voxtral-mini-transcribe-realtime-3"
+    );
+    assert_eq!(
+        header_of(&connect, "Authorization").as_deref(),
+        Some("Bearer test-key")
+    );
+    assert!(connect.subprotocols.is_empty());
+    assert_eq!(connect.sample_rate, 16_000);
+    assert!(!connect.session_starts_on_open);
+    assert_eq!(
+        connect.framing,
+        AudioFraming::Base64Json {
+            prefix: r#"{"type":"input_audio.append","audio":""#.to_string(),
+            suffix: r#""}"#.to_string(),
+        }
+    );
+}
+
+#[test]
+fn mistral_without_a_key_is_a_missing_credential() {
+    let mut session = LiveSession::new(LiveConfig::new(LiveProvider::Mistral));
+    assert_eq!(session.connect(), Err(LiveError::MissingCredential));
+}
+
+#[test]
+fn mistral_model_only_passes_a_voxtral_realtime_id() {
+    for (model, expected) in [
+        (None, "voxtral-mini-transcribe-realtime-3"),
+        (Some(""), "voxtral-mini-transcribe-realtime-3"),
+        (Some("nova-3-general"), "voxtral-mini-transcribe-realtime-3"),
+        (Some("voxtral-small-transcribe-3"), "voxtral-mini-transcribe-realtime-3"),
+        (Some("voxtral-mini-transcribe-realtime-3-0"), "voxtral-mini-transcribe-realtime-3-0"),
+    ] {
+        let mut config = LiveConfig::new(LiveProvider::Mistral);
+        config.api_key = Some("k".to_string());
+        config.model = model.map(str::to_string);
+        let url = LiveSession::new(config).connect().expect("connect").url;
+        assert!(url.ends_with(&format!("?model={expected}")), "{model:?} -> {url}");
+    }
+}
+
+#[test]
+fn mistral_start_frame_is_one_session_update() {
+    let mut config = LiveConfig::new(LiveProvider::Mistral);
+    config.api_key = Some("k".to_string());
+    config.language = Some("fr-FR".to_string());
+    config.vocabulary = vec![
+        "HyperWhisper".to_string(),
+        "hyperwhisper".to_string(),
+        "Claude Code".to_string(),
+    ];
+    let connect = LiveSession::new(config).connect().expect("connect");
+    assert_eq!(connect.start_frames.len(), 1);
+    let frame: serde_json::Value =
+        serde_json::from_str(&connect.start_frames[0].data).expect("json");
+    assert_eq!(
+        frame,
+        serde_json::json!({
+            "type": "session.update",
+            "session": {
+                "audio_format": { "encoding": "pcm_s16le", "sample_rate": 16000 },
+                "language": "fr",
+                // De-duplicated case-insensitively; Voxtral 3 takes spaces.
+                "context_bias": ["HyperWhisper", "Claude Code"]
+            }
+        })
+    );
+}
+
+#[test]
+fn mistral_auto_language_and_no_vocabulary_send_neither_field() {
+    let mut config = LiveConfig::new(LiveProvider::Mistral);
+    config.api_key = Some("k".to_string());
+    config.language = Some("auto".to_string());
+    let connect = LiveSession::new(config).connect().expect("connect");
+    let frame: serde_json::Value =
+        serde_json::from_str(&connect.start_frames[0].data).expect("json");
+    assert_eq!(
+        frame["session"],
+        serde_json::json!({ "audio_format": { "encoding": "pcm_s16le", "sample_rate": 16000 } })
+    );
+}
+
+#[test]
+fn mistral_context_bias_caps_at_100() {
+    let mut config = LiveConfig::new(LiveProvider::Mistral);
+    config.api_key = Some("k".to_string());
+    config.vocabulary = (0..150).map(|i| format!("term{i}")).collect();
+    let connect = LiveSession::new(config).connect().expect("connect");
+    let frame: serde_json::Value =
+        serde_json::from_str(&connect.start_frames[0].data).expect("json");
+    assert_eq!(frame["session"]["context_bias"].as_array().map(Vec::len), Some(100));
+}
+
+#[test]
+fn mistral_stop_ends_input_and_waits_for_done() {
+    assert_eq!(
+        mistral_session().stop_sequence(0),
+        [
+            StopStep::SendText {
+                text: r#"{"type":"input_audio.end"}"#.to_string()
+            },
+            StopStep::WaitForSessionComplete { timeout_ms: 10_000 },
+            StopStep::Close,
+        ]
+    );
+}
+
+#[test]
+fn mistral_session_created_starts_the_session() {
+    let mut session = mistral_session();
+    assert_eq!(
+        session.parse(r#"{"type":"session.created","session":{"id":"sess_1"}}"#),
+        LiveEvent::SessionStarted {
+            session_id: Some("sess_1".to_string())
+        }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"session.updated","session":{}}"#),
+        LiveEvent::Ignore
+    );
+}
+
+#[test]
+fn mistral_fragments_accumulate_into_a_partial_and_commit_at_a_sentence_end() {
+    let mut session = mistral_session();
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":"Hel"}"#),
+        LiveEvent::PartialTranscript { text: "Hel".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":"lo world"}"#),
+        LiveEvent::PartialTranscript { text: "Hello world".to_string() }
+    );
+    // A decimal is not a sentence end.
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":", version 3.5"}"#),
+        LiveEvent::PartialTranscript { text: "Hello world, version 3.5".to_string() }
+    );
+    // The full stop only commits once whitespace follows it.
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":" shipped."}"#),
+        LiveEvent::PartialTranscript { text: "Hello world, version 3.5 shipped.".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":" Next"}"#),
+        LiveEvent::FinalTranscript { text: "Hello world, version 3.5 shipped.".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":" one"}"#),
+        LiveEvent::PartialTranscript { text: "Next one".to_string() }
+    );
+}
+
+#[test]
+fn mistral_done_commits_the_tail_and_completes() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"First. Sec"}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":"ond"}"#);
+    assert_eq!(
+        session.parse(
+            r#"{"type":"transcription.done","text":"First. Second","usage":{"prompt_audio_seconds":4.5}}"#
+        ),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "Second".to_string(),
+            duration_seconds: 4.5,
+            credits_used: 0.0,
+        }
+    );
+}
+
+#[test]
+fn mistral_done_with_nothing_pending_is_a_bare_completion() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"All done. "}"#);
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.done","text":"All done."}"#),
+        LiveEvent::SessionComplete {
+            duration_seconds: 0.0,
+            credits_used: 0.0,
+        }
+    );
+}
+
+#[test]
+fn mistral_done_without_any_delta_falls_back_to_the_record() {
+    let mut session = mistral_session();
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.done","text":" Only the record. "}"#),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "Only the record.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0,
+        }
+    );
+}
+
+#[test]
+fn mistral_reset_forgets_pending_fragments() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"stale"}"#);
+    session.connect().expect("connect");
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.text.delta","text":"fresh"}"#),
+        LiveEvent::PartialTranscript { text: "fresh".to_string() }
+    );
+}
+
+#[test]
+fn mistral_error_frames_carry_the_nested_message() {
+    let mut session = mistral_session();
+    assert_eq!(
+        session.parse(
+            r#"{"type":"error","error":{"message":"Session fields cannot be changed after audio has started.","code":"invalid_request"}}"#
+        ),
+        LiveEvent::Error {
+            message: "Session fields cannot be changed after audio has started.".to_string(),
+            kind: None,
+        }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"error"}"#),
+        LiveEvent::Error {
+            message: "Mistral streaming transcription failed".to_string(),
+            kind: None,
+        }
+    );
+}
+
+#[test]
+fn mistral_capabilities() {
+    assert!(supports_vocabulary_without_language(LiveProvider::Mistral, None));
+    assert!(complete_ends_session_before_stop(LiveProvider::Mistral));
+    assert_eq!(start_timeout_ms(LiveProvider::Mistral), 0);
+    assert_eq!(control_frames_of(LiveProvider::Mistral), Vec::<LiveFrame>::new());
+}
+
+fn control_frames_of(provider: LiveProvider) -> Vec<LiveFrame> {
+    keyed(provider).control_frames(10_000)
 }

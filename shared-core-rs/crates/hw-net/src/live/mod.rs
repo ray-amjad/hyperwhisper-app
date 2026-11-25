@@ -166,6 +166,7 @@ mod elevenlabs;
 mod gemini;
 mod hw_cloud;
 mod language;
+mod mistral;
 mod openai;
 mod policy;
 mod session;
@@ -186,9 +187,10 @@ pub use policy::{
     classify_error_message, is_terminal_close_code, upgrade_refusal, LiveErrorOutcome,
     LiveUpgradeRefusal, TERMINAL_ERROR_MARKERS,
 };
+pub use mistral::{resolve_model as mistral_live_model, DEFAULT_MODEL as MISTRAL_LIVE_DEFAULT_MODEL};
 pub use session::LiveSession;
 
-/// The six websocket transcription providers.
+/// The seven websocket transcription providers.
 ///
 /// Local engines (Parakeet, Nemotron) are deliberately absent: they are not
 /// websocket protocols and share none of this. The arm names match
@@ -201,6 +203,10 @@ pub use session::LiveSession;
 /// [`LiveProvider::HyperWhisperCloud`]'s `geminiTranscribe` tier: the former
 /// talks to Google with the user's own key, the latter to our relay with a
 /// license key, and only the latter bills credits.
+///
+/// [`LiveProvider::Mistral`] is the BYOK Voxtral Mini Transcribe Realtime 3
+/// socket. It is the core's protocol only so far: no head maps a setting onto
+/// it yet, so no user can select it. See `mistral.rs`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LiveProvider {
     Deepgram,
@@ -209,16 +215,18 @@ pub enum LiveProvider {
     Grok,
     GeminiTranscribe,
     HyperWhisperCloud,
+    Mistral,
 }
 
 impl LiveProvider {
     /// Every arm, for exhaustive tests and for the FFI round-trip guard.
-    pub const ALL: [LiveProvider; 6] = [
+    pub const ALL: [LiveProvider; 7] = [
         LiveProvider::Deepgram,
         LiveProvider::ElevenLabs,
         LiveProvider::OpenAi,
         LiveProvider::Grok,
         LiveProvider::GeminiTranscribe,
         LiveProvider::HyperWhisperCloud,
+        LiveProvider::Mistral,
     ];
 }
