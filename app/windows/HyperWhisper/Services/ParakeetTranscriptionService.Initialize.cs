@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Transcription;
 
 namespace HyperWhisper.Services;
 
@@ -38,6 +39,12 @@ public partial class ParakeetTranscriptionService
         // that answers "which model was this".
         LoggingService.Info($"  Model: {Path.GetFileName(modelDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}");
 
+        // The whole load, old daemon's teardown included, is what a Local API request that
+        // caused it waits for: a load, an idle reload or an auto-restart (#3041). Added to
+        // that request's load timing scope only on success, and only on its own async flow
+        // (a GUI load has no scope open).
+        var loadClock = Stopwatch.StartNew();
+
         // Dispose any existing daemon first
         DisposeModelCore(advanceTeardownGeneration, transcriptionLockHeld, idleReloadCancellation);
         idleReloadCancellation.ThrowIfCancellationRequested();
@@ -66,6 +73,7 @@ public partial class ParakeetTranscriptionService
                 .ConfigureAwait(false);
 
             LoggingService.Info("========== PARAKEET TRANSCRIPTION SERVICE READY ==========");
+            LocalModelLoadTiming.Add(loadClock.Elapsed);
         }
         catch (TranscriptionException)
         {

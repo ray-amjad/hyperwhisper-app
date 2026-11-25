@@ -210,6 +210,21 @@ public partial class ParakeetTranscriptionService : ITranscriptionProvider, ILoc
     /// </summary>
     internal Func<Process, bool> StartDaemonProcess { get; set; } = static process => process.Start();
 
+    /// <summary>
+    /// Test seam: writes the daemon-exit log line (#3040). True is WARN, false is Info.
+    /// </summary>
+    internal Action<bool, string> LogDaemonExit { get; set; } = static (warn, message) =>
+    {
+        if (warn)
+        {
+            LoggingService.Warn(message);
+        }
+        else
+        {
+            LoggingService.Info(message);
+        }
+    };
+
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================

@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
@@ -17,24 +18,63 @@ public partial class ParakeetTranscriptionService
     // =========================================================================
 
     /// <summary>
-    /// Handles the daemon process exiting unexpectedly (crash detection).
-    /// Sets _isReady to false so subsequent transcription attempts will fail fast
-    /// or trigger auto-restart.
+    /// The daemons the app itself asked to exit: a quit command (a model unload, a
+    /// mode switch, an idle reload's teardown) or a kill (timeout, drain failure,
+    /// failed start). Keyed by the <see cref="Process"/> object, so the mark belongs to
+    /// that one daemon: the next daemon a reload starts is a new key and never inherits
+    /// it, and a late exit event of the old one still finds its own mark (#3040). Weak
+    /// keys: an entry goes with its Process.
     /// </summary>
-    private void OnDaemonExited(object? sender, EventArgs e)
+    private static readonly ConditionalWeakTable<Process, string> s_requestedExits = new();
+
+    /// <summary>Marks <paramref name="process"/> as asked by the app to exit, and how (#3040).</summary>
+    internal static void MarkExitRequested(Process process, string how)
     {
-        var exitCode = -1;
-        try
+        ArgumentNullException.ThrowIfNull(process);
+        s_requestedExits.AddOrUpdate(process, how);
+    }
+
+    /// <summary>How the app asked <paramref name="process"/> to exit, or null when it never did.</summary>
+    internal static string? ExitRequestedBy(Process process) =>
+        s_requestedExits.TryGetValue(process, out var how) ? how : null;
+
+    /// <summary>
+    /// The log line for a daemon that exited (#3040). One the app asked to exit (quit
+    /// or kill) is expected: Info. One that exited on its own crashed or was killed by
+    /// something else: WARN, with its exit code, as before.
+    /// </summary>
+    internal static (bool Warn, string Message) DescribeDaemonExit(int processId, int exitCode, string? requestedBy) =>
+        requestedBy == null
+            ? (true, $"ParakeetTranscriptionService: Daemon process exited unexpectedly (pid: {processId}, exit code: {exitCode})")
+            : (false, $"ParakeetTranscriptionService: Daemon process exited after the app asked it to ({requestedBy}; pid: {processId}, exit code: {exitCode})");
+
+    /// <summary>
+    /// Handles a daemon process exiting (crash detection). Reads the daemon that raised
+    /// the event, not whatever <see cref="_daemonProcess"/> holds by now: a reload may
+    /// already have replaced it. Only a crash of the CURRENT daemon clears _isReady, so
+    /// subsequent transcription attempts fail fast or trigger auto-restart; a late event
+    /// from a daemon a reload replaced must not mark the new one not ready (#3040).
+    /// </summary>
+    internal void OnDaemonExited(object? sender, EventArgs e)
+    {
+        if (sender is not Process process)
         {
-            exitCode = _daemonProcess?.ExitCode ?? -1;
-        }
-        catch
-        {
-            // Process may already be disposed
+            return;
         }
 
-        _isReady = false;
-        LoggingService.Warn($"ParakeetTranscriptionService: Daemon process exited unexpectedly (exit code: {exitCode})");
+        // Each on its own: the Process may already be disposed (a reload's teardown).
+        var processId = -1;
+        var exitCode = -1;
+        try { processId = process.Id; } catch { }
+        try { exitCode = process.ExitCode; } catch { }
+
+        if (ReferenceEquals(_daemonProcess, process))
+        {
+            _isReady = false;
+        }
+
+        var (warn, message) = DescribeDaemonExit(processId, exitCode, ExitRequestedBy(process));
+        LogDaemonExit(warn, message);
     }
 
     /// <summary>
@@ -224,6 +264,8 @@ public partial class ParakeetTranscriptionService
         {
             if (process != null && !process.HasExited)
             {
+                // Before the kill, so the exit event that follows finds it (#3040).
+                MarkExitRequested(process, "kill");
                 LoggingService.Debug($"ParakeetTranscriptionService: Killing daemon process (PID: {process.Id})");
                 process.Kill(entireProcessTree: true);
             }
@@ -358,6 +400,9 @@ public partial class ParakeetTranscriptionService
             {
                 try
                 {
+                    // Before the quit is written: the daemon can exit, and its exit event
+                    // fire, before WriteLine returns (#3040).
+                    MarkExitRequested(_daemonProcess, "quit");
                     LoggingService.Debug("ParakeetTranscriptionService: Sending quit command to daemon...");
                     var quitCommand = JsonSerializer.Serialize(new { command = "quit" }, s_requestJsonOptions);
                     _stdinWriter.WriteLine(quitCommand);
