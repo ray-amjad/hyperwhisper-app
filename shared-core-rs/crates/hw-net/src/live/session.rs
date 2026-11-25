@@ -77,7 +77,8 @@ impl SessionState {
 /// socket loop needs out.
 ///
 /// The lifecycle is `new` → `connect` → (`note_audio` / `control_frames` /
-/// `parse`)\* → `stop_sequence`, with `reset` returning it to the state `new`
+/// `parse`)\* → `stop_sequence` (→ `flush_uncommitted` when the provider never
+/// completed), with `reset` returning it to the state `new`
 /// left it in so a reconnect can reuse the object.
 ///
 /// Deliberately **not** a state machine: it does not track whether it is
@@ -209,6 +210,32 @@ impl LiveSession {
             LiveProvider::GeminiTranscribe => gemini::stop_sequence(),
             LiveProvider::HyperWhisperCloud => hw_cloud::stop_sequence(&self.state),
             LiveProvider::Mistral => mistral::stop_sequence(),
+        }
+    }
+
+    /// Text the provider streamed but never committed, as one final — or `None`.
+    ///
+    /// Call it once the session is over WITHOUT its completion event: the
+    /// stop path's `WaitForSessionComplete` timed out, or the socket closed or
+    /// failed before the provider finished — and before a reconnect, because
+    /// [`LiveSession::connect`] resets the buffer. Then append the returned
+    /// final like any other. It hands its text out once; a second call, a call after the
+    /// completion event committed the text, and a call for a provider that
+    /// commits as it goes all answer `None`, so a head may call it on every
+    /// ending path unconditionally.
+    ///
+    /// Only Mistral holds text back today: its deltas are shown as the partial
+    /// and `transcription.done` is the one final (see [`super::mistral`]), so a
+    /// `done` that never comes would otherwise lose the whole dictation.
+    pub fn flush_uncommitted(&mut self) -> Option<LiveEvent> {
+        match self.config.provider {
+            LiveProvider::Mistral => mistral::flush_uncommitted(&mut self.state),
+            LiveProvider::Deepgram
+            | LiveProvider::ElevenLabs
+            | LiveProvider::OpenAi
+            | LiveProvider::Grok
+            | LiveProvider::GeminiTranscribe
+            | LiveProvider::HyperWhisperCloud => None,
         }
     }
 

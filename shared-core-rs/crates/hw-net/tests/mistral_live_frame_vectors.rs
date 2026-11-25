@@ -37,9 +37,14 @@ struct Envelope {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SessionCase {
     name: String,
     frames: Vec<Frame>,
+    /// What `flush_uncommitted` answers after the frames: `{"event":"none"}`
+    /// or a `final`. Absent means the case does not check it.
+    #[serde(default)]
+    expect_flush: Option<Expected>,
 }
 
 #[derive(Deserialize)]
@@ -158,6 +163,16 @@ fn session_cases_match() {
                 }
                 ("error", LiveEvent::Error { message, .. }) => {
                     assert_eq!(Some(message), e.text.clone(), "{label}")
+                }
+                (expected, other) => panic!("{label}: expected {expected}, got {other:?}"),
+            }
+        }
+        if let Some(e) = &case.expect_flush {
+            let label = format!("{} flush", case.name);
+            match (e.event.as_str(), live.flush_uncommitted()) {
+                ("none", None) => {}
+                ("final", Some(LiveEvent::FinalTranscript { text })) => {
+                    assert_eq!(Some(text), e.text.clone(), "{label}")
                 }
                 (expected, other) => panic!("{label}: expected {expected}, got {other:?}"),
             }

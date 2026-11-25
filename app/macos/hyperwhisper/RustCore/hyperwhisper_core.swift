@@ -905,6 +905,17 @@ public protocol HwLiveSessionProtocol : AnyObject {
     func controlFrames(nowMs: UInt64)  -> [HwLiveFrame]
     
     /**
+     * Text the provider streamed but never committed, as one final, or nil.
+     *
+     * Call it when the session ends WITHOUT its completion event (the stop
+     * path's `WaitForSessionComplete` timed out, or the socket closed or
+     * failed) and before a reconnect, then append the final like any other.
+     * It answers once, and nil for a provider that commits as it goes, so it
+     * is safe to call on every ending path. Only Mistral holds text back.
+     */
+    func flushUncommitted()  -> HwLiveEvent?
+    
+    /**
      * Record that `byte_count` bytes of PCM were just handed to the socket.
      *
      * A **count**, never the bytes: this is the one place a live session is
@@ -1051,6 +1062,22 @@ open func controlFrames(nowMs: UInt64) -> [HwLiveFrame] {
     return try!  FfiConverterSequenceTypeHwLiveFrame.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(self.uniffiClonePointer(),
         FfiConverterUInt64.lower(nowMs),$0
+    )
+})
+}
+    
+    /**
+     * Text the provider streamed but never committed, as one final, or nil.
+     *
+     * Call it when the session ends WITHOUT its completion event (the stop
+     * path's `WaitForSessionComplete` timed out, or the socket closed or
+     * failed) and before a reconnect, then append the final like any other.
+     * It answers once, and nil for a provider that commits as it goes, so it
+     * is safe to call on every ending path. Only Mistral holds text back.
+     */
+open func flushUncommitted() -> HwLiveEvent? {
+    return try!  FfiConverterOptionTypeHwLiveEvent.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_flush_uncommitted(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -15034,6 +15061,30 @@ fileprivate struct FfiConverterOptionTypeHwLiveErrorKind: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLiveEvent: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveEvent?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLiveEvent.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLiveEvent.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer {
     typealias SwiftType = HwLiveUpgradeRefusal?
 
@@ -19227,6 +19278,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_control_frames() != 1430) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_flush_uncommitted() != 45313) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio() != 4758) {
