@@ -278,6 +278,19 @@ a Gemini 2.5 model keeps that model. Gemini 3.8 Flash is different from
 **Gemini 3.5 Transcribe**, which is a separate speech engine with its own key
 slot.
 
+### GPT-6 Luna and GPT OSS 20B
+
+GPT-6 Luna (OpenAI) and GPT OSS 20B (Groq) are available for post-processing
+through HyperWhisper Cloud and with your own API key. To use one on HyperWhisper
+Cloud, choose HyperWhisper Cloud for post-processing in a mode, then select
+GPT-6 Luna under **OpenAI** or GPT OSS 20B under **Groq**. GPT-5.6 Luna and GPT OSS 120B stay available, so a mode that you
+saved with either model keeps that model.
+
+HyperWhisper Cloud turns reasoning off for GPT-6 Luna and uses the lowest
+reasoning level for GPT OSS 20B, because post-processing needs text cleanup
+rather than a reasoning response. The Cloud route charges for the input and
+output tokens.
+
 ### Retired post-processing models
 
 A provider can retire a post-processing model. HyperWhisper then removes the model from the picker and maps it to a current model. Your saved modes continue to work. The app applies the map when it reads the mode, thus you do not edit the mode yourself. macOS and Windows use the same map.
