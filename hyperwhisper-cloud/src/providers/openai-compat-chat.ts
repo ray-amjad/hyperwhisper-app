@@ -84,6 +84,8 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
   // (none|low|medium|high|xhigh|max, default medium; `'minimal'` is NOT accepted)
   // and keeps post-processing fast/cheap. Verified against the OpenAI model doc
   // 2026-09-25: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+  // gpt-6-luna takes the same effort values (read 2026-11-25:
+  // https://developers.openai.com/api/docs/models/gpt-6-luna).
   openai: {
     baseUrl: 'https://api.openai.com/v1',
     apiKeyEnv: ['OPENAI_API_KEY'],
