@@ -2377,38 +2377,48 @@ public partial class ModeEditorWindow : Window
             // it over the FFI here keeps the two heads on one source rather than
             // retyping the list.
             //
-            // Deliberately scoped to Azure. The tier branch below is NOT
+            // Mistral is the same shape: voxtral-mini-latest has 13 languages,
+            // voxtral-small-transcribe-3 has 53, and the tier list is the union,
+            // so the tier branch would offer Bengali on Voxtral Mini. Both rows'
+            // `supportedLanguages` are Mistral's published lists.
+            //
+            // Deliberately scoped to these two. The tier branch below is NOT
             // generalised to per-model for every provider: nova-3-medical's
             // English-only clamp already sits above with its own vendor-confirmed
             // reasoning, and no other tier's per-model `supportedLanguages` rows
             // have been validated against these branches.
             if (isHyperWhisperCloud
-                && cloudProvider == CloudTranscriptionProvider.MicrosoftAzureSpeech)
+                && cloudProvider is CloudTranscriptionProvider.MicrosoftAzureSpeech
+                    or CloudTranscriptionProvider.Mistral)
             {
-                var azureSupport = Services.SharedModelsCatalog.GetLanguageSupport(
-                    Services.SharedModelsCatalog.CatalogKey(CloudTranscriptionProvider.MicrosoftAzureSpeech),
+                // No tier model picked yet means the tier default runs.
+                var perModelId = string.IsNullOrEmpty(effectiveModelId)
+                    ? Services.AppClassification.CloudSttCatalog.Shared.DefaultModelIdForId(SelectedCloudTierId()) ?? string.Empty
+                    : effectiveModelId;
+                var perModelSupport = Services.SharedModelsCatalog.GetLanguageSupport(
+                    Services.SharedModelsCatalog.CatalogKey(cloudProvider),
                     CatalogKind.Voice,
-                    effectiveModelId);
+                    perModelId);
 
                 // SupportsAll means the catalog does not carry this id — a stale
                 // saved model, say. Fall through to the tier branch, which is
                 // today's behaviour, so the picker degrades rather than empties.
-                if (!azureSupport.SupportsAll && azureSupport.Codes.Count > 0)
+                if (!perModelSupport.SupportsAll && perModelSupport.Codes.Count > 0)
                 {
-                    var allowedAzure = new HashSet<string>(azureSupport.Codes, StringComparer.OrdinalIgnoreCase)
+                    var allowedPerModel = new HashSet<string>(perModelSupport.Codes, StringComparer.OrdinalIgnoreCase)
                     {
                         "auto",
                     };
 
-                    var filteredAzure = LanguageInfo.AllLanguages
-                        .Where(lang => allowedAzure.Contains(lang.Code))
+                    var filteredPerModel = LanguageInfo.AllLanguages
+                        .Where(lang => allowedPerModel.Contains(lang.Code))
                         .ToList();
 
                     // Same safety net as the tier branch: never show a near-empty
                     // picker, fall through to the full list instead.
-                    if (filteredAzure.Count > 2)
+                    if (filteredPerModel.Count > 2)
                     {
-                        ReplaceLanguageItems(filteredAzure);
+                        ReplaceLanguageItems(filteredPerModel);
                         return;
                     }
                 }

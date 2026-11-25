@@ -672,3 +672,59 @@ describe('catalog parity — KEY space (models-catalog.json)', () => {
     expect(unnamed).toEqual([]);
   });
 });
+
+describe('Mistral Voxtral — per-model languages', () => {
+  test('the per-model table covers exactly the catalog models', async () => {
+    const ids = await modelIdsFor('mistral');
+    expect(Object.keys(__tables.MISTRAL_MODEL_LANGUAGES).sort()).toEqual([...ids].sort());
+  });
+
+  test('each model list matches its models-catalog row exactly', async () => {
+    for (const [model, set] of Object.entries(__tables.MISTRAL_MODEL_LANGUAGES)) {
+      const codes = await pickerCodes(model);
+      expect({ model, codes: [...set].sort() }).toEqual({ model, codes: [...codes].sort() });
+    }
+  });
+
+  test('the union of the model lists is the cloud-stt-catalog provider list', async () => {
+    const codes = await upstreamCodes('mistralVoxtral');
+    const union = new Set(Object.values(__tables.MISTRAL_MODEL_LANGUAGES).flatMap(set => [...set]));
+    expect([...union].sort()).toEqual([...codes].sort());
+  });
+
+  test('every alias target is a code some model lists', () => {
+    const listed = new Set(Object.values(__tables.MISTRAL_MODEL_LANGUAGES).flatMap(set => [...set]));
+    const strays = Object.values(__tables.MISTRAL_ALIASES).filter(code => !listed.has(code));
+    expect(strays).toEqual([]);
+  });
+
+  test('a language only Voxtral Small 3 has is omitted on Voxtral Mini, as model_unsupported', () => {
+    let code: string | null = 'unset';
+    const events = captureEvents(() => {
+      code = resolve('mistral', 'voxtral-mini-latest', 'bn');
+    });
+    expect(code).toBeNull();
+    expect(events.find(e => e.event === 'language_unmappable')?.details.reason).toBe('model_unsupported');
+    expect(resolve('mistral', 'voxtral-small-transcribe-3', 'bn')).toBe('bn');
+  });
+
+  test('a shared language goes out as a bare primary subtag on both models', () => {
+    expect(resolve('mistral', 'voxtral-mini-latest', 'en-US')).toBe('en');
+    expect(resolve('mistral', 'voxtral-small-transcribe-3', 'pt-BR')).toBe('pt');
+    expect(resolve('mistral', 'voxtral-small-transcribe-3', 'nb')).toBe('no');
+  });
+
+  test('auto and blank stay auto-detect; an unknown model gets the narrowest list', () => {
+    expect(resolve('mistral', 'voxtral-small-transcribe-3', 'auto')).toBeNull();
+    expect(resolve('mistral', 'voxtral-small-transcribe-3', undefined)).toBeNull();
+    expect(resolve('mistral', 'not-a-model', 'bn')).toBeNull();
+    expect(resolve('mistral', 'not-a-model', 'fr')).toBe('fr');
+  });
+
+  test('a language no Mistral model has is no_locale', () => {
+    const events = captureEvents(() => {
+      expect(resolve('mistral', 'voxtral-small-transcribe-3', 'eu')).toBeNull();
+    });
+    expect(events.find(e => e.event === 'language_unmappable')?.details.reason).toBe('no_locale');
+  });
+});

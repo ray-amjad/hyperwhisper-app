@@ -100,7 +100,8 @@ export type LanguageMappedProvider =
   | 'azure-mai'
   | 'elevenlabs'
   | 'openai'
-  | 'meta';
+  | 'meta'
+  | 'mistral';
 
 /**
  * Why an explicitly requested language was discarded.
@@ -183,6 +184,7 @@ function resolveExplicit(
     case 'elevenlabs': return resolveElevenLabsLanguage(language);
     case 'openai': return resolveOpenAILanguage(language);
     case 'meta': return resolveMetaLanguageBias(language);
+    case 'mistral': return resolveMistralLanguage(model, language);
   }
 }
 
@@ -532,6 +534,60 @@ function resolveAzureMaiLocale(model: string, language: string): Resolution {
 }
 
 // ---------------------------------------------------------------------------
+// Mistral Voxtral — bare ISO-639-1, per model
+// ---------------------------------------------------------------------------
+
+// Verbatim mirrors of each Mistral row's `supportedLanguages` in
+// models-catalog.json (the parity test pins them). Mistral's own codes are the
+// picker's here (`no`, `tl`), so a listed code goes out unchanged.
+//
+// Per model because the two differ: voxtral-mini-latest has the 13 from the
+// Voxtral Transcribe 2 launch, voxtral-small-transcribe-3 the 53 on Mistral's
+// Languages page. The provider-level `languages.codes` in cloud-stt-catalog.json
+// is their union, so a client that scopes by provider would offer Bengali on
+// Voxtral Mini; this table is what stops `language=bn` reaching that model.
+const VOXTRAL_MINI_LANGUAGES: ReadonlySet<string> = new Set([
+  'en', 'zh', 'hi', 'es', 'ar', 'fr', 'pt', 'ru', 'de', 'ja', 'ko', 'it', 'nl',
+]);
+
+const VOXTRAL_SMALL_3_LANGUAGES: ReadonlySet<string> = new Set([
+  'ar', 'bn', 'bg', 'my', 'ca', 'zh', 'cs', 'da', 'nl', 'en', 'et', 'tl', 'fi',
+  'fr', 'de', 'el', 'gu', 'hi', 'hu', 'is', 'id', 'it', 'ja', 'kn', 'km', 'ko',
+  'lv', 'lt', 'lb', 'mk', 'ms', 'ml', 'mt', 'mr', 'no', 'or', 'fa', 'pl', 'pt',
+  'pa', 'ro', 'ru', 'sr', 'sk', 'sl', 'es', 'sv', 'ta', 'te', 'th', 'tr', 'uk',
+  'vi',
+]);
+
+/**
+ * Unknown model ids fall back to Voxtral Mini's list — the narrowest, so an
+ * unrecognised id cannot send a language the model may not have. The parity
+ * test asserts these keys are exactly the mistral model ids the registry ships.
+ */
+const MISTRAL_MODEL_LANGUAGES: Readonly<Record<string, ReadonlySet<string>>> = {
+  'voxtral-mini-latest': VOXTRAL_MINI_LANGUAGES,
+  'voxtral-small-transcribe-3': VOXTRAL_SMALL_3_LANGUAGES,
+};
+
+// Legacy/alternate spellings of a listed language.
+const MISTRAL_ALIASES: Readonly<Record<string, string>> = {
+  nb: 'no',
+  nn: 'no',
+  fil: 'tl',
+};
+
+function resolveMistralLanguage(model: string, language: string): Resolution {
+  const base = primarySubtag(language);
+  if (base.length === 0) return NO_LOCALE;
+  const aliased = MISTRAL_ALIASES[base] ?? base;
+  const supported = MISTRAL_MODEL_LANGUAGES[model] ?? VOXTRAL_MINI_LANGUAGES;
+  if (!supported.has(aliased)) {
+    const anyModel = Object.values(MISTRAL_MODEL_LANGUAGES).some(set => set.has(aliased));
+    return anyModel ? MODEL_UNSUPPORTED : NO_LOCALE;
+  }
+  return { code: aliased };
+}
+
+// ---------------------------------------------------------------------------
 // ElevenLabs Scribe — ISO-639-3, tolerant of ISO-639-1
 // ---------------------------------------------------------------------------
 
@@ -720,5 +776,7 @@ export const __tables = {
   ELEVENLABS_ALIASES,
   OPENAI_LANGUAGES,
   META_LANGUAGE_BIAS_BY_BASE,
+  MISTRAL_MODEL_LANGUAGES,
+  MISTRAL_ALIASES,
   LANGUAGE_NAMES,
 };

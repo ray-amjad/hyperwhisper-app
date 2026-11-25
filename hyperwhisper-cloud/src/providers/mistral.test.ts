@@ -82,6 +82,19 @@ describe('transcribeWithMistral — multipart request shape', () => {
     expect(auto.form?.has('language')).toBe(false);
   });
 
+  test('sends a language only to a model that lists it', async () => {
+    // Bengali is one of Voxtral Small Transcribe 3's 53 languages, not one of
+    // Voxtral Mini's 13: the default model gets auto-detect instead.
+    const mini = captureMultipartRequest(okBody);
+    await transcribeWithMistral(audio(), 'audio/wav', 'bn');
+    expect(mini.form?.get('model')).toBe('voxtral-mini-latest');
+    expect(mini.form?.has('language')).toBe(false);
+
+    const small = captureMultipartRequest(okBody);
+    await transcribeWithMistral(audio(), 'audio/wav', 'bn', undefined, { model: 'voxtral-small-transcribe-3' });
+    expect(small.form?.get('language')).toBe('bn');
+  });
+
   test('accepts raw AAC, which the sibling adapters do not name', async () => {
     const captured = captureMultipartRequest(okBody);
 

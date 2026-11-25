@@ -4,12 +4,12 @@
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
 import { getProviderDef } from '../lib/stt-models';
+import { resolveProviderLanguage } from './language-codes';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   billableSeconds,
-  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -100,9 +100,11 @@ export async function transcribeWithMistral(
   formData.append('model', model);
 
   // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
-  // locale — strip to the primary subtag like the sibling adapters.
-  const langCode = explicitLanguageSubtag(language);
-  if (langCode !== undefined) {
+  // locale, and only one its MODEL lists: Voxtral Mini has 13 languages,
+  // Voxtral Small Transcribe 3 has 53. A language the model lacks is omitted
+  // (auto-detect) and logged as `language_unmappable`, never forwarded.
+  const langCode = resolveProviderLanguage({ provider, model, language, context });
+  if (langCode !== null) {
     formData.append('language', langCode);
   }
 

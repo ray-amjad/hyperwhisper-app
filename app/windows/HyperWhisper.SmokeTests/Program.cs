@@ -13535,6 +13535,38 @@ internal static class Program
                 }
             });
 
+            Run("the Mistral language picker narrows per model, not per tier", () =>
+            {
+                // Same shape as Azure above: voxtral-mini-latest has 13 languages,
+                // voxtral-small-transcribe-3 has 53, and the mistralVoxtral tier's
+                // `languages.codes` is the union. The Mode editor's per-model
+                // branch reads these rows; this pins them and the path to them.
+                Assert(CloudTranscriptionProviderExtensions.FromCatalogSttProvider(
+                        CloudSttCatalog.Shared.SttProviderForId("mistralVoxtral"))
+                        == CloudTranscriptionProvider.Mistral,
+                    "mistralVoxtral no longer resolves to Mistral - the per-model language branch is unreachable");
+
+                var key = HyperWhisper.Services.SharedModelsCatalog.CatalogKey(CloudTranscriptionProvider.Mistral);
+                var mini = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "voxtral-mini-latest");
+                var small = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "voxtral-small-transcribe-3");
+
+                Assert(!mini.SupportsAll && !small.SupportsAll,
+                    "a Mistral model lost its per-model language set - the picker would fall back to the tier union");
+                Assert(mini.Codes.Count == 13, $"voxtral-mini-latest should carry 13 picker codes, got {mini.Codes.Count}");
+                Assert(small.Codes.Count >= 51, $"voxtral-small-transcribe-3 should carry ~53 picker codes, got {small.Codes.Count}");
+                Assert(small.Supports("bn") && !mini.Supports("bn"),
+                    "Bengali must be Voxtral Small 3 only - Voxtral Mini does not transcribe it");
+                foreach (var code in mini.Codes)
+                {
+                    Assert(small.Codes.Contains(code),
+                        $"voxtral-mini-latest carries '{code}' but voxtral-small-transcribe-3 does not");
+                }
+                Assert(CloudSttCatalog.Shared.DefaultModelIdForId("mistralVoxtral") == "voxtral-mini-latest",
+                    "the mistralVoxtral tier default is no longer voxtral-mini-latest");
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing
