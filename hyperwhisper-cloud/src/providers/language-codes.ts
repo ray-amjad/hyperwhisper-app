@@ -537,9 +537,11 @@ function resolveAzureMaiLocale(model: string, language: string): Resolution {
 // Mistral Voxtral — bare ISO-639-1, per model
 // ---------------------------------------------------------------------------
 
-// Verbatim mirrors of each Mistral row's `supportedLanguages` in
-// models-catalog.json (the parity test pins them). Mistral's own codes are the
-// picker's here (`no`, `tl`), so a listed code goes out unchanged.
+// Mistral's own per-model lists. Each row's `supportedLanguages` in
+// models-catalog.json is the same list minus Odia `or`, which the picker
+// cannot offer (no shared language-table row); the parity test pins that fold.
+// Mistral's codes are the picker's here (`no`, `tl`), so a listed code goes out
+// unchanged.
 //
 // Per model because the two differ: voxtral-mini-latest has the 13 from the
 // Voxtral Transcribe 2 launch, voxtral-small-transcribe-3 the 53 on Mistral's

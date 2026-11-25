@@ -177,10 +177,11 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // vendor with one table adds no noise.
     Equal(41, v15.ModelLanguageCount);
     Equal(59, v2.ModelLanguageCount);
-    // Mistral: the mini model is the narrow one; Voxtral Small 3 covers the whole union.
+    // Mistral: the mini model is the narrow one. Voxtral Small 3 has all 53 upstream,
+    // but the picker list drops Odia (no shared language row), so 52 differs from the
+    // provider's 53 and is stated, the same way mai-transcribe-2 shows 59 of 60.
     Equal(13, rows.Single(x => x.ModelId == "voxtral-mini-latest").ModelLanguageCount);
-    True(rows.Single(x => x.ModelId == "voxtral-small-transcribe-3").ModelLanguageCount is null,
-        "voxtral-small-transcribe-3 covers the provider's whole list, so it states no narrower count");
+    Equal(52, rows.Single(x => x.ModelId == "voxtral-small-transcribe-3").ModelLanguageCount);
     foreach (var row in rows.Where(x => x.ProviderId is not ("azure-mai" or "mistral") && x.ModelId != "dictation"))
     {
         True(row.ModelLanguageCount is null,

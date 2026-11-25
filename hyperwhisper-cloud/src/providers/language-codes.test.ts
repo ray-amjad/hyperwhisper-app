@@ -679,10 +679,23 @@ describe('Mistral Voxtral — per-model languages', () => {
     expect(Object.keys(__tables.MISTRAL_MODEL_LANGUAGES).sort()).toEqual([...ids].sort());
   });
 
-  test('each model list matches its models-catalog row exactly', async () => {
+  test('each model list folds onto its models-catalog row exactly', async () => {
+    // The tables are Mistral's own lists. models-catalog holds the picker
+    // codes, which drop Odia `or` (the shared language catalog has no row for
+    // it, the same fold as Azure). The backend keeps it: a free-text `or`
+    // from the Linux head is a language Voxtral Small 3 does have.
     for (const [model, set] of Object.entries(__tables.MISTRAL_MODEL_LANGUAGES)) {
+      const folded = [...set].filter(code => code !== 'or').sort();
       const codes = await pickerCodes(model);
-      expect({ model, codes: [...set].sort() }).toEqual({ model, codes: [...codes].sort() });
+      expect({ model, codes: folded }).toEqual({ model, codes: [...codes].sort() });
+    }
+  });
+
+  test('every Mistral picker code resolves on its own model', async () => {
+    for (const model of Object.keys(__tables.MISTRAL_MODEL_LANGUAGES)) {
+      const codes = await pickerCodes(model);
+      const unresolved = codes.filter(code => resolve('mistral', model, code) === null);
+      expect({ model, unresolved }).toEqual({ model, unresolved: [] });
     }
   });
 
