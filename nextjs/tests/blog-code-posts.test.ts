@@ -166,6 +166,8 @@ test("the Windows dictation post answers Win+H vs Dragon and stays in the sitema
   assert.ok(post.frontMatter.description.length <= 155);
   assert.match(post.html, /Win<\/kbd>\+<kbd>H/);
   assert.match(post.html, /Voice Access \/ Speech Recognition vs Dragon/);
+  assert.match(post.html, /replaced WSR with Voice Access/);
+  assert.doesNotMatch(post.html, /Still present as the classic feature/);
   assert.match(post.html, /href="https:\/\/dragon\.nuance\.com\/en-us\/dragon-professional"/);
   assert.match(post.html, /href="\/en\/blog\/best-dictation-software"/);
   assert.match(post.html, /href="\/en\/blog\/mac-voice-dictation-software"/);

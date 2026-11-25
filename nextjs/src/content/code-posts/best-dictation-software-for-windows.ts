@@ -121,7 +121,7 @@ const html = `
 
 <h2>Windows Voice Access / Speech Recognition vs Dragon vs HyperWhisper</h2>
 
-<p><strong>Windows 10 dictation vs Dragon</strong> is a different question from Win+H vs a dedicated app. Windows ships more than one speech feature, and Dragon is a paid professional product, not a built-in toggle. This section puts the four things people actually mean next to each other. Dragon facts below are from <a href="https://dragon.nuance.com/en-us/dragon-professional" rel="nofollow noopener" target="_blank">Nuance's Dragon Professional page</a> (read November 25, 2026). Voice typing and Voice Access facts are from Microsoft Support. This page does not repeat vendor accuracy percentages or quote a Dragon price.</p>
+<p><strong>Windows 10 dictation vs Dragon</strong> is a different question from Win+H vs a dedicated app. Windows ships more than one speech feature, and Dragon is a paid professional product, not a built-in toggle. This section puts the four things people actually mean next to each other. Dragon facts below are from <a href="https://dragon.nuance.com/en-us/dragon-professional" rel="nofollow noopener" target="_blank">Nuance's Dragon Professional page</a> (read November 25, 2026). Voice typing, Voice Access, and Windows Speech Recognition facts are from Microsoft Support, including the note that Voice Access replaced Windows Speech Recognition on Windows 11 22H2 and later in September 2024. This page does not repeat vendor accuracy percentages or quote a Dragon price.</p>
 
 <table>
   <thead>
@@ -137,7 +137,7 @@ const html = `
     <tr>
       <td>What it is</td>
       <td>Windows 11 hands-free control plus dictation</td>
-      <td>The older Windows Speech Recognition command-and-dictation feature</td>
+      <td>The older Windows Speech Recognition command-and-dictation feature (WSR)</td>
       <td>Paid Windows desktop speech recognition (v16 on Nuance's current page)</td>
       <td>Dedicated dictation app with local models and optional cloud</td>
     </tr>
@@ -151,7 +151,7 @@ const html = `
     <tr>
       <td>Windows 11</td>
       <td>Yes</td>
-      <td>Still present as the classic feature</td>
+      <td>No on 22H2 and later — Microsoft replaced WSR with Voice Access in September 2024. WSR remains on older Windows versions</td>
       <td>Yes — Nuance lists v16 as optimized for Windows 11</td>
       <td>Yes</td>
     </tr>
@@ -188,7 +188,7 @@ const html = `
 
 <p>On Windows 10, “dictation” usually means Win+H voice typing (online) or the legacy Speech Recognition UI. Dragon is what you buy when that is not enough: Nuance sells Dragon Professional v16 for live speech-to-text and for transcribing recorded audio, with custom commands and boilerplate, on Windows 10 and 11. It is a workstation product. Expect setup time and a license fee; confirm both on Nuance's site before you budget.</p>
 
-<p>On Windows 11, Voice Access is the built-in hands-free layer Microsoft documents as working without internet, with dictation and commands. It is not Dragon. If you already run Voice Access, Microsoft says starting Win+H tells you to dictate with Voice Access instead.</p>
+<p>On current Windows 11 (22H2 and later), use Voice Access, not Windows Speech Recognition. Microsoft's <a href="https://support.microsoft.com/en-us/windows/use-voice-recognition-in-windows-83ff75bd-63eb-0b6c-18d4-6fae94050571" rel="nofollow noopener" target="_blank">voice recognition support page</a> states that Voice Access replaced WSR there in September 2024; WSR stays available on older Windows versions. Voice Access is the built-in hands-free layer Microsoft documents as working without internet, with dictation and commands. It is not Dragon. If you already run Voice Access, Microsoft says starting Win+H tells you to dictate with Voice Access instead.</p>
 
 <p>HyperWhisper is the other dedicated-app path: free local transcription in any text field, no Dragon command language, and the same app on Mac and Linux. Pick Dragon when you want a mature Windows command-and-macro system and will pay for it. Pick HyperWhisper when you want offline dictation without a seat license. Pick Voice Access or Win+H when you are still testing whether voice input helps.</p>
 
