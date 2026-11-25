@@ -1,5 +1,5 @@
 {
-  "description": "Conformance vectors for the BYOK Mistral Voxtral Mini Transcribe Realtime 3 WebSocket (wss://api.mistral.ai/v1/audio/transcriptions/realtime). Source of truth: shared-core-rs/crates/hw-net/src/live/mistral.rs, replayed through hw_net::live::LiveSession by shared-core-rs/crates/hw-net/tests/mistral_live_frame_vectors.rs. Protocol from docs.mistral.ai/studio/audio/speech-to-text/transcribe-in-realtime: a session.update start frame (settings lock at the first audio chunk), input_audio.append frames of base64 pcm_s16le, input_audio.end to stop, transcription.text.delta fragments that are append-only and never revised, and transcription.done carrying the transcript of record. `connect` cases compare the URL, headers and the start frame (JSON compared structurally). `session` cases feed server frames in order and compare each parsed event. Not yet verified against the live service.",
+  "description": "Conformance vectors for the BYOK Mistral Voxtral Mini Transcribe Realtime 3 WebSocket (wss://api.mistral.ai/v1/audio/transcriptions/realtime). Source of truth: shared-core-rs/crates/hw-net/src/live/mistral.rs, replayed through hw_net::live::LiveSession by shared-core-rs/crates/hw-net/tests/mistral_live_frame_vectors.rs. Protocol from docs.mistral.ai/studio/audio/speech-to-text/transcribe-in-realtime: a session.update start frame (settings lock at the first audio chunk), input_audio.append frames of base64 pcm_s16le, input_audio.end to stop, transcription.text.delta fragments that are append-only and never revised, and transcription.done carrying the transcript of record, which is the one final (deltas are only ever the partial, so the record's whitespace survives). `connect` cases compare the URL, headers and the start frame (JSON compared structurally). `session` cases feed server frames in order and compare each parsed event. Not yet verified against the live service.",
   "connect": [
     {
       "name": "defaults-auto-language-no-vocabulary",
@@ -46,15 +46,22 @@
   "stopFrames": ["{\"type\":\"input_audio.end\"}"],
   "session": [
     {
-      "name": "fragments-commit-at-sentence-ends-and-done-commits-the-tail",
+      "name": "fragments-are-one-partial-and-done-is-the-final-of-record",
       "frames": [
         { "in": "{\"type\":\"session.created\",\"session\":{\"id\":\"sess_1\"}}", "expect": { "event": "sessionStarted", "sessionId": "sess_1" } },
         { "in": "{\"type\":\"session.updated\",\"session\":{}}", "expect": { "event": "ignore" } },
         { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"Hel\"}", "expect": { "event": "partial", "text": "Hel" } },
-        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"lo, version 3.5\"}", "expect": { "event": "partial", "text": "Hello, version 3.5" } },
-        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\" shipped. Next\"}", "expect": { "event": "final", "text": "Hello, version 3.5 shipped." } },
-        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\" one\"}", "expect": { "event": "partial", "text": "Next one" } },
-        { "in": "{\"type\":\"transcription.done\",\"text\":\"Hello, version 3.5 shipped. Next one\",\"usage\":{\"prompt_audio_seconds\":3.2}}", "expect": { "event": "finalAndComplete", "text": "Next one", "durationSeconds": 3.2 } }
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"lo, version 3.5 shipped.\"}", "expect": { "event": "partial", "text": "Hello, version 3.5 shipped." } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"\\nWorld\"}", "expect": { "event": "partial", "text": "Hello, version 3.5 shipped.\nWorld" } },
+        { "in": "{\"type\":\"transcription.done\",\"text\":\"Hello, version 3.5 shipped.\\nWorld\",\"usage\":{\"prompt_audio_seconds\":3.2}}", "expect": { "event": "finalAndComplete", "text": "Hello, version 3.5 shipped.\nWorld", "durationSeconds": 3.2 } }
+      ]
+    },
+    {
+      "name": "done-without-text-falls-back-to-the-deltas",
+      "frames": [
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"Kept \"}", "expect": { "event": "partial", "text": "Kept" } },
+        { "in": "{\"type\":\"transcription.text.delta\",\"text\":\"words\"}", "expect": { "event": "partial", "text": "Kept words" } },
+        { "in": "{\"type\":\"transcription.done\",\"usage\":{\"prompt_audio_seconds\":1.0}}", "expect": { "event": "finalAndComplete", "text": "Kept words", "durationSeconds": 1.0 } }
       ]
     },
     {

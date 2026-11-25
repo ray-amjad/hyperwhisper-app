@@ -17,15 +17,18 @@
 //!
 //! ## Deltas are append-only fragments, not utterances
 //!
-//! `transcription.text.delta` carries a fragment to append verbatim ("deltas
-//! are final and never correct earlier text"), and a fragment can be part of a
-//! word. [`LiveEvent::FinalTranscript`] means "a committed segment", and every
-//! head joins committed segments with a space, so emitting each fragment as a
-//! final would split words. The session therefore buffers fragments and
-//! commits at a sentence end — a `.`, `?` or `!` followed by whitespace, so a
-//! decimal like `3.5` never splits — and shows everything after the last
-//! commit as the partial. `transcription.done` commits whatever is left. Since
-//! the deltas are never revised, a commit made this way is never wrong.
+//! `transcription.text.delta` carries a fragment to append verbatim, with its
+//! own spaces and punctuation ("a delta never corrects earlier text"), and a
+//! fragment can be part of a word. [`LiveEvent::FinalTranscript`] means "a
+//! committed segment", and every head joins committed segments with a space,
+//! so committing fragments (or sentences cut from them) would rewrite the
+//! whitespace between them: "Hello.\nWorld" would come out "Hello. World".
+//!
+//! So the session commits nothing mid-stream. It concatenates the fragments
+//! as-is and shows the whole buffer as the partial; `transcription.done` is
+//! the one final, and its `text` is what is committed, because Mistral's page
+//! says to "save the text of transcription.done as the transcript of record".
+//! The buffered deltas are the fallback only when `done` carries no text.
 //!
 //! ## Not verified against the live service
 //!
@@ -156,16 +159,6 @@ pub(super) fn parse(state: &mut SessionState, root: &serde_json::Value) -> LiveE
     }
 }
 
-/// The byte index just past the last sentence end in `text` — a `.`, `?` or
-/// `!` immediately followed by whitespace — or `None`.
-fn last_sentence_end(text: &str) -> Option<usize> {
-    let bytes = text.as_bytes();
-    (0..bytes.len().saturating_sub(1))
-        .rev()
-        .find(|&i| matches!(bytes[i], b'.' | b'?' | b'!') && bytes[i + 1].is_ascii_whitespace())
-        .map(|i| i + 1)
-}
-
 fn parse_delta(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent {
     let Some(fragment) = str_field(root, "text") else {
         return LiveEvent::Ignore;
@@ -173,17 +166,8 @@ fn parse_delta(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent 
     if fragment.is_empty() {
         return LiveEvent::Ignore;
     }
+    // Concatenated verbatim: the fragments carry their own separators.
     state.pending_delta.push_str(fragment);
-
-    if let Some(end) = last_sentence_end(&state.pending_delta) {
-        let committed = state.pending_delta[..end].trim().to_string();
-        state.pending_delta = state.pending_delta[end..].to_string();
-        if !committed.is_empty() {
-            state.committed_transcript.push_str(&committed);
-            state.committed_transcript.push(' ');
-            return LiveEvent::FinalTranscript { text: committed };
-        }
-    }
     match state.pending_delta.trim() {
         "" => LiveEvent::Ignore,
         partial => LiveEvent::PartialTranscript {
@@ -200,15 +184,13 @@ fn parse_done(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent {
     // A BYOK session bills the user's own Mistral account, not ours.
     let credits_used = 0.0;
 
-    let mut tail = std::mem::take(&mut state.pending_delta).trim().to_string();
-    // Nothing buffered and nothing committed, yet the record has text: the
-    // deltas never arrived (or arrived in a shape this parser skipped). The
-    // transcript of record is the better answer than an empty dictation.
-    if tail.is_empty() && state.committed_transcript.is_empty() {
-        if let Some(text) = text_field(root, "text") {
-            tail = text.trim().to_string();
-        }
-    }
+    // The transcript of record wins over the buffered deltas, whitespace and
+    // all; the buffer answers only when the record is missing or blank.
+    let buffered = std::mem::take(&mut state.pending_delta);
+    let tail = match text_field(root, "text").map(str::trim) {
+        Some(record) if !record.is_empty() => record.to_string(),
+        _ => buffered.trim().to_string(),
+    };
     if tail.is_empty() {
         return LiveEvent::SessionComplete {
             duration_seconds,

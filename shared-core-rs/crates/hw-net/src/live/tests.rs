@@ -2569,47 +2569,39 @@ fn mistral_session_created_starts_the_session() {
 }
 
 #[test]
-fn mistral_fragments_accumulate_into_a_partial_and_commit_at_a_sentence_end() {
+fn mistral_fragments_concatenate_verbatim_into_one_partial_and_never_commit_mid_stream() {
     let mut session = mistral_session();
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":"Hel"}"#),
         LiveEvent::PartialTranscript { text: "Hel".to_string() }
     );
     assert_eq!(
-        session.parse(r#"{"type":"transcription.text.delta","text":"lo world"}"#),
-        LiveEvent::PartialTranscript { text: "Hello world".to_string() }
+        session.parse(r#"{"type":"transcription.text.delta","text":"lo, version 3.5 shipped."}"#),
+        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.".to_string() }
     );
-    // A decimal is not a sentence end.
+    // A sentence end does not commit: a final would be joined with a space by
+    // every head and lose the separator the fragments carry.
     assert_eq!(
-        session.parse(r#"{"type":"transcription.text.delta","text":", version 3.5"}"#),
-        LiveEvent::PartialTranscript { text: "Hello world, version 3.5".to_string() }
-    );
-    // The full stop only commits once whitespace follows it.
-    assert_eq!(
-        session.parse(r#"{"type":"transcription.text.delta","text":" shipped."}"#),
-        LiveEvent::PartialTranscript { text: "Hello world, version 3.5 shipped.".to_string() }
-    );
-    assert_eq!(
-        session.parse(r#"{"type":"transcription.text.delta","text":" Next"}"#),
-        LiveEvent::FinalTranscript { text: "Hello world, version 3.5 shipped.".to_string() }
+        session.parse(r#"{"type":"transcription.text.delta","text":"\nNext"}"#),
+        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.\nNext".to_string() }
     );
     assert_eq!(
         session.parse(r#"{"type":"transcription.text.delta","text":" one"}"#),
-        LiveEvent::PartialTranscript { text: "Next one".to_string() }
+        LiveEvent::PartialTranscript { text: "Hello, version 3.5 shipped.\nNext one".to_string() }
     );
 }
 
 #[test]
-fn mistral_done_commits_the_tail_and_completes() {
+fn mistral_done_commits_the_transcript_of_record_with_its_whitespace() {
     let mut session = mistral_session();
-    session.parse(r#"{"type":"transcription.text.delta","text":"First. Sec"}"#);
-    session.parse(r#"{"type":"transcription.text.delta","text":"ond"}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":"Hello."}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":"\nWorld"}"#);
     assert_eq!(
         session.parse(
-            r#"{"type":"transcription.done","text":"First. Second","usage":{"prompt_audio_seconds":4.5}}"#
+            r#"{"type":"transcription.done","text":"Hello.\nWorld","usage":{"prompt_audio_seconds":4.5}}"#
         ),
         LiveEvent::FinalTranscriptAndSessionComplete {
-            text: "Second".to_string(),
+            text: "Hello.\nWorld".to_string(),
             duration_seconds: 4.5,
             credits_used: 0.0,
         }
@@ -2617,11 +2609,39 @@ fn mistral_done_commits_the_tail_and_completes() {
 }
 
 #[test]
-fn mistral_done_with_nothing_pending_is_a_bare_completion() {
+fn mistral_done_text_wins_over_the_buffered_deltas() {
     let mut session = mistral_session();
-    session.parse(r#"{"type":"transcription.text.delta","text":"All done. "}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":"draft words"}"#);
     assert_eq!(
-        session.parse(r#"{"type":"transcription.done","text":"All done."}"#),
+        session.parse(r#"{"type":"transcription.done","text":"Record words."}"#),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "Record words.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0,
+        }
+    );
+}
+
+#[test]
+fn mistral_done_without_text_falls_back_to_the_buffered_deltas() {
+    let mut session = mistral_session();
+    session.parse(r#"{"type":"transcription.text.delta","text":"Only. "}"#);
+    session.parse(r#"{"type":"transcription.text.delta","text":"The deltas"}"#);
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.done","text":"  "}"#),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "Only. The deltas".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0,
+        }
+    );
+}
+
+#[test]
+fn mistral_done_with_no_text_anywhere_is_a_bare_completion() {
+    let mut session = mistral_session();
+    assert_eq!(
+        session.parse(r#"{"type":"transcription.done","text":""}"#),
         LiveEvent::SessionComplete {
             duration_seconds: 0.0,
             credits_used: 0.0,
@@ -2630,7 +2650,7 @@ fn mistral_done_with_nothing_pending_is_a_bare_completion() {
 }
 
 #[test]
-fn mistral_done_without_any_delta_falls_back_to_the_record() {
+fn mistral_done_without_any_delta_uses_the_record() {
     let mut session = mistral_session();
     assert_eq!(
         session.parse(r#"{"type":"transcription.done","text":" Only the record. "}"#),
