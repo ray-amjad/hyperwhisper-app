@@ -82,11 +82,17 @@ test("the footer points at the blog index and key commercial posts", async () =>
   const html = await render(FOOTER_PATH, "en");
 
   assert.deepEqual(hrefsOfLabel(html, "Blog"), ["/en/blog"]);
+  assert.deepEqual(hrefsOfLabel(html, "Best dictation software"), [
+    "/en/blog/best-dictation-software",
+  ]);
   assert.deepEqual(hrefsOfLabel(html, "Free speech-to-text app"), [
     "/en/blog/free-speech-to-text-app",
   ]);
   assert.deepEqual(hrefsOfLabel(html, "Best dictation software for Windows"), [
     "/en/blog/best-dictation-software-for-windows",
+  ]);
+  assert.deepEqual(hrefsOfLabel(html, "Best dictation app for Mac"), [
+    "/en/blog/mac-voice-dictation-software",
   ]);
   assert.deepEqual(hrefsOfLabel(html, "HyperWhisper vs Spokenly"), [
     "/en/blog/hyperwhisper-vs-spokenly",

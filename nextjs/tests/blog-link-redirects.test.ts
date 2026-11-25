@@ -14,7 +14,11 @@ import { buildCustomRoute as buildManifestRoute } from "next/dist/lib/build-cust
 import { buildCustomRoute as buildServerRoute } from "next/dist/server/lib/router-utils/filesystem";
 import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
 
-import { blogLinkRedirects, localeParam } from "../config/redirects.mjs";
+import {
+  blogLinkRedirects,
+  blogPostRedirects,
+  localeParam,
+} from "../config/redirects.mjs";
 import { localeCodes } from "../src/i18n/locale-codes.mjs";
 import { locales } from "../src/i18n/locales";
 
@@ -118,6 +122,7 @@ const UNTOUCHED = [
   "/en/legal/privacy/extra",
   "/en/docsx",
   "/en/pricingx",
+  "/en/blog/best-dictation-software",
 ];
 
 test("the 3 rules are exactly the ones the issue proposes, all permanent", () => {
@@ -190,4 +195,33 @@ test("no target is itself a redirect source (no loop)", async () => {
     const pathOnly = to.split("#")[0];
     assert.deepEqual(follow(redirects, pathOnly), [], `${pathOnly} must not redirect again`);
   }
+});
+
+test("good-dictation-software 308s onto the umbrella post", async () => {
+  assert.deepEqual(
+    blogPostRedirects.map(({ source, destination, permanent }) => [
+      source,
+      destination,
+      permanent,
+    ]),
+    [
+      [
+        "/en/blog/good-dictation-software",
+        "/en/blog/best-dictation-software",
+        true,
+      ],
+    ],
+  );
+  const redirects = await loadRedirects();
+  const hit = resolve(redirects, "/en/blog/good-dictation-software");
+  assert.ok(hit);
+  assert.equal(hit.to, "/en/blog/best-dictation-software");
+  assert.equal(hit.statusCode, 308);
+  const hops = follow(redirects, "/en/blog/good-dictation-software/");
+  assert.equal(hops.at(-1)?.to, "/en/blog/best-dictation-software");
+  assert.deepEqual(
+    follow(redirects, "/en/blog/best-dictation-software"),
+    [],
+    "canonical umbrella must not redirect again",
+  );
 });

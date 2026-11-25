@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 import { docsMarkdownRewrites, docsRedirects, mdxRules } from './config/docs.mjs';
-import { blogLinkRedirects } from './config/redirects.mjs';
+import { blogLinkRedirects, blogPostRedirects } from './config/redirects.mjs';
 import { securityHeaderRoutes } from './config/security-headers.mjs';
 
 /**
@@ -36,9 +36,10 @@ const nextConfig = {
     async headers() {
         return securityHeaderRoutes;
     },
-    // #1377: 3 URL families that blog posts link to and that 404 otherwise.
+    // #1377: 3 URL families that blog posts link to and that 404 otherwise,
+    // plus English blog slugs that 308 onto a canonical post.
     async redirects() {
-        return [...blogLinkRedirects, ...docsRedirects];
+        return [...blogLinkRedirects, ...blogPostRedirects, ...docsRedirects];
     },
     // The Markdown twin of each docs page (/docs/models.md). Every rewrite
     // here is to a path on this site: the docs used to be an external rewrite
