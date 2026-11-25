@@ -390,7 +390,6 @@ public static class CloudTranscriptionModels
     /// Google Gemini transcription models.
     /// - gemini-3.8-flash: Current Flash model (default since #1019 — Google limits
     ///   the 2.5 models to accounts that used them before 2026-09-18)
-    /// - gemini-2.5-flash: Fast, cost-effective
     /// - gemini-2.5-flash-lite: Cheapest option
     /// - gemini-3.x: Current and preview models
     /// The default itself is read from cloud-stt-catalog.json (see GetDefault).
@@ -404,13 +403,8 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.Gemini,
             IsPopular = true
         },
-        new CloudTranscriptionModel
-        {
-            Id = "gemini-2.5-flash",
-            Description = "Fast and cost-effective with strong accuracy",
-            Provider = CloudTranscriptionProvider.Gemini,
-            IsPopular = true
-        },
+        // gemini-2.5-flash row removed (#3009): Google deprecated it 2026-11-02. A saved
+        // id resolves to gemini-3.8-flash through ResolveModelAlias (hw-catalog GEMINI_ALIASES).
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-flash-lite",
@@ -680,11 +674,8 @@ public static class CloudTranscriptionModels
     /// <summary>Resolve a legacy Gemini model ID to its current equivalent.</summary>
     /// <remarks>
     /// The table is hw-catalog GEMINI_ALIASES (model_alias.rs); Windows keeps no copy.
-    /// PARITY: gemini-2.5-pro → gemini-3.8-flash (#3009) lives there.
+    /// PARITY: gemini-2.5-pro and gemini-2.5-flash → gemini-3.8-flash (#3009) live there.
     /// </remarks>
-    // PENDING #3009: gemini-2.5-flash STT target not chosen; add its alias here when decided.
-    // (i.e. in hw-catalog GEMINI_ALIASES, which this delegates to — then drop the
-    // gemini-2.5-flash row from the Gemini array above.)
     public static string ResolveGeminiModelAlias(string modelId)
         => ResolveScopedModelAlias(modelId, "gemini");
 

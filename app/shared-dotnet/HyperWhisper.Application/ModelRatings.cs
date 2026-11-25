@@ -21,11 +21,11 @@ public readonly record struct ModelRating(int Speed, int Accuracy);
 /// ModelRatingsParityTests pins the two sets equal by parsing the Windows source. Do not "fix" a
 /// number here alone; change it here and let that test tell you what else to update.
 ///
-/// FOUR tables, not one, and the split is load-bearing: four ids appear in both
-/// <see cref="Cloud"/> and <see cref="PostProcessing"/> with DIFFERENT values (gemini-2.5-flash,
-/// gemini-3.6-flash, gemini-3.1-pro-preview, gemini-3.1-flash-lite; gemini-2.5-pro was a fifth
-/// until its voice row was removed, #3009), because a model that transcribes well does not
-/// necessarily clean text up well. Merging the dictionaries would silently corrupt all four.
+/// FOUR tables, not one, and the split is load-bearing: three ids appear in both
+/// <see cref="Cloud"/> and <see cref="PostProcessing"/> with DIFFERENT values (gemini-3.6-flash,
+/// gemini-3.1-pro-preview, gemini-3.1-flash-lite; gemini-2.5-pro and gemini-2.5-flash were two
+/// more until their voice rows were removed, #3009), because a model that transcribes well does
+/// not necessarily clean text up well. Merging the dictionaries would silently corrupt all three.
 /// </summary>
 public static class ModelRatings
 {
@@ -76,9 +76,9 @@ public static class ModelRatings
             ["stt-async-v6"] = new(2, 5), // v5 removed 2026-12-15 (#3030), same rating
             // Gemini
             ["gemini-3.8-flash"] = new(2, 4),
-            ["gemini-2.5-flash"] = new(2, 4),
             ["gemini-2.5-flash-lite"] = new(3, 3),
-            // gemini-2.5-pro voice row removed (#3009); its PostProcessing rating stays.
+            // gemini-2.5-pro / gemini-2.5-flash voice rows removed (#3009); their PostProcessing
+            // ratings stay.
             ["gemini-3.1-flash-lite"] = new(3, 4),
             ["gemini-3.6-flash"] = new(2, 4),
             ["gemini-3.1-pro-preview"] = new(1, 5),

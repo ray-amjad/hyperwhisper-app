@@ -38,7 +38,7 @@ public sealed partial class ModesViewModel
             if (!IsHwCloudSource) return null;
             // The stored model shows only when the CURRENT tier owns it. The list holds the
             // whole company, so a mode saved with tier `geminiTranscribe` and model
-            // `gemini-2.5-flash` would draw Gemini 2.5 Flash while the router ran the tier
+            // `gemini-2.5-flash-lite` would draw Gemini 2.5 Flash Lite while the router ran the tier
             // default. Show what will run instead.
             if (TierOffers(_cloudAccuracyTier, _transcriptionModel)) return _transcriptionModel;
             return DefaultModelForTier(_cloudAccuracyTier);

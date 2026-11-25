@@ -149,10 +149,11 @@ static async Task RetiredModelAliasesBeforeCheck()
     Assert(result.IsSuccess && result.ResolvedModel == "gemini-3.8-flash",
         $"a Gemini gemini-3-flash-preview mode resolved to '{result.ResolvedModel}' ({result.Failure?.Code}), not gemini-3.8-flash");
 
-    // #3009 / #3030: Google auto-routes 2.5 Pro to 3.8 Flash; Soniox removes v4 and v5.
+    // #3009 / #3030: Google retires 2.5 Pro and 2.5 Flash (both to 3.8 Flash); Soniox removes v4 and v5.
     foreach (var (provider, stored, expected) in new[]
     {
         (CloudTranscriptionProvider.Gemini, "gemini-2.5-pro", "gemini-3.8-flash"),
+        (CloudTranscriptionProvider.Gemini, "gemini-2.5-flash", "gemini-3.8-flash"),
         (CloudTranscriptionProvider.Soniox, "stt-async-v5", "stt-async-v6"),
         (CloudTranscriptionProvider.Soniox, "stt-async-v4", "stt-async-v6"),
     })
@@ -162,12 +163,6 @@ static async Task RetiredModelAliasesBeforeCheck()
         Assert(aliased.IsSuccess && aliased.ResolvedModel == expected,
             $"a {provider} {stored} mode resolved to '{aliased.ResolvedModel}' ({aliased.Failure?.Code}), not {expected}");
     }
-
-    // gemini-2.5-flash's STT target is still PENDING (#3009): it stays a live row, unaliased.
-    var flash = await Service(new FakeMetadata { Value = metadata.Value }).ValidateAsync("recording.wav",
-        new(FileTranscriptionRoute.Cloud, "gemini-2.5-flash", CloudProvider: CloudTranscriptionProvider.Gemini));
-    Assert(flash.IsSuccess && flash.ResolvedModel == "gemini-2.5-flash",
-        $"gemini-2.5-flash resolved to '{flash.ResolvedModel}' ({flash.Failure?.Code})");
 
     // #3106: the STT-3.7 BYOK rows are accepted as they are.
     foreach (var model in new[] { "assemblyai-stt-3-7", "assemblyai-stt-3-7-medical" })

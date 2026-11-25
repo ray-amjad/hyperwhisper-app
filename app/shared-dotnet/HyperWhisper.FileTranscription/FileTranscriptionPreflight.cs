@@ -396,10 +396,10 @@ public sealed class PortableFileTranscriptionPreflight
             // Soniox removes stt-async-v5 on 2026-12-15 (#3030); a stored v4/v5 id
             // resolves to v6 through the alias step above before this list is read.
             [CloudTranscriptionProvider.Soniox] = Cloud(1L * 1024 * 1024 * 1024, "stt-async-v6", ["stt-async-v6"]),
-            // gemini-2.5-pro removed (#3009): a stored id resolves to gemini-3.8-flash
+            // gemini-2.5-pro / gemini-2.5-flash removed (#3009): a stored id resolves to gemini-3.8-flash
             // through the alias step above.
             [CloudTranscriptionProvider.Gemini] = Cloud(2L * 1024 * 1024 * 1024, "gemini-3.8-flash",
-                ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.1-pro-preview"]),
+                ["gemini-3.8-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.1-pro-preview"]),
             [CloudTranscriptionProvider.Grok] = Cloud(500L * 1024 * 1024, "", [""]),
             [CloudTranscriptionProvider.AzureMai] = Cloud(300L * 1024 * 1024, "mai-transcribe-2",
                 ["mai-transcribe-2", "mai-transcribe-1.5"], account: true),

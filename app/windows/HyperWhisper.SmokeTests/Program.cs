@@ -3797,8 +3797,9 @@ internal static class Program
                     // #3030: Soniox removes v5 on 2026-12-15; v4 and v5 both land on v6.
                     ("stt-async-v4", CloudTranscriptionProvider.Soniox, "stt-async-v6"),
                     ("stt-async-v5", CloudTranscriptionProvider.Soniox, "stt-async-v6"),
-                    // #3009: Google auto-routes 2.5 Pro to 3.8 Flash from 2026-12-01.
+                    // #3009: Google deprecated 2.5 Pro / 2.5 Flash 2026-11-02; both land on 3.8 Flash.
                     ("gemini-2.5-pro", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
+                    ("gemini-2.5-flash", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
                     // #796: targets the Cloud catalog sells, not 3.1 Flash Lite / 3.6 Flash.
                     ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-2.5-flash-lite"),
                     ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
@@ -3817,7 +3818,7 @@ internal static class Program
                 }
             });
 
-            Run("AssemblyAI STT-3.7 BYOK rows are additive (#3106) and Gemini 2.5 Flash stays (#3009)", () =>
+            Run("AssemblyAI STT-3.7 BYOK rows are additive (#3106)", () =>
             {
                 var stt37 = CloudTranscriptionModels.GetById("assemblyai-stt-3-7", CloudTranscriptionProvider.AssemblyAI);
                 var stt37Medical = CloudTranscriptionModels.GetById("assemblyai-stt-3-7-medical", CloudTranscriptionProvider.AssemblyAI);
@@ -3832,10 +3833,6 @@ internal static class Program
                 // The 3.5 Pro rows are untouched until the Cloud pricing decision.
                 Assert(CloudTranscriptionModels.GetById("universal-3-5-pro", CloudTranscriptionProvider.AssemblyAI)?.Id == "universal-3-5-pro",
                     "universal-3-5-pro must stay selectable");
-                Assert(CloudTranscriptionModels.ResolveModelAlias("gemini-2.5-flash", CloudTranscriptionProvider.Gemini) == "gemini-2.5-flash",
-                    "gemini-2.5-flash STT target is PENDING (#3009): it must not be aliased yet");
-                Assert(CloudTranscriptionModels.GetModelsForProvider(CloudTranscriptionProvider.Gemini).Any(m => m.Id == "gemini-2.5-flash"),
-                    "the gemini-2.5-flash voice row must stay until its target is chosen");
                 Assert(CloudTranscriptionModels.GetById("stt-async-v6", CloudTranscriptionProvider.Soniox)?.DisplayName == "Async v6",
                     "Soniox row should read Async v6");
             });

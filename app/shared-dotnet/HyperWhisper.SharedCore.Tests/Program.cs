@@ -839,7 +839,7 @@ static async Task TestMultiStepProvidersAsync()
                 4),
             new MultiStepCase(
                 CloudTranscriptionProvider.Gemini,
-                "gemini-2.5-flash",
+                "gemini-3.8-flash",
                 [
                     JsonWithHeader("", "X-Goog-Upload-URL", "https://upload.test/gemini"),
                     Json("{\"file\":{\"name\":\"files/abc\",\"uri\":\"https://gen.test/files/abc\",\"state\":\"ACTIVE\",\"mimeType\":\"audio/wav\"}}"),

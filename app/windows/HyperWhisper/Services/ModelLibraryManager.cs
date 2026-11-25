@@ -488,9 +488,9 @@ public sealed class ModelLibraryManager
         ["stt-async-v6"]                      = (2, 5),  // v5 removed 2026-12-15 (#3030), same rating
         // Gemini
         ["gemini-3.8-flash"]                  = (2, 4),
-        ["gemini-2.5-flash"]                  = (2, 4),
         ["gemini-2.5-flash-lite"]             = (3, 3),
-        // gemini-2.5-pro voice row removed (#3009); its post-processing rating stays below.
+        // gemini-2.5-pro / gemini-2.5-flash voice rows removed (#3009); their post-processing
+        // ratings stay below.
         ["gemini-3.1-flash-lite"]             = (3, 4),
         ["gemini-3.6-flash"]                  = (2, 4),
         ["gemini-3.1-pro-preview"]            = (1, 5),
