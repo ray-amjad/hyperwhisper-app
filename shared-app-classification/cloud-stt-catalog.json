@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-10-18",
+  "updated": "2026-11-25",
   "providers": [
     {
       "id": "groqWhisper",
@@ -230,7 +230,8 @@
       "sttProvider": "elevenlabs",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "scribe_v2", "displayName": "Scribe v2", "creditsPerMinute": 9.83, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "scribe_v2", "displayName": "Scribe v2", "creditsPerMinute": 9.83, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "scribe_v3", "displayName": "Scribe v3", "creditsPerMinute": 3.3333333333, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "modelsCaveat": "scribe_v1 was retired by ElevenLabs on 2026-07-09 (deprecated in favor of scribe_v2 / scribe_v2_realtime — see changelog source below) and has been removed from this catalog; the backend registry (stt-models.ts) now rejects it fail-closed.",
       "cloudTier": { "accuracy": "highest", "creditsPerMinute": 9.83 },
@@ -241,7 +242,7 @@
         "maxPhrases": 1000,
         "maxCharsPerPhrase": 50,
         "maxWordsPerPhrase": 5,
-        "caveats": "+20% billing surcharge when used. Minimum 20s billable per call when > 100 keyterms."
+        "caveats": "+20% billing surcharge when used on scribe_v2, +25% on scribe_v3. Minimum 20s billable per call when > 100 keyterms."
       },
       "languages": {
         "count": 99,
@@ -264,7 +265,8 @@
         "https://elevenlabs.io/docs/overview/capabilities/speech-to-text",
         "https://elevenlabs.io/speech-to-text",
         "https://help.elevenlabs.io/hc/en-us/articles/13313366263441",
-        "https://elevenlabs.io/docs/changelog/2026/6/8"
+        "https://elevenlabs.io/docs/changelog/2026/6/8",
+        "https://elevenlabs.io/blog/scribe-v3"
       ]
     },
 
@@ -366,7 +368,8 @@
       "sttProvider": "mistral",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "voxtral-mini-latest", "displayName": "Voxtral Mini", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "voxtral-mini-latest", "displayName": "Voxtral Mini", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 13 },
+        { "id": "voxtral-small-transcribe-3", "displayName": "Voxtral Small Transcribe 3", "creditsPerMinute": 4.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 53 }
       ],
       "customVocabulary": {
         "supported": true,
@@ -375,11 +378,11 @@
         "caveats": "Array of strings (words or phrases). Optimised for English — other languages experimental."
       },
       "languages": {
-        "count": 13,
+        "count": 53,
         "autoDetect": true,
         "codeFormat": "ISO-639-1",
-        "codes": ["en","zh","hi","es","ar","fr","pt","ru","de","ja","ko","it","nl"],
-        "notes": "Explicit 13-language list from Mistral's Voxtral Transcribe 2 launch. `voxtral-small-latest` exists for chat/audio-understanding but the dedicated transcription endpoint only serves voxtral-mini variants."
+        "codes": ["en","zh","hi","es","ar","fr","pt","ru","de","ja","ko","it","nl","bn","bg","my","ca","cs","da","et","tl","fi","el","gu","hu","is","id","kn","km","lv","lt","lb","mk","ms","ml","mt","mr","no","or","fa","pl","pa","ro","sr","sk","sl","sv","ta","te","th","tr","uk","vi"],
+        "notes": "UNION of the two models. `voxtral-mini-latest` covers the first 13 codes (the explicit list from Mistral's Voxtral Transcribe 2 launch). `voxtral-small-transcribe-3` covers all 53 (Mistral's Languages page, codes as listed there). Each model row states its own `languageCount`; per-model code lists live in shared-models/models-catalog.json. Voxtral 3 rejects `timestamp_granularities=word` (segment only); HyperWhisper does not send it."
       },
       "acceptedFormats": ["mp3","wav","m4a","flac","ogg"],
       "maxFileSizeMb": 1024,
@@ -389,7 +392,9 @@
         "https://mistral.ai/news/voxtral-transcribe-2/",
         "https://docs.mistral.ai/studio-api/audio/speech_to_text/offline_transcription",
         "https://docs.mistral.ai/api/endpoint/audio/transcriptions",
-        "https://huggingface.co/mistralai/Voxtral-Mini-3B-2507"
+        "https://huggingface.co/mistralai/Voxtral-Mini-3B-2507",
+        "https://docs.mistral.ai/studio/audio/specs-and-limits/languages",
+        "https://docs.mistral.ai/studio/audio/migrate-from-voxtral-2"
       ]
     },
 

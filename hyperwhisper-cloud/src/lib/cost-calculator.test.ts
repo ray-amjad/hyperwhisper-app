@@ -30,7 +30,13 @@ import {
   type GroqUsage,
 } from './cost-calculator';
 import { computeAnthropicCost, computeLLMChatCost, LLM_PROVIDERS, type LLMProvider } from './llm-models';
-import { getProviderDef } from './stt-models';
+import {
+  getProviderDef,
+  resolveModel,
+  SCRIBE_V3_KEYTERMS_SURCHARGE,
+  SCRIBE_V3_USD_PER_MINUTE,
+  VOXTRAL_SMALL_TRANSCRIBE_3_USD_PER_MINUTE,
+} from './stt-models';
 
 describe('new STT provider cost functions', () => {
   test('Mistral Voxtral bills $0.003/min', () => {
@@ -916,5 +922,38 @@ describe('ElevenLabs and Mistral bill the requested model row, not the default',
     expect(computeMistralTranscriptionCost(120, 'not-a-model')).toBeCloseTo(0.006, 6);
     expect(computeElevenLabsTranscriptionCost(60, false, 'not-a-model')).toBeCloseTo(0.00983, 6);
     expect(computeElevenLabsTranscriptionCost(60, true, undefined)).toBeCloseTo(0.00983 * 1.2, 6);
+  });
+});
+
+// Rates are the PROPOSED ones pending Ray (Ask #3771). The tests read the named
+// constants, so changing a rate means editing stt-models.ts and the catalog only.
+describe('Cloud rows for scribe_v3 and voxtral-small-transcribe-3', () => {
+  test('both ids resolve, and neither is the provider default', () => {
+    for (const [provider, id] of [['elevenlabs', 'scribe_v3'], ['mistral', 'voxtral-small-transcribe-3']] as const) {
+      const resolved = resolveModel(provider, id);
+      expect(resolved.ok).toBe(true);
+      if (resolved.ok) expect(resolved.model.id).toBe(id);
+      expect(getProviderDef(provider).defaultModel).not.toBe(id);
+    }
+    const noModel = resolveModel('elevenlabs');
+    expect(noModel.ok && noModel.model.id).toBe('scribe_v2');
+    const noMistralModel = resolveModel('mistral');
+    expect(noMistralModel.ok && noMistralModel.model.id).toBe('voxtral-mini-latest');
+  });
+
+  // roundUsd keeps 6 decimals, so compare at that precision.
+  test('scribe_v3 bills its own rate, with its own keyterms surcharge', () => {
+    expect(computeElevenLabsTranscriptionCost(60, false, 'scribe_v3')).toBeCloseTo(SCRIBE_V3_USD_PER_MINUTE, 6);
+    expect(computeElevenLabsTranscriptionCost(60, true, 'scribe_v3'))
+      .toBeCloseTo(SCRIBE_V3_USD_PER_MINUTE * (1 + SCRIBE_V3_KEYTERMS_SURCHARGE), 6);
+    // scribe_v2 is untouched.
+    expect(computeElevenLabsTranscriptionCost(60, false, 'scribe_v2')).toBeCloseTo(0.00983, 6);
+    expect(computeElevenLabsTranscriptionCost(60, true, 'scribe_v2')).toBeCloseTo(0.00983 * 1.2, 6);
+  });
+
+  test('voxtral-small-transcribe-3 bills its own rate; voxtral-mini-latest is untouched', () => {
+    expect(computeMistralTranscriptionCost(60, 'voxtral-small-transcribe-3'))
+      .toBeCloseTo(VOXTRAL_SMALL_TRANSCRIBE_3_USD_PER_MINUTE, 6);
+    expect(computeMistralTranscriptionCost(60, 'voxtral-mini-latest')).toBeCloseTo(0.003, 6);
   });
 });

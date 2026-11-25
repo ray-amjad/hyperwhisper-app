@@ -423,6 +423,15 @@
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
+        },
+        {
+          "id": "scribe_v3",
+          "displayName": "Scribe v3",
+          "creditsPerMinute": 3.3333333333,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -652,11 +661,11 @@
       "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "context_bias",
-      "languagesCount": 13,
+      "languagesCount": 53,
       "languagesAutoDetect": true,
       "languagesCodeFormat": "ISO-639-1",
       "languagesHasCodes": true,
-      "languagesRawCodeCount": 13,
+      "languagesRawCodeCount": 53,
       "maxFileSizeMb": 1024.0,
       "maxDurationMinutes": null,
       "acceptedFormats": [
@@ -676,6 +685,15 @@
           "displayName": "Voxtral Mini",
           "creditsPerMinute": 3.0,
           "isDefault": true,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
+        {
+          "id": "voxtral-small-transcribe-3",
+          "displayName": "Voxtral Small Transcribe 3",
+          "creditsPerMinute": 4.0,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -916,7 +934,8 @@
         "elevenLabsScribeV2"
       ],
       "models": [
-        "elevenLabsScribeV2/scribe_v2"
+        "elevenLabsScribeV2/scribe_v2",
+        "elevenLabsScribeV2/scribe_v3"
       ]
     },
     {
@@ -975,7 +994,8 @@
         "mistralVoxtral"
       ],
       "models": [
-        "mistralVoxtral/voxtral-mini-latest"
+        "mistralVoxtral/voxtral-mini-latest",
+        "mistralVoxtral/voxtral-small-transcribe-3"
       ]
     },
     {
@@ -1582,17 +1602,57 @@
       "codes": [
         "ar",
         "auto",
+        "bg",
+        "bn",
+        "ca",
+        "cs",
+        "da",
         "de",
+        "el",
         "en",
         "es",
+        "et",
+        "fa",
+        "fi",
         "fr",
+        "gu",
         "hi",
+        "hu",
+        "id",
+        "is",
         "it",
         "ja",
+        "km",
+        "kn",
         "ko",
+        "lb",
+        "lt",
+        "lv",
+        "mk",
+        "ml",
+        "mr",
+        "ms",
+        "mt",
+        "my",
         "nl",
+        "no",
+        "or",
+        "pa",
+        "pl",
         "pt",
+        "ro",
         "ru",
+        "sk",
+        "sl",
+        "sr",
+        "sv",
+        "ta",
+        "te",
+        "th",
+        "tl",
+        "tr",
+        "uk",
+        "vi",
         "zh"
       ]
     },
@@ -2273,7 +2333,7 @@
       "id": "scribe_v3",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": false,
       "languageCodes": [
         "af",
@@ -2847,7 +2907,7 @@
       "id": "voxtral-small-transcribe-3",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": false,
       "languageCodes": [
         "ar",

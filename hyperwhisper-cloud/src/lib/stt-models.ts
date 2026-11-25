@@ -202,6 +202,21 @@ const GPT4O_MINI_TRANSCRIBE_BILLING: SttTokenBilling = {
   missingUsageUsdPerMinute: 0.003,
 };
 
+// ── PROPOSED rates, pending Ray (Ask #3771) ──
+// Each number is used exactly once, by the row below that names it; to change
+// a rate, edit it here and the matching `creditsPerMinute` (USD/min × 1000) in
+// shared-app-classification/cloud-stt-catalog.json — the parity test in
+// stt-models.test.ts fails until both agree. These are ElevenLabs' and
+// Mistral's list prices with no markup (1 credit = $0.001).
+//
+// Scribe v3 batch: $0.20 per audio hour. Keyterms add +25% (the proposal in
+// Ask #3771). (Ray's alternative: match scribe_v2 at
+// $0.00983/min with the +20% surcharge.)
+export const SCRIBE_V3_USD_PER_MINUTE = 0.20 / 60;
+export const SCRIBE_V3_KEYTERMS_SURCHARGE = 0.25;
+// Voxtral Small Transcribe 3 batch: $0.004 per audio minute.
+export const VOXTRAL_SMALL_TRANSCRIBE_3_USD_PER_MINUTE = 0.004;
+
 const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── Original cheap trio: cross-provider fallback retained ──
   deepgram: {
@@ -255,6 +270,14 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
         supportsVocabulary: true,
         billing: { kind: 'perMinute', usdPerMinute: 0.00983 },
         addOns: { keytermsSurcharge: 0.20 },
+      },
+      // Scribe v3 (2026-11): same batch endpoint and fields as v2. Not the
+      // default. Rates: see SCRIBE_V3_* above (pending Ray, Ask #3771).
+      {
+        id: 'scribe_v3',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: SCRIBE_V3_USD_PER_MINUTE },
+        addOns: { keytermsSurcharge: SCRIBE_V3_KEYTERMS_SURCHARGE },
       },
     ],
   },
@@ -525,6 +548,14 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     async: false,
     models: [
       { id: 'voxtral-mini-latest', supportsVocabulary: true, billing: { kind: 'perMinute', usdPerMinute: 0.003 } },
+      // Voxtral Small Transcribe 3 (2026-11): same endpoint and multipart shape.
+      // Not the default. Rate: see VOXTRAL_SMALL_TRANSCRIBE_3_USD_PER_MINUTE
+      // above (pending Ray, Ask #3771).
+      {
+        id: 'voxtral-small-transcribe-3',
+        supportsVocabulary: true,
+        billing: { kind: 'perMinute', usdPerMinute: VOXTRAL_SMALL_TRANSCRIBE_3_USD_PER_MINUTE },
+      },
     ],
   },
 

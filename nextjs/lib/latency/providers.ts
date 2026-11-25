@@ -101,7 +101,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     sttProvider: "elevenlabs",
     vendor: "elevenlabs",
     vendorDisplayName: "ElevenLabs",
-    models: [{ id: "scribe_v2", displayName: "Scribe v2", isDefault: true }],
+    models: [
+      { id: "scribe_v2", displayName: "Scribe v2", isDefault: true },
+      { id: "scribe_v3", displayName: "Scribe v3" },
+    ],
   },
   {
     sttProvider: "openai",
@@ -130,7 +133,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     sttProvider: "mistral",
     vendor: "mistral",
     vendorDisplayName: "Mistral",
-    models: [{ id: "voxtral-mini-latest", displayName: "Voxtral Mini", isDefault: true }],
+    models: [
+      { id: "voxtral-mini-latest", displayName: "Voxtral Mini", isDefault: true },
+      { id: "voxtral-small-transcribe-3", displayName: "Voxtral Small Transcribe 3" },
+    ],
   },
   {
     sttProvider: "soniox",

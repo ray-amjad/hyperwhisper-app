@@ -300,6 +300,8 @@ public static class UnifiedModelCatalog
         new(StringComparer.Ordinal)
         {
             ["azureMaiTranscribe"] = "microsoftAzureSpeech",
+            // voxtral-mini-latest speaks 13 of the 53 that voxtral-small-transcribe-3 does.
+            ["mistralVoxtral"] = "mistral",
         };
 
     /// <summary>

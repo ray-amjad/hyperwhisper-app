@@ -311,10 +311,10 @@
       "kind": "voice",
       "displayName": "Scribe v3",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"],
-      "notes": "ElevenLabs' batch model since 2026-11-09, succeeding scribe_v2 (which remains available) on the same endpoint and request parameters, with keyterm prompting (#3049). ElevenLabs allows up to 1,000 keyterms on v3; every head keeps the shared 100-term cap. The Speech to Text capability page gives one language list for 'Scribe v3 and Scribe v2', so supportedLanguages is scribe_v2's. BYOK only: hyperwhisper-cloud stt-models.ts has no row for it."
+      "notes": "ElevenLabs' batch model since 2026-11-09, succeeding scribe_v2 (which remains available) on the same endpoint and request parameters, with keyterm prompting (#3049). ElevenLabs allows up to 1,000 keyterms on v3; every head keeps the shared 100-term cap. The Speech to Text capability page gives one language list for 'Scribe v3 and Scribe v2', so supportedLanguages is scribe_v2's. Also on HyperWhisper Cloud (hyperwhisper-cloud stt-models.ts row, not the ElevenLabs default)."
     },
 
     {
@@ -333,10 +333,10 @@
       "kind": "voice",
       "displayName": "Voxtral Small Transcribe 3",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["ar", "bn", "bg", "my", "ca", "zh", "cs", "da", "nl", "en", "et", "tl", "fi", "fr", "de", "el", "gu", "hi", "hu", "is", "id", "it", "ja", "kn", "km", "ko", "lv", "lt", "lb", "mk", "ms", "ml", "mt", "mr", "no", "or", "fa", "pl", "pt", "pa", "ro", "ru", "sr", "sk", "sl", "es", "sv", "ta", "te", "th", "tr", "uk", "vi"],
-      "notes": "Mistral's Voxtral 3 batch transcription model (2026-11), on the same POST /v1/audio/transcriptions endpoint and multipart shape as voxtral-mini-latest, with context_bias vocabulary. Mistral's alias for voxtral-small-transcribe-3-0 (the migration page also lists voxtral-small-transcribe-latest). Voxtral 3 dropped word timestamps (timestamp_granularities=word is a 400); no head sends that field. supportedLanguages is the 53-language list on Mistral's Languages page (docs.mistral.ai/studio/audio/specs-and-limits/languages). BYOK only until hyperwhisper-cloud stt-models.ts has a row for it."
+      "notes": "Mistral's Voxtral 3 batch transcription model (2026-11), on the same POST /v1/audio/transcriptions endpoint and multipart shape as voxtral-mini-latest, with context_bias vocabulary. Mistral's alias for voxtral-small-transcribe-3-0 (the migration page also lists voxtral-small-transcribe-latest). Voxtral 3 dropped word timestamps (timestamp_granularities=word is a 400); no head sends that field. supportedLanguages is the 53-language list on Mistral's Languages page (docs.mistral.ai/studio/audio/specs-and-limits/languages). Also on HyperWhisper Cloud (hyperwhisper-cloud stt-models.ts row, not the Mistral default)."
     },
 
     {

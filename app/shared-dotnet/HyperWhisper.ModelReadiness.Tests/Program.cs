@@ -177,7 +177,11 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // vendor with one table adds no noise.
     Equal(41, v15.ModelLanguageCount);
     Equal(59, v2.ModelLanguageCount);
-    foreach (var row in rows.Where(x => x.ProviderId != "azure-mai" && x.ModelId != "dictation"))
+    // Mistral: the mini model is the narrow one; Voxtral Small 3 covers the whole union.
+    Equal(13, rows.Single(x => x.ModelId == "voxtral-mini-latest").ModelLanguageCount);
+    True(rows.Single(x => x.ModelId == "voxtral-small-transcribe-3").ModelLanguageCount is null,
+        "voxtral-small-transcribe-3 covers the provider's whole list, so it states no narrower count");
+    foreach (var row in rows.Where(x => x.ProviderId is not ("azure-mai" or "mistral") && x.ModelId != "dictation"))
     {
         True(row.ModelLanguageCount is null,
             $"{row.Key} states a per-model language count but its provider is not in PerModelLanguageProviders");

@@ -5,6 +5,7 @@ import {
   fallbackChainFor,
   ALL_STT_PROVIDER_IDS,
   ASSEMBLYAI_SYNC_USD_PER_MINUTE,
+  getProviderDef,
 } from '../lib/stt-models';
 
 /** A long-enough clip that no provider's short-clip routing tier applies, so a
@@ -145,5 +146,24 @@ describe('maxReservationUsdPerMinute — AssemblyAI sync premium route', () => {
         expect(reserved).toBeGreaterThanOrEqual(ASSEMBLYAI_SYNC_USD_PER_MINUTE);
       }
     }
+  });
+});
+
+describe('maxReservationUsdPerMinute — scribe_v3 and voxtral-small-transcribe-3 rows', () => {
+  test('a request for either new row reserves at least what that row bills', () => {
+    const scribeV3 = getProviderDef('elevenlabs').models.find((m) => m.id === 'scribe_v3')!;
+    const surcharge = scribeV3.addOns?.keytermsSurcharge ?? 0;
+    const v3PromptedRate = scribeV3.estimatedUsdPerMinute * (1 + surcharge);
+    expect(maxReservationUsdPerMinute(input({ provider: 'elevenlabs', model: 'scribe_v3', hasInitialPrompt: true })))
+      .toBeGreaterThanOrEqual(v3PromptedRate - 1e-12);
+    expect(maxReservationUsdPerMinute(input({ provider: 'mistral', model: 'voxtral-small-transcribe-3' })))
+      .toBeGreaterThanOrEqual(estimatedUsdPerMinute('mistral', 'voxtral-small-transcribe-3'));
+  });
+
+  test('a request with no model still reserves at the default rows', () => {
+    expect(maxReservationUsdPerMinute(input({ provider: 'mistral' })))
+      .toBe(maxReservationUsdPerMinute(input({ provider: 'mistral', model: 'voxtral-mini-latest' })));
+    expect(maxReservationUsdPerMinute(input({ provider: 'elevenlabs' })))
+      .toBe(maxReservationUsdPerMinute(input({ provider: 'elevenlabs', model: 'scribe_v2' })));
   });
 });

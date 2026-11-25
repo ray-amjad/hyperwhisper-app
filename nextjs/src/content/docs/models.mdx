@@ -188,9 +188,9 @@ Microsoft MAI-Transcribe is the one engine with no bring-your-own-key route. It 
 
   ElevenLabs also exposes **Scribe v2 Medical**, a Scribe v2 variant tuned for clinical audio, on macOS and Windows. It works with your own ElevenLabs key only, not through HyperWhisper Cloud. It has the same rate and the same languages as Scribe v2, and it accepts custom vocabulary as keyterms.
 
-  **Scribe v3** is the newest ElevenLabs batch model, on macOS and Windows. It works with your own ElevenLabs key only, not through HyperWhisper Cloud. It has the same languages as Scribe v2, and it accepts custom vocabulary as keyterms (HyperWhisper sends up to 100).
+  **Scribe v3** is the newest ElevenLabs batch model, on macOS and Windows. It works with your own ElevenLabs key and through HyperWhisper Cloud, where it costs about 3.33 credits per minute (25% more with custom vocabulary). Scribe v2 stays the default. It has the same languages as Scribe v2, and it accepts custom vocabulary as keyterms (HyperWhisper sends up to 100).
 
-  Mistral also exposes **Voxtral Small Transcribe 3**, the larger Voxtral 3 transcription model, on macOS and Windows. It works with your own Mistral key only, not through HyperWhisper Cloud. It lists 53 languages, and it accepts custom vocabulary as context bias.
+  Mistral also exposes **Voxtral Small Transcribe 3**, the larger Voxtral 3 transcription model, on macOS and Windows. It works with your own Mistral key and through HyperWhisper Cloud, where it costs about 4.0 credits per minute. Voxtral Mini stays the default. It lists 53 languages, and it accepts custom vocabulary as context bias.
 
   The Deepgram and AssemblyAI medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/docs/language-detection#engine-availability).
 </Note>
