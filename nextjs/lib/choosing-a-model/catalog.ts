@@ -327,7 +327,6 @@ const CLOUD_MODELS_RAW = [
   // The Gemini default since #1019. No leaderboard figures yet, so wer and
   // speedFactor stay null (scored a neutral 0.5) rather than borrowing 2.5's.
   { id: "gemini:gemini-3.8-flash", name: "Gemini 3.8 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.8-flash", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-flash", credits: 2.4, wer: 5.1, speedFactor: 73.7, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-flash-lite", credits: 0.8, wer: 5.2, speedFactor: 70.7, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   // `languages` is null, not 25: cloud-stt-catalog.json records this count as
