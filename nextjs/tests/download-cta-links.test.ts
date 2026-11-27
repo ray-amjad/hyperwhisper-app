@@ -88,6 +88,15 @@ test("the footer points at the blog index and key commercial posts", async () =>
   assert.deepEqual(hrefsOfLabel(html, "Free speech-to-text app"), [
     "/en/blog/free-speech-to-text-app",
   ]);
+  assert.deepEqual(hrefsOfLabel(html, "Free speech-to-text software"), [
+    "/en/blog/free-speech-to-text-software",
+  ]);
+  assert.deepEqual(hrefsOfLabel(html, "Best voice to text app"), [
+    "/en/blog/best-voice-to-text-app",
+  ]);
+  assert.deepEqual(hrefsOfLabel(html, "How to transcribe audio to text"), [
+    "/en/blog/how-to-transcribe-audio-to-text",
+  ]);
   assert.deepEqual(hrefsOfLabel(html, "Best dictation software for Windows"), [
     "/en/blog/best-dictation-software-for-windows",
   ]);

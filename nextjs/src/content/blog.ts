@@ -13,7 +13,10 @@ import { bestDictationSoftware } from "@/src/content/code-posts/best-dictation-s
 import { bestDictationSoftwareForWindows } from "@/src/content/code-posts/best-dictation-software-for-windows";
 import { bestDictationSoftwareForWriters } from "@/src/content/code-posts/best-dictation-software-for-writers";
 import { bestVoiceRecognitionSoftware } from "@/src/content/code-posts/best-voice-recognition-software";
+import { bestVoiceToTextApp } from "@/src/content/code-posts/best-voice-to-text-app";
 import { freeSpeechToTextApp } from "@/src/content/code-posts/free-speech-to-text-app";
+import { freeSpeechToTextSoftware } from "@/src/content/code-posts/free-speech-to-text-software";
+import { howToTranscribeAudioToText } from "@/src/content/code-posts/how-to-transcribe-audio-to-text";
 import { hyperwhisperVsHandyVsFluidvoice } from "@/src/content/code-posts/hyperwhisper-vs-handy-vs-fluidvoice";
 import { hyperwhisperVsSpokenly } from "@/src/content/code-posts/hyperwhisper-vs-spokenly";
 import { hyperwhisperVsSuperwhisper } from "@/src/content/code-posts/hyperwhisper-vs-superwhisper";
@@ -161,7 +164,10 @@ const CODE_POSTS: BlogPost[] = [
   bestDictationSoftwareForWindows,
   bestDictationSoftwareForWriters,
   bestVoiceRecognitionSoftware,
+  bestVoiceToTextApp,
   freeSpeechToTextApp,
+  freeSpeechToTextSoftware,
+  howToTranscribeAudioToText,
   hyperwhisperVsSpokenly,
   hyperwhisperVsHandyVsFluidvoice,
   hyperwhisperVsSuperwhisper,
@@ -177,10 +183,7 @@ const CODE_POSTS: BlogPost[] = [
  * getBlogPost also refuses them, so a missed redirect cannot serve the old
  * body as a duplicate of the canonical page.
  */
-export const REDIRECTED_BLOG_SLUGS = new Set([
-  "good-dictation-software",
-  "best-voice-to-text-app",
-]);
+export const REDIRECTED_BLOG_SLUGS = new Set(["good-dictation-software"]);
 
 function withCodePosts(stored: BlogPostSummary[]): BlogPostSummary[] {
   const codeSlugs = new Set(CODE_POSTS.map((post) => post.slug));

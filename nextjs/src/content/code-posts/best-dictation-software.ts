@@ -136,7 +136,10 @@ const html = `
   <li><a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a> — Win+H, Voice Access, Speech Recognition, and Dragon Professional.</li>
   <li><a href="/en/blog/best-dictation-software-for-writers">Best dictation software for writers</a> — drafting novels, articles, and books by voice.</li>
   <li><a href="/en/blog/best-voice-recognition-software">Best voice recognition software</a> — speech recognition and voice to text software.</li>
+  <li><a href="/en/blog/best-voice-to-text-app">Best voice to text app</a> — phone and desktop apps.</li>
   <li><a href="/en/blog/free-speech-to-text-app">Free speech to text app</a> — offline vs cloud, including phones.</li>
+  <li><a href="/en/blog/free-speech-to-text-software">Free speech to text software</a> — Windows and Mac desktop programs.</li>
+  <li><a href="/en/blog/how-to-transcribe-audio-to-text">How to transcribe audio to text</a> — turn a recording into a transcript.</li>
   <li><a href="/en/blog/hyperwhisper-vs-superwhisper">Superwhisper alternative</a> — HyperWhisper vs Superwhisper.</li>
   <li><a href="/en/blog/hyperwhisper-vs-voiceink">VoiceInk alternative</a> — HyperWhisper vs VoiceInk.</li>
 </ul>

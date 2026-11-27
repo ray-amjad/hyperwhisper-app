@@ -7,7 +7,7 @@ import type { BlogPost } from "@/src/content/blog";
 // user counts, competitor prices, or a paid HyperWhisper app tier.
 // Re-read those sources before editing a claim.
 const html = `
-<p><strong>Updated November 23, 2026.</strong> Yes: you can get a free speech to text app on Windows, Mac, Linux, and phones. Built-in voice to text (Win+H, Apple Dictation, Google Docs voice typing) costs nothing. For unlimited offline dictation on a computer, <a href="/en/download">HyperWhisper</a> is free forever with local models and no account. You pay only if you later want optional cloud transcription.</p>
+<p><strong>Updated November 27, 2026.</strong> A <strong>free speech to text app</strong> is something you install or already have on a phone or a computer: iPhone Dictation, Gboard on Android, Apple Dictation on a Mac, Win+H on Windows, or a dedicated desktop app. For unlimited local dictation on a computer, with no account, <a href="/en/download">HyperWhisper</a> is the free desktop app on Mac, Windows, and Linux. HyperWhisper is not a phone app. Desktop programs and OS features (no phones) are on <a href="/en/blog/free-speech-to-text-software">free speech to text software</a>.</p>
 
 <h2>Free speech to text apps compared</h2>
 
@@ -119,12 +119,15 @@ const html = `
   <li><strong>Mac-only local transcribers</strong> are useful if your job is dropping files onto a Mac, not dictating all day across Windows and Linux as well.</li>
 </ul>
 
-<p>For the cross-platform roundup, see <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. For Windows-only built-in vs dedicated apps, see <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>. For Apple Dictation vs third-party apps, see <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. For speech recognition and voice to text software, see <a href="/en/blog/best-voice-recognition-software">best voice recognition software</a>. For side-by-side desktop comparisons, see <a href="/en/blog/hyperwhisper-vs-spokenly">HyperWhisper vs Spokenly</a> and <a href="/en/blog/hyperwhisper-vs-handy-vs-fluidvoice">HyperWhisper vs Handy vs FluidVoice</a>.</p>
+<p>Desktop-only software (Windows and Mac programs, no phones): <a href="/en/blog/free-speech-to-text-software">free speech to text software</a>. App comparison including phones: <a href="/en/blog/best-voice-to-text-app">best voice to text app</a>. Cross-platform dictation: <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. Windows vs Dragon: <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>. Apple Dictation vs third-party: <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. Speech recognition as a category: <a href="/en/blog/best-voice-recognition-software">best voice recognition software</a>.</p>
 
 <h2>FAQ</h2>
 
 <h3>Is there a free speech to text app for Windows and Mac?</h3>
-<p>Yes. Windows includes Win+H voice typing; Apple includes Dictation. For a dedicated desktop app that is free for unlimited local use on Windows, Mac, and Linux, download <a href="/en/download">HyperWhisper</a>. No account is required for offline models.</p>
+<p>Yes. Windows includes Win+H voice typing; Apple includes Dictation. For a dedicated desktop app that is free for unlimited local use on Windows, Mac, and Linux, download <a href="/en/download">HyperWhisper</a>. No account is required for offline models. For desktop programs only (no phones), see <a href="/en/blog/free-speech-to-text-software">free speech to text software</a>.</p>
+
+<h3>Is a free speech to text app the same as free speech to text software?</h3>
+<p>Close, but this page includes phones and keyboards. The <a href="/en/blog/free-speech-to-text-software">software page</a> is Windows and Mac desktop programs only.</p>
 
 <h3>Is voice to text the same as speech to text?</h3>
 <p>For searchers, yes. Both mean converting speech into writing. Use dictation / voice to text when you want words at the cursor; use transcription when you have a recording or a meeting to turn into a document.</p>
@@ -143,10 +146,10 @@ export const freeSpeechToTextApp: BlogPost = {
   locale: "en",
   slug: "free-speech-to-text-app",
   frontMatter: {
-    title: "Free Speech to Text App in 2026: Voice to Text, Offline",
+    title: "Free Speech to Text App (2026): Phone and Desktop",
     description:
-      "Find a free speech to text app for Mac, Windows, or phone. Compare voice to text, offline vs cloud, and options that work for small business.",
-    date: "2026-11-23T00:00:00.000Z",
+      "A free speech to text app for iPhone, Android, Mac, and Windows. Compare phone keyboards with desktop dictation apps.",
+    date: "2026-11-27T15:00:00.000Z",
     tags: ["Speech to text", "Voice to text", "Free"],
     slug: "free-speech-to-text-app",
   },

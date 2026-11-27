@@ -123,6 +123,7 @@ const UNTOUCHED = [
   "/en/docsx",
   "/en/pricingx",
   "/en/blog/best-dictation-software",
+  "/en/blog/best-voice-to-text-app",
 ];
 
 test("the 3 rules are exactly the ones the issue proposes, all permanent", () => {
@@ -210,11 +211,6 @@ test("good-dictation-software 308s onto the umbrella post", async () => {
         "/en/blog/best-dictation-software",
         true,
       ],
-      [
-        "/en/blog/best-voice-to-text-app",
-        "/en/blog/best-voice-recognition-software",
-        true,
-      ],
     ],
   );
   const redirects = await loadRedirects();
@@ -231,17 +227,25 @@ test("good-dictation-software 308s onto the umbrella post", async () => {
   );
 });
 
-test("best-voice-to-text-app 308s onto the voice recognition post", async () => {
+test("best-voice-to-text-app is a live URL, not a 308", async () => {
   const redirects = await loadRedirects();
-  const hit = resolve(redirects, "/en/blog/best-voice-to-text-app");
-  assert.ok(hit);
-  assert.equal(hit.to, "/en/blog/best-voice-recognition-software");
-  assert.equal(hit.statusCode, 308);
+  assert.equal(
+    resolve(redirects, "/en/blog/best-voice-to-text-app"),
+    null,
+    "restored voice-to-text-app must not 308 onto another post",
+  );
   const hops = follow(redirects, "/en/blog/best-voice-to-text-app/");
-  assert.equal(hops.at(-1)?.to, "/en/blog/best-voice-recognition-software");
+  assert.ok(
+    hops.length === 0 || hops.at(-1)?.to === "/en/blog/best-voice-to-text-app",
+    "trailing slash may strip, but must not hop onto another post",
+  );
+  assert.ok(
+    !hops.some((hop) => hop.to.includes("voice-recognition")),
+    "must not 308 onto the voice recognition post",
+  );
   assert.deepEqual(
     follow(redirects, "/en/blog/best-voice-recognition-software"),
     [],
-    "canonical voice recognition page must not redirect again",
+    "voice recognition page must not redirect",
   );
 });

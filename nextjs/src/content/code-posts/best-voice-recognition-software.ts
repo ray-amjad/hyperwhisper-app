@@ -73,7 +73,7 @@ const html = `
 
 <p>People use these phrases interchangeably. On this page they mean the same desktop job: <strong>speech recognition software</strong> that writes what you said. <strong>Voice to text software</strong> is the same category when the output is text. Command systems (Voice Access, Dragon) add control of the OS on top of transcription.</p>
 
-<p>This is the canonical page for those queries. Dictation-only roundups live on <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. Mac-only: <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. Windows vs Dragon: <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>.</p>
+<p>This is the canonical page for desktop <strong>voice recognition software</strong> and <strong>speech recognition software</strong>. App-store and phone queries live on <a href="/en/blog/best-voice-to-text-app">best voice to text app</a>. Dictation-only roundups: <a href="/en/blog/best-dictation-software">best dictation software (2026)</a>. Mac-only: <a href="/en/blog/mac-voice-dictation-software">best dictation app for Mac</a>. Windows vs Dragon: <a href="/en/blog/best-dictation-software-for-windows">Windows dictation vs Dragon</a>.</p>
 
 <h2>How to choose voice recognition software</h2>
 
@@ -100,7 +100,9 @@ const html = `
   <li><a href="/en/blog/hyperwhisper-vs-superwhisper">Superwhisper alternative</a> — HyperWhisper vs Superwhisper.</li>
   <li><a href="/en/blog/hyperwhisper-vs-voiceink">VoiceInk alternative</a> — HyperWhisper vs VoiceInk.</li>
   <li><a href="/en/blog/medical-dragon-dictation-software">Dragon Medical One alternative</a> — clinical dictation vs a local app.</li>
+  <li><a href="/en/blog/best-voice-to-text-app">Best voice to text app</a> — phone and desktop apps.</li>
   <li><a href="/en/blog/free-speech-to-text-app">Free speech to text app</a> — offline vs cloud, including phones.</li>
+  <li><a href="/en/blog/free-speech-to-text-software">Free speech to text software</a> — Windows and Mac desktop programs.</li>
 </ul>
 
 <h2>FAQ</h2>
@@ -109,7 +111,7 @@ const html = `
 <p>For dedicated desktop voice to text on Mac, Windows, and Linux, with unlimited local transcription and no account, use <a href="/en/download">HyperWhisper</a>. For short notes on a computer you already own, start with Apple Dictation or Windows Win+H. For Windows command-and-macro speech recognition, look at Dragon Professional and confirm the current edition with Nuance.</p>
 
 <h3>Is speech recognition software the same as a voice to text app?</h3>
-<p>For desktop writing, yes: both phrases usually mean spoken words become written words. Meeting apps and phone keyboards are different products even when they use the same words in the App Store.</p>
+<p>For desktop writing, close. This page is the desktop software category (including command systems such as Dragon and Voice Access). Phone keyboards and installable apps are compared on <a href="/en/blog/best-voice-to-text-app">best voice to text app</a>.</p>
 
 <h3>What is the best voice to text software that stays offline?</h3>
 <p>HyperWhisper can run entirely offline with local models. Apple Dictation can process on-device for many languages, depending on your Mac and Keyboard settings. Windows 11 Voice Access is designed as an on-device accessibility feature. Windows voice typing (Win+H) uses online speech recognition.</p>
