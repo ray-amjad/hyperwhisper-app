@@ -82,6 +82,7 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
     private readonly IPrivateFileService _privateFiles;
     private readonly DurableAudioImportService? _audioImport;
     private readonly Func<Guid?>? _selectedModeId;
+    private readonly Action? _modesChanged;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
     private readonly SemaphoreSlim _recordingToggle = new(1, 1);
@@ -99,7 +100,8 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         VocabularyRepository? vocabulary = null,
         Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null,
         DurableAudioImportService? audioImport = null,
-        Func<Guid?>? selectedModeId = null)
+        Func<Guid?>? selectedModeId = null,
+        Action? modesChanged = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -121,6 +123,10 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         // hotkey do, not with the DB `IsDefault` row (issue #2406). Null keeps
         // the IsDefault fallback.
         _selectedModeId = selectedModeId;
+        // Raised after a POST, PATCH or DELETE /modes write commits, so the app can reload the
+        // mode list it holds in memory (issue #3000). Only the Linux head supplies it; Windows
+        // reloads through ModeService.ModeChanged.
+        _modesChanged = modesChanged;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)

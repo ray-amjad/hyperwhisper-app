@@ -1726,7 +1726,11 @@ public partial class MainWindow : Window
                 // read it and its reply wait scales with the length (#1572).
                 audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
                 // /recording/toggle records with the mode picked in the app (#2406).
-                selectedModeId: () => _viewModel.Modes.Selected?.Id);
+                selectedModeId: () => _viewModel.Modes.Selected?.Id,
+                // A POST, PATCH or DELETE /modes write reloads the in-memory list, so the page,
+                // the status bar and the editor's next Save see it (#3000). Called on a request
+                // thread; the reload runs on the UI thread.
+                modesChanged: () => Dispatcher.UIThread.Post(OnLocalApiModesChanged));
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
@@ -3304,7 +3308,32 @@ public partial class MainWindow : Window
         var snapshot = modes.CaptureEditorState();
         if (isCreate && modes.NewCommand.CanExecute(null)) modes.NewCommand.Execute(null);
         var editor = new ModeEditorWindow(modes, isCreate, snapshot);
+        _modeEditorOpen = true;
+        editor.Closed += (_, _) =>
+        {
+            _modeEditorOpen = false;
+            if (!_modesReloadPending) return;
+            _modesReloadPending = false;
+            _ = _viewModel.ReloadModesAsync();
+        };
         _ = editor.ShowDialog(this);
+    }
+
+    private bool _modeEditorOpen;
+    private bool _modesReloadPending;
+
+    /// <summary>
+    /// A Local API mode write committed (#3000). The editor is bound to the same shared
+    /// <see cref="ModesViewModel"/>, and a reload re-selects the mode and reloads every editor
+    /// field, so while the dialog is open the reload waits for it to close instead of discarding
+    /// what the user typed (an open editor during an API write is #2888). The page only writes
+    /// modes through that dialog, so no page Save can run on the stale list in the meantime
+    /// except the open dialog's own.
+    /// </summary>
+    private void OnLocalApiModesChanged()
+    {
+        if (_modeEditorOpen) { _modesReloadPending = true; return; }
+        _ = _viewModel.ReloadModesAsync();
     }
 
     // ---- VOCABULARY -------------------------------------------------------------------------
