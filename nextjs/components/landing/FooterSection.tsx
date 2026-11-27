@@ -76,6 +76,21 @@ export default function FooterSection() {
           raw: true,
         },
         {
+          label: "Free speech-to-text software",
+          href: "/en/blog/free-speech-to-text-software",
+          raw: true,
+        },
+        {
+          label: "Best voice to text app",
+          href: "/en/blog/best-voice-to-text-app",
+          raw: true,
+        },
+        {
+          label: "How to transcribe audio to text",
+          href: "/en/blog/how-to-transcribe-audio-to-text",
+          raw: true,
+        },
+        {
           label: "Best dictation software for Windows",
           href: "/en/blog/best-dictation-software-for-windows",
           raw: true,

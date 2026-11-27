@@ -102,6 +102,10 @@ const blogUrl = "https://www.hyperwhisper.com/en/blog/a-real-post";
 
 // The posts written in src/content/code-posts, newest first.
 const CODE_SLUGS = [
+  "how-to-transcribe-audio-to-text",
+  "best-voice-to-text-app",
+  "free-speech-to-text-software",
+  "free-speech-to-text-app",
   "best-voice-recognition-software",
   "medical-dragon-dictation-software",
   "medical-dictation-software-mac",
@@ -111,7 +115,6 @@ const CODE_SLUGS = [
   "mac-voice-dictation-software",
   "best-dictation-software-for-windows",
   "best-dictation-software-for-writers",
-  "free-speech-to-text-app",
   "hyperwhisper-vs-handy-vs-fluidvoice",
   "hyperwhisper-vs-spokenly",
 ];

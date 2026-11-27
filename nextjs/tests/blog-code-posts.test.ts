@@ -71,6 +71,11 @@ const SUPERWHISPER_SLUG = "hyperwhisper-vs-superwhisper";
 const VOICEINK_SLUG = "hyperwhisper-vs-voiceink";
 const GOOD_SLUG = "good-dictation-software";
 const VOICE_TO_TEXT_SLUG = "best-voice-to-text-app";
+const VOICE_TO_TEXT_URL = `https://www.hyperwhisper.com/en/blog/${VOICE_TO_TEXT_SLUG}`;
+const FREE_SOFTWARE_SLUG = "free-speech-to-text-software";
+const FREE_SOFTWARE_URL = `https://www.hyperwhisper.com/en/blog/${FREE_SOFTWARE_SLUG}`;
+const TRANSCRIBE_SLUG = "how-to-transcribe-audio-to-text";
+const TRANSCRIBE_URL = `https://www.hyperwhisper.com/en/blog/${TRANSCRIBE_SLUG}`;
 
 let blog: typeof import("../src/content/blog");
 let sitemap: typeof import("../app/sitemap").default;
@@ -103,6 +108,10 @@ test("the code comparisons are listed by date among stored posts", async () => {
     (await blog.getBlogPosts()).map((post) => post.slug),
     [
       "newer",
+      TRANSCRIBE_SLUG,
+      VOICE_TO_TEXT_SLUG,
+      FREE_SOFTWARE_SLUG,
+      FREE_SLUG,
       VOICE_SLUG,
       MEDICAL_DRAGON_SLUG,
       MEDICAL_MAC_SLUG,
@@ -112,7 +121,6 @@ test("the code comparisons are listed by date among stored posts", async () => {
       MAC_SLUG,
       WINDOWS_SLUG,
       WRITERS_SLUG,
-      FREE_SLUG,
       THREE_WAY_SLUG,
       SLUG,
       "older",
@@ -202,14 +210,16 @@ test("the free speech-to-text post targets voice-to-text queries and stays in th
   assert.ok(post);
   assert.equal(
     post.frontMatter.title,
-    "Free Speech to Text App in 2026: Voice to Text, Offline",
+    "Free Speech to Text App (2026): Phone and Desktop",
   );
   assert.ok(post.frontMatter.title.length <= 60);
   assert.ok(post.frontMatter.description.length <= 155);
-  assert.match(post.frontMatter.description, /small business/i);
+  assert.match(post.frontMatter.description, /iPhone|phone/i);
   assert.match(post.html, /voice to text/i);
   assert.match(post.html, /href="\/en\/download"/);
   assert.match(post.html, /href="\/docs\/models"/);
+  assert.match(post.html, /href="\/en\/blog\/free-speech-to-text-software"/);
+  assert.match(post.html, /href="\/en\/blog\/best-voice-to-text-app"/);
   assert.match(post.html, /href="\/en\/blog\/best-dictation-software-for-windows"/);
   assert.match(post.html, /href="\/en\/blog\/best-dictation-software"/);
   assert.match(post.html, /href="\/en\/blog\/mac-voice-dictation-software"/);
@@ -252,6 +262,9 @@ test("the umbrella dictation post is the canonical head-term page", async () => 
   assert.match(post.html, /href="\/en\/blog\/best-voice-recognition-software"/);
   assert.match(post.html, /href="\/en\/blog\/hyperwhisper-vs-superwhisper"/);
   assert.match(post.html, /href="\/en\/blog\/hyperwhisper-vs-voiceink"/);
+  assert.match(post.html, /href="\/en\/blog\/best-voice-to-text-app"/);
+  assert.match(post.html, /href="\/en\/blog\/free-speech-to-text-software"/);
+  assert.match(post.html, /href="\/en\/blog\/how-to-transcribe-audio-to-text"/);
   assert.doesNotMatch(post.html, /From Outrank/);
   const entries = await sitemap();
   assert.equal(entries.filter((entry) => entry.url === UMBRELLA_URL).length, 1);
@@ -345,7 +358,7 @@ test("the Mac medical post targets medical dictation software for Mac", async ()
   assert.doesNotMatch(post.html, /From Outrank/);
 });
 
-test("the voice recognition post is the canonical speech / voice-to-text page", async () => {
+test("the voice recognition post is the canonical speech / voice-to-text software page", async () => {
   rows = [stored(VOICE_SLUG, "2026-01-01", "<p>From Outrank</p>")];
   const post = await blog.getBlogPost(VOICE_SLUG);
   assert.ok(post);
@@ -358,32 +371,65 @@ test("the voice recognition post is the canonical speech / voice-to-text page", 
   assert.match(post.html, /voice to text software/i);
   assert.match(post.html, /href="\/en\/blog\/best-dictation-software"/);
   assert.match(post.html, /href="\/en\/blog\/hyperwhisper-vs-superwhisper"/);
+  assert.match(post.html, /href="\/en\/blog\/best-voice-to-text-app"/);
   assert.doesNotMatch(post.html, /From Outrank/);
   const entries = await sitemap();
   assert.equal(entries.filter((entry) => entry.url === VOICE_URL).length, 1);
   assert.equal(
-    entries.filter((entry) => entry.url.includes(VOICE_TO_TEXT_SLUG)).length,
-    0,
+    entries.filter((entry) => entry.url === VOICE_TO_TEXT_URL).length,
+    1,
   );
 });
 
-test("best-voice-to-text-app is omitted from the list, sitemap, and getBlogPost", async () => {
+test("the voice to text app post is a live comparison, not a redirect", async () => {
   rows = [stored(VOICE_TO_TEXT_SLUG, "2026-05-14", "<p>From Outrank</p>")];
-  assert.equal(
-    (await blog.getBlogPosts()).filter((post) => post.slug === VOICE_TO_TEXT_SLUG)
-      .length,
-    0,
-  );
-  assert.equal(await blog.getBlogPost(VOICE_TO_TEXT_SLUG), null);
+  const post = await blog.getBlogPost(VOICE_TO_TEXT_SLUG);
+  assert.ok(post);
+  assert.equal(post.frontMatter.title, "Best Voice to Text App (2026)");
+  assert.match(post.frontMatter.description, /voice to text app/i);
+  assertSeoPost(post);
+  assert.match(post.html, /HyperWhisper is not a phone app/);
+  assert.match(post.html, /href="\/en\/blog\/best-voice-recognition-software"/);
+  assert.match(post.html, /href="\/en\/blog\/free-speech-to-text-app"/);
+  assert.doesNotMatch(post.html, /From Outrank/);
   const entries = await sitemap();
+  assert.equal(entries.filter((entry) => entry.url === VOICE_TO_TEXT_URL).length, 1);
+});
+
+test("the free speech-to-text software post is desktop-only and cross-links the app page", async () => {
+  rows = [stored(FREE_SOFTWARE_SLUG, "2026-06-20", "<p>From Outrank $39</p>")];
+  const post = await blog.getBlogPost(FREE_SOFTWARE_SLUG);
+  assert.ok(post);
+  assert.equal(post.frontMatter.title, "Free Speech to Text Software (2026)");
+  assert.match(post.frontMatter.description, /Windows and Mac/i);
+  assertSeoPost(post);
+  assert.match(post.html, /desktop software only/i);
+  assert.match(post.html, /href="\/en\/blog\/free-speech-to-text-app"/);
+  assert.doesNotMatch(post.html, /From Outrank/);
+  const entries = await sitemap();
+  assert.equal(entries.filter((entry) => entry.url === FREE_SOFTWARE_URL).length, 1);
+});
+
+test("the transcribe how-to answers the query in the intro and cites file-import docs", async () => {
+  rows = [stored(TRANSCRIBE_SLUG, "2026-05-17", "<p>From Outrank</p>")];
+  const post = await blog.getBlogPost(TRANSCRIBE_SLUG);
+  assert.ok(post);
   assert.equal(
-    entries.filter(
-      (entry) =>
-        entry.url === `https://www.hyperwhisper.com/en/blog/${VOICE_TO_TEXT_SLUG}`,
-    ).length,
-    0,
+    post.frontMatter.title,
+    "How to Transcribe Audio to Text (3 Steps)",
   );
-  assert.equal(entries.filter((entry) => entry.url === VOICE_URL).length, 1);
+  assert.match(post.frontMatter.title, /How to Transcribe Audio to Text/i);
+  assert.match(post.frontMatter.description, /how to transcribe audio to text/i);
+  assertSeoPost(post);
+  assert.match(post.html, /How to transcribe audio to text/);
+  assert.match(post.html, /Transcribe File/);
+  assert.match(post.html, /href="\/docs\/file-transcription"/);
+  assert.match(post.html, /\.wav/);
+  assert.match(post.html, /does not support WebM/i);
+  assert.match(post.html, /extract the audio first/i);
+  assert.doesNotMatch(post.html, /From Outrank/);
+  const entries = await sitemap();
+  assert.equal(entries.filter((entry) => entry.url === TRANSCRIBE_URL).length, 1);
 });
 
 test("the Superwhisper vs post titles a Superwhisper alternative", async () => {

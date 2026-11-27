@@ -31,11 +31,6 @@ export const blogPostRedirects = [
     destination: "/en/blog/best-dictation-software",
     permanent: true,
   },
-  {
-    source: "/en/blog/best-voice-to-text-app",
-    destination: "/en/blog/best-voice-recognition-software",
-    permanent: true,
-  },
 ];
 
 /** The `redirects()` entries for next.config.mjs. */
