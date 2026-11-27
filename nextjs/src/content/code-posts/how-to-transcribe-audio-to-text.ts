@@ -1,16 +1,17 @@
 import type { BlogPost } from "@/src/content/blog";
 
-// File-import facts: src/content/docs/file-transcription.mdx, menu-bar.mdx,
-// windows/faq.mdx (Transcribe File; formats; History). HyperWhisper product
-// facts: messages/en.json and models.mdx. This page does not invent formats,
-// file-size limits, or a phone transcription app. Re-read those docs before
-// editing a claim.
+// File-import facts: src/content/docs/file-transcription.mdx (macOS/Windows),
+// menu-bar.mdx, windows/faq.mdx, plus the Linux picker in
+// app/linux/HyperWhisper.Linux/MainWindow.axaml.cs and
+// PortableFileTranscriptionPreflight (wav/mp3/m4a/flac/ogg/webm). macOS
+// rejects WebM; Windows file import is wav/mp3/m4a only. Re-read those
+// sources before editing a claim.
 const html = `
 <p><strong>Updated November 27, 2026.</strong> <strong>How to transcribe audio to text:</strong> put the recording on your computer, run speech recognition on the file, then copy the transcript. In <a href="/en/download">HyperWhisper</a> that is three steps: open <strong>Transcribe File</strong>, pick the audio, copy the text from History. Local models keep the audio on the device and have no file-size limit; cloud transcription is optional and each provider has its own size cap.</p>
 
 <ol>
   <li><strong>Open Transcribe File.</strong> On a Mac, click the menu bar icon, hover over <strong>Transcribe File</strong>, and select a mode. On Windows, right-click the tray icon and do the same. On Linux, use <strong>Transcribe file</strong> in the tray menu. On a Mac you can also right-click the file in Finder and choose <strong>Open With → HyperWhisper</strong>.</li>
-  <li><strong>Pick the recording.</strong> macOS accepts <code>.wav</code>, <code>.mp3</code>, <code>.m4a</code>, <code>.aiff</code>, <code>.ogg</code>, <code>.flac</code>, and video containers <code>.mp4</code>, <code>.mov</code>, <code>.m4v</code> (it extracts the audio track). Windows accepts <code>.wav</code>, <code>.mp3</code>, and <code>.m4a</code> — not video; extract the audio first. HyperWhisper does not support WebM. Choose a local mode if the file must stay on the machine, or a cloud mode if you want a cloud engine.</li>
+  <li><strong>Pick the recording.</strong> macOS accepts <code>.wav</code>, <code>.mp3</code>, <code>.m4a</code>, <code>.aiff</code>, <code>.ogg</code>, <code>.flac</code>, and video containers <code>.mp4</code>, <code>.mov</code>, <code>.m4v</code> (it extracts the audio track); it does not support WebM. Windows accepts <code>.wav</code>, <code>.mp3</code>, and <code>.m4a</code> — not video; extract the audio first. Linux accepts <code>.wav</code>, <code>.mp3</code>, <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, and <code>.webm</code>. Choose a local mode if the file must stay on the machine, or a cloud mode if you want a cloud engine.</li>
   <li><strong>Copy the transcript from History.</strong> A progress popup runs while it works. The result lands in History with the original audio, where you can copy it, edit it, or run a different mode on the same file.</li>
 </ol>
 
@@ -41,13 +42,13 @@ const html = `
     <tr>
       <td>Linux</td>
       <td>Tray → Transcribe file</td>
-      <td><code>.wav</code>, <code>.mp3</code>, <code>.m4a</code></td>
+      <td><code>.wav</code>, <code>.mp3</code>, <code>.m4a</code>, <code>.flac</code>, <code>.ogg</code>, <code>.webm</code></td>
       <td>Not documented — extract the audio first</td>
     </tr>
   </tbody>
 </table>
 
-<p>HyperWhisper does not support WebM. Local Whisper and Parakeet have no file-size limit. HyperWhisper Cloud accepts files up to 128 MB (some engines are smaller). Full provider limits and the progress popup are in the <a href="/docs/file-transcription">Transcribe a File</a> docs.</p>
+<p>macOS does not support WebM (convert to MP3, M4A, or WAV). Linux does: <code>.webm</code> is in the Linux picker. Local Whisper and Parakeet have no file-size limit. HyperWhisper Cloud accepts files up to 128 MB (some engines are smaller). Full provider limits and the progress popup are in the <a href="/docs/file-transcription">Transcribe a File</a> docs.</p>
 
 <h2>If you are not using HyperWhisper</h2>
 

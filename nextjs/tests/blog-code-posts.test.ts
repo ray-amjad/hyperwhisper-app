@@ -425,7 +425,9 @@ test("the transcribe how-to answers the query in the intro and cites file-import
   assert.match(post.html, /Transcribe File/);
   assert.match(post.html, /href="\/docs\/file-transcription"/);
   assert.match(post.html, /\.wav/);
-  assert.match(post.html, /does not support WebM/i);
+  assert.match(post.html, /macOS does not support WebM/i);
+  assert.match(post.html, /Linux accepts/);
+  assert.match(post.html, /\.webm/);
   assert.match(post.html, /extract the audio first/i);
   assert.doesNotMatch(post.html, /From Outrank/);
   const entries = await sitemap();
