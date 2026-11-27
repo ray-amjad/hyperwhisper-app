@@ -29,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("provider metadata cancellation propagates", TestMetadataProbeCancellationAsync),
     ("Meta readiness reports configured without a probe", TestMetaReadinessAsync),
     ("a retired cloud STT id is labelled by its successor", TestCloudSttRetiredIdLabelAsync),
+    ("a retired Cloud post-processing Gemini model canonicalizes to the Gemini default", TestCloudPpRetiredGeminiAsync),
 };
 
 foreach (var test in tests)
@@ -51,6 +52,16 @@ static Task TestCloudSttRetiredIdLabelAsync()
     Equal(successor, CloudSttModelCatalog.Label("grok-voice-transcribe-1.0"));
     // Neither listed nor aliased: the stored id comes back unchanged.
     Equal("not-a-real-model", CloudSttModelCatalog.Label("not-a-real-model", "grok"));
+    return Task.CompletedTask;
+}
+
+// #3009: gemini-2.5-flash left cloud-pp-catalog.json. A stored "gemini:gemini-2.5-flash"
+// keeps the Gemini engine and lands on its default model.
+static Task TestCloudPpRetiredGeminiAsync()
+{
+    Equal("gemini:gemini-3.8-flash", CloudPostProcessingCatalog.Canonicalize("gemini:gemini-2.5-flash"));
+    True(CloudPostProcessingCatalog.Entries.All(entry => entry.Value != "gemini:gemini-2.5-flash"),
+        "gemini:gemini-2.5-flash is still a Cloud post-processing choice");
     return Task.CompletedTask;
 }
 

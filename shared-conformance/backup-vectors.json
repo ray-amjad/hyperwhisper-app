@@ -1258,7 +1258,7 @@
       },
       "expected": {
         "cloudProvider": "soniox",
-        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionModel": "stt-async-v6",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
@@ -1290,6 +1290,84 @@
       },
       "expected": {
         "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "soniox model alias: \"stt-async-v5\" (removed 2026-12-15, #3030)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000137",
+        "name": "vec-137",
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v5"
+      },
+      "expected": {
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v6",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-2.5-pro\" (deprecated 2026-11-02, #3009)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000138",
+        "name": "vec-138",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.5-pro"
+      },
+      "expected": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a retired gemini-2.5-pro id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000139",
+        "name": "vec-139",
+        "cloudTranscriptionModel": "gemini-2.5-pro"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-2.5-flash\" (deprecated 2026-11-02, #3009)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000140",
+        "name": "vec-140",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.5-flash"
+      },
+      "expected": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.8-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a retired gemini-2.5-flash id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000141",
+        "name": "vec-141",
+        "cloudTranscriptionModel": "gemini-2.5-flash"
+      },
+      "expected": {
+        "cloudProvider": null,
         "cloudTranscriptionModel": "gemini-3.8-flash",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
@@ -1927,7 +2005,7 @@
       },
       "expected": {
         "cloudProvider": null,
-        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionModel": "stt-async-v6",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"

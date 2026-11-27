@@ -21,11 +21,11 @@ public readonly record struct ModelRating(int Speed, int Accuracy);
 /// ModelRatingsParityTests pins the two sets equal by parsing the Windows source. Do not "fix" a
 /// number here alone; change it here and let that test tell you what else to update.
 ///
-/// FOUR tables, not one, and the split is load-bearing: five ids appear in both
-/// <see cref="Cloud"/> and <see cref="PostProcessing"/> with DIFFERENT values (gemini-2.5-flash,
-/// gemini-2.5-pro, gemini-3.6-flash, gemini-3.1-pro-preview, gemini-3.1-flash-lite), because a
-/// model that transcribes well does not necessarily clean text up well. Merging the dictionaries
-/// would silently corrupt all five.
+/// FOUR tables, not one, and the split is load-bearing: three ids appear in both
+/// <see cref="Cloud"/> and <see cref="PostProcessing"/> with DIFFERENT values (gemini-3.6-flash,
+/// gemini-3.1-pro-preview, gemini-3.1-flash-lite; gemini-2.5-pro was one more until its voice
+/// row was removed, #3009), because a model that transcribes well does
+/// not necessarily clean text up well. Merging the dictionaries would silently corrupt all three.
 /// </summary>
 public static class ModelRatings
 {
@@ -62,6 +62,9 @@ public static class ModelRatings
             ["universal-3-5-pro"] = new(2, 5),
             ["universal-2-medical"] = new(2, 4),
             ["universal-3-5-pro-medical"] = new(2, 5),
+            // STT-3.7 (#3106): copied from 3.5 Pro pending a benchmark.
+            ["assemblyai-stt-3-7"] = new(2, 5),
+            ["assemblyai-stt-3-7-medical"] = new(2, 5),
             // ElevenLabs
             ["scribe_v1"] = new(3, 5),
             ["scribe_v2"] = new(3, 5),
@@ -70,12 +73,12 @@ public static class ModelRatings
             // Mistral
             ["voxtral-mini-latest"] = new(4, 2),
             // Soniox
-            ["stt-async-v5"] = new(2, 5),
+            ["stt-async-v6"] = new(2, 5), // v5 removed 2026-12-15 (#3030), same rating
             // Gemini
             ["gemini-3.8-flash"] = new(2, 4),
-            ["gemini-2.5-flash"] = new(2, 4),
             ["gemini-2.5-flash-lite"] = new(3, 3),
-            ["gemini-2.5-pro"] = new(1, 5),
+            // gemini-2.5-pro / gemini-2.5-flash voice rows removed (#3009). gemini-2.5-flash is gone
+            // entirely (Ray, 10:43 JST): a saved id aliases to gemini-3.8-flash.
             ["gemini-3.1-flash-lite"] = new(3, 4),
             ["gemini-3.6-flash"] = new(2, 4),
             ["gemini-3.1-pro-preview"] = new(1, 5),
@@ -127,7 +130,6 @@ public static class ModelRatings
             ["claude-sonnet-5"] = new(4, 5),
             ["claude-sonnet-5-5"] = new(4, 5),
             ["claude-haiku-5-5"] = new(4, 4),
-            ["gemini-2.5-flash"] = new(2, 5),
             ["gemini-3.5-flash"] = new(2, 5),
             ["gemini-3.6-flash"] = new(2, 5),
             ["gemini-3.7-flash"] = new(2, 5),

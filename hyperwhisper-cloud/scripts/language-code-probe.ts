@@ -47,6 +47,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { getGoogleAccessToken } from '../src/lib/google-auth';
+import { generationConfig } from '../src/providers/gemini';
 
 const FIXTURE = new URL('./fixtures/en-us-sarah.mp3', import.meta.url).pathname;
 const FIXTURE_MIME = 'audio/mpeg';
@@ -301,7 +302,8 @@ async function callGemini(audio: Buffer, model: string, language: string | null)
         ],
       },
     ],
-    generationConfig: { temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+    // Same config production sends: 3.x takes thinkingLevel and no sampling params.
+    generationConfig: generationConfig(model),
   };
 
   const response = await call(
@@ -420,7 +422,7 @@ function geminiRow(language: string | null, question: string): ProbeRow {
     sent: language ? `prompt says code "${language}"` : 'no language in prompt',
     question,
     requires: ['GEMINI_API_KEY'],
-    call: audio => callGemini(audio, 'gemini-2.5-flash', language),
+    call: audio => callGemini(audio, 'gemini-3.8-flash', language),
   };
 }
 

@@ -127,62 +127,64 @@ describe('new STT provider cost functions', () => {
   });
 
   test('Gemini bills from audio+output tokens, fails closed when usage absent', () => {
-    // 1 minute of audio = 1920 audio tokens; 2.5-flash audio @ $1.00/1M.
-    const exact = computeGeminiTranscriptionCost('gemini-2.5-flash', {
+    // 1 minute of audio = 1920 audio tokens; 2.5-flash-lite audio @ $0.30/1M.
+    // (2.5 Flash was the case here until its row was retired, #3009.)
+    const exact = computeGeminiTranscriptionCost('gemini-2.5-flash-lite', {
       audioInputTokens: 1920, outputTokens: 0,
     });
-    expect(exact).toBeCloseTo(0.00192, 6);
+    expect(exact).toBeCloseTo(0.000576, 6);
 
     // Missing usage → fall back to duration estimate (never $0).
-    const floored = computeGeminiTranscriptionCost('gemini-2.5-flash', {
+    const floored = computeGeminiTranscriptionCost('gemini-2.5-flash-lite', {
       audioInputTokens: 0, outputTokens: 0, fallbackDurationSeconds: 60,
     });
-    expect(floored).toBeCloseTo(0.00192, 6);
+    expect(floored).toBeCloseTo(0.000576, 6);
   });
 
   test('Gemini bills text-input tokens at the text rate (not $0, not the audio rate)', () => {
-    // 2.5-flash: audio $1.00/1M, text $0.30/1M. A vocab-heavy prompt's text
+    // 2.5-flash-lite: audio $0.30/1M, text $0.10/1M. A vocab-heavy prompt's text
     // tokens must be charged — at the cheaper text rate, not dropped and not
     // billed as audio.
-    const audioOnly = computeGeminiTranscriptionCost('gemini-2.5-flash', {
+    const audioOnly = computeGeminiTranscriptionCost('gemini-2.5-flash-lite', {
       audioInputTokens: 1920, textInputTokens: 0, outputTokens: 0,
     });
-    const withText = computeGeminiTranscriptionCost('gemini-2.5-flash', {
+    const withText = computeGeminiTranscriptionCost('gemini-2.5-flash-lite', {
       audioInputTokens: 1920, textInputTokens: 1000, outputTokens: 0,
     });
-    expect(audioOnly).toBeCloseTo(0.00192, 6);
-    // +1000 text tokens @ $0.30/1M = +0.0003, NOT +0.001 (audio rate).
-    expect(withText).toBeCloseTo(0.00192 + 0.0003, 6);
+    expect(audioOnly).toBeCloseTo(0.000576, 6);
+    // +1000 text tokens @ $0.10/1M = +0.0001, NOT +0.0003 (audio rate).
+    expect(withText).toBeCloseTo(0.000576 + 0.0001, 7);
   });
 
   test('Gemini Pro applies the >200k long-context tier (input + output rates rise)', () => {
-    // 2.5-pro: <=200k input $1.25/1M, output $10/1M; >200k input $2.50/1M, output $15/1M.
+    // 3.1-pro-preview: <=200k input $2.00/1M, output $12/1M; >200k input $4.00/1M, output $18/1M.
+    // (2.5 Pro was the case here until its row was retired, #3009.)
     // Prompt = audio + text; cross the 200k boundary and the whole bill switches tier.
-    const under = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const under = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 100_000, textInputTokens: 0, outputTokens: 1000,
     });
-    expect(under).toBeCloseTo(100_000 * (1.25 / 1e6) + 1000 * (10 / 1e6), 8);
+    expect(under).toBeCloseTo(100_000 * (2.00 / 1e6) + 1000 * (12 / 1e6), 8);
 
-    const over = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const over = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 250_000, textInputTokens: 0, outputTokens: 1000,
     });
-    expect(over).toBeCloseTo(250_000 * (2.50 / 1e6) + 1000 * (15 / 1e6), 8);
+    expect(over).toBeCloseTo(250_000 * (4.00 / 1e6) + 1000 * (18 / 1e6), 8);
     // Per-token cost is strictly higher above the threshold.
     expect(over / 251_000).toBeGreaterThan(under / 101_000);
   });
 
   test('Gemini flat (non-Pro) models have no long-context tier', () => {
-    // 2.5-flash stays at $1.00/1M audio even past 200k tokens (1M context, flat).
-    const big = computeGeminiTranscriptionCost('gemini-2.5-flash', {
+    // 2.5-flash-lite stays at $0.30/1M audio even past 200k tokens (1M context, flat).
+    const big = computeGeminiTranscriptionCost('gemini-2.5-flash-lite', {
       audioInputTokens: 300_000, textInputTokens: 0, outputTokens: 0,
     });
-    expect(big).toBeCloseTo(300_000 * (1.00 / 1e6), 8);
+    expect(big).toBeCloseTo(300_000 * (0.30 / 1e6), 8);
   });
 
   test('estimatePromptInputReservationUsd charges token-billed providers and not others', () => {
     const prompt = 'a'.repeat(400); // ~100 tokens at 4 chars/token
-    // Gemini: charged at the model's text-input rate (2.5-flash $0.30/1M).
-    expect(estimatePromptInputReservationUsd('gemini', 'gemini-2.5-flash', prompt)).toBeCloseTo(100 * (0.30 / 1e6), 9);
+    // Gemini: charged at the model's text-input rate (2.5-flash-lite $0.10/1M).
+    expect(estimatePromptInputReservationUsd('gemini', 'gemini-2.5-flash-lite', prompt)).toBeCloseTo(100 * (0.10 / 1e6), 9);
     // OpenAI gpt-4o-transcribe: $2.50/1M input. mini: $1.25/1M.
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-transcribe', prompt)).toBeCloseTo(100 * (2.50 / 1e6), 9);
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-mini-transcribe', prompt)).toBeCloseTo(100 * (1.25 / 1e6), 9);
@@ -197,17 +199,17 @@ describe('new STT provider cost functions', () => {
     // Duration-billed providers and absent prompts → 0.
     expect(estimatePromptInputReservationUsd('deepgram', 'nova-3-general', prompt)).toBe(0);
     expect(estimatePromptInputReservationUsd('mistral', undefined, prompt)).toBe(0);
-    expect(estimatePromptInputReservationUsd('gemini', 'gemini-2.5-flash', undefined)).toBe(0);
+    expect(estimatePromptInputReservationUsd('gemini', 'gemini-2.5-flash-lite', undefined)).toBe(0);
   });
 
   test('Gemini bills output tokens (which include upstream thinking tokens)', () => {
     // The adapter sums candidatesTokenCount + thoughtsTokenCount into
     // outputTokens, so the cost fn must charge for output. With output tokens
     // present the bill is strictly higher than audio-input alone.
-    const withOutput = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const withOutput = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 1920, outputTokens: 1000,
     });
-    const withoutOutput = computeGeminiTranscriptionCost('gemini-2.5-pro', {
+    const withoutOutput = computeGeminiTranscriptionCost('gemini-3.1-pro-preview', {
       audioInputTokens: 1920, outputTokens: 0,
     });
     expect(withOutput).toBeGreaterThan(withoutOutput);
@@ -650,8 +652,10 @@ describe('LLM chat costs', () => {
     // OpenAI is not here: it is down to one model, gpt-5.6-luna (#1018), so it has
     // no second rate to tell apart. Its one rate is pinned by the "bills every id
     // at the one luna rate" test in src/providers/llm-dispatch.test.ts and by the
-    // catalog-parity block below. Flash-lite is cheaper than flash.
-    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
+    // catalog-parity block below. 2.5 Flash is no longer a row (#3009): it bills
+    // as the default, 3.8 Flash, like any id without a row of its own.
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', usage(1_000_000, 1_000_000)))
+      .toBe(computeLLMChatCost('gemini', 'gemini-3.8-flash', usage(1_000_000, 1_000_000)));
     expect(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
     expect(computeLLMChatCost('mistral', 'mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
     // gemini-3.8-flash deliberately has NO hand-written price line here. Its

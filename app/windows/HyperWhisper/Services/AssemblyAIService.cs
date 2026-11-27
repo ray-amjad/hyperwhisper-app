@@ -33,11 +33,17 @@
 // MODELS (as of 2026-04):
 // - universal-2: Multi-language (99 languages), auto-detection, $0.15/hr (default)
 // - universal-3-5-pro: 18 languages, highest accuracy, $0.21/hr
+// - assemblyai-stt-3-7: STT-3.7 (2026-11-18, #3106), 32 languages, BYOK only.
+//   Never takes the sync fast path (sync always runs universal-3-5-pro); see SyncServesModel.
+//   "assemblyai-stt-3-7-medical" is the same speech model + domain medical-v1
+//   (GetAssemblyAIRequestParams strips the -medical suffix).
 // Legacy "universal" / "slam-1" IDs are resolved via CloudTranscriptionModels.ResolveAssemblyAIModelAlias.
 //
 // VOCABULARY BOOSTING:
 // - keyterms_prompt: Array of terms (max 6 words per phrase).
-//   Caps: 200 for universal-2, 1000 for universal-3-5-pro.
+//   Caps: 1000 for the hw-net HIGH_KEYTERM_CAP_MODELS set (assemblyai-stt-3-7,
+//   universal-3-5-pro, universal-3-pro), 200 otherwise. The cap is applied by the
+//   Rust core's request builder (hw-net assemblyai max_keyterms_for), not here.
 // - The legacy word_boost/boost_param fields are deprecated by AssemblyAI on 2026-05-11.
 //
 // ERROR HANDLING:
@@ -290,8 +296,9 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
             ? Result<double>.Success(knownDurationSeconds.Value)
             : FileTranscriptionService.GetAudioDuration(request.AudioPath);
         var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
-        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(request.ModelId).Medical;
-        if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel))
+        var (speechModel, isMedicalModel) = CloudTranscriptionModels.GetAssemblyAIRequestParams(request.ModelId);
+        var syncServesModel = SyncServesModel(speechModel);
+        if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel, syncServesModel))
         {
             LoggingService.Info($"  Duration {durationResult.Value:F1}s < {syncMaxDurationSeconds:F0}s sync cap — trying sync fast path");
             var syncText = await TryTranscribeSyncAsync(coreParams, durationResult.Value, cancellationToken);
@@ -306,7 +313,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
             return null;
         }
 
-        LoggingService.Debug($"  Skipping sync fast path: {DescribeSyncSkipReason(durationResult, syncMaxDurationSeconds, isMedicalModel)}");
+        LoggingService.Debug($"  Skipping sync fast path: {DescribeSyncSkipReason(durationResult, syncMaxDurationSeconds, isMedicalModel, syncServesModel)}");
         return null;
     }
 
@@ -419,10 +426,31 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     /// (medical), while a false "ineligible" only costs the (larger) async
     /// latency, never correctness.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="syncServesModel"/> (see <see cref="SyncServesModel"/>) is
+    /// false for a model the sync endpoint cannot run: it would silently answer
+    /// with universal-3-5-pro instead (#3106), so that model goes straight to async.
+    /// </remarks>
     // internal for SmokeTests.
-    internal static bool IsSyncEligible(Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel)
+    internal static bool IsSyncEligible(
+        Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel, bool syncServesModel = true)
     {
-        return !isMedicalModel && durationResult.IsSuccess && durationResult.Value < syncMaxDurationSeconds;
+        return syncServesModel && !isMedicalModel && durationResult.IsSuccess && durationResult.Value < syncMaxDurationSeconds;
+    }
+
+    /// <summary>
+    /// Whether the sync fast path can serve a resolved speech model (the
+    /// <c>-medical</c> suffix already stripped). The core's sync builder always
+    /// sends <c>X-AAI-Model: universal-3-5-pro</c> (hw-net sync_model()), so a
+    /// user who picked STT-3.7 would silently get 3.5 Pro on short clips (#3106).
+    /// Narrow on purpose: only STT-3.7 is excluded; universal-2 and 3.5 Pro keep
+    /// their existing sync behaviour.
+    /// </summary>
+    // internal for SmokeTests.
+    internal static bool SyncServesModel(string? resolvedSpeechModel)
+    {
+        return resolvedSpeechModel is null
+            || !resolvedSpeechModel.StartsWith("assemblyai-stt-3-7", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -431,10 +459,13 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     /// duration at/over the cap, then a failed duration probe.
     /// </summary>
     // internal for SmokeTests.
-    internal static string DescribeSyncSkipReason(Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel)
+    internal static string DescribeSyncSkipReason(
+        Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel, bool syncServesModel = true)
     {
         return isMedicalModel
             ? "medical model (sync has no medical/domain concept)"
+            : !syncServesModel
+            ? "model not served by sync (sync always runs universal-3-5-pro)"
             : durationResult.IsSuccess
                 ? $"duration {durationResult.Value:F1}s >= {syncMaxDurationSeconds:F0}s sync cap"
                 : $"duration unknown ({durationResult.Error})";

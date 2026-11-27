@@ -36,8 +36,9 @@
 //!   sanitizer/dedup/length-cap helper before interpolation.
 //! - **language**: sent as `language_hints: [lang]` only when explicit
 //!   (non-empty, non-`auto`). Omitted otherwise.
-//! - **default model**: `stt-async-v5` on both platforms. The retired v4 ID is
-//!   accepted as a compatibility alias and canonicalized before request creation.
+//! - **default model**: `stt-async-v6` on both platforms. The retired v4 and v5
+//!   IDs are accepted as compatibility aliases and canonicalized before request
+//!   creation (Soniox removes v5 on 2026-12-15, #3030).
 //! - **transcript field**: the `/transcript` endpoint returns `{ "text": "..." }`.
 //!   The task spec calls this `final_transcript`; the shipped Soniox file API uses
 //!   `text` (verified in both reference impls). We read `text`, falling back to
@@ -91,7 +92,7 @@ fn auth(params: &TranscribeParams) -> Header {
 
 fn resolve_model(model: &str) -> String {
     let t = model.trim();
-    if t.is_empty() || t == "stt-async-v4" {
+    if t.is_empty() || t == "stt-async-v4" || t == "stt-async-v5" {
         default_model().to_string()
     } else {
         t.to_string()
@@ -469,7 +470,7 @@ mod tests {
     fn params() -> TranscribeParams {
         TranscribeParams {
             api_key: "sx-test".to_string(),
-            model: "stt-async-v5".to_string(),
+            model: "stt-async-v6".to_string(),
             audio_path: "/tmp/rec.m4a".to_string(),
             ..Default::default()
         }
@@ -536,7 +537,7 @@ mod tests {
         assert_eq!(req.url, "https://api.soniox.com/v1/transcriptions");
         let j = body_json(&req);
         assert_eq!(j["file_id"], "file_abc");
-        assert_eq!(j["model"], "stt-async-v5");
+        assert_eq!(j["model"], "stt-async-v6");
         assert!(j.get("language_hints").is_none());
         assert!(j.get("context").is_none());
     }
@@ -546,15 +547,19 @@ mod tests {
         let mut p = params();
         p.model = "".to_string();
         let req = build_create_request(&p, "f").unwrap();
-        assert_eq!(body_json(&req)["model"], "stt-async-v5");
+        assert_eq!(body_json(&req)["model"], "stt-async-v6");
     }
 
     #[test]
-    fn create_legacy_v4_model_canonicalizes_to_v5() {
-        let mut p = params();
-        p.model = "stt-async-v4".to_string();
-        let req = build_create_request(&p, "file-1").unwrap();
-        assert_eq!(body_json(&req)["model"], "stt-async-v5");
+    fn create_legacy_v4_and_v5_models_canonicalize_to_v6() {
+        // Soniox removes stt-async-v5 on 2026-12-15 (#3030); a saved v4 or v5
+        // model must never reach the wire.
+        for legacy in ["stt-async-v4", "stt-async-v5"] {
+            let mut p = params();
+            p.model = legacy.to_string();
+            let req = build_create_request(&p, "file-1").unwrap();
+            assert_eq!(body_json(&req)["model"], "stt-async-v6", "{legacy}");
+        }
     }
 
     #[test]

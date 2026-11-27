@@ -204,6 +204,23 @@ extension CloudTranscriptionModels {
             provider: .assemblyAI,
             pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — same as Universal-3 Pro; medical add-on billed separately
         ),
+        // STT-3.7 (released 2026-11-18, #3106): BYOK only — no HyperWhisper Cloud
+        // row until Cloud prices it. Successor to universal-3-5-pro, which stays
+        // the default for now.
+        CloudTranscriptionModel(
+            id: "assemblyai-stt-3-7",
+            isAvailable: true,
+            description: "AssemblyAI's newest flagship model. Natively covers 32 languages. Keyterms prompting up to 1000 terms.",
+            provider: .assemblyAI,
+            pricePerSecond: nil
+        ),
+        CloudTranscriptionModel(
+            id: "assemblyai-stt-3-7-medical",
+            isAvailable: true,
+            description: "STT-3.7 with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Medical add-on billed separately.",
+            provider: .assemblyAI,
+            pricePerSecond: nil
+        ),
         ]
     }
 
@@ -262,7 +279,7 @@ extension CloudTranscriptionModels {
         [
         // Soniox Models
         CloudTranscriptionModel(
-            id: "stt-async-v5",
+            id: "stt-async-v6",
             isAvailable: true,
             description: "Soniox's latest async batch transcription model with 60+ supported languages.",
             provider: .soniox,
@@ -277,19 +294,12 @@ extension CloudTranscriptionModels {
         // Google Gemini Models
         // gemini-3.8-flash is the catalog default since #1019: Google limits the
         // 2.5 models to accounts that used them before 2026-09-18, so a fresh key
-        // may not reach 2.5 Flash. The 2.5 rows stay for the users who have them.
+        // may not reach the 2.5 models. 2.5 Pro and 2.5 Flash were retired (#3009,
+        // both aliased to 3.8 Flash); only 2.5 Flash Lite stays.
         CloudTranscriptionModel(
             id: "gemini-3.8-flash",
             isAvailable: true,
             description: "Google's current Flash model and the default for new keys. Supports custom vocabulary via prompting.",
-            provider: .gemini,
-            isPopular: true,
-            pricePerSecond: nil  // Token-based pricing, not per-second
-        ),
-        CloudTranscriptionModel(
-            id: "gemini-2.5-flash",
-            isAvailable: true,
-            description: "Fast and affordable multimodal transcription. Supports custom vocabulary via prompting.",
             provider: .gemini,
             isPopular: true,
             pricePerSecond: nil  // Token-based pricing, not per-second
@@ -302,14 +312,9 @@ extension CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: nil
         ),
-        CloudTranscriptionModel(
-            id: "gemini-2.5-pro",
-            isAvailable: true,
-            description: "Highest quality Gemini model. Best accuracy for complex audio with background noise.",
-            provider: .gemini,
-            isPopular: true,
-            pricePerSecond: nil
-        ),
+        // gemini-2.5-pro row removed (#3009): Google deprecated it 2026-11-02 and
+        // auto-routes it to 3.8 Flash from 2026-12-01. Saved modes migrate via
+        // legacyGeminiAliases.
         CloudTranscriptionModel(
             id: "gemini-3.1-flash-lite",
             isAvailable: true,

@@ -355,11 +355,11 @@ mod tests {
     #[test]
     fn kind_disambiguates_same_id_across_voice_and_text() {
         let c = catalog();
-        // gemini-2.5-flash is a voice row; there is no text row with that id.
-        let voice = c.entry("gemini", Kind::Voice, "gemini-2.5-flash");
+        // gemini-2.5-flash-lite is a voice row; there is no text row with that id.
+        let voice = c.entry("gemini", Kind::Voice, "gemini-2.5-flash-lite");
         assert!(voice.is_some());
         assert_eq!(voice.unwrap().kind(), Kind::Voice);
-        let text = c.entry("gemini", Kind::Text, "gemini-2.5-flash");
+        let text = c.entry("gemini", Kind::Text, "gemini-2.5-flash-lite");
         assert!(text.is_none());
     }
 

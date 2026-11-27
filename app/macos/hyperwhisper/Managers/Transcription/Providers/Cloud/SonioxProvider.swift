@@ -14,7 +14,7 @@
 //  poll loop (Swift owns the deadline + sleep interval + cancellation +
 //  transient tolerance), the fire-and-forget cleanup deletes, and logging.
 //
-//  The core owns model defaulting (empty → stt-async-v5), the `context`
+//  The core owns model defaulting (empty → stt-async-v6), the `context`
 //  vocabulary build, the `language_hints` gate, the `status == "error"` →
 //  QuotaExceeded/BadRequest throw (incl. balance/funds/autopay/quota/limit
 //  keyword mapping), and the transcript `{text}` parse + NoSpeech-on-empty.
@@ -80,7 +80,7 @@ class SonioxProvider: TranscriptionProvider {
         }
 
         // Build TranscribeParams. Pass the RAW model id (empty → core default
-        // stt-async-v5) and sanitized vocabulary boost terms — the core's create builder
+        // stt-async-v6) and sanitized vocabulary boost terms — the core's create builder
         // owns model defaulting, the `context` vocabulary join, and the
         // `language_hints` gate. The previous catalog-default lookup is no longer
         // needed (the core's default tracks the catalog default).

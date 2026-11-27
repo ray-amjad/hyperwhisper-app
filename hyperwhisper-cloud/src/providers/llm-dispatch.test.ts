@@ -86,13 +86,13 @@ describe('resolveLLMModel', () => {
 
   test('the gemini default is 3.8 Flash, and the 2.5 ids stay selectable', () => {
     // Google limits gemini-2.5-* to past users, so a blank, typo'd or BYOK-only
-    // gemini id falls back to 3.8 Flash. A client that asks for a 2.5 id by
-    // name still gets it.
+    // gemini id falls back to 3.8 Flash. 2.5 Flash Lite is still served by name;
+    // the retired 2.5 Flash is served as 3.8 Flash (Ray, #3009).
     expect(defaultModelFor('gemini')).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('gemini', requestWith({}))).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.7-flash' }))).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flassh' }))).toBe('gemini-3.8-flash');
-    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash' }))).toBe('gemini-2.5-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash' }))).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash-lite' }))).toBe('gemini-2.5-flash-lite');
   });
 });
@@ -111,7 +111,8 @@ describe('cost functions', () => {
   });
 
   test('gemini bills per model', () => {
-    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', oneM)).toBeCloseTo(0.30 + 2.50, 6);
+    // Retired (#3009): bills at the 3.8 Flash default it is served as.
+    expect(computeLLMChatCost('gemini', 'gemini-2.5-flash', oneM)).toBe(computeLLMChatCost('gemini', 'gemini-3.8-flash', oneM));
     expect(computeLLMChatCost('gemini', 'gemini-2.5-flash-lite', oneM)).toBeCloseTo(0.10 + 0.40, 6);
     // gemini-3.8-flash has no hand-written price line: its rate is pinned
     // generically, against the catalog, by the parity block in
@@ -150,8 +151,7 @@ describe('servedLLMName', () => {
 
   test('non-default multi-model models echo the resolved model, not the default', () => {
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
-    expect(servedLLMName('gemini', 'gemini-2.5-flash')).toBe('gemini-2.5-flash');
-    expect(servedLLMName('gemini', 'gemini-2.5-flash')).not.toBe(providerLabel('gemini'));
+    expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).not.toBe(providerLabel('gemini'));
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
   });
 

@@ -290,13 +290,14 @@ mod tests {
     #[test]
     fn multi_model_default_and_visible_models() {
         let c = catalog();
-        // gemini lists gemini-3.8-flash (default) + 2.5-flash + 2.5-flash-lite.
-        // Google limits the 2.5 models to past users, so 3.8 Flash is the default.
+        // gemini lists gemini-3.8-flash (default) + 2.5-flash-lite. 2.5 Flash left
+        // the Cloud offer (#3009): a saved `gemini:gemini-2.5-flash` resolves to the
+        // engine default on every head, which is 3.8 Flash (Ray, 2026-11-25).
         let models = c.models("gemini");
-        assert_eq!(models.len(), 3);
+        assert_eq!(models.len(), 2);
         let dm = c.default_model("gemini").unwrap();
         assert_eq!(dm.id, "gemini-3.8-flash");
-        assert!(c.model("gemini", "gemini-2.5-flash").is_some());
+        assert!(c.model("gemini", "gemini-2.5-flash").is_none());
         // Specific lookup.
         let lite = c.model("gemini", "gemini-2.5-flash-lite").unwrap();
         assert_eq!(lite.price_per_m_input, Some(0.10));

@@ -28,7 +28,7 @@ type OpenAICompatAdapter = {
   /** Put `extraBody` right after `model` instead of after the payload (xAI's byte order before the table). */
   extraBodyFirst?: boolean;
   /** Leave the shared payload's `temperature` out of the body (the model accepts only its default). */
-  omitTemperature?: boolean;
+  omitTemperature?: boolean | ((model: string) => boolean);
 };
 
 // The 2.5-flash and 3.8-flash families default to a dynamic thinking budget and
@@ -39,7 +39,8 @@ type OpenAICompatAdapter = {
 // inheriting one of these. First match wins, so keep a longer prefix above a
 // shorter one it extends.
 //
-// - 2.5-flash: 'none' turns thinking off.
+// - 2.5-flash-lite: 'none' turns thinking off. (gemini-2.5-flash itself is gone,
+//   #3009; a saved id resolves to 3.8 Flash before it gets here.)
 // - 3.8-flash: thinking cannot be turned off; its levels are low/medium/high
 //   (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07). Measured on
 //   the OpenAI-compat surface 2026-10-15: 'minimal' is a 400 ("Thinking level
@@ -50,7 +51,7 @@ type OpenAICompatAdapter = {
 //   matches the transcription client (the `thinking` field on the gemini rows
 //   in stt-models.ts).
 const GEMINI_REASONING_EFFORT_BY_PREFIX: ReadonlyArray<readonly [prefix: string, effort: string]> = [
-  ['gemini-2.5-flash', 'none'],
+  ['gemini-2.5-flash-lite', 'none'],
   ['gemini-3.8-flash', 'low'],
 ];
 
@@ -103,6 +104,10 @@ const OPENAI_COMPAT_ADAPTERS: Record<OpenAICompatProvider, OpenAICompatAdapter> 
       const effort = GEMINI_REASONING_EFFORT_BY_PREFIX.find(([prefix]) => model.startsWith(prefix))?.[1];
       return effort ? { reasoning_effort: effort } : {};
     },
+    // Gemini 3.x removed the sampling parameters (Gemini API changelog
+    // 2026-11-02, #3009), so only the 2.5 rows still get `temperature: 0`.
+    // Matches generationConfig() in providers/gemini.ts.
+    omitTemperature: (model) => !model.startsWith('gemini-2.5-'),
   },
   // Mistral's chat/completions accepts the shared chat payload unchanged.
   // Verified 2026-06-19.
@@ -122,7 +127,10 @@ export function buildOpenAICompatBody(
 ): Record<string, unknown> {
   const adapter = OPENAI_COMPAT_ADAPTERS[provider];
   const { temperature, ...withoutTemperature } = payload;
-  const shared = adapter.omitTemperature ? withoutTemperature : payload;
+  const omit = typeof adapter.omitTemperature === 'function'
+    ? adapter.omitTemperature(model)
+    : adapter.omitTemperature === true;
+  const shared = omit ? withoutTemperature : payload;
   const { maxOutputTokens } = llmModelRow(provider, model);
   const cap = maxOutputTokens === undefined ? {} : { max_completion_tokens: maxOutputTokens };
   const extra = adapter.extraBody?.(model);

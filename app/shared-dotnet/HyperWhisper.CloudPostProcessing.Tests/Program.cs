@@ -16,6 +16,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("custom endpoint validation", TestCustomValidation),
     ("custom Groq request policy", TestCustomGroq),
     ("HyperWhisper Cloud catalog route", TestHyperWhisperCloud),
+    ("a retired Cloud Gemini model runs the Gemini default (#3009)", TestHyperWhisperCloudRetiredGeminiModel),
     ("HyperWhisper Cloud with no account key fails closed", TestHyperWhisperCloudDevice),
     ("HyperWhisper Cloud base URL is switchable", TestHyperWhisperCloudBaseUrl),
     ("HyperWhisper Cloud sends the transcript once", TestHyperWhisperCloudTranscriptOnce),
@@ -313,6 +314,29 @@ static async Task TestHyperWhisperCloud()
     Assert(snapshot.Headers["X-LLM-Model"] == "openai/gpt-oss-120b", "cloud model header mismatch");
     Assert(snapshot.Body.Contains("\"license_key\":\"license-secret\"", StringComparison.Ordinal), "license auth missing");
     Assert(!snapshot.Body.Contains("device-safe", StringComparison.Ordinal), "device id sent with license");
+}
+
+// #3009: gemini-2.5-flash left cloud-pp-catalog.json. A mode that stored it keeps the
+// Gemini engine and runs that engine's default (gemini-3.8-flash), not another vendor.
+static async Task TestHyperWhisperCloudRetiredGeminiModel()
+{
+    RequestSnapshot? seen = null;
+    var handler = new StubHandler(async request =>
+    {
+        seen = await RequestSnapshot.FromAsync(request);
+        return Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}");
+    });
+    var credentials = new MemoryCredentialSource();
+    credentials.SetLicense("license-secret", "device-safe");
+    using var service = Service(handler, credentials);
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    {
+        HyperWhisperCloudModel = "gemini:gemini-2.5-flash",
+    });
+    var snapshot = seen ?? throw new InvalidOperationException("cloud request was not captured");
+    Assert(result.WasApplied, "cloud response failed");
+    Assert(snapshot.Headers["X-LLM-Provider"] == "gemini", $"provider header was '{snapshot.Headers["X-LLM-Provider"]}'");
+    Assert(snapshot.Headers["X-LLM-Model"] == "gemini-3.8-flash", $"model header was '{snapshot.Headers["X-LLM-Model"]}'");
 }
 
 static async Task TestHyperWhisperCloudDevice()

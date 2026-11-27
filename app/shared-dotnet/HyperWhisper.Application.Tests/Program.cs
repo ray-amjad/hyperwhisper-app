@@ -3095,7 +3095,8 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     // Google owns geminiTranscribe AND gemini, and the fold to one row is deliberate.
     Assert(editor.CloudVendor == "google", $"geminiTranscribe sits under '{editor.CloudVendor}', not Google");
     Assert(editor.CloudTierModels.Contains("gemini-3.5-transcribe"), "the Google row lost Gemini 3.5 Transcribe");
-    Assert(editor.CloudTierModels.Contains("gemini-2.5-flash"),
+    // gemini-2.5-flash-lite stands in for the Gemini tier: 2.5 Flash left the catalog (#3009).
+    Assert(editor.CloudTierModels.Contains("gemini-2.5-flash-lite"),
         "the Google row lists one tier only - the Gemini family is missing");
 
     // The mode chose no model, and the row must still show the one that will run.
@@ -3106,12 +3107,12 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     // Picking a model from the OTHER tier of the same company moves the tier with it.
     // Getting this wrong changes the upstream route, the credits and the vocabulary
     // support, with no visible change in the picker.
-    editor.CloudTierModel = "gemini-2.5-flash";
+    editor.CloudTierModel = "gemini-2.5-flash-lite";
     Assert(editor.CloudAccuracyTier == "gemini", $"the tier stayed '{editor.CloudAccuracyTier}' after a Gemini model");
     Assert(editor.CloudVendor == "google", "the company changed when only the model was picked");
     await editor.SaveAsync();
     var saved = (await repository.ListAsync()).Single(row => row.Id == mode.Id);
-    Assert(saved.CloudAccuracyTier == "gemini" && saved.CloudTranscriptionModel == "gemini-2.5-flash",
+    Assert(saved.CloudAccuracyTier == "gemini" && saved.CloudTranscriptionModel == "gemini-2.5-flash-lite",
         $"saved tier '{saved.CloudAccuracyTier}' with model '{saved.CloudTranscriptionModel}'");
 
     // Changing company lands on that company's default tier AND its default model,
@@ -3120,7 +3121,7 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     editor.CloudVendor = "deepgram";
     Assert(editor.CloudAccuracyTier == "deepgramNova3", $"Deepgram seeded tier '{editor.CloudAccuracyTier}'");
     Assert(editor.CloudTierModel == "nova-3-general", $"Deepgram seeded model '{editor.CloudTierModel}'");
-    Assert(editor.CloudTierModel != "gemini-2.5-flash" && !editor.CloudTierModels.Contains("gemini-2.5-flash"),
+    Assert(editor.CloudTierModel != "gemini-2.5-flash-lite" && !editor.CloudTierModels.Contains("gemini-2.5-flash-lite"),
         "the previous company's model survived the change");
 
     // The dialog re-applies the Model selection after a list change, and the two-way
@@ -3147,7 +3148,7 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
 
     // A stored model from the company's OTHER tier is not what runs, so the row must not
     // show it. The router runs the tier's default for it.
-    var crossTier = new Mode { Name = "Cross tier", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "geminiTranscribe", CloudTranscriptionModel = "gemini-2.5-flash", Language = "en" };
+    var crossTier = new Mode { Name = "Cross tier", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "geminiTranscribe", CloudTranscriptionModel = "gemini-2.5-flash-lite", Language = "en" };
     await repository.UpsertAsync(crossTier);
     editor.Selected = crossTier;
     Assert(editor.CloudTierModel == "gemini-3.5-transcribe",
@@ -3157,7 +3158,7 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     // and the change is announced so the credits and vocabulary rows follow.
     var tierNotified = false;
     editor.PropertyChanged += (_, e) => tierNotified |= e.PropertyName == nameof(ModesViewModel.ShowCloudModelPanel);
-    editor.CloudTierModel = "gemini-2.5-flash";
+    editor.CloudTierModel = "gemini-2.5-flash-lite";
     Assert(editor.CloudAccuracyTier == "gemini", $"the tier stayed '{editor.CloudAccuracyTier}'");
     Assert(tierNotified, "the tier moved with no reveal notification");
 

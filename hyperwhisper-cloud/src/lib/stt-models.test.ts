@@ -154,6 +154,27 @@ describe('resolveModel', () => {
     if (legacy.ok) expect(legacy.model.id).toBe('gemini-3.8-flash');
   });
 
+  test('the deprecated gemini-2.5-pro id is served and billed as gemini-3.8-flash (#3009)', () => {
+    // Google auto-routes 2.5 Pro to 3.8 Flash from 2026-12-01. Its row is gone,
+    // so a shipped client still sending it is served the successor, not a 400.
+    const legacy = resolveModel('gemini', 'gemini-2.5-pro');
+    expect(legacy.ok).toBe(true);
+    if (legacy.ok) expect(legacy.model.id).toBe('gemini-3.8-flash');
+    expect(getProviderDef('gemini').models.map((m) => m.id)).not.toContain('gemini-2.5-pro');
+    // The alias cannot raise the bill: the retired 2.5 Pro row reserved $0.0075/min.
+    expect(estimatedUsdPerMinute('gemini', 'gemini-2.5-pro')).toBeLessThanOrEqual(0.0075);
+    // 2.5 Flash went the same way (Ray, #3009): served and billed as 3.8 Flash at
+    // its existing rate. 2.5 Flash Lite is not deprecated and keeps its row.
+    const flash = resolveModel('gemini', 'gemini-2.5-flash');
+    expect(flash.ok).toBe(true);
+    if (flash.ok) expect(flash.model.id).toBe('gemini-3.8-flash');
+    expect(getProviderDef('gemini').models.map((m) => m.id)).not.toContain('gemini-2.5-flash');
+    expect(estimatedUsdPerMinute('gemini', 'gemini-2.5-flash')).toBe(estimatedUsdPerMinute('gemini', 'gemini-3.8-flash'));
+    const lite = resolveModel('gemini', 'gemini-2.5-flash-lite');
+    expect(lite.ok).toBe(true);
+    if (lite.ok) expect(lite.model.id).toBe('gemini-2.5-flash-lite');
+  });
+
   test('the retired grok-voice-transcribe-1.0 id is served as 2.0, not a 400 (#1908)', () => {
     // xAI ended 1.0 on 2026-10-02 and reroutes it to 2.0 at the same price. A
     // shipped client can still send it as X-STT-Model.
@@ -197,18 +218,25 @@ describe('resolveModel', () => {
     if (llm.ok) expect(llm.model.supportsVocabulary).toBe(false);
   });
 
-  test('Soniox stt-async-v5 resolves and is now the provider default', () => {
-    const explicit = resolveModel('soniox', 'stt-async-v5');
+  test('Soniox stt-async-v6 resolves and is now the provider default (#3030)', () => {
+    const explicit = resolveModel('soniox', 'stt-async-v6');
     expect(explicit.ok).toBe(true);
-    if (explicit.ok) expect(explicit.model.id).toBe('stt-async-v5');
+    if (explicit.ok) expect(explicit.model.id).toBe('stt-async-v6');
 
     const defaulted = resolveModel('soniox', undefined);
     expect(defaulted.ok).toBe(true);
-    if (defaulted.ok) expect(defaulted.model.id).toBe('stt-async-v5');
+    if (defaulted.ok) expect(defaulted.model.id).toBe('stt-async-v6');
 
-    const legacy = resolveModel('soniox', 'stt-async-v4');
-    expect(legacy.ok).toBe(true);
-    if (legacy.ok) expect(legacy.model.id).toBe('stt-async-v5');
+    // Soniox removes v5 on 2026-12-15; v4 and v5 are both one hop to v6.
+    for (const retired of ['stt-async-v4', 'stt-async-v5']) {
+      const legacy = resolveModel('soniox', retired);
+      expect(legacy.ok).toBe(true);
+      if (legacy.ok) expect(legacy.model.id).toBe('stt-async-v6');
+    }
+    expect(getProviderDef('soniox').models.map((m) => m.id)).toEqual(['stt-async-v6']);
+    // v6 keeps v5's price (Ray, #3030): the reservation is unchanged.
+    expect(estimatedUsdPerMinute('soniox', 'stt-async-v5')).toBe(0.00167);
+    expect(estimatedUsdPerMinute('soniox', 'stt-async-v6')).toBe(0.00167);
   });
 
   test('Meta Muse resolves only its exact batch model', () => {
@@ -477,9 +505,7 @@ describe('cloud STT registry ↔ cloud-stt-catalog.json parity', () => {
     'openai/gpt-4o-mini-transcribe': 'token-billed; reservation adds an output-token allowance on top of the catalog input rate',
     'openai/gpt-4o-mini-transcribe-2025-12-15': 'token-billed at the gpt-4o-mini-transcribe rates (same reservation)',
     'gemini/gemini-3.8-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
-    'gemini/gemini-2.5-flash': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini/gemini-2.5-flash-lite': 'token-billed (input + output tokens); priced per usage, not per minute',
-    'gemini/gemini-2.5-pro': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini/gemini-3.1-pro-preview': 'token-billed (input + output tokens); priced per usage, not per minute',
     'gemini-transcribe/gemini-3.5-transcribe': 'token-billed; 5.5 credits/min is pinned in cost-calculator.test.ts',
     'gemini-transcribe/gemini-3.5-transcribe-live': 'token-billed and live-only (WebSocket route); estimate tracks words, not seconds',

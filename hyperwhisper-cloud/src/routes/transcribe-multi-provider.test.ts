@@ -1200,8 +1200,8 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // the gate on a tiny clip + large vocab and is deducted more than reserved.
     const shortClip = 64_000; // ~8s by the 64 kbps estimate
     const largePrompt = Array.from({ length: 100 }, (_, i) => `Terminology${i}`).join(',');
-    const base = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-2.5-pro' });
-    const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-2.5-pro', initialPrompt: largePrompt });
+    const base = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-3.1-pro-preview' });
+    const withPrompt = estimateCreditsForProviderFallbacks({ sizeBytes: shortClip, provider: 'gemini', model: 'gemini-3.1-pro-preview', initialPrompt: largePrompt });
     expect(withPrompt).toBeGreaterThan(base);
   });
 

@@ -56,6 +56,20 @@ function thinkingConfig(model: string): Record<string, unknown> {
   return { ...(findModelRow('gemini', model) ?? defaultModelRow('gemini')).thinking };
 }
 
+/**
+ * generationConfig for `model`. Gemini 3.x removed the sampling parameters
+ * (Gemini API changelog 2026-11-02: "thinking_level replaces thinking_budget,
+ * sampling params ... removed", #3009), so `temperature` goes only to the 2.5
+ * rows, which still author a `thinkingBudget`. A `thinkingLevel` row is a 3.x
+ * model and gets thinking only.
+ */
+export function generationConfig(model: string): Record<string, unknown> {
+  const thinking = thinkingConfig(model);
+  return 'thinkingBudget' in thinking
+    ? { temperature: 0, thinkingConfig: thinking }
+    : { thinkingConfig: thinking };
+}
+
 function buildPrompt(language?: string, initialPrompt?: string): string {
   let prompt = 'Transcribe the speech in this audio verbatim. Output only the transcript text with no commentary, labels, timestamps, or preamble.';
   if (isExplicitLanguage(language)) {
@@ -241,10 +255,7 @@ export async function transcribeWithGemini(
         { inline_data: { mime_type: geminiMimeType(contentType), data: arrayBufferToBase64(audio) } },
       ],
     }],
-    generationConfig: {
-      temperature: 0,
-      thinkingConfig: thinkingConfig(model),
-    },
+    generationConfig: generationConfig(model),
   };
 
   logProviderEvent(provider, 'prepare', {

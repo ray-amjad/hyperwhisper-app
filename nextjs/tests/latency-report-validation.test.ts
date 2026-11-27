@@ -318,7 +318,7 @@ test("exactly one model per vendor is badged as the default", async () => {
   // A row on the page is a vendor, so "default" has to mean what the app means
   // by it: what picking that vendor and touching nothing else gives you. Google
   // marks a default inside BOTH its entries (gemini-3.5-transcribe and
-  // gemini-2.5-flash), but selecting Google lands on the first entry in catalog
+  // gemini-3.8-flash), but selecting Google lands on the first entry in catalog
   // order and then on that entry's default — one model, not two.
   const badged = new Map<string, string[]>();
   for (const entry of STT_CATALOG as CatalogFile["providers"]) {

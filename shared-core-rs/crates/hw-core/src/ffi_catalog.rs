@@ -1206,7 +1206,7 @@ mod tests {
     /// the kind (or mapped both arms to `Voice`) would answer `true` twice.
     #[test]
     fn models_lookups_are_kind_sensitive() {
-        let id = "gemini-2.5-flash".to_string();
+        let id = "gemini-2.5-flash-lite".to_string();
         assert!(models_supports_custom_vocabulary(
             "gemini".to_string(),
             HwKind::Voice,
@@ -1642,7 +1642,6 @@ mod tests {
             ids,
             vec![
                 "gemini-3.8-flash".to_string(),
-                "gemini-2.5-flash".to_string(),
                 "gemini-2.5-flash-lite".to_string()
             ]
         );

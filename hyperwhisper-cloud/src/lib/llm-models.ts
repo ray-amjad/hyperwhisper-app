@@ -12,7 +12,6 @@
 import { roundUsd, type GroqUsage } from './cost-calculator';
 import {
   GEMINI_2_5_FLASH_LITE_PRICE,
-  GEMINI_2_5_FLASH_PRICE,
   GEMINI_3_8_FLASH_PRICE,
   type GeminiTokenPrice,
 } from './gemini-prices';
@@ -104,16 +103,16 @@ export const LLM_MODELS: readonly LLMModelRow[] = [
 
   // Google Gemini (OpenAI-compatible endpoint). https://ai.google.dev/gemini-api/docs/pricing
   // Google limits gemini-2.5-* to past users, so a request with no (or an
-  // unknown) X-LLM-Model resolves to 3.8 Flash, the catalog isDefault row; the
-  // 2.5 ids stay for clients that ask for them. 3.8 Flash is INTRODUCTORY
+  // unknown) X-LLM-Model resolves to 3.8 Flash, the catalog isDefault row.
+  // gemini-2.5-flash is no longer a row (deprecated 2026-11-02; Ray, #3009): an
+  // old client still sending it resolves to 3.8 Flash and bills at its rate,
+  // the gpt-5-mini precedent above. 2.5 Flash Lite is not deprecated and stays. 3.8 Flash is INTRODUCTORY
   // pricing — $0.75/$3.75 per 1M runs to 2026-12-31. The prices are shared
   // with the STT rows for the same ids (gemini-prices.ts, which says what else
   // changes with them). An unknown id bills at 3.8 Flash, the dearest row here,
   // so drift never under-bills.
   { provider: 'gemini', model: 'gemini-3.8-flash', servedName: 'gemini-3.8-flash', isDefault: true,
     rate: geminiChatRate(GEMINI_3_8_FLASH_PRICE) },
-  { provider: 'gemini', model: 'gemini-2.5-flash', servedName: 'gemini-2.5-flash',
-    rate: geminiChatRate(GEMINI_2_5_FLASH_PRICE) },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite', servedName: 'gemini-2.5-flash-lite',
     rate: geminiChatRate(GEMINI_2_5_FLASH_LITE_PRICE) },
 

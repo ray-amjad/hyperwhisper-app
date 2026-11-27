@@ -47,7 +47,8 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.AssemblyAi, "universal-3-5-pro", 5L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.ElevenLabs, "scribe_v2", 3L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Mistral, "voxtral-mini-latest", 100L * ByteSizes.MiB, false),
-        new ProviderLimit(CloudTranscriptionProvider.Soniox, "stt-async-v5", 1L * ByteSizes.GiB, false),
+        // stt-async-v6: Soniox removes v5 on 2026-12-15 (#3030).
+        new ProviderLimit(CloudTranscriptionProvider.Soniox, "stt-async-v6", 1L * ByteSizes.GiB, false),
         // gemini-3.8-flash, not 2.5 Flash: Google limits 2.5 to past users (#1019).
         new ProviderLimit(CloudTranscriptionProvider.Gemini, "gemini-3.8-flash", 2L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Grok, "", 500L * ByteSizes.MiB, false),
@@ -147,6 +148,30 @@ static async Task RetiredModelAliasesBeforeCheck()
         new(FileTranscriptionRoute.Cloud, "gemini-3-flash-preview", CloudProvider: CloudTranscriptionProvider.Gemini));
     Assert(result.IsSuccess && result.ResolvedModel == "gemini-3.8-flash",
         $"a Gemini gemini-3-flash-preview mode resolved to '{result.ResolvedModel}' ({result.Failure?.Code}), not gemini-3.8-flash");
+
+    // #3009 / #3030: Google retires 2.5 Pro and 2.5 Flash (both to 3.8 Flash); Soniox removes v4 and v5.
+    foreach (var (provider, stored, expected) in new[]
+    {
+        (CloudTranscriptionProvider.Gemini, "gemini-2.5-pro", "gemini-3.8-flash"),
+        (CloudTranscriptionProvider.Gemini, "gemini-2.5-flash", "gemini-3.8-flash"),
+        (CloudTranscriptionProvider.Soniox, "stt-async-v5", "stt-async-v6"),
+        (CloudTranscriptionProvider.Soniox, "stt-async-v4", "stt-async-v6"),
+    })
+    {
+        var aliased = await Service(new FakeMetadata { Value = metadata.Value }).ValidateAsync("recording.wav",
+            new(FileTranscriptionRoute.Cloud, stored, CloudProvider: provider));
+        Assert(aliased.IsSuccess && aliased.ResolvedModel == expected,
+            $"a {provider} {stored} mode resolved to '{aliased.ResolvedModel}' ({aliased.Failure?.Code}), not {expected}");
+    }
+
+    // #3106: the STT-3.7 BYOK rows are accepted as they are.
+    foreach (var model in new[] { "assemblyai-stt-3-7", "assemblyai-stt-3-7-medical" })
+    {
+        var stt37 = await Service(new FakeMetadata { Value = metadata.Value }).ValidateAsync("recording.wav",
+            new(FileTranscriptionRoute.Cloud, model, CloudProvider: CloudTranscriptionProvider.AssemblyAi));
+        Assert(stt37.IsSuccess && stt37.ResolvedModel == model,
+            $"AssemblyAI {model} resolved to '{stt37.ResolvedModel}' ({stt37.Failure?.Code})");
+    }
 
     // Scoped by provider: the Gemini alias does not rescue the id under another vendor.
     AssertCode(await Service(new FakeMetadata { Value = metadata.Value }).ValidateAsync("recording.wav",

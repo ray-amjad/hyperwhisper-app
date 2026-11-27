@@ -27,10 +27,6 @@ export const GEMINI_3_8_FLASH_PRICE: GeminiTokenPrice = {
   textInputPerToken: 0.75 / M, audioInputPerToken: 0.75 / M, outputPerToken: 3.75 / M,
 };
 
-export const GEMINI_2_5_FLASH_PRICE: GeminiTokenPrice = {
-  textInputPerToken: 0.30 / M, audioInputPerToken: 1.00 / M, outputPerToken: 2.50 / M,
-};
-
 export const GEMINI_2_5_FLASH_LITE_PRICE: GeminiTokenPrice = {
   textInputPerToken: 0.10 / M, audioInputPerToken: 0.30 / M, outputPerToken: 0.40 / M,
 };

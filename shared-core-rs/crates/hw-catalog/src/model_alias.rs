@@ -68,7 +68,13 @@ const DEEPGRAM_ALIASES: &[(&str, &str)] = &[
     ("whisper-large", "nova-3-general"),
 ];
 
-const SONIOX_ALIASES: &[(&str, &str)] = &[("stt-async-v4", "stt-async-v5")];
+/// Soniox removes `stt-async-v5` on 2026-12-15 and routes it to `stt-async-v6`,
+/// "fully compatible" at the same price (#3030). Both retired ids land on v6 in
+/// one hop. PARITY: macOS `legacySonioxAliases`, hyperwhisper-cloud stt-models.ts.
+const SONIOX_ALIASES: &[(&str, &str)] = &[
+    ("stt-async-v4", "stt-async-v6"),
+    ("stt-async-v5", "stt-async-v6"),
+];
 
 /// Every target must be a model the `gemini` catalog entry sells: a mapping onto
 /// an id the catalog lacks is judged foreign by the membership guard, which then
@@ -85,6 +91,15 @@ const GEMINI_ALIASES: &[(&str, &str)] = &[
     // post-processing tables, Windows MigrateModelId, shared-dotnet Migrate, and
     // hyperwhisper-cloud stt-models.ts.
     ("gemini-3-flash-preview", "gemini-3.8-flash"),
+    // Google deprecated 2.5 Pro on 2026-11-02 and auto-routes it to 3.8 Flash from
+    // 2026-12-01 (#3009). The 2.5 Pro voice row is gone from every picker; 3.8
+    // Flash is cheaper on Cloud ($0.0030/min reserved vs $0.0075). Same PARITY
+    // list as the entry above.
+    ("gemini-2.5-pro", "gemini-3.8-flash"),
+    // Google deprecated 2.5 Flash on the same date. Its named successor (3.5
+    // Flash Lite) is not a Gemini STT row anywhere, so Ray chose 3.8 Flash at its
+    // existing price (#3009, 2026-11-25); the 2.5 Flash voice row is gone too.
+    ("gemini-2.5-flash", "gemini-3.8-flash"),
 ];
 
 /// OpenAI STT ids deprecated 2026-08-26, shutdown 2027-02-26
@@ -252,7 +267,26 @@ mod tests {
         assert_eq!(resolve_model_alias("scribe_v1", Some("elevenlabs")), "scribe_v2");
         assert_eq!(
             resolve_model_alias("stt-async-v4", Some("soniox")),
-            "stt-async-v5"
+            "stt-async-v6"
+        );
+        assert_eq!(
+            resolve_model_alias("stt-async-v5", Some("soniox")),
+            "stt-async-v6"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-2.5-pro", Some("gemini")),
+            "gemini-3.8-flash"
+        );
+        assert_eq!(resolve_model_alias("gemini-2.5-pro", None), "gemini-3.8-flash");
+        assert_eq!(
+            resolve_model_alias("gemini-2.5-flash", Some("gemini")),
+            "gemini-3.8-flash"
+        );
+        assert_eq!(resolve_model_alias("gemini-2.5-flash", None), "gemini-3.8-flash");
+        // 2.5 Flash Lite is not deprecated and must not move.
+        assert_eq!(
+            resolve_model_alias("gemini-2.5-flash-lite", Some("gemini")),
+            "gemini-2.5-flash-lite"
         );
         assert_eq!(
             resolve_model_alias("gemini-2.0-flash", Some("gemini")),
@@ -464,7 +498,8 @@ mod tests {
         assert_eq!(resolve_model_alias("nova-2", None), "nova-2-general");
         assert_eq!(resolve_model_alias("nova-2", Some("notaprovider")), "nova-2-general");
         assert_eq!(resolve_model_alias("scribe_v1", None), "scribe_v2");
-        assert_eq!(resolve_model_alias("stt-async-v4", None), "stt-async-v5");
+        assert_eq!(resolve_model_alias("stt-async-v4", None), "stt-async-v6");
+        assert_eq!(resolve_model_alias("stt-async-v5", None), "stt-async-v6");
         assert_eq!(resolve_model_alias("universal", None), "universal-2");
     }
 

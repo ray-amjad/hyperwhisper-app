@@ -31,8 +31,12 @@ extension CloudTranscriptionModels {
         legacyElevenLabsAliases[id] ?? id
     }
 
+    /// Soniox removes `stt-async-v5` on 2026-12-15 and routes it to `stt-async-v6`,
+    /// "fully compatible" at the same price (#3030). Both retired ids land on v6 in
+    /// one hop. PARITY: hw-catalog SONIOX_ALIASES, hyperwhisper-cloud stt-models.ts.
     private static let legacySonioxAliases: [String: String] = [
-        "stt-async-v4": "stt-async-v5",
+        "stt-async-v4": "stt-async-v6",
+        "stt-async-v5": "stt-async-v6",
     ]
 
     static func resolveSonioxModelAlias(_ id: String) -> String {
@@ -46,6 +50,14 @@ extension CloudTranscriptionModels {
         "gemini-2.0-flash": "gemini-3.8-flash",
         // Left the picker 2026-10 for the GA model. PARITY: hw-catalog GEMINI_ALIASES.
         "gemini-3-flash-preview": "gemini-3.8-flash",
+        // Google deprecated 2.5 Pro on 2026-11-02 and auto-routes it to 3.8 Flash
+        // from 2026-12-01 (#3009); the 2.5 Pro voice row left the picker.
+        // PARITY: hw-catalog GEMINI_ALIASES.
+        "gemini-2.5-pro": "gemini-3.8-flash",
+        // 2.5 Flash goes the same way (#3009): saved ids move to 3.8 Flash at its
+        // existing price; the 2.5 Flash voice row left the picker.
+        // PARITY: hw-catalog GEMINI_ALIASES.
+        "gemini-2.5-flash": "gemini-3.8-flash",
     ]
 
     static func resolveGeminiModelAlias(_ id: String) -> String {
