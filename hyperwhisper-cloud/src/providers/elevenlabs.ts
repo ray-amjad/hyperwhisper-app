@@ -279,7 +279,7 @@ export async function transcribeWithElevenLabs(
     text: transcript,
     language: data.language_code,
     durationSeconds: billedSeconds,
-    costUsd: computeElevenLabsTranscriptionCost(billedSeconds, keyterms.length > 0),
+    costUsd: computeElevenLabsTranscriptionCost(billedSeconds, keyterms.length > 0, modelId),
     source: 'elevenlabs',
   };
 }

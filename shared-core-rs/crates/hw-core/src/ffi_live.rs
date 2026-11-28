@@ -25,6 +25,10 @@ use hw_net::live as lv;
 /// `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
 /// from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
 /// tier — only the latter bills credits.
+///
+/// `Mistral` is the BYOK Voxtral Mini Transcribe Realtime 3 socket. No head
+/// maps a provider onto it yet; it is here so the core's protocol is reachable
+/// the day one does, and so this enum stays a total mirror of the core's.
 #[derive(uniffi::Enum)]
 pub enum HwLiveProvider {
     Deepgram,
@@ -33,6 +37,7 @@ pub enum HwLiveProvider {
     Grok,
     GeminiTranscribe,
     HyperWhisperCloud,
+    Mistral,
 }
 
 impl From<HwLiveProvider> for lv::LiveProvider {
@@ -44,6 +49,7 @@ impl From<HwLiveProvider> for lv::LiveProvider {
             HwLiveProvider::Grok => lv::LiveProvider::Grok,
             HwLiveProvider::GeminiTranscribe => lv::LiveProvider::GeminiTranscribe,
             HwLiveProvider::HyperWhisperCloud => lv::LiveProvider::HyperWhisperCloud,
+            HwLiveProvider::Mistral => lv::LiveProvider::Mistral,
         }
     }
 }
@@ -57,6 +63,7 @@ impl From<lv::LiveProvider> for HwLiveProvider {
             lv::LiveProvider::Grok => HwLiveProvider::Grok,
             lv::LiveProvider::GeminiTranscribe => HwLiveProvider::GeminiTranscribe,
             lv::LiveProvider::HyperWhisperCloud => HwLiveProvider::HyperWhisperCloud,
+            lv::LiveProvider::Mistral => HwLiveProvider::Mistral,
         }
     }
 }
@@ -683,6 +690,17 @@ impl HwLiveSession {
             .collect()
     }
 
+    /// Text the provider streamed but never committed, as one final, or nil.
+    ///
+    /// Call it when the session ends WITHOUT its completion event (the stop
+    /// path's `WaitForSessionComplete` timed out, or the socket closed or
+    /// failed) and before a reconnect, then append the final like any other.
+    /// It answers once, and nil for a provider that commits as it goes, so it
+    /// is safe to call on every ending path. Only Mistral holds text back.
+    pub fn flush_uncommitted(&self) -> Option<HwLiveEvent> {
+        self.locked().flush_uncommitted().map(Into::into)
+    }
+
     /// Forget every frame this session has seen. What makes a reconnect able to
     /// reuse one object instead of rebuilding it from the config.
     pub fn reset(&self) {
@@ -698,7 +716,7 @@ impl HwLiveSession {
 mod tests {
     use super::*;
 
-    const ALL: [lv::LiveProvider; 6] = lv::LiveProvider::ALL;
+    const ALL: [lv::LiveProvider; 7] = lv::LiveProvider::ALL;
 
     fn hw_tag(p: &HwLiveProvider) -> &'static str {
         match p {
@@ -708,6 +726,7 @@ mod tests {
             HwLiveProvider::Grok => "grok",
             HwLiveProvider::GeminiTranscribe => "gemini_transcribe",
             HwLiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
+            HwLiveProvider::Mistral => "mistral",
         }
     }
 
@@ -719,6 +738,7 @@ mod tests {
             lv::LiveProvider::Grok => "grok",
             lv::LiveProvider::GeminiTranscribe => "gemini_transcribe",
             lv::LiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
+            lv::LiveProvider::Mistral => "mistral",
         }
     }
 

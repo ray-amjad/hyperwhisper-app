@@ -161,9 +161,21 @@ function perMinuteRate(row: SttModelDef): number {
   return row.billing.usdPerMinute;
 }
 
-export function computeElevenLabsTranscriptionCost(durationSeconds: number, keyterms: boolean = false): number {
-  // The adapter decides whether keyterms were sent (scribe_v2 only).
-  return computeRowDurationCost(defaultModelRow('elevenlabs'), durationSeconds, false, keyterms);
+export function computeElevenLabsTranscriptionCost(
+  durationSeconds: number,
+  keyterms: boolean = false,
+  model?: string,
+): number {
+  // The adapter decides whether keyterms were sent. Bill the row of the model
+  // that ran: this used to read the default row whatever was requested, so a
+  // second ElevenLabs Cloud model would have billed at scribe_v2's rate. An id
+  // with no row (or none) bills at the default, like Groq.
+  return computeRowDurationCost(
+    findModelRow('elevenlabs', model) ?? defaultModelRow('elevenlabs'),
+    durationSeconds,
+    false,
+    keyterms,
+  );
 }
 
 export function computeDeepgramTranscriptionCost(durationSeconds: number): number {
@@ -502,8 +514,10 @@ export function computeAssemblyAISyncTranscriptionCost(durationSeconds: number):
   return roundUsd((durationSeconds / 60) * ASSEMBLYAI_SYNC_USD_PER_MINUTE);
 }
 
-export function computeMistralTranscriptionCost(durationSeconds: number): number {
-  return computeRowDurationCost(defaultModelRow('mistral'), durationSeconds);
+export function computeMistralTranscriptionCost(durationSeconds: number, model?: string): number {
+  // The requested model's row, not the default's (same bug and same fallback
+  // as computeElevenLabsTranscriptionCost).
+  return computeRowDurationCost(findModelRow('mistral', model) ?? defaultModelRow('mistral'), durationSeconds);
 }
 
 export function computeSonioxTranscriptionCost(durationSeconds: number, contextTextTokens: number = 0): number {

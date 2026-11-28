@@ -391,6 +391,70 @@ enum STTCapabilities {
                             "nl"   // Dutch
                         ]),
                         notes: "Mistral's state-of-the-art transcription model. Supports 13 languages with automatic detection. Custom vocabulary is sent as a context_bias list (max 100 terms)."
+                    ),
+                    // Voxtral Small Transcribe 3 (2026-11). Mistral's Languages page list
+                    // for voxtral-small-transcribe-3-0 (53, the set in
+                    // shared-models/models-catalog.json) minus Odia `or`: the shared
+                    // language table has no row for it, and LanguageData asserts on an
+                    // unknown code (the Azure lists drop it the same way). 52 here.
+                    STTModelSpec(
+                        id: "voxtral-small-transcribe-3",
+                        languages: STTLanguageTemplates.codes([
+                            "auto",
+                            "ar",
+                            "bn",
+                            "bg",
+                            "my",
+                            "ca",
+                            "zh",
+                            "cs",
+                            "da",
+                            "nl",
+                            "en",
+                            "et",
+                            "tl",
+                            "fi",
+                            "fr",
+                            "de",
+                            "el",
+                            "gu",
+                            "hi",
+                            "hu",
+                            "is",
+                            "id",
+                            "it",
+                            "ja",
+                            "kn",
+                            "km",
+                            "ko",
+                            "lv",
+                            "lt",
+                            "lb",
+                            "mk",
+                            "ms",
+                            "ml",
+                            "mt",
+                            "mr",
+                            "no",
+                            "fa",
+                            "pl",
+                            "pt",
+                            "pa",
+                            "ro",
+                            "ru",
+                            "sr",
+                            "sk",
+                            "sl",
+                            "es",
+                            "sv",
+                            "ta",
+                            "te",
+                            "th",
+                            "tr",
+                            "uk",
+                            "vi"
+                        ]),
+                        notes: "Mistral's larger Voxtral 3 transcription model. Supports 53 languages with automatic detection. Custom vocabulary is sent as a context_bias list (max 100 terms)."
                     )
                 ]
             ),

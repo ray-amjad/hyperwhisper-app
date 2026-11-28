@@ -13,6 +13,7 @@
 //
 //  SUPPORTED MODELS:
 //  - voxtral-mini-latest: State-of-the-art transcription model ($0.002/min)
+//  - voxtral-small-transcribe-3: Voxtral 3 Small, same request shape ($0.004/min, BYOK)
 //
 //  LIMITATIONS:
 //  - No free-text prompt field; vocabulary goes out as `context_bias`

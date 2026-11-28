@@ -4,6 +4,7 @@ import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUn
 import { captureNoSpeechEvent } from './test-support';
 import { mockFetchOnce } from '../test-support/fetch-stubs';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
+import { getProviderDef } from '../lib/stt-models';
 import { pcm16Wav, wav as buildWav, type WavOptions } from '../test-support/wav';
 
 const originalFetch = globalThis.fetch;
@@ -179,6 +180,21 @@ describe('transcribeWithElevenLabs — billed duration is the audio length (#260
     expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
     expect(r.costUsd).toBeCloseTo(computeElevenLabsTranscriptionCost(r.durationSeconds), 9);
     expect(creditsForCost(r.costUsd)).toBe(creditsForCost(computeElevenLabsTranscriptionCost(60)));
+  });
+
+  test('bills the row of the model it sent, not the default row', async () => {
+    // A probe row with a rate no real row has; see cost-calculator.test.ts.
+    const models = getProviderDef('elevenlabs').models as unknown as Array<Record<string, unknown>>;
+    const id = 'probe-elevenlabs-adapter-row';
+    models.push({ id, supportsVocabulary: false, billing: { kind: 'perMinute', usdPerMinute: 0.5 }, estimatedUsdPerMinute: 0.5 });
+    try {
+      mockFetchOnce(() => jsonResponse({ text: 'Hello there.', language_code: 'en', language_probability: 1 }));
+      const r = await transcribeWithElevenLabs(wav(60), 'audio/wav', 'en', undefined, { model: id });
+      expect(r.durationSeconds).toBeGreaterThanOrEqual(59);
+      expect(r.costUsd).toBeCloseTo((r.durationSeconds / 60) * 0.5, 6);
+    } finally {
+      models.splice(models.findIndex((m) => m.id === id), 1);
+    }
   });
 
   test('a transcript with no word timings is not billed as zero seconds', async () => {

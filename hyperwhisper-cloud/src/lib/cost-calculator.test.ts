@@ -856,3 +856,65 @@ describe('usage-object fallbacks and guards', () => {
     expect(reserved).toBeCloseTo(billedContext, 9);
   });
 });
+
+// computeElevenLabsTranscriptionCost / computeMistralTranscriptionCost billed the
+// DEFAULT row whatever model ran. Each provider had one Cloud row, so the bug was
+// latent; the first second row (scribe_v3, voxtral-small-transcribe-3) would have
+// billed at the default's rate. A probe row with a rate no real row has proves
+// the requested row is the one read, independent of which rows the registry
+// holds today.
+describe('ElevenLabs and Mistral bill the requested model row, not the default', () => {
+  function withProbeRow(
+    provider: 'elevenlabs' | 'mistral',
+    usdPerMinute: number,
+    addOns: Record<string, unknown> | undefined,
+    run: (id: string) => void,
+  ): void {
+    const models = getProviderDef(provider).models as unknown as Array<Record<string, unknown>>;
+    const id = `probe-${provider}-billing-row`;
+    models.push({
+      id,
+      supportsVocabulary: true,
+      billing: { kind: 'perMinute', usdPerMinute },
+      estimatedUsdPerMinute: usdPerMinute,
+      ...(addOns ? { addOns } : {}),
+    });
+    try {
+      run(id);
+    } finally {
+      models.splice(models.findIndex((m) => m.id === id), 1);
+    }
+  }
+
+  test('Mistral bills the requested row', () => {
+    withProbeRow('mistral', 0.5, undefined, (id) => {
+      expect(computeMistralTranscriptionCost(120, id)).toBeCloseTo(1.0, 6);
+    });
+  });
+
+  test('ElevenLabs bills the requested row, keyterms surcharge from that row', () => {
+    const elevenDefault = getProviderDef('elevenlabs').models.find(
+      (m) => m.id === getProviderDef('elevenlabs').defaultModel,
+    )!;
+    withProbeRow('elevenlabs', 0.5, elevenDefault.addOns as Record<string, unknown> | undefined, (id) => {
+      expect(computeElevenLabsTranscriptionCost(60, false, id)).toBeCloseTo(0.5, 6);
+      expect(computeElevenLabsTranscriptionCost(60, true, id)).toBeGreaterThan(0.5);
+    });
+  });
+
+  test('every registry row bills at its own rate', () => {
+    for (const row of getProviderDef('mistral').models) {
+      expect(computeMistralTranscriptionCost(60, row.id)).toBeCloseTo(row.estimatedUsdPerMinute, 6);
+    }
+    for (const row of getProviderDef('elevenlabs').models) {
+      expect(computeElevenLabsTranscriptionCost(60, false, row.id)).toBeCloseTo(row.estimatedUsdPerMinute, 6);
+    }
+  });
+
+  test('no model, or an id with no row, still bills the default row', () => {
+    expect(computeMistralTranscriptionCost(120)).toBeCloseTo(0.006, 6);
+    expect(computeMistralTranscriptionCost(120, 'not-a-model')).toBeCloseTo(0.006, 6);
+    expect(computeElevenLabsTranscriptionCost(60, false, 'not-a-model')).toBeCloseTo(0.00983, 6);
+    expect(computeElevenLabsTranscriptionCost(60, true, undefined)).toBeCloseTo(0.00983 * 1.2, 6);
+  });
+});

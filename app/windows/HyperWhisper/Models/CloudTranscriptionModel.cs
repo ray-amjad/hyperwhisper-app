@@ -326,6 +326,7 @@ public static class CloudTranscriptionModels
     /// <summary>
     /// Mistral transcription models.
     /// - voxtral-mini-latest: Latest Voxtral Mini model
+    /// - voxtral-small-transcribe-3: Voxtral 3 Small (BYOK only)
     /// NOTE: Custom vocabulary is sent as `context_bias`.
     /// </summary>
     public static readonly CloudTranscriptionModel[] Mistral = new[]
@@ -336,6 +337,15 @@ public static class CloudTranscriptionModels
             Description = "Audio transcription with context-bias vocabulary",
             Provider = CloudTranscriptionProvider.Mistral,
             IsPopular = true
+        },
+        // Voxtral Small Transcribe 3 (2026-11): same endpoint and request shape as
+        // Voxtral Mini. BYOK only (no HyperWhisper Cloud row), and not the default:
+        // voxtral-mini-latest stays IsPopular.
+        new CloudTranscriptionModel
+        {
+            Id = "voxtral-small-transcribe-3",
+            Description = "Larger Voxtral 3 model, 53 languages, context-bias vocabulary",
+            Provider = CloudTranscriptionProvider.Mistral
         }
     };
 

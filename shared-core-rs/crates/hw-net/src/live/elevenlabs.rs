@@ -1,4 +1,10 @@
-//! ElevenLabs Scribe v2 realtime.
+//! ElevenLabs Scribe realtime: `scribe_v2_realtime` and `scribe_v3_live`.
+//!
+//! Both models share one endpoint, one query surface and one message set
+//! (ElevenLabs' realtime reference lists `model_id` as
+//! `scribe_v2_realtime | scribe_v3_live`), so the model is a query value and
+//! nothing else changes. See [`resolve_model`] for why an unknown id falls back
+//! rather than passing through.
 //!
 //! The simplest of the five: no start frames, no control frames, no stop frames
 //! and no session state. Every knob is a query parameter set at connect time,
@@ -19,6 +25,29 @@ use super::config::{
 use super::AudioFraming;
 
 const ENDPOINT: &str = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
+
+/// The realtime model every head shipped before `scribe_v3_live`, and the one
+/// an unset or unrecognised model id resolves to.
+pub const SCRIBE_V2_REALTIME: &str = "scribe_v2_realtime";
+
+/// Scribe v3's realtime model (2026-11), same socket and messages as v2.
+pub const SCRIBE_V3_LIVE: &str = "scribe_v3_live";
+
+/// The `model_id` to connect with.
+///
+/// Only the two ElevenLabs realtime ids pass through; anything else is
+/// [`SCRIBE_V2_REALTIME`]. That fallback is load-bearing, not tidiness: the
+/// heads fill `LiveConfig::model` from ONE shared streaming-model setting that
+/// was Deepgram's (`nova-3-general` on macOS's `streamingDeepgramModel`, and the
+/// .NET `streaming.deepgramModel` key), so before this change every ElevenLabs
+/// session already carried a Deepgram id here and the hard-coded literal hid
+/// it. Passing that through would make ElevenLabs refuse the socket.
+pub fn resolve_model(model: Option<&str>) -> &'static str {
+    match model.map(str::trim) {
+        Some(SCRIBE_V3_LIVE) => SCRIBE_V3_LIVE,
+        _ => SCRIBE_V2_REALTIME,
+    }
+}
 
 /// Only one of the three shipped error strings ever diverged.
 /// `quota_exceeded` and `rate_limited` are character-identical on macOS and
@@ -42,7 +71,7 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     let api_key = super::config::present(&config.api_key).ok_or(LiveError::MissingCredential)?;
 
     let mut query = Query::default();
-    query.push_literal("model_id=scribe_v2_realtime");
+    query.push("model_id", resolve_model(config.model.as_deref()));
     query.push_literal("audio_format=pcm_16000");
     query.push_literal("commit_strategy=vad");
     query.push_literal("vad_silence_threshold_secs=1.5");
