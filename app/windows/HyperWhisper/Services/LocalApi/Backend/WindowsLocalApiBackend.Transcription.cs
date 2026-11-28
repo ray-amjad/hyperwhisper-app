@@ -58,6 +58,14 @@ internal sealed partial class WindowsLocalApiBackend
         // Held from the Parakeet model check until this request's transcription has
         // ended, so no other caller's idle reload swaps the model in between (#1608).
         IDisposable? parakeetModelLease = null;
+
+        // The engine's start and model load this request paid land here, so load_ms
+        // holds them and decode_ms the rest: Whisper's worker start and load after an
+        // idle exit, inside the transcription (#1932); Parakeet's load or full daemon
+        // reload, in the model check below, or its auto-restart inside the
+        // transcription (#3041). Opened here, in the method that awaits both: an
+        // AsyncLocal set inside a helper would not flow back out.
+        using var modelLoad = LocalModelLoadTiming.Begin();
         try
         {
             if (!LocalModeModel.IsCloud(effectiveMode))
@@ -87,10 +95,9 @@ internal sealed partial class WindowsLocalApiBackend
                 }
             }
 
-            // Whisper's worker start and model load land here when this request
-            // paid them (a cold start after an idle exit), so load_ms holds
-            // them and decode_ms the rest (#1932).
-            using var whisperLoad = WhisperLoadTiming.Begin();
+            // The load the model check paid. Not its wait for another caller's job to
+            // finish (#1608): that is queueing, outside latency_ms as before.
+            var loadBeforeTranscription = modelLoad.Elapsed;
             var started = DateTime.UtcNow;
             TranscriptionResult result;
             try
@@ -119,8 +126,8 @@ internal sealed partial class WindowsLocalApiBackend
                 throw WindowsLocalApiFailure.Business(LocalApiErrorCode.TranscriptionFailed, ex.Message);
             }
 
-            var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
-            var loadMs = (int)Math.Round(whisperLoad.Elapsed.TotalMilliseconds);
+            var (latencyMs, loadMs) = MeasureTimings(
+                DateTime.UtcNow - started, loadBeforeTranscription, modelLoad.Elapsed);
             return BuildResponse(result, effectiveMode, latencyMs, loadMs);
         }
         finally
@@ -272,8 +279,9 @@ internal sealed partial class WindowsLocalApiBackend
     /// </remarks>
     /// <param name="latencyMs">The whole transcription, load included.</param>
     /// <param name="loadMs">
-    /// The part of it spent starting the Whisper worker and loading the model;
-    /// zero when the worker was warm, or for another engine. decode_ms is the rest.
+    /// The part of it spent starting the local engine and loading the model (the
+    /// Whisper worker, #1932; the Parakeet daemon, #3041); zero when it was warm,
+    /// or for a cloud engine. decode_ms is the rest.
     /// </param>
     internal static SharedApi.TranscriptionResult BuildResponse(
         TranscriptionResult result,
@@ -291,6 +299,24 @@ internal sealed partial class WindowsLocalApiBackend
             loadMs,
             latencyMs - loadMs,
             latencyMs);
+    }
+
+    /// <summary>
+    /// The latency and load the response reports (#3041). <paramref name="transcription"/>
+    /// is the orchestrator call, which holds any load paid inside it (a Whisper cold start,
+    /// a Parakeet auto-restart); <paramref name="loadBeforeTranscription"/> is the Parakeet
+    /// load or reload the model check paid before it, which the latency must hold too, or
+    /// <see cref="BuildResponse"/> would clamp that load away. <paramref name="totalLoad"/>
+    /// is both loads. A warm request has no load: load 0, latency the transcription.
+    /// </summary>
+    internal static (int LatencyMs, int LoadMs) MeasureTimings(
+        TimeSpan transcription,
+        TimeSpan loadBeforeTranscription,
+        TimeSpan totalLoad)
+    {
+        var latencyMs = (int)Math.Round((transcription + loadBeforeTranscription).TotalMilliseconds);
+        var loadMs = (int)Math.Round(totalLoad.TotalMilliseconds);
+        return (latencyMs, loadMs);
     }
 
     /// <returns>

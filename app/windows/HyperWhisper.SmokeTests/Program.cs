@@ -14699,27 +14699,27 @@ internal static class Program
                 Assert(rounded.LoadMs == 500 && rounded.DecodeMs == 0, "a load over the latency went negative");
             });
 
-            RunAsync("WhisperLoadTiming adds only to the scope on its own async flow — issue #1932", async () =>
+            RunAsync("LocalModelLoadTiming adds only to the scope on its own async flow — issue #1932", async () =>
             {
-                WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(5)); // no scope open: dropped
+                LocalModelLoadTiming.Add(TimeSpan.FromMilliseconds(5)); // no scope open: dropped
 
-                using var outer = WhisperLoadTiming.Begin();
-                await Task.Run(() => WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(400)));
+                using var outer = LocalModelLoadTiming.Begin();
+                await Task.Run(() => LocalModelLoadTiming.Add(TimeSpan.FromMilliseconds(400)));
 
                 // A concurrent caller with its own scope (the API) and one with none
                 // (a GUI dictation) do not add to this one.
                 var other = Task.Run(async () =>
                 {
-                    using var own = WhisperLoadTiming.Begin();
+                    using var own = LocalModelLoadTiming.Begin();
                     await Task.Yield();
-                    WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(70));
+                    LocalModelLoadTiming.Add(TimeSpan.FromMilliseconds(70));
                     return own.Elapsed;
                 });
                 var none = Task.Run(() =>
                 {
                     using (ExecutionContext.SuppressFlow())
                     {
-                        return Task.Run(() => WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(900)));
+                        return Task.Run(() => LocalModelLoadTiming.Add(TimeSpan.FromMilliseconds(900)));
                     }
                 });
                 var otherElapsed = await other;
@@ -27503,6 +27503,7 @@ internal static class Program
             PendingHistoryUnreadableChecks.RunAll(Run);
             MonoFoldMidFrameChecks.RunAll(Run);
             ParakeetGuiLoadReloadChecks.RunAll(Run);
+            ParakeetDaemonExitAndLoadTimingChecks.RunAll(Run);
             TranscriptionRetryHandlerChecks.RunAll(Run);
             UpdateMessageWindowChecks.RunAll(Run);
             WindowIconDpiChecks.RunAll(Run, EnsureSmokeApplication);

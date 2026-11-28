@@ -822,7 +822,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             {
                 LoggingService.Info($"  Worker start and model load: {transcript.StartAndLoad.TotalMilliseconds:0}ms");
             }
-            WhisperLoadTiming.Add(transcript.StartAndLoad);
+            LocalModelLoadTiming.Add(transcript.StartAndLoad);
             return transcript;
         }
         finally
